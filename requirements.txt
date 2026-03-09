@@ -1,0 +1,4 @@
+anthropic
+youtube-transcript-api
+scrapetube
+python-dotenv
