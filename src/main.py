@@ -5,7 +5,7 @@ import json
 import os
 import re
 import smtplib
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
@@ -28,20 +28,16 @@ SENT_FILE = Path(__file__).resolve().parent.parent / "sent.json"
 CHANNELS = {
     "oddsshopper": {
         "url": "https://www.youtube.com/@OddsShopper",
-        "channel_id": None,  # resolved by scrapetube from URL
         "match": lambda title: all(
             kw.lower() in title.lower()
             for kw in ["lindy", "leans", "locks"]
         ),
         "label": "Lindy's Leans Likes & Locks",
-        "only_video": False,  # channel posts many videos; match by title
     },
     "daftpreviews": {
         "url": "https://www.youtube.com/@daftpreviews",
-        "channel_id": None,
-        "match": lambda title: True,  # any video — just grab the latest
+        "match": lambda title: True,
         "label": "Daft Previews",
-        "only_video": True,  # expect exactly one video today
     },
 }
 
@@ -62,15 +58,14 @@ def save_sent(sent: dict) -> None:
 
 def is_today(video: dict) -> bool:
     """Check if a video was published today (or within last 24h as fallback)."""
-    # scrapetube returns publishedText like "1 hour ago", "3 hours ago", etc.
     text = video.get("publishedTimeText", {}).get("simpleText", "")
     if not text:
         return False
     text_lower = text.lower()
-    # "X hours ago", "X minutes ago", "just now" → today
-    if any(unit in text_lower for unit in ["minute", "hour", "just now", "second"]):
+    if any(unit in text_lower for unit in [
+        "minute", "hour", "just now", "second",
+    ]):
         return True
-    # "1 day ago" is borderline — include it for early morning runs
     if "1 day ago" in text_lower:
         return True
     return False
@@ -79,13 +74,13 @@ def is_today(video: dict) -> bool:
 def find_video(channel_key: str) -> dict | None:
     """Find today's target video for a channel."""
     cfg = CHANNELS[channel_key]
-    # scrapetube.get_channel accepts channel_url
     videos = scrapetube.get_channel(channel_url=cfg["url"], limit=15)
 
     for video in videos:
-        title = video.get("title", {}).get("runs", [{}])[0].get("text", "")
+        title = (
+            video.get("title", {}).get("runs", [{}])[0].get("text", "")
+        )
         if not title:
-            # fallback: some scrapetube versions use accessibility label
             title = (
                 video.get("title", {})
                 .get("accessibility", {})
@@ -95,11 +90,7 @@ def find_video(channel_key: str) -> dict | None:
         video_id = video.get("videoId", "")
 
         if not is_today(video):
-            if cfg["only_video"]:
-                # For channels that post only one video/day, keep scanning
-                continue
-            else:
-                continue
+            continue
 
         if cfg["match"](title):
             return {"video_id": video_id, "title": title}
@@ -147,7 +138,6 @@ def send_email(subject: str, body_html: str) -> bool:
     msg["From"] = EMAIL_FROM
     msg["To"] = EMAIL_TO
 
-    # plain text fallback
     body_text = re.sub(r"<[^>]+>", "", body_html)
     body_text = re.sub(r"\s+", " ", body_text).strip()
 
@@ -159,29 +149,31 @@ def send_email(subject: str, body_html: str) -> bool:
             server.starttls()
             server.login(EMAIL_FROM, GOOGLE_APP_PW)
             server.sendmail(EMAIL_FROM, [EMAIL_TO], msg.as_string())
-        print(f"  ✓ Email sent to {EMAIL_TO}")
+        print(f"  Email sent to {EMAIL_TO}")
         return True
     except Exception as e:
-        print(f"  ✗ Failed to send email: {e}")
+        print(f"  Failed to send email: {e}")
         return False
 
 
 def build_email(summaries: list[dict]) -> tuple[str, str]:
     """Build subject + HTML body from a list of summaries."""
     today = date.today().strftime("%A %-m/%-d")
-    subject = f"Morning Bets – {today}"
+    subject = f"Morning Bets - {today}"
 
     sections = ""
     for s in summaries:
-        # Convert markdown-ish summary to HTML
         summary_html = s["summary"].replace("\n", "<br>")
         sections += f"""
         <div style="margin-bottom: 30px;">
-            <h2 style="color: #1a1a2e; border-bottom: 2px solid #e94560; padding-bottom: 6px;">
+            <h2 style="color: #1a1a2e; border-bottom: 2px solid #e94560;
+                       padding-bottom: 6px;">
                 {s['label']}
             </h2>
             <p style="color: #666; font-size: 13px; margin: 4px 0 12px;">
-                <a href="https://youtube.com/watch?v={s['video_id']}">{s['title']}</a>
+                <a href="https://youtube.com/watch?v={s['video_id']}">
+                    {s['title']}
+                </a>
             </p>
             <div style="font-size: 14px; line-height: 1.6;">
                 {summary_html}
@@ -191,9 +183,9 @@ def build_email(summaries: list[dict]) -> tuple[str, str]:
 
     body_html = f"""
     <html>
-    <body style="font-family: -apple-system, system-ui, Segoe UI, Roboto, sans-serif;
-                 max-width: 700px; margin: 0 auto; padding: 20px;">
-        <h1 style="color: #0f3460;">Morning Bets – {today}</h1>
+    <body style="font-family: -apple-system, system-ui, Segoe UI, Roboto,
+                 sans-serif; max-width: 700px; margin: 0 auto; padding: 20px;">
+        <h1 style="color: #0f3460;">Morning Bets - {today}</h1>
         {sections}
         <p style="margin-top: 30px; color: #999; font-size: 11px;">
             Auto-generated from YouTube transcripts via Claude.
@@ -221,23 +213,23 @@ def run() -> None:
         video = find_video(channel_key)
 
         if not video:
-            print(f"  No video found yet.")
+            print("  No video found yet.")
             continue
 
         print(f"  Found: {video['title']}")
-        print(f"  Pulling transcript...")
+        print("  Pulling transcript...")
 
         try:
             transcript = get_transcript(video["video_id"])
         except Exception as e:
-            print(f"  ✗ Could not get transcript: {e}")
+            print(f"  Could not get transcript: {e}")
             continue
 
-        print(f"  Summarizing with Claude...")
+        print("  Summarizing with Claude...")
         try:
             summary = summarize(video["title"], transcript, cfg["label"])
         except Exception as e:
-            print(f"  ✗ Summarization failed: {e}")
+            print(f"  Summarization failed: {e}")
             continue
 
         summaries.append({
@@ -251,9 +243,7 @@ def run() -> None:
     if summaries:
         subject, body_html = build_email(summaries)
         if send_email(subject, body_html):
-            # Only mark as sent if email succeeded
             sent[today_key] = today_sent
-            # Clean up old entries (keep last 7 days)
             cutoff = (date.today() - timedelta(days=7)).isoformat()
             sent = {k: v for k, v in sent.items() if k >= cutoff}
             save_sent(sent)
