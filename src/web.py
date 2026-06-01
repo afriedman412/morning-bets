@@ -1,6 +1,7 @@
 """Local Flask app to browse daily bets + results."""
 from __future__ import annotations
 
+import json
 import webbrowser
 from collections import defaultdict
 from datetime import datetime
@@ -41,6 +42,27 @@ def _games_for_date(date_str: str) -> dict[str, dict]:
             "SELECT * FROM games WHERE date=?", (date_str,),
         ).fetchall()
     return {r["game_id"]: dict(r) for r in rows}
+
+
+def _sources_for_date(date_str: str) -> list[dict]:
+    """Read per-source video info from the JSON cache."""
+    fn = date_str.replace("-", "_")
+    p = PROJECT_ROOT / "bets" / f"{fn}.json"
+    if not p.exists():
+        return []
+    try:
+        data = json.loads(p.read_text())
+    except Exception:
+        return []
+    return [
+        {
+            "label": s.get("label", ""),
+            "title": s.get("title", ""),
+            "video_id": s.get("video_id", ""),
+            "url": f"https://www.youtube.com/watch?v={s.get('video_id', '')}",
+        }
+        for s in data
+    ]
 
 
 def _bets_for_date(date_str: str) -> list[dict]:
@@ -174,6 +196,7 @@ def day(date_str: str, view: str = "game"):
         groups=rendered_groups,
         counts=counts,
         view=view,
+        sources=_sources_for_date(date_str),
         all_days=_dates_with_bets(),
     )
 

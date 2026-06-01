@@ -74,4 +74,18 @@
       {% endif %}
     </section>
   {% endfor %}
+
+  {% if sources %}
+    <section class="sources">
+      <h3>Sources</h3>
+      <ul>
+        {% for s in sources %}
+          <li>
+            <a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.label }}</a>
+            <span class="title">{{ s.title }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
 {% endblock %}
