@@ -1,4 +1,5 @@
 anthropic
 youtube-transcript-api
-scrapetube
+yt-dlp
 python-dotenv
+flask

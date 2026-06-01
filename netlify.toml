@@ -1,0 +1,17 @@
+[build]
+  # No build step — `make publish` generates the static files locally
+  # and pushes them to git; Netlify just serves the contents of site/.
+  publish = "site"
+  command = ""
+
+# Pretty URLs without trailing slash → trailing slash (so links emitted by
+# the generator and bookmarks both resolve).
+[[redirects]]
+  from = "/:date"
+  to = "/:date/"
+  status = 301
+
+[[redirects]]
+  from = "/:date/source"
+  to = "/:date/source/"
+  status = 301

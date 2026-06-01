@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block body %}
+  <header class="top">
+    <h2>All days</h2>
+  </header>
+  {% if days %}
+    <div class="day-list">
+      {% for d in days %}
+        <a class="day-row" href="/{{ d.date }}/">
+          <div>
+            <div class="date">{{ d.date }}</div>
+            <div class="sub">
+              {{ d.total }} bet{% if d.total != 1 %}s{% endif %}
+              {% if d.pending %} · {{ d.pending }} pending{% endif %}
+              {% if d.ungradable %} · {{ d.ungradable }} ungradable{% endif %}
+            </div>
+          </div>
+          <div class="tally">
+            <div class="record">{{ d.wins or 0 }}-{{ d.losses or 0 }}{% if d.pushes %}-{{ d.pushes }}{% endif %}</div>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty">No bets yet — wait for the hourly cron to populate.</div>
+  {% endif %}
+{% endblock %}

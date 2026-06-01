@@ -64,3 +64,14 @@ format:
 
 guni:
 	gunicorn -w 4 -b 0.0.0.0:5000 app:app
+
+.PHONY: web publish
+
+web:
+	${PYTHON} -m src.web
+
+publish:
+	${PYTHON} -m src.web build
+	@git add site/
+	@git diff --cached --quiet site/ && echo "No site changes to commit." || \
+		(git commit -m "Publish site $$(date +%Y-%m-%d_%H:%M)" && git push)

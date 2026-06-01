@@ -2,6 +2,13 @@
 *-key.json
 *.log
 
+# Local data — never publish
+morning_bets.db
+bets/*.json
+bets/*_graded.md
+sent.json
+.cron-config
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ nice }} — Morning Bets{% endblock %}
+{% block body %}
+  <header class="top">
+    <h2>{{ nice }}</h2>
+    <div class="toggle">
+      <a href="/{{ date_str }}/" class="{% if view != 'source' %}active{% endif %}">By game</a>
+      <a href="/{{ date_str }}/source/" class="{% if view == 'source' %}active{% endif %}">By source</a>
+    </div>
+  </header>
+
+  <div class="summary">
+    <div class="stat">
+      <div class="num">{{ counts.W }}-{{ counts.L }}{% if counts.PUSH %}-{{ counts.PUSH }}{% endif %}</div>
+      <div class="lbl">Record</div>
+    </div>
+    <div class="stat">
+      <div class="num">{{ counts.TOTAL }}</div>
+      <div class="lbl">Total bets</div>
+    </div>
+    {% if counts.PENDING %}
+    <div class="stat">
+      <div class="num">{{ counts.PENDING }}</div>
+      <div class="lbl">Pending</div>
+    </div>
+    {% endif %}
+    {% if counts.UNGRADABLE %}
+    <div class="stat">
+      <div class="num">{{ counts.UNGRADABLE }}</div>
+      <div class="lbl">Ungradable</div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% macro render_bet(b, show_src) -%}
+    <li class="bet">
+      <div>
+        <div class="desc">
+          {{ b.description | safe }}
+          {% if b.confidence %}<span class="tier {{ b.confidence }}">{{ b.confidence }}</span>{% endif %}
+        </div>
+        {% if show_src %}<span class="src">{{ b.source_label }}</span>{% endif %}
+        {% if b.rationale %}<div class="rationale">{{ b.rationale }}</div>{% endif %}
+      </div>
+      <div class="actual">
+        {% if b.actual_value is not none %}actual: {{ b.actual_value }}{% endif %}
+      </div>
+      <span class="badge {{ b.result }}">{{ b.result }}</span>
+    </li>
+  {%- endmacro %}
+
+  {% for group_name, final, content in groups %}
+    <section class="game">
+      <h3>
+        {{ group_name }}
+        {% if final %}<span class="final">{{ final }}</span>{% endif %}
+      </h3>
+      {% if view == 'source' %}
+        {% for matchup, mfinal, bets in content %}
+          <div class="subgame">
+            <div class="sub-h">
+              {{ matchup }}
+              {% if mfinal %}<span class="final">{{ mfinal }}</span>{% endif %}
+            </div>
+            <ul>
+              {% for b in bets %}{{ render_bet(b, false) }}{% endfor %}
+            </ul>
+          </div>
+        {% endfor %}
+      {% else %}
+        <ul>
+          {% for b in content %}{{ render_bet(b, true) }}{% endfor %}
+        </ul>
+      {% endif %}
+    </section>
+  {% endfor %}
+{% endblock %}
