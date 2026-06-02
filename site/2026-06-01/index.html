@@ -73,6 +73,26 @@
     .sidebar .nav a.active { background: var(--panel); color: var(--ink); }
     .sidebar .nav a .rec { color: var(--muted); font-size: 11px; }
     .sidebar .nav a.active .rec { color: var(--accent); }
+    .sub-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      margin: 2px 0 6px 14px;
+      padding-left: 8px;
+      border-left: 1px solid var(--border);
+    }
+    .sub-nav a {
+      padding: 4px 10px;
+      font-size: 12px;
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 4px;
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sub-nav a:hover { color: var(--ink); background: var(--panel-2); }
 
     .main { min-width: 0; }
     .main header.top {
@@ -257,16 +277,41 @@
             <span>2026-06-02</span>
             <span class="rec">0-0</span>
           </a>
+          
         
           <a href="/2026-06-01/" class="active">
             <span>2026-06-01</span>
             <span class="rec">23-27</span>
           </a>
+          
+            <div class="sub-nav">
+              
+                <a href="#sec-1" title="KC @ CIN">KC @ CIN</a>
+              
+                <a href="#sec-2" title="CWS @ MIN">CWS @ MIN</a>
+              
+                <a href="#sec-3" title="COL @ LAA">COL @ LAA</a>
+              
+                <a href="#sec-4" title="LAD @ AZ">LAD @ AZ</a>
+              
+                <a href="#sec-5" title="TEX @ STL">TEX @ STL</a>
+              
+                <a href="#sec-6" title="DET @ TB">DET @ TB</a>
+              
+                <a href="#sec-7" title="MIA @ WSH">MIA @ WSH</a>
+              
+                <a href="#sec-8" title="NYM @ SEA">NYM @ SEA</a>
+              
+                <a href="#sec-9" title="SF @ MIL">SF @ MIL</a>
+              
+            </div>
+          
         
           <a href="/2026-05-31/">
             <span>2026-05-31</span>
             <span class="rec">46-30</span>
           </a>
+          
         
       </nav>
     </aside>
@@ -301,7 +346,7 @@
   
 
   
-    <section class="game">
+    <section class="game" id="sec-1">
       <h3>
         Kansas City Royals @ Cincinnati Reds
         <span class="final">Final: KC 9 - CIN 2</span>
@@ -469,7 +514,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-2">
       <h3>
         Chicago White Sox @ Minnesota Twins
         <span class="final">Final: CWS 6 - MIN 9</span>
@@ -598,7 +643,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-3">
       <h3>
         Colorado Rockies @ Los Angeles Angels
         <span class="final">Final: COL 9 - LAA 8</span>
@@ -701,7 +746,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-4">
       <h3>
         Los Angeles Dodgers @ Arizona Diamondbacks
         <span class="final">Final: LAD 1 - AZ 4</span>
@@ -804,7 +849,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-5">
       <h3>
         Texas Rangers @ St. Louis Cardinals
         <span class="final">Final: TEX 2 - STL 1</span>
@@ -907,7 +952,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-6">
       <h3>
         Detroit Tigers @ Tampa Bay Rays
         <span class="final">Final: DET 10 - TB 9</span>
@@ -997,7 +1042,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-7">
       <h3>
         Miami Marlins @ Washington Nationals
         <span class="final">Final: MIA 7 - WSH 3</span>
@@ -1087,7 +1132,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-8">
       <h3>
         New York Mets @ Seattle Mariners
         <span class="final">Final: NYM 2 - SEA 3</span>
@@ -1164,7 +1209,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-9">
       <h3>
         San Francisco Giants @ Milwaukee Brewers
         <span class="final">Final: SF 2 - MIL 16</span>

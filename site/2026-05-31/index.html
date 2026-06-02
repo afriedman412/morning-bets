@@ -73,6 +73,26 @@
     .sidebar .nav a.active { background: var(--panel); color: var(--ink); }
     .sidebar .nav a .rec { color: var(--muted); font-size: 11px; }
     .sidebar .nav a.active .rec { color: var(--accent); }
+    .sub-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      margin: 2px 0 6px 14px;
+      padding-left: 8px;
+      border-left: 1px solid var(--border);
+    }
+    .sub-nav a {
+      padding: 4px 10px;
+      font-size: 12px;
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 4px;
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sub-nav a:hover { color: var(--ink); background: var(--panel-2); }
 
     .main { min-width: 0; }
     .main header.top {
@@ -257,16 +277,57 @@
             <span>2026-06-02</span>
             <span class="rec">0-0</span>
           </a>
+          
         
           <a href="/2026-06-01/">
             <span>2026-06-01</span>
             <span class="rec">23-27</span>
           </a>
+          
         
           <a href="/2026-05-31/" class="active">
             <span>2026-05-31</span>
             <span class="rec">46-30</span>
           </a>
+          
+            <div class="sub-nav">
+              
+                <a href="#sec-1" title="San Francisco Giants @ Colorado Rockies">San Francisco Giants @ Colorado Rockies</a>
+              
+                <a href="#sec-2" title="San Diego Padres @ Washington Nationals">San Diego Padres @ Washington Nationals</a>
+              
+                <a href="#sec-3" title="Boston Red Sox @ Cleveland Guardians">Boston Red Sox @ Cleveland Guardians</a>
+              
+                <a href="#sec-4" title="Kansas City Royals @ Texas Rangers">Kansas City Royals @ Texas Rangers</a>
+              
+                <a href="#sec-5" title="Los Angeles Angels @ Tampa Bay Rays">Los Angeles Angels @ Tampa Bay Rays</a>
+              
+                <a href="#sec-6" title="Milwaukee Brewers @ Houston Astros">Milwaukee Brewers @ Houston Astros</a>
+              
+                <a href="#sec-7" title="Atlanta Braves @ Cincinnati Reds">Atlanta Braves @ Cincinnati Reds</a>
+              
+                <a href="#sec-8" title="Detroit Tigers @ Chicago White Sox">Detroit Tigers @ Chicago White Sox</a>
+              
+                <a href="#sec-9" title="Miami Marlins @ New York Mets">Miami Marlins @ New York Mets</a>
+              
+                <a href="#sec-10" title="Minnesota Twins @ Pittsburgh Pirates">Minnesota Twins @ Pittsburgh Pirates</a>
+              
+                <a href="#sec-11" title="San Antonio Spurs vs Oklahoma City Thunder">San Antonio Spurs vs Oklahoma City Thunder</a>
+              
+                <a href="#sec-12" title="Arizona Diamondbacks @ Seattle Mariners">Arizona Diamondbacks @ Seattle Mariners</a>
+              
+                <a href="#sec-13" title="Philadelphia Phillies @ Los Angeles Dodgers">Philadelphia Phillies @ Los Angeles Dodgers</a>
+              
+                <a href="#sec-14" title="Toronto Blue Jays @ Baltimore Orioles">Toronto Blue Jays @ Baltimore Orioles</a>
+              
+                <a href="#sec-15" title="Chicago Cubs @ St. Louis Cardinals">Chicago Cubs @ St. Louis Cardinals</a>
+              
+                <a href="#sec-16" title="New York Yankees @ Athletics">New York Yankees @ Athletics</a>
+              
+                <a href="#sec-17" title="Valkyries vs Aces">Valkyries vs Aces</a>
+              
+            </div>
+          
         
       </nav>
     </aside>
@@ -301,7 +362,7 @@
   
 
   
-    <section class="game">
+    <section class="game" id="sec-1">
       <h3>
         San Francisco Giants @ Colorado Rockies
         <span class="final">Final: San Francisco Giants 19 - Colorado Rockies 6</span>
@@ -456,7 +517,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-2">
       <h3>
         San Diego Padres @ Washington Nationals
         <span class="final">Final: San Diego Padres 2 - Washington Nationals 4</span>
@@ -572,7 +633,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-3">
       <h3>
         Boston Red Sox @ Cleveland Guardians
         <span class="final">Final: Boston Red Sox 9 - Cleveland Guardians 4</span>
@@ -675,7 +736,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-4">
       <h3>
         Kansas City Royals @ Texas Rangers
         <span class="final">Final: Kansas City Royals 3 - Texas Rangers 6</span>
@@ -778,7 +839,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-5">
       <h3>
         Los Angeles Angels @ Tampa Bay Rays
         <span class="final">Final: Los Angeles Angels 2 - Tampa Bay Rays 5</span>
@@ -881,7 +942,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-6">
       <h3>
         Milwaukee Brewers @ Houston Astros
         <span class="final">Final: Milwaukee Brewers 2 - Houston Astros 0</span>
@@ -984,7 +1045,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-7">
       <h3>
         Atlanta Braves @ Cincinnati Reds
         <span class="final">Final: Atlanta Braves 4 - Cincinnati Reds 6</span>
@@ -1074,7 +1135,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-8">
       <h3>
         Detroit Tigers @ Chicago White Sox
         <span class="final">Final: Detroit Tigers 1 - Chicago White Sox 2</span>
@@ -1164,7 +1225,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-9">
       <h3>
         Miami Marlins @ New York Mets
         <span class="final">Final: Miami Marlins 1 - New York Mets 10</span>
@@ -1254,7 +1315,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-10">
       <h3>
         Minnesota Twins @ Pittsburgh Pirates
         <span class="final">Final: Minnesota Twins 3 - Pittsburgh Pirates 9</span>
@@ -1344,7 +1405,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-11">
       <h3>
         San Antonio Spurs vs Oklahoma City Thunder
         
@@ -1434,7 +1495,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-12">
       <h3>
         Arizona Diamondbacks @ Seattle Mariners
         <span class="final">Final: Arizona Diamondbacks 2 - Seattle Mariners 3</span>
@@ -1511,7 +1572,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-13">
       <h3>
         Philadelphia Phillies @ Los Angeles Dodgers
         <span class="final">Final: Philadelphia Phillies 1 - Los Angeles Dodgers 9</span>
@@ -1588,7 +1649,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-14">
       <h3>
         Toronto Blue Jays @ Baltimore Orioles
         <span class="final">Final: Toronto Blue Jays 5 - Baltimore Orioles 9</span>
@@ -1665,7 +1726,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-15">
       <h3>
         Chicago Cubs @ St. Louis Cardinals
         <span class="final">Final: Chicago Cubs 1 - St. Louis Cardinals 5</span>
@@ -1729,7 +1790,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-16">
       <h3>
         New York Yankees @ Athletics
         <span class="final">Final: New York Yankees 13 - Athletics 8</span>
@@ -1793,7 +1854,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-17">
       <h3>
         Valkyries vs Aces
         

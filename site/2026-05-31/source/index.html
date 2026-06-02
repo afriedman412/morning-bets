@@ -73,6 +73,26 @@
     .sidebar .nav a.active { background: var(--panel); color: var(--ink); }
     .sidebar .nav a .rec { color: var(--muted); font-size: 11px; }
     .sidebar .nav a.active .rec { color: var(--accent); }
+    .sub-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      margin: 2px 0 6px 14px;
+      padding-left: 8px;
+      border-left: 1px solid var(--border);
+    }
+    .sub-nav a {
+      padding: 4px 10px;
+      font-size: 12px;
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 4px;
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sub-nav a:hover { color: var(--ink); background: var(--panel-2); }
 
     .main { min-width: 0; }
     .main header.top {
@@ -257,16 +277,39 @@
             <span>2026-06-02</span>
             <span class="rec">0-0</span>
           </a>
+          
         
           <a href="/2026-06-01/">
             <span>2026-06-01</span>
             <span class="rec">23-27</span>
           </a>
+          
         
           <a href="/2026-05-31/" class="active">
             <span>2026-05-31</span>
             <span class="rec">46-30</span>
           </a>
+          
+            <div class="sub-nav">
+              
+                <a href="#sec-1" title="Guy Boston Sports - MLB">Guy Boston Sports - MLB</a>
+              
+                <a href="#sec-2" title="Doc&#39;s Sports - Craig Trapp MLB">Doc&#39;s Sports - Craig Trapp MLB</a>
+              
+                <a href="#sec-3" title="PickDawgz - Ron&#39;s Rundown">PickDawgz - Ron&#39;s Rundown</a>
+              
+                <a href="#sec-4" title="Live With Lindy">Live With Lindy</a>
+              
+                <a href="#sec-5" title="Silverback Bets - MLB">Silverback Bets - MLB</a>
+              
+                <a href="#sec-6" title="Calling Our Shot - NBA">Calling Our Shot - NBA</a>
+              
+                <a href="#sec-7" title="BettingPros - Daily Top Bets">BettingPros - Daily Top Bets</a>
+              
+                <a href="#sec-8" title="Calling Our Shot - MLB">Calling Our Shot - MLB</a>
+              
+            </div>
+          
         
       </nav>
     </aside>
@@ -301,7 +344,7 @@
   
 
   
-    <section class="game">
+    <section class="game" id="sec-1">
       <h3>
         Guy Boston Sports - MLB
         
@@ -893,7 +936,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-2">
       <h3>
         Doc&#39;s Sports - Craig Trapp MLB
         
@@ -1300,7 +1343,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-3">
       <h3>
         PickDawgz - Ron&#39;s Rundown
         
@@ -1655,7 +1698,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-4">
       <h3>
         Live With Lindy
         
@@ -1855,7 +1898,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-5">
       <h3>
         Silverback Bets - MLB
         
@@ -2095,7 +2138,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-6">
       <h3>
         Calling Our Shot - NBA
         
@@ -2193,7 +2236,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-7">
       <h3>
         BettingPros - Daily Top Bets
         
@@ -2295,7 +2338,7 @@
       
     </section>
   
-    <section class="game">
+    <section class="game" id="sec-8">
       <h3>
         Calling Our Shot - MLB
         

@@ -73,6 +73,26 @@
     .sidebar .nav a.active { background: var(--panel); color: var(--ink); }
     .sidebar .nav a .rec { color: var(--muted); font-size: 11px; }
     .sidebar .nav a.active .rec { color: var(--accent); }
+    .sub-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      margin: 2px 0 6px 14px;
+      padding-left: 8px;
+      border-left: 1px solid var(--border);
+    }
+    .sub-nav a {
+      padding: 4px 10px;
+      font-size: 12px;
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 4px;
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sub-nav a:hover { color: var(--ink); background: var(--panel-2); }
 
     .main { min-width: 0; }
     .main header.top {
@@ -257,16 +277,19 @@
             <span>2026-06-02</span>
             <span class="rec">0-0</span>
           </a>
+          
         
           <a href="/2026-06-01/">
             <span>2026-06-01</span>
             <span class="rec">23-27</span>
           </a>
+          
         
           <a href="/2026-05-31/">
             <span>2026-05-31</span>
             <span class="rec">46-30</span>
           </a>
+          
         
       </nav>
     </aside>
@@ -282,8 +305,8 @@
           <div>
             <div class="date">2026-06-02</div>
             <div class="sub">
-              34 bets
-               · 34 pending
+              78 bets
+               · 78 pending
               
             </div>
           </div>
