@@ -1,0 +1,1095 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Monday 6/8/26 — Morning Bets</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #161c24;
+      --panel-2: #1d2530;
+      --ink: #e6e6e6;
+      --muted: #8c93a0;
+      --accent: #f4b840;
+      --win: #4ade80;
+      --loss: #f87171;
+      --push: #94a3b8;
+      --pending: #60a5fa;
+      --ungrade: #6b7280;
+      --border: #2a3340;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.45;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 28px;
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 24px 22px 80px;
+    }
+    @media (max-width: 720px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; max-height: none; }
+    }
+    .sidebar {
+      position: sticky;
+      top: 24px;
+      align-self: start;
+      max-height: calc(100vh - 48px);
+      overflow-y: auto;
+    }
+    .sidebar h1 {
+      font-size: 18px;
+      margin: 0 0 14px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    .sidebar h1 a { color: var(--ink); text-decoration: none; }
+    .sidebar h1 a:hover { color: var(--accent); }
+    .sidebar .nav {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .sidebar .nav a {
+      padding: 6px 10px;
+      border-radius: 6px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .sidebar .nav a:hover { background: var(--panel-2); color: var(--ink); }
+    .sidebar .nav a.active { background: var(--panel); color: var(--ink); }
+    .sidebar .nav a .rec { color: var(--muted); font-size: 11px; }
+    .sidebar .nav a.active .rec { color: var(--accent); }
+    .sub-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      margin: 2px 0 6px 14px;
+      padding-left: 8px;
+      border-left: 1px solid var(--border);
+    }
+    .sub-nav a {
+      padding: 4px 10px;
+      font-size: 12px;
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 4px;
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sub-nav a:hover { color: var(--ink); background: var(--panel-2); }
+
+    .main { min-width: 0; }
+    .main header.top {
+      display: flex; align-items: baseline; justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .main header.top h2 {
+      font-size: 22px; font-weight: 600; margin: 0;
+      letter-spacing: -0.01em;
+    }
+    .toggle { display: inline-flex; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .toggle a {
+      padding: 6px 12px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 12px;
+      letter-spacing: 0.02em;
+    }
+    .toggle a.active { background: var(--accent); color: #1a1a1a; font-weight: 600; }
+
+    a { color: var(--accent); }
+
+    .day-list { display: flex; flex-direction: column; gap: 8px; }
+    .day-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      background: var(--panel);
+      padding: 14px 18px;
+      border-radius: 8px;
+      text-decoration: none;
+      color: var(--ink);
+      border: 1px solid var(--border);
+      transition: background 0.12s;
+    }
+    .day-row:hover { background: var(--panel-2); }
+    .day-row .date { font-weight: 600; font-size: 16px; }
+    .day-row .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+    .day-row .tally { text-align: right; font-size: 14px; }
+    .day-row .record { font-weight: 600; }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+      gap: 10px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 28px;
+    }
+    .summary .stat { text-align: center; }
+    .summary .num { font-size: 22px; font-weight: 600; }
+    .summary .lbl {
+      font-size: 11px; color: var(--muted); text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .game {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .game h3 {
+      margin: 0;
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      background: var(--panel-2);
+      border-bottom: 1px solid var(--border);
+    }
+    .game h3 .final {
+      float: right;
+      font-weight: 500;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .game ul { list-style: none; padding: 4px 0; margin: 0; }
+    .subgame { border-bottom: 1px solid var(--border); }
+    .subgame:last-child { border-bottom: none; }
+    .subgame .sub-h {
+      padding: 8px 16px 4px;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+    .subgame .sub-h .final {
+      float: right;
+      text-transform: none;
+      letter-spacing: 0;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .bet {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      align-items: center;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .bet:last-child { border-bottom: none; }
+    .bet .desc { color: var(--ink); }
+    .bet .src { color: var(--muted); font-size: 12px; display: block; }
+    .bet .rationale { color: var(--muted); font-size: 12px; margin-top: 4px; font-style: italic; }
+    .bet .desc i { font-style: italic; color: var(--accent); }
+    .bet .desc .inferred { color: var(--muted); font-size: 11px; font-style: normal; }
+    .bet .tier {
+      display: inline-block;
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      padding: 1px 6px;
+      border-radius: 3px;
+      margin-left: 6px;
+      background: var(--panel-2);
+      color: var(--muted);
+      vertical-align: 1px;
+    }
+    .tier.LOCK { background: #4ade80; color: #03261a; }
+    .tier.LIKE { background: #60a5fa; color: #0a1d3d; }
+    .tier.LEAN { background: #fbbf24; color: #3d2a00; }
+
+    .actual { color: var(--muted); font-size: 12px; min-width: 56px; text-align: right; }
+    .badge {
+      display: inline-block;
+      min-width: 28px;
+      text-align: center;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .badge.W { background: var(--win); color: #02230d; }
+    .badge.L { background: var(--loss); color: #2a0606; }
+    .badge.PUSH { background: var(--push); color: #1a202c; }
+    .badge.PENDING { background: transparent; color: var(--pending); border: 1px solid var(--pending); }
+    .badge.UNGRADABLE { background: transparent; color: var(--ungrade); border: 1px solid var(--ungrade); }
+
+    .empty { text-align: center; color: var(--muted); padding: 40px 0; }
+
+    .sources {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-top: 24px;
+    }
+    .sources h3 {
+      margin: 0 0 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .sources ul { list-style: none; padding: 0; margin: 0; }
+    .sources li {
+      padding: 4px 0;
+      font-size: 13px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .sources li a { font-weight: 600; text-decoration: none; }
+    .sources li a:hover { text-decoration: underline; }
+    .sources .title { color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1><a href="/">Morning Bets</a></h1>
+      <nav class="nav">
+        
+          <a href="/2026-06-08/" class="active">
+            <span>2026-06-08</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+            <div class="sub-nav">
+              
+                <a href="#sec-1" title="SA @ NY">SA @ NY</a>
+              
+                <a href="#sec-2" title="MIL @ ATH">MIL @ ATH</a>
+              
+                <a href="#sec-3" title="CIN @ SD">CIN @ SD</a>
+              
+                <a href="#sec-4" title="HOU @ LAA">HOU @ LAA</a>
+              
+                <a href="#sec-5" title="WSH @ SF">WSH @ SF</a>
+              
+                <a href="#sec-6" title="BOS @ TB">BOS @ TB</a>
+              
+                <a href="#sec-7" title="NYY @ CLE">NYY @ CLE</a>
+              
+                <a href="#sec-8" title="PHI @ TOR">PHI @ TOR</a>
+              
+                <a href="#sec-9" title="SEA @ BAL">SEA @ BAL</a>
+              
+            </div>
+          
+        
+          <a href="/2026-06-07/">
+            <span>2026-06-07</span>
+            <span class="rec">18-16</span>
+          </a>
+          
+        
+          <a href="/2026-06-06/">
+            <span>2026-06-06</span>
+            <span class="rec">14-24</span>
+          </a>
+          
+        
+          <a href="/2026-06-05/">
+            <span>2026-06-05</span>
+            <span class="rec">42-42</span>
+          </a>
+          
+        
+          <a href="/2026-06-04/">
+            <span>2026-06-04</span>
+            <span class="rec">12-35</span>
+          </a>
+          
+        
+          <a href="/2026-06-03/">
+            <span>2026-06-03</span>
+            <span class="rec">47-42</span>
+          </a>
+          
+        
+          <a href="/2026-06-02/">
+            <span>2026-06-02</span>
+            <span class="rec">30-34</span>
+          </a>
+          
+        
+          <a href="/2026-06-01/">
+            <span>2026-06-01</span>
+            <span class="rec">23-27</span>
+          </a>
+          
+        
+          <a href="/2026-05-31/">
+            <span>2026-05-31</span>
+            <span class="rec">46-30</span>
+          </a>
+          
+        
+      </nav>
+    </aside>
+    <main class="main">
+      
+  <header class="top">
+    <h2>Monday 6/8/26</h2>
+    <div class="toggle">
+      <a href="/2026-06-08/" class="active">By game</a>
+      <a href="/2026-06-08/source/" class="">By source</a>
+    </div>
+  </header>
+
+  <div class="summary">
+    <div class="stat">
+      <div class="num">0-0</div>
+      <div class="lbl">Record</div>
+    </div>
+    <div class="stat">
+      <div class="num">43</div>
+      <div class="lbl">Total bets</div>
+    </div>
+    
+    <div class="stat">
+      <div class="num">43</div>
+      <div class="lbl">Pending</div>
+    </div>
+    
+    
+  </div>
+
+  
+
+  
+    <section class="game" id="sec-1">
+      <h3>
+        San Antonio Spurs @ New York Knicks
+        
+      </h3>
+      
+        <ul>
+          <li class="bet">
+      <div>
+        <div class="desc">
+          De'Aaron Fox pts+ast over 20.5
+          
+        </div>
+        <span class="src">BettingPros - Daily Top Bets</span>
+        <div class="rationale">Fox projected at 24 pts+ast (3.5–4 above the line) with 69% cover probability; had 20 pts + 5 ast in Game 2 going 8-of-12 from the field, and needs to be a bigger factor as Spurs role players and bench have underperformed.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Karl-Anthony Towns pts+reb over 29.5
+          
+        </div>
+        <span class="src">BettingPros - Daily Top Bets</span>
+        <div class="rationale">Towns projected at 32.4 pts+reb with 63% cover probability; hit the line in both Game 1 (34 combined) and Game 2 (30 combined), with the Spurs having no answer as Wembanyama avoids the paint against him.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Over
+          <span class="tier LEAN">LEAN</span>
+        </div>
+        <span class="src">BettingPros - Daily Top Bets</span>
+        <div class="rationale">Knicks averaged 119 PPG at MSG (6th in NBA) and play faster and more aggressively at home, though the first two games went under.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Stephon Castle pts+ast over 22.5
+          <span class="tier LIKE">LIKE</span>
+        </div>
+        <span class="src">Calling Our Shot - NBA</span>
+        <div class="rationale">Castle averaging 15 shot attempts per game (16 in Game 1, 14 in Game 2) and had 14 potential assists in Game 1 and 9 in Game 2 despite foul trouble; over has hit in 13 of 20 playoff games and shortened rotation in a must-win spot keeps him on the floor longer.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Josh Hart pts+reb+ast over 22.5
+          <span class="tier LEAN">LEAN</span>
+        </div>
+        <span class="src">Calling Our Shot - NBA</span>
+        <div class="rationale">Hart had 15 rebounds in Game 1 and was limited to 18 minutes in Game 2 due to five fouls; Knicks need his high energy in a big home game and Spurs may continue leaving him open for threes, making the line feel too low.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          OG Anunoby fg3m under 2.5
+          <span class="tier LEAN">LEAN</span>
+        </div>
+        <span class="src">Calling Our Shot - NBA</span>
+        <div class="rationale">Anunoby is not taking many three-point attempts and is primarily taking step-back threes, suggesting low made-three volume.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          De'Aaron Fox fg3m under
+          <span class="tier LEAN">LEAN</span>
+        </div>
+        <span class="src">Calling Our Shot - NBA</span>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          San Antonio Spurs +2.5
+          
+        </div>
+        <span class="src">WagerTalk - Steve Merril</span>
+        <div class="rationale">Zigzag theory after back-to-back losses, Spurs led for majority of time in both games (56% of game 1, 47% of game 2) with double-digit leads each game, better regular-season offensive and defensive efficiency, and De&#39;Aaron Fox showing improvement in game 2.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          San Antonio Spurs ML
+          
+        </div>
+        <span class="src">WagerTalk - Steve Merril</span>
+        <div class="rationale">Described as a live dog at +110/+115, recommended as a sprinkle or more given the same reasoning as the spread play.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Over 215.5
+          
+        </div>
+        <span class="src">WagerTalk - Steve Merril</span>
+        <div class="rationale">Crowd energy expected to push pace, Knicks expected to increase three-point attempts, Spurs prefer up-tempo play, both teams are efficient offenses, and games 3–5 historically score higher than games 1, 6, or 7.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Karl-Anthony Towns fg3m over
+          
+        </div>
+        <span class="src">WagerTalk - Steve Merril</span>
+        <div class="rationale">Made 3/5 threes in game 2 for 21 points, and Knicks are expected to continue heavy three-point volume throughout the series.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          OG Anunoby fg3a over
+          
+        </div>
+        <span class="src">WagerTalk - Steve Merril</span>
+        <div class="rationale">Took 6 threes in game 1 and 5 in game 2 for 11 total three-point attempts across two games, indicating sustained high volume.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Mikal Bridges fg3a over
+          
+        </div>
+        <span class="src">WagerTalk - Steve Merril</span>
+        <div class="rationale">Took 6 threes in game 2 with the Knicks&#39; game plan appearing to have shifted toward higher three-point volume for him.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Josh Hart reb+ast over
+          
+        </div>
+        <span class="src">WagerTalk - Steve Merril</span>
+        <div class="rationale">Posted 15 rebounds and 6 assists in game 1 (27 min) and 6 rebounds and 4 assists in game 2 despite being limited to 18 minutes by foul trouble, showing strong combined production.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Victor Wembanyama pts over
+          
+        </div>
+        <span class="src">WagerTalk - Steve Merril</span>
+        <div class="rationale">Scored 26 points in game 1 (6/21 shooting) and 29 points in game 2 (11/21 shooting), showing upward scoring trend across the series.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Victor Wembanyama reb over
+          
+        </div>
+        <span class="src">WagerTalk - Steve Merril</span>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Dylan Harper pts over
+          
+        </div>
+        <span class="src">WagerTalk - Steve Merril</span>
+        <div class="rationale">Scored 16 points in 28 minutes in game 1 and 15 points in 32 minutes in game 2, playing fantastic with minutes expected to continue; explicitly called a continuing bet.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Dylan Harper min over
+          
+        </div>
+        <span class="src">WagerTalk - Steve Merril</span>
+        <div class="rationale">Logged 28 minutes in game 1 and 32 minutes in game 2, with minutes expected to continue at a high level going forward.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          De'Aaron Fox pts over
+          <span class="tier LEAN">LEAN</span>
+        </div>
+        <span class="src">WagerTalk - Steve Merril</span>
+        <div class="rationale">Bounced back with 20 points on 8/12 shooting in game 2 after a poor game 1, with possible health improvement noted.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Devin Vassell pts over
+          <span class="tier LEAN">LEAN</span>
+        </div>
+        <span class="src">WagerTalk - Steve Merril</span>
+        <div class="rationale">Scored 14 points with 3/7 from three in game 2 and is taking a high volume of threes with 13 attempts across two games.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Stephon Castle pts over
+          <span class="tier LEAN">LEAN</span>
+        </div>
+        <span class="src">WagerTalk - Steve Merril</span>
+        <div class="rationale">Scored 14 points in 28 minutes in game 2 as part of the Spurs&#39; scoring rotation.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Julian Champagnie pts under
+          <span class="tier LEAN">LEAN</span>
+        </div>
+        <span class="src">WagerTalk - Steve Merril</span>
+        <div class="rationale">Playing 36 minutes primarily for defense with shot attempts possibly being reduced, limiting scoring upside.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li>
+        </ul>
+      
+    </section>
+  
+    <section class="game" id="sec-2">
+      <h3>
+        Milwaukee Brewers @ Athletics
+        
+      </h3>
+      
+        <ul>
+          <li class="bet">
+      <div>
+        <div class="desc">
+          Milwaukee Brewers -1.5
+          
+        </div>
+        <span class="src">BettingPros - Daily Top Bets</span>
+        <div class="rationale">Brewers are 7-1 on the run line in Kyle Harrison starts (road ERA 1.69, 3-0), while opposing starter Jeffrey Springs allowed 4 ER in 3.2 IP last outing and opponents have covered the run line in 5 of his last 9 starts.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Milwaukee Brewers -1.5
+          <span class="tier LEAN">LEAN</span>
+        </div>
+        <span class="src">Lindy&#39;s Leans Likes &amp; Locks</span>
+        <div class="rationale">Kyle Harrison (7-1 record, 1.57 RA) limits blowup risk while Jeffrey Springs gives up more hard contact; 93° first pitch with 14 mph wind blowing out to right field creates a high-scoring environment favoring the Brewers&#39; run line.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Athletics ML
+          
+        </div>
+        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <div class="rationale">The A&#39;s have an OPS in the 800s and top-5 isolated power against lefties over the last 30 days in a hitter-friendly ballpark, while Kyle Harrison has faced a weak schedule and the Brewers have not been good against lefties all season.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Milwaukee Brewers ML
+          
+        </div>
+        <span class="src">WagerTalk - Drew&#39;s Daily Diamond</span>
+        <div class="rationale">Kyle Harrison is 7-1 with a 1.50 ERA and has won 6 consecutive decisions, while the Brewers are 39-23 with a nearly +100 run differential and are averaging 10 runs over their last 4 games, facing Jeffrey Springs (3-6, 4.30 ERA) and an Athletics team that is 5-10 in their last 15 games and 13-20 against teams over .500.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li>
+        </ul>
+      
+    </section>
+  
+    <section class="game" id="sec-3">
+      <h3>
+        Cincinnati Reds @ San Diego Padres
+        
+      </h3>
+      
+        <ul>
+          <li class="bet">
+      <div>
+        <div class="desc">
+          San Diego Padres ML
+          <span class="tier LOCK">LOCK</span>
+        </div>
+        <span class="src">Calling Our Shot - MLB</span>
+        <div class="rationale">Walker Buehler has a 3.50 ERA at home and allowed over 2 ER only once in his last 5 starts, while Reds starter Abbott posts a 1.44 WHIP with a .287 average allowed with two outs; the Reds rank 27th vs. righties, are missing Elly De La Cruz, have the 29th-ranked bullpen ERA (used 5 arms the previous day), and face a travel disadvantage from St. Louis to San Diego.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          JJ Bleday hr over 0.5
+          <span class="tier LEAN">LEAN</span>
+        </div>
+        <span class="src">Lindy&#39;s Leans Likes &amp; Locks</span>
+        <div class="rationale">Source would pull the trigger if Bleday is confirmed in the two-hole, but is hesitant due to Matt McLain&#39;s recent hot streak potentially bumping Bleday from that spot.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Cincinnati Reds ML
+          
+        </div>
+        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <div class="rationale">Andrew Abbott has back-to-back quality starts with the Reds winning 4 of his last 5 games, the Padres offense has been anemic against lefties, and Walker Buehler has a steep ERA; the first five innings bet is preferred due to the Padres&#39; bullpen advantage later in the game.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li>
+        </ul>
+      
+    </section>
+  
+    <section class="game" id="sec-4">
+      <h3>
+        Houston Astros @ Los Angeles Angels
+        
+      </h3>
+      
+        <ul>
+          <li class="bet">
+      <div>
+        <div class="desc">
+          Yordan Alvarez bb over 0.5
+          <span class="tier LIKE">LIKE</span>
+        </div>
+        <span class="src">Calling Our Shot - MLB</span>
+        <div class="rationale">Alvarez has walked in 12 of his last 15 games, has a higher walk rate against righties, and as the clear lineup alpha he is a candidate for intentional walks; opposing pitcher Grayson Rodriguez struggles with issuing walks.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Mike Trout bb over 0.5
+          <span class="tier LEAN">LEAN</span>
+        </div>
+        <span class="src">Calling Our Shot - MLB</span>
+        <div class="rationale">Trout has walked in 17 of his last 26 games with a 20% walk rate vs. righties, and as the Angels&#39; primary lineup threat teams pitch around him; opponent Spencer Getty struggles against lefties with walks and the Angels lack other lefty threats.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Houston Astros ML
+          
+        </div>
+        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <div class="rationale">Grayson Rodriguez&#39;s last start was 3⅔ innings with 7 earned runs and an expected ERA above 7 (bottom first percentile), while Spencer Arrighetti has been solid on the road and the Angels have a high strikeout rate against righties over the last month.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li>
+        </ul>
+      
+    </section>
+  
+    <section class="game" id="sec-5">
+      <h3>
+        Washington Nationals @ San Francisco Giants
+        
+      </h3>
+      
+        <ul>
+          <li class="bet">
+      <div>
+        <div class="desc">
+          Jung Hoo Lee h over 0.5
+          <span class="tier LIKE">LIKE</span>
+        </div>
+        <span class="src">Calling Our Shot - MLB</span>
+        <div class="rationale">Lee carries a 15-game hit streak batting .483 during that stretch and hits .342 against righties, while opponent Miles Mikolas allows a .286 average to lefties and the Nationals bullpen is considered a weak fallback.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Washington Nationals ML
+          <span class="tier LEAN">LEAN</span>
+        </div>
+        <span class="src">Lindy&#39;s Leans Likes &amp; Locks</span>
+        <div class="rationale">Source suspects Miles Mikolas may not start and Giants have used PJ Paulino as an opener before; if an opener is used, Washington avoids the top of the rotation, with data placing Washington closer to +145.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          San Francisco Giants -1.5
+          
+        </div>
+        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <div class="rationale">Logan Webb was dominant in his last outing (7 shutout innings, 1 hit vs. Brewers), Miles Mikolas allowed 6 earned runs in his last start, and the Giants hit righties well.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li>
+        </ul>
+      
+    </section>
+  
+    <section class="game" id="sec-6">
+      <h3>
+        Boston Red Sox @ Tampa Bay Rays
+        
+      </h3>
+      
+        <ul>
+          <li class="bet">
+      <div>
+        <div class="desc">
+          Tampa Bay Rays ML
+          <span class="tier LIKE">LIKE</span>
+        </div>
+        <span class="src">Lindy&#39;s Leans Likes &amp; Locks</span>
+        <div class="rationale">Connelly Early is targetable despite a 3.26 RA, Ian Seymour is a bullpen arm not expected to go deep, Boston&#39;s 6-9 hitters are described as &#39;horrific&#39;, and Tampa Bay has platoon flexibility and speed with Taylor Wallace.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Boston Red Sox ML
+          
+        </div>
+        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <div class="rationale">Connelly Early has a sub-3 ERA on the road and previously threw 7 scoreless innings with 8 strikeouts against Tampa on May 8th, while the Rays have low power numbers and OPS in the 600s over the last 30 days with no official starter listed.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li>
+        </ul>
+      
+    </section>
+  
+    <section class="game" id="sec-7">
+      <h3>
+        New York Yankees @ Cleveland Guardians
+        
+      </h3>
+      
+        <ul>
+          <li class="bet">
+      <div>
+        <div class="desc">
+          Gavin Williams k over 7.5
+          <span class="tier LEAN">LEAN</span>
+        </div>
+        <span class="src">Lindy&#39;s Leans Likes &amp; Locks</span>
+        <div class="rationale">Yankees have only a 20% K rate vs. RHP without Aaron Judge, and Cleveland&#39;s lineup is heavy with lefties (Bazana, Delau, Manzardo, Angel Martinez, Brent Rokio) which suppresses opposing righty effectiveness.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Cleveland Guardians ML
+          
+        </div>
+        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <div class="rationale">Gavin Williams has a 2.29 ERA in 39 home innings with a .208 opponent batting average and over a strikeout per inning, the Guardians have won his last 4 starts including one against the Yankees last week, while Will Warren is considered one of New York&#39;s weaker rotation options with a soft strength of schedule.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li>
+        </ul>
+      
+    </section>
+  
+    <section class="game" id="sec-8">
+      <h3>
+        Philadelphia Phillies @ Toronto Blue Jays
+        
+      </h3>
+      
+        <ul>
+          <li class="bet">
+      <div>
+        <div class="desc">
+          Philadelphia Phillies -1.5
+          <span class="tier LEAN">LEAN</span>
+        </div>
+        <span class="src">Lindy&#39;s Leans Likes &amp; Locks</span>
+        <div class="rationale">Pick is contingent on Patrick Corbin being confirmed as starter; Corbin&#39;s start is listed everywhere but source is waiting closer to game time before committing.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Philadelphia Phillies -1.5
+          
+        </div>
+        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <div class="rationale">Christopher Sanchez has been dominant, giving up only 1 earned run in 7 innings with 8 strikeouts in his last outing, the Phillies hit lefties well, the Blue Jays struggle against lefties over the last 30 days, and Patrick Corbin is coming off allowing 4 earned runs in 5 innings against the Braves.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li>
+        </ul>
+      
+    </section>
+  
+    <section class="game" id="sec-9">
+      <h3>
+        Seattle Mariners @ Baltimore Orioles
+        
+      </h3>
+      
+        <ul>
+          <li class="bet">
+      <div>
+        <div class="desc">
+          Seattle Mariners ML
+          
+        </div>
+        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <div class="rationale">Emerson Hancock has been pitching well and profitably, Seattle has a bullpen advantage in close games, and Chris Bassett has an ERA above 8 on the road, setting up a favorable low-scoring game for the Mariners.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Seattle Mariners ML
+          <span class="tier LOCK">LOCK</span>
+        </div>
+        <span class="src">WagerTalk - Drew&#39;s Daily Diamond</span>
+        <div class="rationale">Emerson Hancock has a 2.80 ERA and 70:15 K/BB ratio and held Baltimore to 2 hits and 1 ER in his last start against them, while Chris Bassitt has an ERA over 5.20 with only 37 strikeouts in 56 innings; Seattle is 9-3 in their last 12 games and their lineup ranks #2 vs. right-handed pitching over the past two weeks.</div>
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge PENDING">PENDING</span>
+    </li>
+        </ul>
+      
+    </section>
+  
+
+  
+    <section class="sources">
+      <h3>Sources</h3>
+      <ul>
+        
+          <li>
+            <a href="https://www.youtube.com/watch?v=z9HX-rSXUe8" target="_blank" rel="noopener">Lindy&#39;s Leans Likes &amp; Locks</a>
+            <span class="title">MLB Picks for EVERY Game Monday 6/8 | Best MLB Bets &amp; Predictions | Lindy&#39;s Leans Likes &amp; Locks</span>
+          </li>
+        
+          <li>
+            <a href="https://www.youtube.com/watch?v=g8fjb1FoosQ" target="_blank" rel="noopener">PickDawgz - Ron&#39;s Rundown</a>
+            <span class="title">MLB Picks &amp; Predictions Today 6/8/26 | Ron&#39;s Rundown</span>
+          </li>
+        
+          <li>
+            <a href="https://www.youtube.com/watch?v=hpukpzuseww" target="_blank" rel="noopener">Calling Our Shot - NBA</a>
+            <span class="title">San Antonio Spurs vs New York Knicks Game 3 Best Picks &amp; Predictions!</span>
+          </li>
+        
+          <li>
+            <a href="https://www.youtube.com/watch?v=y-N46OXb3Hw" target="_blank" rel="noopener">WagerTalk - Steve Merril</a>
+            <span class="title">Spurs vs Knicks Game 3 🔥 NBA Finals Picks | Steve Merril 6/8</span>
+          </li>
+        
+          <li>
+            <a href="https://www.youtube.com/watch?v=N44mI5dnbp0" target="_blank" rel="noopener">BettingPros - Daily Top Bets</a>
+            <span class="title">Top 3 Bets for Monday | NBA Finals Game 3 &amp; MLB Picks | Knicks vs. Spurs Player Props Predictions</span>
+          </li>
+        
+          <li>
+            <a href="https://www.youtube.com/watch?v=O25GE2twNrE" target="_blank" rel="noopener">Doc&#39;s Sports - Craig Trapp MLB</a>
+            <span class="title">Monday WNBA Picks - 6/8/26 l Craig Trapp &amp; Indian Cowboy WNBA Betting Picks &amp; Predictions</span>
+          </li>
+        
+      </ul>
+    </section>
+  
+
+    </main>
+  </div>
+</body>
+</html>
