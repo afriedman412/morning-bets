@@ -1,0 +1,2735 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Saturday 8/1/26 — Morning Bets</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #161c24;
+      --panel-2: #1d2530;
+      --ink: #e6e6e6;
+      --muted: #8c93a0;
+      --accent: #f4b840;
+      --win: #4ade80;
+      --loss: #f87171;
+      --push: #94a3b8;
+      --pending: #60a5fa;
+      --ungrade: #6b7280;
+      --border: #2a3340;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.45;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 250px 1fr;
+      gap: 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 22px 80px;
+    }
+    @media (max-width: 720px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; max-height: none; }
+    }
+    .sidebar {
+      position: sticky;
+      top: 24px;
+      align-self: start;
+      max-height: calc(100vh - 48px);
+      overflow-y: auto;
+    }
+    .sidebar h1 {
+      font-size: 18px;
+      margin: 0 0 14px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    .sidebar h1 a { color: var(--ink); text-decoration: none; }
+    .sidebar h1 a:hover { color: var(--accent); }
+    .sidebar .nav {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .sidebar .nav a {
+      padding: 6px 10px;
+      border-radius: 6px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .sidebar .nav a:hover { background: var(--panel-2); color: var(--ink); }
+    .sidebar .nav a.active { background: var(--panel); color: var(--ink); }
+    .sidebar .nav a .rec { color: var(--muted); font-size: 11px; }
+    .sidebar .nav a.active .rec { color: var(--accent); }
+    .sub-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      margin: 2px 0 6px 10px;
+      padding-left: 8px;
+      border-left: 1px solid var(--border);
+    }
+    .sub-nav a {
+      padding: 4px 8px;
+      font-size: 12px;
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 4px;
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sub-nav a:hover { color: var(--ink); background: var(--panel-2); }
+    .sub-nav a.active { color: var(--ink); background: var(--panel); }
+    /* Roster names are long — let them wrap instead of truncating. */
+    .roster .sub-nav a { white-space: normal; line-height: 1.3; }
+    .nav a.day-link.collapsed + .sub-nav { display: none; }
+
+    .roster { margin: 2px 0 6px; }
+    .roster > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      user-select: none;
+    }
+    .roster > summary::-webkit-details-marker { display: none; }
+    .roster > summary::before {
+      content: "▸";
+      font-size: 10px;
+      margin-right: 8px;
+      display: inline-block;
+      transition: transform 0.1s;
+    }
+    .roster[open] > summary::before { transform: rotate(90deg); }
+    .roster > summary:hover { background: var(--panel-2); color: var(--ink); }
+
+    .sub-toggle {
+      display: inline-flex;
+      align-self: start;
+      margin: 4px 0 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .sub-toggle a {
+      text-align: center;
+      padding: 5px 12px;
+      font-size: 11px;
+      color: var(--muted);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .sub-toggle a.active { background: var(--accent); color: #1a1a1a; font-weight: 600; }
+    .sub-toggle a:not(.active):hover { background: var(--panel-2); color: var(--ink); }
+
+    .main { min-width: 0; }
+    .main header.top {
+      display: flex; align-items: baseline; justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .main header.top h2 {
+      font-size: 22px; font-weight: 600; margin: 0;
+      letter-spacing: -0.01em;
+    }
+    .toggle { display: inline-flex; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .toggle a {
+      padding: 6px 12px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 12px;
+      letter-spacing: 0.02em;
+    }
+    .toggle a.active { background: var(--accent); color: #1a1a1a; font-weight: 600; }
+
+    a { color: var(--accent); }
+
+    .day-list { display: flex; flex-direction: column; gap: 8px; }
+    .day-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      background: var(--panel);
+      padding: 14px 18px;
+      border-radius: 8px;
+      text-decoration: none;
+      color: var(--ink);
+      border: 1px solid var(--border);
+      transition: background 0.12s;
+    }
+    .day-row:hover { background: var(--panel-2); }
+    .day-row .date { font-weight: 600; font-size: 16px; }
+    .day-row .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+    .day-row .tally { text-align: right; font-size: 14px; }
+    .day-row .record { font-weight: 600; }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+      gap: 10px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 28px;
+    }
+    .summary .stat { text-align: center; }
+    .summary .num { font-size: 22px; font-weight: 600; }
+    .summary .lbl {
+      font-size: 11px; color: var(--muted); text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .game {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .game h3 {
+      margin: 0;
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      background: var(--panel-2);
+      border-bottom: 1px solid var(--border);
+    }
+    .game h3 .final {
+      float: right;
+      font-weight: 500;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .game ul { list-style: none; padding: 4px 0; margin: 0; }
+    .subgame { border-bottom: 1px solid var(--border); }
+    .subgame:last-child { border-bottom: none; }
+    .subgame .sub-h {
+      padding: 8px 16px 4px;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+    .subgame .sub-h .final {
+      float: right;
+      text-transform: none;
+      letter-spacing: 0;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .bet {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      align-items: center;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .bet:last-child { border-bottom: none; }
+    .bet .desc { color: var(--ink); }
+    .bet .src { color: var(--muted); font-size: 12px; display: block; }
+    .bet .rationale { color: var(--muted); font-size: 12px; margin-top: 4px; font-style: italic; }
+    .bet .desc i { font-style: italic; color: var(--accent); }
+    .bet .desc .inferred { color: var(--muted); font-size: 11px; font-style: normal; }
+    .bet .tier {
+      display: inline-block;
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      padding: 1px 6px;
+      border-radius: 3px;
+      margin-left: 6px;
+      background: var(--panel-2);
+      color: var(--muted);
+      vertical-align: 1px;
+    }
+    .tier.LOCK { background: #4ade80; color: #03261a; }
+    .tier.LIKE { background: #60a5fa; color: #0a1d3d; }
+    .tier.LEAN { background: #fbbf24; color: #3d2a00; }
+
+    .actual { color: var(--muted); font-size: 12px; min-width: 56px; text-align: right; }
+    .badge {
+      display: inline-block;
+      min-width: 28px;
+      text-align: center;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .badge.W { background: var(--win); color: #02230d; }
+    .badge.L { background: var(--loss); color: #2a0606; }
+    .badge.PUSH { background: var(--push); color: #1a202c; }
+    .badge.PENDING { background: transparent; color: var(--pending); border: 1px solid var(--pending); }
+    .badge.UNGRADABLE { background: transparent; color: var(--ungrade); border: 1px solid var(--ungrade); }
+
+    .empty { text-align: center; color: var(--muted); padding: 40px 0; }
+
+    .sources {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-top: 24px;
+    }
+    .sources h3 {
+      margin: 0 0 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .sources ul { list-style: none; padding: 0; margin: 0; }
+    .sources li {
+      padding: 4px 0;
+      font-size: 13px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .sources li a { font-weight: 600; text-decoration: none; }
+    .sources li a:hover { text-decoration: underline; }
+    .sources .title { color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1><a href="/">Morning Bets</a></h1>
+      <nav class="nav">
+        <a href="/cappers/">
+          <span>📋 Cappers</span>
+        </a>
+        <a href="/me/">
+          <span>💰 Me</span>
+        </a>
+        
+          <details class="roster">
+            <summary>Roster</summary>
+            <div class="sub-nav">
+              
+                <a href="/source/pickdawgz-ron-s-rundown/"
+                   title="PickDawgz - Ron&#39;s Rundown"
+                   >
+                  PickDawgz - Ron&#39;s Rundown
+                </a>
+              
+                <a href="/source/guy-boston-sports-mlb/"
+                   title="Guy Boston Sports - MLB"
+                   >
+                  Guy Boston Sports - MLB
+                </a>
+              
+                <a href="/source/lindy-s-leans-likes-locks/"
+                   title="Lindy&#39;s Leans Likes &amp; Locks"
+                   >
+                  Lindy&#39;s Leans Likes &amp; Locks 🎲
+                </a>
+              
+                <a href="/source/doc-s-sports-craig-trapp-mlb/"
+                   title="Doc&#39;s Sports - Craig Trapp MLB"
+                   >
+                  Doc&#39;s Sports - Craig Trapp MLB
+                </a>
+              
+                <a href="/source/calling-our-shot-mlb/"
+                   title="Calling Our Shot - MLB"
+                   >
+                  Calling Our Shot - MLB 🎲
+                </a>
+              
+                <a href="/source/silverback-bets-mlb/"
+                   title="Silverback Bets - MLB"
+                   >
+                  Silverback Bets - MLB
+                </a>
+              
+                <a href="/source/panel-cynic/"
+                   title="Panel: Cynic"
+                   >
+                  Panel: Cynic 🎲
+                </a>
+              
+                <a href="/source/panel-quant/"
+                   title="Panel: Quant"
+                   >
+                  Panel: Quant 🎲
+                </a>
+              
+                <a href="/source/panel-careful/"
+                   title="Panel: Careful"
+                   >
+                  Panel: Careful 🎲
+                </a>
+              
+                <a href="/source/live-with-lindy/"
+                   title="Live With Lindy"
+                   >
+                  Live With Lindy 🎲
+                </a>
+              
+                <a href="/source/bettingpros-daily-top-bets/"
+                   title="BettingPros - Daily Top Bets"
+                   >
+                  BettingPros - Daily Top Bets 🎲
+                </a>
+              
+                <a href="/source/recommendation/"
+                   title="Recommendation"
+                   >
+                  Recommendation 🎲
+                </a>
+              
+                <a href="/source/consensus-sim-openai/"
+                   title="Consensus (sim:openai)"
+                   >
+                  Consensus (sim:openai) 🎲
+                </a>
+              
+                <a href="/source/consensus-sim/"
+                   title="Consensus (sim)"
+                   >
+                  Consensus (sim) 🎲
+                </a>
+              
+                <a href="/source/wagertalk-drew-s-daily-diamond/"
+                   title="WagerTalk - Drew&#39;s Daily Diamond"
+                   >
+                  WagerTalk - Drew&#39;s Daily Diamond 🎲
+                </a>
+              
+                <a href="/source/wagertalk-steve-merril/"
+                   title="WagerTalk - Steve Merril"
+                   >
+                  WagerTalk - Steve Merril
+                </a>
+              
+                <a href="/source/daft-previews/"
+                   title="Daft Previews"
+                   >
+                  Daft Previews
+                </a>
+              
+                <a href="/source/calling-our-shot-nba/"
+                   title="Calling Our Shot - NBA"
+                   >
+                  Calling Our Shot - NBA
+                </a>
+              
+                <a href="/source/wagertalk-best-mlb-bets/"
+                   title="WagerTalk - Best MLB Bets"
+                   >
+                  WagerTalk - Best MLB Bets
+                </a>
+              
+                <a href="/source/wagertalk-first-five/"
+                   title="WagerTalk - First Five"
+                   >
+                  WagerTalk - First Five
+                </a>
+              
+                <a href="/source/oddsshopper-daily-dingers-hr-props/"
+                   title="OddsShopper - Daily Dingers (HR props)"
+                   >
+                  OddsShopper - Daily Dingers (HR props) 🎲
+                </a>
+              
+                <a href="/source/placed/"
+                   title="Placed"
+                   >
+                  Placed 🎲
+                </a>
+              
+                <a href="/source/manual/"
+                   title="Manual"
+                   >
+                  Manual
+                </a>
+              
+            </div>
+          </details>
+        
+        
+        
+          <div class="sub-toggle">
+            <a href="/2026-08-01/" class="">By game</a>
+            <a href="/2026-08-01/source/" class="active">By source</a>
+          </div>
+        
+        
+          <a href="/2026-08-21/" class="day-link">
+            <span>2026-08-21</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-08-20/" class="day-link">
+            <span>2026-08-20</span>
+            <span class="rec">34-29</span>
+          </a>
+          
+        
+          <a href="/2026-08-19/" class="day-link">
+            <span>2026-08-19</span>
+            <span class="rec">45-66</span>
+          </a>
+          
+        
+          <a href="/2026-08-18/" class="day-link">
+            <span>2026-08-18</span>
+            <span class="rec">25-20</span>
+          </a>
+          
+        
+          <a href="/2026-08-17/" class="day-link">
+            <span>2026-08-17</span>
+            <span class="rec">35-34</span>
+          </a>
+          
+        
+          <a href="/2026-08-16/" class="day-link">
+            <span>2026-08-16</span>
+            <span class="rec">42-38</span>
+          </a>
+          
+        
+          <a href="/2026-08-15/" class="day-link">
+            <span>2026-08-15</span>
+            <span class="rec">45-50</span>
+          </a>
+          
+        
+          <a href="/2026-08-14/" class="day-link">
+            <span>2026-08-14</span>
+            <span class="rec">47-65</span>
+          </a>
+          
+        
+          <a href="/2026-08-13/" class="day-link">
+            <span>2026-08-13</span>
+            <span class="rec">41-43</span>
+          </a>
+          
+        
+          <a href="/2026-08-12/" class="day-link">
+            <span>2026-08-12</span>
+            <span class="rec">50-79</span>
+          </a>
+          
+        
+          <a href="/2026-08-11/" class="day-link">
+            <span>2026-08-11</span>
+            <span class="rec">56-58</span>
+          </a>
+          
+        
+          <a href="/2026-08-10/" class="day-link">
+            <span>2026-08-10</span>
+            <span class="rec">48-44</span>
+          </a>
+          
+        
+          <a href="/2026-08-09/" class="day-link">
+            <span>2026-08-09</span>
+            <span class="rec">33-34</span>
+          </a>
+          
+        
+          <a href="/2026-08-08/" class="day-link">
+            <span>2026-08-08</span>
+            <span class="rec">35-61</span>
+          </a>
+          
+        
+          <a href="/2026-08-07/" class="day-link">
+            <span>2026-08-07</span>
+            <span class="rec">47-69</span>
+          </a>
+          
+        
+          <a href="/2026-08-06/" class="day-link">
+            <span>2026-08-06</span>
+            <span class="rec">38-57</span>
+          </a>
+          
+        
+          <a href="/2026-08-05/" class="day-link">
+            <span>2026-08-05</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-08-04/" class="day-link">
+            <span>2026-08-04</span>
+            <span class="rec">32-23</span>
+          </a>
+          
+        
+          <a href="/2026-08-03/" class="day-link">
+            <span>2026-08-03</span>
+            <span class="rec">11-32</span>
+          </a>
+          
+        
+          <a href="/2026-08-02/" class="day-link">
+            <span>2026-08-02</span>
+            <span class="rec">24-35</span>
+          </a>
+          
+        
+          <a href="/2026-08-01/" class="day-link active">
+            <span>2026-08-01</span>
+            <span class="rec">33-26</span>
+          </a>
+          
+            <div class="sub-nav">
+              
+                <a href="#sec-1" title="PickDawgz - Ron&#39;s Rundown">PickDawgz - Ron&#39;s Rundown</a>
+              
+                <a href="#sec-2" title="Live With Lindy">Live With Lindy</a>
+              
+                <a href="#sec-3" title="Consensus (sim)">Consensus (sim)</a>
+              
+                <a href="#sec-4" title="Consensus (sim:openai)">Consensus (sim:openai)</a>
+              
+                <a href="#sec-5" title="Panel: Careful">Panel: Careful</a>
+              
+                <a href="#sec-6" title="Panel: Cynic">Panel: Cynic</a>
+              
+                <a href="#sec-7" title="Panel: Quant">Panel: Quant</a>
+              
+                <a href="#sec-8" title="BettingPros - Daily Top Bets">BettingPros - Daily Top Bets</a>
+              
+                <a href="#sec-9" title="Calling Our Shot - MLB">Calling Our Shot - MLB</a>
+              
+                <a href="#sec-10" title="Recommendation">Recommendation</a>
+              
+            </div>
+          
+        
+          <a href="/2026-07-31/" class="day-link">
+            <span>2026-07-31</span>
+            <span class="rec">22-39</span>
+          </a>
+          
+        
+          <a href="/2026-07-30/" class="day-link">
+            <span>2026-07-30</span>
+            <span class="rec">14-12</span>
+          </a>
+          
+        
+          <a href="/2026-07-29/" class="day-link">
+            <span>2026-07-29</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-28/" class="day-link">
+            <span>2026-07-28</span>
+            <span class="rec">26-35</span>
+          </a>
+          
+        
+          <a href="/2026-07-27/" class="day-link">
+            <span>2026-07-27</span>
+            <span class="rec">23-36</span>
+          </a>
+          
+        
+          <a href="/2026-07-26/" class="day-link">
+            <span>2026-07-26</span>
+            <span class="rec">32-38</span>
+          </a>
+          
+        
+          <a href="/2026-07-25/" class="day-link">
+            <span>2026-07-25</span>
+            <span class="rec">47-26</span>
+          </a>
+          
+        
+          <a href="/2026-07-24/" class="day-link">
+            <span>2026-07-24</span>
+            <span class="rec">35-59</span>
+          </a>
+          
+        
+          <a href="/2026-07-23/" class="day-link">
+            <span>2026-07-23</span>
+            <span class="rec">9-13</span>
+          </a>
+          
+        
+          <a href="/2026-07-22/" class="day-link">
+            <span>2026-07-22</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-21/" class="day-link">
+            <span>2026-07-21</span>
+            <span class="rec">42-23</span>
+          </a>
+          
+        
+          <a href="/2026-07-20/" class="day-link">
+            <span>2026-07-20</span>
+            <span class="rec">20-48</span>
+          </a>
+          
+        
+          <a href="/2026-07-19/" class="day-link">
+            <span>2026-07-19</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-18/" class="day-link">
+            <span>2026-07-18</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-17/" class="day-link">
+            <span>2026-07-17</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-16/" class="day-link">
+            <span>2026-07-16</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-14/" class="day-link">
+            <span>2026-07-14</span>
+            <span class="rec">3-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-13/" class="day-link">
+            <span>2026-07-13</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-12/" class="day-link">
+            <span>2026-07-12</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-11/" class="day-link">
+            <span>2026-07-11</span>
+            <span class="rec">24-36</span>
+          </a>
+          
+        
+          <a href="/2026-07-10/" class="day-link">
+            <span>2026-07-10</span>
+            <span class="rec">20-40</span>
+          </a>
+          
+        
+          <a href="/2026-07-09/" class="day-link">
+            <span>2026-07-09</span>
+            <span class="rec">35-23</span>
+          </a>
+          
+        
+          <a href="/2026-07-08/" class="day-link">
+            <span>2026-07-08</span>
+            <span class="rec">28-29</span>
+          </a>
+          
+        
+          <a href="/2026-07-07/" class="day-link">
+            <span>2026-07-07</span>
+            <span class="rec">29-42</span>
+          </a>
+          
+        
+          <a href="/2026-07-06/" class="day-link">
+            <span>2026-07-06</span>
+            <span class="rec">16-33</span>
+          </a>
+          
+        
+          <a href="/2026-07-05/" class="day-link">
+            <span>2026-07-05</span>
+            <span class="rec">18-24</span>
+          </a>
+          
+        
+          <a href="/2026-07-04/" class="day-link">
+            <span>2026-07-04</span>
+            <span class="rec">25-23</span>
+          </a>
+          
+        
+          <a href="/2026-07-03/" class="day-link">
+            <span>2026-07-03</span>
+            <span class="rec">30-28</span>
+          </a>
+          
+        
+          <a href="/2026-07-02/" class="day-link">
+            <span>2026-07-02</span>
+            <span class="rec">29-18</span>
+          </a>
+          
+        
+          <a href="/2026-07-01/" class="day-link">
+            <span>2026-07-01</span>
+            <span class="rec">21-25</span>
+          </a>
+          
+        
+          <a href="/2026-06-30/" class="day-link">
+            <span>2026-06-30</span>
+            <span class="rec">33-22</span>
+          </a>
+          
+        
+          <a href="/2026-06-29/" class="day-link">
+            <span>2026-06-29</span>
+            <span class="rec">21-24</span>
+          </a>
+          
+        
+          <a href="/2026-06-28/" class="day-link">
+            <span>2026-06-28</span>
+            <span class="rec">15-21</span>
+          </a>
+          
+        
+          <a href="/2026-06-27/" class="day-link">
+            <span>2026-06-27</span>
+            <span class="rec">12-20</span>
+          </a>
+          
+        
+          <a href="/2026-06-26/" class="day-link">
+            <span>2026-06-26</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-06-25/" class="day-link">
+            <span>2026-06-25</span>
+            <span class="rec">9-21</span>
+          </a>
+          
+        
+          <a href="/2026-06-24/" class="day-link">
+            <span>2026-06-24</span>
+            <span class="rec">18-21</span>
+          </a>
+          
+        
+          <a href="/2026-06-23/" class="day-link">
+            <span>2026-06-23</span>
+            <span class="rec">31-41</span>
+          </a>
+          
+        
+          <a href="/2026-06-22/" class="day-link">
+            <span>2026-06-22</span>
+            <span class="rec">17-27</span>
+          </a>
+          
+        
+          <a href="/2026-06-21/" class="day-link">
+            <span>2026-06-21</span>
+            <span class="rec">29-16</span>
+          </a>
+          
+        
+          <a href="/2026-06-20/" class="day-link">
+            <span>2026-06-20</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-06-19/" class="day-link">
+            <span>2026-06-19</span>
+            <span class="rec">22-33</span>
+          </a>
+          
+        
+          <a href="/2026-06-18/" class="day-link">
+            <span>2026-06-18</span>
+            <span class="rec">35-26</span>
+          </a>
+          
+        
+          <a href="/2026-06-17/" class="day-link">
+            <span>2026-06-17</span>
+            <span class="rec">26-26</span>
+          </a>
+          
+        
+          <a href="/2026-06-16/" class="day-link">
+            <span>2026-06-16</span>
+            <span class="rec">44-28</span>
+          </a>
+          
+        
+          <a href="/2026-06-15/" class="day-link">
+            <span>2026-06-15</span>
+            <span class="rec">18-22</span>
+          </a>
+          
+        
+          <a href="/2026-06-14/" class="day-link">
+            <span>2026-06-14</span>
+            <span class="rec">13-9</span>
+          </a>
+          
+        
+          <a href="/2026-06-13/" class="day-link">
+            <span>2026-06-13</span>
+            <span class="rec">22-35</span>
+          </a>
+          
+        
+          <a href="/2026-06-12/" class="day-link">
+            <span>2026-06-12</span>
+            <span class="rec">29-31</span>
+          </a>
+          
+        
+          <a href="/2026-06-11/" class="day-link">
+            <span>2026-06-11</span>
+            <span class="rec">15-18</span>
+          </a>
+          
+        
+          <a href="/2026-06-10/" class="day-link">
+            <span>2026-06-10</span>
+            <span class="rec">24-33</span>
+          </a>
+          
+        
+          <a href="/2026-06-09/" class="day-link">
+            <span>2026-06-09</span>
+            <span class="rec">21-18</span>
+          </a>
+          
+        
+          <a href="/2026-06-08/" class="day-link">
+            <span>2026-06-08</span>
+            <span class="rec">22-17</span>
+          </a>
+          
+        
+          <a href="/2026-06-07/" class="day-link">
+            <span>2026-06-07</span>
+            <span class="rec">18-16</span>
+          </a>
+          
+        
+          <a href="/2026-06-06/" class="day-link">
+            <span>2026-06-06</span>
+            <span class="rec">14-24</span>
+          </a>
+          
+        
+          <a href="/2026-06-05/" class="day-link">
+            <span>2026-06-05</span>
+            <span class="rec">42-42</span>
+          </a>
+          
+        
+          <a href="/2026-06-04/" class="day-link">
+            <span>2026-06-04</span>
+            <span class="rec">12-35</span>
+          </a>
+          
+        
+          <a href="/2026-06-03/" class="day-link">
+            <span>2026-06-03</span>
+            <span class="rec">47-42</span>
+          </a>
+          
+        
+          <a href="/2026-06-02/" class="day-link">
+            <span>2026-06-02</span>
+            <span class="rec">30-34</span>
+          </a>
+          
+        
+          <a href="/2026-06-01/" class="day-link">
+            <span>2026-06-01</span>
+            <span class="rec">23-27</span>
+          </a>
+          
+        
+          <a href="/2026-05-31/" class="day-link">
+            <span>2026-05-31</span>
+            <span class="rec">46-30</span>
+          </a>
+          
+        
+      </nav>
+    </aside>
+    <main class="main">
+      
+  <header class="top">
+    <h2>Saturday 8/1/26</h2>
+  </header>
+
+  <div class="summary">
+    <div class="stat">
+      <div class="num">33-26</div>
+      <div class="lbl">Record</div>
+    </div>
+    <div class="stat">
+      <div class="num">62</div>
+      <div class="lbl">Total bets</div>
+    </div>
+    
+    
+    <div class="stat">
+      <div class="num">3</div>
+      <div class="lbl">Ungradable</div>
+    </div>
+    
+  </div>
+
+  
+
+  
+    <section class="game" id="sec-1">
+      <h3>
+        <a class="src-head" href="/source/pickdawgz-ron-s-rundown/">PickDawgz - Ron&#39;s Rundown</a>
+        
+      </h3>
+      
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Arizona Diamondbacks @ Cleveland Guardians
+              <span class="final">Final: AZ 12 - CLE 8</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Cleveland Guardians ML
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Tommy Drake is described as not MLB-ready with control issues, having given up 4 ER, 2 HR, and only 1 K in his last outing, while the Guardians&#39; small ball style (walks, HBP, stolen bases) is seen as a poor matchup for Drake.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge L">L</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Cleveland Guardians -1.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Tommy Drake is described as not MLB-ready with control issues, having given up 4 ER, 2 HR, and only 1 K in his last outing, while the Guardians&#39; small ball style is seen as a poor matchup for Drake.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge L">L</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Chicago White Sox @ Tampa Bay Rays
+              <span class="final">Final: CWS 0 - TB 1</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Tampa Bay Rays ML
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Drew Rasmussen is sharp since the All-Star break (7 IP, 1 hit, 9 Ks last outing) while Noah Schultz carries an ERA above 7 on the road, and the Rays have been solid against lefties over the last 10 days.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge W">W</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Tampa Bay Rays -1.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Drew Rasmussen is sharp since the All-Star break (7 IP, 1 hit, 9 Ks last outing) while Noah Schultz carries an ERA above 7 on the road, and the Rays have been solid against lefties over the last 10 days.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge L">L</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Pittsburgh Pirates @ Cincinnati Reds
+              <span class="final">Final: PIT 4 - CIN 1</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Pittsburgh Pirates ML
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Braxton Ashcraft faces a Reds lineup that has been poor against righties all season after a tough schedule, while Andrew Abbott has an ERA above 5 at Great American Ball Park.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge W">W</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Under <i>8.5</i> <span class="inferred">(inferred)</span>
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Expects Pittsburgh to win but not a blowup outing from Abbott, who has allowed 3 runs or fewer in 4 of his last 5 starts overall, favoring a lower-scoring game.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 5.0
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Texas Rangers @ Houston Astros
+              <span class="final">Final: TEX 4 - HOU 5</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Texas Rangers ML
+          <span class="tier LEAN">LEAN</span>
+          
+        </div>
+        
+        <div class="rationale">Jacob deGrom has an ERA above 4 and previously gave up 4 HRs in 6 innings vs. Houston, while the source likes the Rangers bullpen and views deGrom as a better option than Ronel Blanco.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge L">L</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Over <i>8.5</i> <span class="inferred">(inferred)</span>
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Jacob deGrom has an ERA above 4 and previously surrendered 4 HRs in 6 innings vs. Houston, while Ronel Blanco has allowed 9 earned runs and 4 HRs in his first 2 starts this season.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 9.0
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Boston Red Sox @ Los Angeles Dodgers
+              <span class="final">Final: BOS 3 - LAD 2</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Los Angeles Dodgers ML
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Yoshinobu Yamamoto is in good form against a Red Sox lineup that is not special vs. righties in the last month, while Paxton Tolly has allowed 6 ER and 13 hits including 3 HRs in his last 2 starts against a tough Dodgers lineup vs. lefties.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge L">L</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Detroit Tigers @ Athletics
+              <span class="final">Final: DET 8 - ATH 6</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Oakland Athletics ML
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Framber Valdez is very inconsistent and the Tigers have lost 4 of his last 5 starts, while Jack Perkins posted 5.2 IP, 1 hit, 4 Ks, 2 ER in his last outing with expected numbers much better than his 6.45 ERA suggests.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge L">L</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Kansas City Royals @ Colorado Rockies
+              <span class="final">Final: KC 6 - COL 12</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Over <i>11.5</i> <span class="inferred">(inferred)</span>
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Hot temperatures (high 80s–low 90s) at already hitter-friendly Coors Field, Ryan Feltner has allowed 4+ runs in 3 straight starts, the opposing pitcher is giving up runs and not pitching deep, and both the Royals (2nd worst, 5.08 expected ERA) and Rockies (3rd worst) have poor bullpens in the last 30 days.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 18.0
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Miami Marlins @ New York Mets
+              <span class="final">Final: MIA 6 - NYM 2</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          New York Mets ML
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Zach Thornton has a 2.43 ERA with only 2 HRs allowed and is coming off a quality start, while Tyler Phillips has a 3.5 ERA with poor expected numbers and has allowed at least 1 HR in back-to-back games.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge L">L</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Milwaukee Brewers @ Los Angeles Angels
+              <span class="final">Final: MIL 3 - LAA 1</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Los Angeles Angels ML
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Jose Soriano has a ground ball rate back above 50% in July with a sub-3 ERA and 7 IP, 2 ER, 7 Ks in his last home start, while Robert Gasser has an ERA above 6.6 on the road and the Angels rank top 15 in team OPS vs. lefties with a top-10 bullpen expected ERA in July.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge L">L</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Minnesota Twins @ Seattle Mariners
+              <span class="final">Final: MIN 3 - SEA 4</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Minnesota Twins ML
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Logan Gilbert has an ERA above 4 and has allowed 3+ runs in 4 of his last 5 starts, while the Twins have won Connor Prelipp&#39;s last 3 starts and the Mariners rank among the weakest offenses in baseball.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge L">L</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              New York Yankees @ Chicago Cubs
+              <span class="final">Final: NYY 2 - CHC 5</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Chicago Cubs ML
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Max Fried is only in his 3rd start back from injury with a shaky 2nd start (3 IP, 3 ER vs. White Sox), the Cubs have crushed lefties in the last month, and David Peterson has a 25% K rate and .247 expected BA in 73 PA vs. the current Yankees lineup.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Philadelphia Phillies @ Baltimore Orioles
+              <span class="final">Final: PHI 5 - BAL 0</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Baltimore Orioles ML
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Shane Baz has an ERA below 4 and has allowed 3 runs or fewer in all 5 of his last starts, while Cristopher Sánchez has a 4.97 ERA and struggles on the road against an Orioles lineup ranked top 5 in OPS and #2 in isolated power vs. lefties in July.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge L">L</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              San Francisco Giants @ San Diego Padres
+              <span class="final">Final: SF 5 - SD 6</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          San Diego Padres ML
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Tyler Mahle has an ERA above 8 on the road and the Giants are 0-8 in his road starts this season, while Walker Buehler has a .211 expected BA and 25% K rate vs. the Giants lineup with the Padres having won his last 3 starts.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              St. Louis Cardinals @ Toronto Blue Jays
+              <span class="final">Final: STL 1 - TOR 5</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          St. Louis Cardinals ML
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Quinn Matthews debuting against a Blue Jays lineup ranked 29th in MLB OPS vs. lefties in July with 23% strikeout rate, while Kevin Gausman posts a 4.51 ERA with poor expected numbers against the current Cardinals lineup.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge L">L</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Washington Nationals @ Atlanta Braves
+              <span class="final">Final: WSH 3 - ATL 8</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Over <i>9.5</i> <span class="inferred">(inferred)</span>
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Reynaldo López has allowed 9 ER combined in 2 recent starts with poor numbers vs. the Nationals lineup, Miles Mikolas has a below-15% strikeout rate and poor expected slugging vs. the Braves, and both the Nationals (#1) and Braves (#2) rank at the top of MLB in July OPS vs. righties.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 11.0
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+      
+    </section>
+  
+    <section class="game" id="sec-2">
+      <h3>
+        <a class="src-head" href="/source/live-with-lindy/">Live With Lindy</a>
+        
+      </h3>
+      
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Miami Marlins @ New York Mets
+              <span class="final">Final: MIA 6 - NYM 2</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Francisco Lindor hr over 0.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Lindor has improved bat speed and attack angle from the left side (career-high, 11–14 degrees pull variety), hit 24 HRs from the left side last year, and the game environment features 65% humidity with wind blowing out.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 0.0
+      </div>
+      <span class="badge L">L</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Kyle Stowers hr over 0.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Stowers has a launcher profile and is strong against righties, facing Zack Thornton who projects at 1.44 HR/9 and is expected to regress on power allowed, with favorable wind-out conditions and 65% humidity.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 0.0
+      </div>
+      <span class="badge L">L</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Chicago White Sox @ Tampa Bay Rays
+              <span class="final">Final: CWS 0 - TB 1</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Drew Rasmussen k over 5.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Rasmussen&#39;s stuff grades elite across the board, and the top of the White Sox lineup features heavy strikeout targets in Morakami and Coulson Montgomery with no splits concerns this season.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 10.0
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Minnesota Twins @ Seattle Mariners
+              <span class="final">Final: MIN 3 - SEA 4</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Luke Keaschall hr over 0.5
+          <span class="tier LEAN">LEAN</span>
+          
+        </div>
+        
+        <div class="rationale">Keaschall bats 6th with a .302 average and .827 OPS, Logan Gilbert has given up more power this year with a worse strikeout rate, and T-Mobile Park has a 120 HR park factor for lefties.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 1.0
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              New York Yankees @ Chicago Cubs
+              <span class="final">Final: NYY 2 - CHC 5</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Jasson Dominguez k under 5.5
+          <span class="tier LEAN">LEAN</span>
+          
+        </div>
+        
+        <div class="rationale">David Peterson is a ground ball lefty who doesn&#39;t generate strikeouts against righties, Dominguez is poor from the right side, and ~30 mph winds blowing in at Wrigley make home runs essentially impossible, suppressing fantasy scoring.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge UNGRADABLE">UNGRADABLE</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              St. Louis Cardinals @ Toronto Blue Jays
+              <span class="final">Final: STL 1 - TOR 5</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Masataka Yoshida k over 1.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Quinn Matthews&#39; highly graded changeup (65 grade on FanGraphs) targets Okamoto&#39;s noted incompetence against that pitch, and Okamoto carries a high strikeout rate while having limited exposure to this pitch type.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge UNGRADABLE">UNGRADABLE</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Washington Nationals @ Atlanta Braves
+              <span class="final">Final: WSH 3 - ATL 8</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Dalen Lyle h over 0.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Lyle is projected to bat 2nd while priced as if batting 5th, has a .341 xwOBA with positive BABIP regression expected, and faces Ronaldo Lopez who posts a .356 xwOBA against lefties with no true strikeout stuff.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge UNGRADABLE">UNGRADABLE</span>
+    </li>
+            </ul>
+          </div>
+        
+      
+    </section>
+  
+    <section class="game" id="sec-3">
+      <h3>
+        <a class="src-head" href="/source/consensus-sim/">Consensus (sim)</a>
+        
+      </h3>
+      
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Arizona Diamondbacks @ Cleveland Guardians
+              <span class="final">Final: AZ 12 - CLE 8</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Cleveland Guardians -1.5
+          <span class="tier LEAN">LEAN</span>
+          
+        </div>
+        
+        <div class="rationale">Quant (7): Kohl Drake&#39;s lone tracked pitch at 0.440 xwOBA versus Messick&#39;s elite arsenal and the Guardians&#39; walk-heavy small-ball style that punishes wild young arms creates a genuine run-line edge — the Guardians don&#39;t need to blow teams out when a debutant walks himself into trouble, and the underlying metrics support covering -1.5. | Cynic (6): Drake&#39;s 0.440 xwOBA 4-seam and wild-rookie profile against Guardians small-ball is a real edge but Cleveland winning by 2+ against a debut arm is asking a lot — they grind out close wins more than they blow teams out, and -1.5 on a team that averages under 4 runs per game is thin value. | Careful (6): Drake&#39;s 0.440 xwOBA 4-seam with zero secondary weapons against Guardians small-ball/walk approach is a real edge, but -1.5 runline requires winning by 2+ against a debut arm which adds volatility — holding at 6 as both angles converge but spread risk is real.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge L">L</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Detroit Tigers @ Athletics
+              <span class="final">Final: DET 8 - ATH 6</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Detroit Tigers ML
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Quant (6): Perkins&#39; 0.376 4-seam xwOBA and 7.53 ERA over last 3 starts plus Oakland&#39;s 30th-ranked bullpen against a Tigers lineup ranking 1st in OPS/wRC+ over the last 7 games is a clean edge, but Valdez&#39;s inconsistency and the PickDawgz conflicting Oakland lean keep this at a solid but not exceptional confidence level. | Cynic (7): Perkins&#39; 7.53 ERA in his last 3 starts, dead-last Oakland bullpen, and Valdez historically neutralizing Oakland&#39;s sinker-weak lineup is the cleanest pitcher-vs-team matchup on the slate — Tigers ML at even-ish odds is where the value sits. | Careful (7): Conceding to Cynic — Perkins&#39; 0.376 xwOBA 4-seam and 7.53 ERA in last 3 starts is genuinely exploitable by a Tigers team ranking 1st in OPS/wRC+ over last 7, and the A&#39;s 30th-ranked bullpen means Detroit can pile on late; the ML (not runline) is clean value.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              New York Yankees @ Chicago Cubs
+              <span class="final">Final: NYY 2 - CHC 5</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Under 6.5
+          <span class="tier LOCK">LOCK</span>
+          
+        </div>
+        
+        <div class="rationale">Quant (8): Fried&#39;s cutter/sinker post xwOBAs of 0.238/0.269, Peterson&#39;s ground-ball arsenal suppresses hard contact, and 21 mph winds blowing in from CF at Wrigley makes home runs essentially impossible — this is a rare convergence of elite pitcher metrics AND extreme environmental suppression stacked on a 6.5 total. | Cynic (8): 21 mph wind blowing in from CF at Wrigley is a genuine game-changer, Fried&#39;s cutter/sinker combo generates weak contact, Peterson is a ground-ball lefty, and 6.5 is already a low number — this is the kind of weather-plus-arsenal stack I actually believe in. | Careful (8): 21 mph winds blowing in from CF at Wrigley is a rare and powerful suppressor, Fried&#39;s cutter/sinker xwOBAs sit below 0.270, and Peterson&#39;s ground-ball profile stacks with the park conditions — three converging angles on the under.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 7.0
+      </div>
+      <span class="badge L">L</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Pittsburgh Pirates @ Cincinnati Reds
+              <span class="final">Final: PIT 4 - CIN 1</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Under 8.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Quant (8): Abbott&#39;s 4-of-5 recent starts under 3 ER, Ashcraft&#39;s 40.9% whiff curveball against a weak-vs-righties Reds lineup, and 10 mph winds in from CF at GABP all point to a true talent line well below 8.5 — three independent suppressors converging on the same side. | Cynic (8): Wind in from CF at 10 mph, Abbott&#39;s genuine recent performance (3 runs or fewer in 4 of 5), Ashcraft&#39;s 40.9% whiff curveball against a Reds lineup that&#39;s been weak vs. righties all year — this is a triple-converging under with real teeth. | Careful (7): Wind blowing in from CF at 10 mph, Abbott&#39;s 4-of-5 recent starts under 3 ER, and Ashcraft&#39;s 40.9% whiff curveball vs. a weak Reds lineup vs. righties — three angles converge cleanly on the under with no single-point-of-failure thesis.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 5.0
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Washington Nationals @ Atlanta Braves
+              <span class="final">Final: WSH 3 - ATL 8</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Matt Olson tb over 1.5
+          <span class="tier LOCK">LOCK</span>
+          
+        </div>
+        
+        <div class="rationale">Quant (9): Olson&#39;s xSLG of 0.508 and xwOBA of 0.357 confirm elite true power, BettingPros projects 2.7 TB versus a 1.5 bar, Mikolas&#39;s sinker (0.374 xwOBA) and 4-seam (0.363 xwOBA) profile as extremely hittable to a pull-power lefty bat, and this is a LOCK-rated projection — best individual player prop on the board. | Cynic (9): Olson coming off 6 total bases, BettingPros projecting 2.7 TB, Mikolas posting a 6.62 ERA in July with 5 HRs in 17.2 IP and a hittable sinker/4-seam profile against a pull-power lefty bat — this is the clearest individual prop matchup on the slate. | Careful (9): BettingPros LOCK projection of 2.7 TB, Mikolas 6.62 ERA in July with 5 HRs in 17.2 IP, Olson&#39;s xSLG 0.508 confirming elite power, and prior game 6 TB form — four converging angles make this the clearest high-confidence spot on the slate.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 4.0
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+      
+    </section>
+  
+    <section class="game" id="sec-4">
+      <h3>
+        <a class="src-head" href="/source/consensus-sim-openai/">Consensus (sim:openai)</a>
+        
+      </h3>
+      
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Kansas City Royals @ Colorado Rockies
+              <span class="final">Final: KC 6 - COL 12</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Over 11.5
+          <span class="tier LEAN">LEAN</span>
+          
+        </div>
+        
+        <div class="rationale">Quant (7): Coors in 94-degree heat with Feltner’s badly damaged four-seam/slider contact profile and poor bullpen context supports the over even at an inflated 11.5. | Cynic (7): Coors in 94-degree heat with Feltner leaking runs and two bad bullpens is the right kind of ugly for an over, though 11.5 at least bakes in some of the chaos so it is good, not automatic. | Careful (6): Coors heat, Feltner’s poor four-seam/slider contact profile, and weak bullpens support the over, though 11.5 is already a demanding number.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 18.0
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              New York Yankees @ Chicago Cubs
+              <span class="final">Final: NYY 2 - CHC 5</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Under 6.5
+          <span class="tier LOCK">LOCK</span>
+          
+        </div>
+        
+        <div class="rationale">Quant (9): Wrigley with 21 mph in from CF is a major HR suppressor, Fried’s core mix is elite by xwOBA (cutter 0.238, sinker 0.269), and Peterson’s ground-ball/slider profile supports a true total below 6.5. | Cynic (9): Wrigley with a hard wind howling in is one of the few true weather hammers in baseball, and with two lefties who keep the ball on the ground this 6.5 still plays under despite the tiny number. | Careful (8): Extreme 21 mph wind in at Wrigley plus Fried’s elite contact suppression and Peterson’s ground-ball profile give this under three clean independent run suppressors.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 7.0
+      </div>
+      <span class="badge L">L</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Pittsburgh Pirates @ Cincinnati Reds
+              <span class="final">Final: PIT 4 - CIN 1</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Under 8.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Quant (8): The park is dangerous, but 10 mph wind in, Abbott’s recent run prevention, and Ashcraft’s legit bat-missing curve/slider combo make 8.5 a playable under. | Cynic (8): Great American scares people off unders, which I like, and with wind in plus Abbott in decent form and Ashcraft having a real put-away curve this looks more like a 4-3 type game than a bandbox shootout. | Careful (8): Abbott’s recent form, Ashcraft’s legit bat-missing curveball, and wind blowing in at GABP create a strong multi-angle under case.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 5.0
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Texas Rangers @ Houston Astros
+              <span class="final">Final: TEX 4 - HOU 5</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Ronel Blanco outs under 15.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Quant (8): Blanco’s 0.627 xwOBA four-seam, 15% walk rate, and likely pitch-count limitation create a strong path to 5 innings or fewer against a patient Texas lineup. | Cynic (8): Third start back, pitch-count ceiling, shaky command, and a patient Texas lineup make 16 outs a big ask, especially if Houston treats this like a five-and-dive rehab outing again. | Careful (7): Blanco’s workload cap, ugly early results and walk rate, and Texas’s patient lineup all converge on him struggling to record 16 outs.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 14.0
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Washington Nationals @ Atlanta Braves
+              <span class="final">Final: WSH 3 - ATL 8</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Matt Olson tb over 1.5
+          <span class="tier LOCK">LOCK</span>
+          
+        </div>
+        
+        <div class="rationale">Quant (9): Olson over 1.5 TB is one of the cleanest batter-vs-pitcher mismatches on the slate given his 0.508 xSLG against Mikolas’s highly hittable primary pitches and a strong run-scoring environment. | Cynic (9): Mikolas is exactly the sort of contact arm a lefty masher like Olson can punish, and this prop gives multiple paths with a double cashing just as easily as a homer in a hot Atlanta setup. | Careful (9): Olson’s underlying power and projection both clear the bar comfortably, and Mikolas’s highly hittable sinker/4-seam in a hot Atlanta environment is the best hitter-vs-pitch mix on the card.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 4.0
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+      
+    </section>
+  
+    <section class="game" id="sec-5">
+      <h3>
+        <a class="src-head" href="/source/panel-careful/">Panel: Careful</a>
+        
+      </h3>
+      
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Arizona Diamondbacks @ Cleveland Guardians
+              <span class="final">Final: AZ 12 - CLE 8</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Cleveland Guardians -1.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Kohl Drake&#39;s only documented pitch (4-seam FB) carries a 0.440 xwOBA and he has control issues, while Cleveland&#39;s small-ball contact-heavy approach is precisely the wrong lineup for a raw, walk-prone rookie — two cappers agree and Savant confirms the pitcher&#39;s extreme rawness.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge L">L</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Detroit Tigers @ Athletics
+              <span class="final">Final: DET 8 - ATH 6</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Detroit Tigers ML
+          <span class="tier LEAN">LEAN</span>
+          
+        </div>
+        
+        <div class="rationale">Jack Perkins carries a 7.53 ERA in his last 3 starts and the A&#39;s are 2-8 in their last 10 while the Tigers rank 1st in team OPS/wRC+ over the last 7 games — though cappers are split on this game, limiting conviction.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Philadelphia Phillies @ Baltimore Orioles
+              <span class="final">Final: PHI 5 - BAL 0</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Baltimore Orioles ML
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Cristopher Sánchez&#39;s sinker (42.5% usage, 0.367 xwOBA) is the #1 pitch the Orioles rank best against by run value, Sánchez carries a 4.97 ERA on the road, and Shane Baz has posted a clean 0.281 curveball xwOBA with 3 ER or fewer in all 5 of his last starts — two cappers on Baltimore with a convergent Savant pitch/lineup matchup mismatch.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge L">L</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Texas Rangers @ Houston Astros
+              <span class="final">Final: TEX 4 - HOU 5</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Over 8.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Ronel Blanco is 3rd start back from Tommy John with an 8.10 ERA and 15% walk rate, his 4-seam FB carries a 0.627 xwOBA, and Jacob deGrom has surrendered 4 HRs in 6 IP against Houston this season — two independent capper sources on the over plus both starters having documented run-prevention failures against these specific opponents.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 9.0
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Washington Nationals @ Atlanta Braves
+              <span class="final">Final: WSH 3 - ATL 8</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Over 9.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Mikolas&#39; fastball generates only a 14.3% whiff rate against the #1 OPS lineup vs. righties in July, while Reynaldo López has allowed 9 ER in his last 2 starts and his 4-seamer (0.354 xwOBA at 54.8% usage) is a contact-friendly offering against the Nationals&#39; #1-ranked offense vs. righties.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 11.0
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+      
+    </section>
+  
+    <section class="game" id="sec-6">
+      <h3>
+        <a class="src-head" href="/source/panel-cynic/">Panel: Cynic</a>
+        
+      </h3>
+      
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Detroit Tigers @ Athletics
+              <span class="final">Final: DET 8 - ATH 6</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Detroit Tigers -1.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Jack Perkins has a 7.53 ERA in his last 3 starts with a four-seamer at only 15.5% whiff rate, the A&#39;s are 2-8 in their last 10, and Detroit ranks #1 in OPS and wRC+ over the last 7 games with a soft A&#39;s bullpen (30th ERA) likely to surrender runs after Perkins exits early.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              New York Yankees @ Chicago Cubs
+              <span class="final">Final: NYY 2 - CHC 5</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Under 6.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Max Fried&#39;s cutter (27.4% whiff, xwOBA .238) and curve (xwOBA .217) are elite out pitches, wind is barely moving at 4 mph with light rain suppressing offense, and the lowest total on the board (6.5) already bakes in a pitcher&#39;s duel while the public is crowded on Cubs ML.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 7.0
+      </div>
+      <span class="badge L">L</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Philadelphia Phillies @ Baltimore Orioles
+              <span class="final">Final: PHI 5 - BAL 0</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Baltimore Orioles -1.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Shane Baz has allowed 3 or fewer runs in all 5 of his last starts while Cristopher Sánchez&#39;s primary sinker (42.5% usage, xwOBA .367) is targeted by the Orioles who rank #1 in run value against the sinker, and Sánchez carries a 4.97 road ERA with a .330 BAA on the road.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge L">L</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              St. Louis Cardinals @ Toronto Blue Jays
+              <span class="final">Final: STL 1 - TOR 5</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          St. Louis Cardinals +1.5
+          <span class="tier LEAN">LEAN</span>
+          
+        </div>
+        
+        <div class="rationale">Kevin Gausman is posting a 4.51 ERA with a leaky slider (xwOBA .421) against a patient Cardinals lineup, while Quinn Mathews as a debutant lefty faces a Blue Jays offense ranked 29th in OPS vs. lefties in July; Mathews likely on a pitch count and STL catches 1.5 runs of cushion.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge L">L</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Washington Nationals @ Atlanta Braves
+              <span class="final">Final: WSH 3 - ATL 8</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Over 9.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Reynaldo López&#39;s four-seamer carries an xwOBA of .354 and he&#39;s allowed 9 ER in 2 recent starts, while Miles Mikolas&#39;s contact-heavy arsenal (sinker xwOBA .374) faces a Braves lineup ranked #2 in OPS vs. righties in July, with Matt Olson posting a .529 slugging mark against a Mikolas who allowed 5 HRs in 17.2 July IP.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 11.0
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+      
+    </section>
+  
+    <section class="game" id="sec-7">
+      <h3>
+        <a class="src-head" href="/source/panel-quant/">Panel: Quant</a>
+        
+      </h3>
+      
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Boston Red Sox @ Los Angeles Dodgers
+              <span class="final">Final: BOS 3 - LAD 2</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Los Angeles Dodgers -1.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Yamamoto (2.72 ERA, 0.87 WHIP) with a dominant splitter (xwOBA .195) faces a Red Sox rotation in crisis — Houck, Crawford, and Snell all out — leaving rookie Payton Tolle exposed to a Dodgers lineup built to punish tired bullpen arms.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge L">L</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Detroit Tigers @ Athletics
+              <span class="final">Final: DET 8 - ATH 6</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Detroit Tigers -1.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Tigers rank 1st in OPS and wRC+ over the last 7 games against Perkins&#39;s vulnerable 4-seam (xwOBA .376), while the A&#39;s (45-64) carry the worst bullpen in baseball (30th ERA) and Framber Valdez&#39;s sinker/curveball profile is a legitimate contact-suppressor.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Milwaukee Brewers @ Los Angeles Angels
+              <span class="final">Final: MIL 3 - LAA 1</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Milwaukee Brewers -1.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Brewers (67-41) face Angels (42-67) with Gasser&#39;s sweeper/4-seam suppressing contact well while Soriano&#39;s sinker and 4-seam carry xwOBAs of .369/.384, and Soriano has gone under his outs line in 12 of his last 17 starts.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Texas Rangers @ Houston Astros
+              <span class="final">Final: TEX 4 - HOU 5</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Over 8.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Ronel Blanco is returning from Tommy John surgery with a 4-seam xwOBA of .627, yielded 4 ER in his first start, and has yet to finish five innings, while deGrom has shown inconsistency and gametime temperature is 98°F in Houston.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 9.0
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Washington Nationals @ Atlanta Braves
+              <span class="final">Final: WSH 3 - ATL 8</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Over 9.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Both starters (Reynaldo López and Miles Mikolas) are contact-heavy righties with high xwOBA on their primary pitches and below-average whiff rates, while both offenses rank atop MLB in July OPS vs. righties; model puts true total closer to 10.0.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 11.0
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+      
+    </section>
+  
+    <section class="game" id="sec-8">
+      <h3>
+        <a class="src-head" href="/source/bettingpros-daily-top-bets/">BettingPros - Daily Top Bets</a>
+        
+      </h3>
+      
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Washington Nationals @ Atlanta Braves
+              <span class="final">Final: WSH 3 - ATL 8</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Matt Olson tb over 1.5
+          <span class="tier LOCK">LOCK</span>
+          
+        </div>
+        
+        <div class="rationale">BettingPros projects 2.7 total bases for Olson, who hit a home run and double for 6 total bases the day prior, and opposing starter Miles Mikolas posted a 6.62 ERA in July with 5 home runs allowed in 17⅔ IP.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 4.0
+      </div>
+      <span class="badge W">W</span>
+    </li><li class="bet">
+      <div>
+        <div class="desc">
+          Matt Olson h+r+rbi over 1.5
+          
+          
+        </div>
+        
+        <div class="rationale">Noted as an available alternative line on Olson given Miles Mikolas&#39;s poor July ERA of 6.62 and Olson&#39;s recent form including 6 total bases the prior game.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 4.0
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Boston Red Sox @ Los Angeles Dodgers
+              <span class="final">Final: BOS 3 - LAD 2</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Shohei Ohtani tb over 1.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Ohtani has recorded 7, 3, and 6 total bases in his last three games since returning from rest, and BettingPros projects 2.8 total bases for him, though a lefty-on-lefty matchup with Paxton Tolli tempers it to a 4-star play.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 1.0
+      </div>
+      <span class="badge L">L</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Detroit Tigers @ Athletics
+              <span class="final">Final: DET 8 - ATH 6</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Gleyber Torres h+r+rbi over 1.5
+          <span class="tier LOCK">LOCK</span>
+          
+        </div>
+        
+        <div class="rationale">Jack Perkins starts for Oakland, a pitcher whose recent home starts have yielded heavy run totals and who has lost 7 consecutive and 8 of 9 starts; the game carries the highest total on the board at 10.5, giving Torres multiple ways to cash.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 6.0
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+      
+    </section>
+  
+    <section class="game" id="sec-9">
+      <h3>
+        <a class="src-head" href="/source/calling-our-shot-mlb/">Calling Our Shot - MLB</a>
+        
+      </h3>
+      
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Boston Red Sox @ Los Angeles Dodgers
+              <span class="final">Final: BOS 3 - LAD 2</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          F5 Under 2.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Paxton has a 2.47 ERA and Yamamoto a 2.17 ERA in the first 3 innings respectively, the Dodgers have struggled against lefties recently, and the Red Sox have been slow starters — both starters project to keep early scoring minimal.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 4.0
+      </div>
+      <span class="badge L">L</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Detroit Tigers @ Athletics
+              <span class="final">Final: DET 8 - ATH 6</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Detroit Tigers ML
+          <span class="tier LOCK">LOCK</span>
+          
+        </div>
+        
+        <div class="rationale">A&#39;s are 2-8 in last 10 games with a dead-last bullpen (30th ERA), while Tigers rank 1st in OPS and WRC+ over last 7 games; Jack Perkins carries a 7.53 ERA in his last 3 starts vs. Framber Valdez who previously held the A&#39;s to 1 ER over 7 IP and exploits their 28th-ranked run value against the sinker.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Philadelphia Phillies @ Baltimore Orioles
+              <span class="final">Final: PHI 5 - BAL 0</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Baltimore Orioles team total Over 3.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Christopher Sanchez carries a 4.97 ERA and .330 BAA on the road, 5 straight lefty starters have allowed 3+ ER against the Orioles, and the O&#39;s rank 1st in run value against the sinker — Sanchez&#39;s primary pitch — while the Phillies bullpen has a 5.31 ERA over the last 7 games.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 0.0
+      </div>
+      <span class="badge L">L</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Texas Rangers @ Houston Astros
+              <span class="final">Final: TEX 4 - HOU 5</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Roansy Blanco outs under 15.5
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">Blanco is in his 3rd start back from over a year of injury, has hit 85 pitches in both prior outings while posting an 8.10 ERA and 15% walk rate, and faces Rangers who rank 4th over last 10 games in pitches per PA with hitters like Corey Seager, Jack Peterson, and Wyatt Langford projected to run up his pitch count early.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 14.0
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+      
+    </section>
+  
+    <section class="game" id="sec-10">
+      <h3>
+        <a class="src-head" href="/source/recommendation/">Recommendation</a>
+        
+      </h3>
+      
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Detroit Tigers @ Athletics
+              <span class="final">Final: DET 8 - ATH 6</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Detroit Tigers -1.5
+          <span class="tier LEAN">LEAN</span>
+          
+        </div>
+        
+        <div class="rationale">Panel Quant is 4-0-1 (80%) on Tigers spread bets and Panel Cynic is 4-3 (57%) on Tigers spread bets, providing the strongest multi-source relevant-slice consensus on the slate. Perkins carries a 7.53 ERA in his last 3 starts with a vulnerable 4-seam, the A&#39;s are 2-8 in their last 10, and Detroit ranks 1st in OPS and wRC+ over the last 7 games with Oakland&#39;s 30th-ranked bullpen ERA adding run-scoring opportunities late.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              Pittsburgh Pirates @ Cincinnati Reds
+              <span class="final">Final: PIT 4 - CIN 1</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          Under 8.5
+          <span class="tier LOCK">LOCK</span>
+          
+        </div>
+        
+        <div class="rationale">PickDawgz Ron&#39;s Rundown is 22-13 (62%) on unders and 31-28 (52%) on totals overall — the unders record is the strongest directional slice on the board. Abbott has allowed 3 runs or fewer in 4 of his last 5 starts, and even the capper&#39;s Pittsburgh ML lean implies a controlled, lower-scoring game rather than a blowout, reinforcing the under thesis.</div>
+        
+      </div>
+      <div class="actual">
+        actual: 5.0
+      </div>
+      <span class="badge W">W</span>
+    </li>
+            </ul>
+          </div>
+        
+          <div class="subgame">
+            <div class="sub-h">
+              St. Louis Cardinals @ Toronto Blue Jays
+              <span class="final">Final: STL 1 - TOR 5</span>
+            </div>
+            <ul>
+              <li class="bet">
+      <div>
+        <div class="desc">
+          St. Louis Cardinals ML
+          <span class="tier LIKE">LIKE</span>
+          
+        </div>
+        
+        <div class="rationale">PickDawgz Ron&#39;s Rundown is 15-7 (68%) on the Cardinals specifically and 7-11 (38%) against the Blue Jays, making St. Louis the strong side here. Quinn Matthews debuting against a Blue Jays lineup ranked 29th in MLB OPS vs. lefties in July while Gausman posts a 4.51 ERA with poor expected numbers provides a clear pitcher matchup edge for St. Louis.</div>
+        
+      </div>
+      <div class="actual">
+        
+      </div>
+      <span class="badge L">L</span>
+    </li>
+            </ul>
+          </div>
+        
+      
+    </section>
+  
+
+  <style>
+    a.src { text-decoration: none; }
+    a.src:hover { color: var(--accent) !important; text-decoration: underline; }
+    .src-head { color: var(--ink); text-decoration: none; }
+    .src-head:hover { color: var(--accent); }
+    .mine {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 6px;
+      background: var(--accent);
+      color: #1a1a1a;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      border-radius: 3px;
+      vertical-align: 1px;
+    }
+    .tail-form {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .tail-form summary {
+      cursor: pointer;
+      display: inline-block;
+      color: var(--muted);
+      user-select: none;
+    }
+    .tail-form summary:hover { color: var(--accent); }
+    .tail-form form {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 6px;
+    }
+    .tail-form label { display: inline-flex; align-items: center; gap: 2px; }
+    .tail-form input[type="number"] {
+      width: 70px;
+      padding: 3px 6px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--ink);
+      font-size: 12px;
+      font-family: inherit;
+    }
+    .tail-form button {
+      padding: 3px 10px;
+      background: var(--accent);
+      color: #1a1a1a;
+      border: none;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .tail-form .untail-btn {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      font-weight: 500;
+    }
+    .tail-form .untail-btn:hover { color: var(--loss); border-color: var(--loss); }
+  </style>
+
+  
+    <section class="sources">
+      <h3>Sources</h3>
+      <ul>
+        
+          <li>
+            <a href="https://www.youtube.com/watch?v=CNV_JdkHGTM" target="_blank" rel="noopener">Daft Previews</a>
+            <span class="title">WNBA Picks and Parlays Today 1st August</span>
+          </li>
+        
+          <li>
+            <a href="https://www.youtube.com/watch?v=Jls9dGO0R3A" target="_blank" rel="noopener">PickDawgz - Ron&#39;s Rundown</a>
+            <span class="title">MLB Picks &amp; Predictions Today 8/1/26 | Ron&#39;s Rundown</span>
+          </li>
+        
+          <li>
+            <a href="https://www.youtube.com/watch?v=k1I6W0olBfA" target="_blank" rel="noopener">Calling Our Shot - MLB</a>
+            <span class="title">3-0 Yesterday! Saturday&#39;s MLB Best Picks and Predictions for August 1st!</span>
+          </li>
+        
+          <li>
+            <a href="https://www.youtube.com/watch?v=1HjbTGvS9tk" target="_blank" rel="noopener">BettingPros - Daily Top Bets</a>
+            <span class="title">Top 3 Bets for Saturday | Today&#39;s Best MLB Player Props Picks &amp; Predictions</span>
+          </li>
+        
+          <li>
+            <a href="https://www.youtube.com/watch?v=rOws2HS9PKo" target="_blank" rel="noopener">Doc&#39;s Sports - Craig Trapp MLB</a>
+            <span class="title">Saturday WNBA Picks - 8/1/26 l Craig Trapp &amp; Indian Cowboy WNBA Betting Picks &amp; Predictions</span>
+          </li>
+        
+          <li>
+            <a href="https://www.youtube.com/watch?v=KDS1Ppdvjss" target="_blank" rel="noopener">Live With Lindy</a>
+            <span class="title">MLB Research + Data Deep Dive (8/1) | MLB Props, Bets &amp; Research | Live With Lindy</span>
+          </li>
+        
+      </ul>
+    </section>
+  
+
+    </main>
+  </div>
+  <script>
+    // Clicking the already-active date collapses its section dropdown
+    // instead of reloading the page — quicker to scan the date list.
+    document.querySelectorAll('.nav a.day-link.active').forEach(function (a) {
+      a.addEventListener('click', function (e) {
+        var sub = a.nextElementSibling;
+        if (sub && sub.classList.contains('sub-nav')) {
+          e.preventDefault();
+          a.classList.toggle('collapsed');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

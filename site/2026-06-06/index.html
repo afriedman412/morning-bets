@@ -29,9 +29,9 @@
     }
     .layout {
       display: grid;
-      grid-template-columns: 220px 1fr;
-      gap: 28px;
-      max-width: 1180px;
+      grid-template-columns: 250px 1fr;
+      gap: 24px;
+      max-width: 1200px;
       margin: 0 auto;
       padding: 24px 22px 80px;
     }
@@ -77,12 +77,12 @@
       display: flex;
       flex-direction: column;
       gap: 1px;
-      margin: 2px 0 6px 14px;
+      margin: 2px 0 6px 10px;
       padding-left: 8px;
       border-left: 1px solid var(--border);
     }
     .sub-nav a {
-      padding: 4px 10px;
+      padding: 4px 8px;
       font-size: 12px;
       color: var(--muted);
       text-decoration: none;
@@ -93,6 +93,50 @@
       text-overflow: ellipsis;
     }
     .sub-nav a:hover { color: var(--ink); background: var(--panel-2); }
+    .sub-nav a.active { color: var(--ink); background: var(--panel); }
+    /* Roster names are long — let them wrap instead of truncating. */
+    .roster .sub-nav a { white-space: normal; line-height: 1.3; }
+    .nav a.day-link.collapsed + .sub-nav { display: none; }
+
+    .roster { margin: 2px 0 6px; }
+    .roster > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      user-select: none;
+    }
+    .roster > summary::-webkit-details-marker { display: none; }
+    .roster > summary::before {
+      content: "▸";
+      font-size: 10px;
+      margin-right: 8px;
+      display: inline-block;
+      transition: transform 0.1s;
+    }
+    .roster[open] > summary::before { transform: rotate(90deg); }
+    .roster > summary:hover { background: var(--panel-2); color: var(--ink); }
+
+    .sub-toggle {
+      display: inline-flex;
+      align-self: start;
+      margin: 4px 0 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .sub-toggle a {
+      text-align: center;
+      padding: 5px 12px;
+      font-size: 11px;
+      color: var(--muted);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .sub-toggle a.active { background: var(--accent); color: #1a1a1a; font-weight: 600; }
+    .sub-toggle a:not(.active):hover { background: var(--panel-2); color: var(--ink); }
 
     .main { min-width: 0; }
     .main header.top {
@@ -272,20 +316,617 @@
     <aside class="sidebar">
       <h1><a href="/">Morning Bets</a></h1>
       <nav class="nav">
+        <a href="/cappers/">
+          <span>📋 Cappers</span>
+        </a>
+        <a href="/me/">
+          <span>💰 Me</span>
+        </a>
         
-          <a href="/2026-06-08/">
-            <span>2026-06-08</span>
+          <details class="roster">
+            <summary>Roster</summary>
+            <div class="sub-nav">
+              
+                <a href="/source/pickdawgz-ron-s-rundown/"
+                   title="PickDawgz - Ron&#39;s Rundown"
+                   >
+                  PickDawgz - Ron&#39;s Rundown
+                </a>
+              
+                <a href="/source/guy-boston-sports-mlb/"
+                   title="Guy Boston Sports - MLB"
+                   >
+                  Guy Boston Sports - MLB
+                </a>
+              
+                <a href="/source/lindy-s-leans-likes-locks/"
+                   title="Lindy&#39;s Leans Likes &amp; Locks"
+                   >
+                  Lindy&#39;s Leans Likes &amp; Locks 🎲
+                </a>
+              
+                <a href="/source/doc-s-sports-craig-trapp-mlb/"
+                   title="Doc&#39;s Sports - Craig Trapp MLB"
+                   >
+                  Doc&#39;s Sports - Craig Trapp MLB
+                </a>
+              
+                <a href="/source/calling-our-shot-mlb/"
+                   title="Calling Our Shot - MLB"
+                   >
+                  Calling Our Shot - MLB 🎲
+                </a>
+              
+                <a href="/source/silverback-bets-mlb/"
+                   title="Silverback Bets - MLB"
+                   >
+                  Silverback Bets - MLB
+                </a>
+              
+                <a href="/source/panel-cynic/"
+                   title="Panel: Cynic"
+                   >
+                  Panel: Cynic 🎲
+                </a>
+              
+                <a href="/source/panel-quant/"
+                   title="Panel: Quant"
+                   >
+                  Panel: Quant 🎲
+                </a>
+              
+                <a href="/source/panel-careful/"
+                   title="Panel: Careful"
+                   >
+                  Panel: Careful 🎲
+                </a>
+              
+                <a href="/source/live-with-lindy/"
+                   title="Live With Lindy"
+                   >
+                  Live With Lindy 🎲
+                </a>
+              
+                <a href="/source/bettingpros-daily-top-bets/"
+                   title="BettingPros - Daily Top Bets"
+                   >
+                  BettingPros - Daily Top Bets 🎲
+                </a>
+              
+                <a href="/source/recommendation/"
+                   title="Recommendation"
+                   >
+                  Recommendation 🎲
+                </a>
+              
+                <a href="/source/consensus-sim-openai/"
+                   title="Consensus (sim:openai)"
+                   >
+                  Consensus (sim:openai) 🎲
+                </a>
+              
+                <a href="/source/consensus-sim/"
+                   title="Consensus (sim)"
+                   >
+                  Consensus (sim) 🎲
+                </a>
+              
+                <a href="/source/wagertalk-drew-s-daily-diamond/"
+                   title="WagerTalk - Drew&#39;s Daily Diamond"
+                   >
+                  WagerTalk - Drew&#39;s Daily Diamond 🎲
+                </a>
+              
+                <a href="/source/wagertalk-steve-merril/"
+                   title="WagerTalk - Steve Merril"
+                   >
+                  WagerTalk - Steve Merril
+                </a>
+              
+                <a href="/source/daft-previews/"
+                   title="Daft Previews"
+                   >
+                  Daft Previews
+                </a>
+              
+                <a href="/source/calling-our-shot-nba/"
+                   title="Calling Our Shot - NBA"
+                   >
+                  Calling Our Shot - NBA
+                </a>
+              
+                <a href="/source/wagertalk-best-mlb-bets/"
+                   title="WagerTalk - Best MLB Bets"
+                   >
+                  WagerTalk - Best MLB Bets
+                </a>
+              
+                <a href="/source/wagertalk-first-five/"
+                   title="WagerTalk - First Five"
+                   >
+                  WagerTalk - First Five
+                </a>
+              
+                <a href="/source/oddsshopper-daily-dingers-hr-props/"
+                   title="OddsShopper - Daily Dingers (HR props)"
+                   >
+                  OddsShopper - Daily Dingers (HR props) 🎲
+                </a>
+              
+                <a href="/source/placed/"
+                   title="Placed"
+                   >
+                  Placed 🎲
+                </a>
+              
+                <a href="/source/manual/"
+                   title="Manual"
+                   >
+                  Manual
+                </a>
+              
+            </div>
+          </details>
+        
+        
+        
+          <div class="sub-toggle">
+            <a href="/2026-06-06/" class="active">By game</a>
+            <a href="/2026-06-06/source/" class="">By source</a>
+          </div>
+        
+        
+          <a href="/2026-08-21/" class="day-link">
+            <span>2026-08-21</span>
             <span class="rec">0-0</span>
           </a>
           
         
-          <a href="/2026-06-07/">
+          <a href="/2026-08-20/" class="day-link">
+            <span>2026-08-20</span>
+            <span class="rec">34-29</span>
+          </a>
+          
+        
+          <a href="/2026-08-19/" class="day-link">
+            <span>2026-08-19</span>
+            <span class="rec">45-66</span>
+          </a>
+          
+        
+          <a href="/2026-08-18/" class="day-link">
+            <span>2026-08-18</span>
+            <span class="rec">25-20</span>
+          </a>
+          
+        
+          <a href="/2026-08-17/" class="day-link">
+            <span>2026-08-17</span>
+            <span class="rec">35-34</span>
+          </a>
+          
+        
+          <a href="/2026-08-16/" class="day-link">
+            <span>2026-08-16</span>
+            <span class="rec">42-38</span>
+          </a>
+          
+        
+          <a href="/2026-08-15/" class="day-link">
+            <span>2026-08-15</span>
+            <span class="rec">45-50</span>
+          </a>
+          
+        
+          <a href="/2026-08-14/" class="day-link">
+            <span>2026-08-14</span>
+            <span class="rec">47-65</span>
+          </a>
+          
+        
+          <a href="/2026-08-13/" class="day-link">
+            <span>2026-08-13</span>
+            <span class="rec">41-43</span>
+          </a>
+          
+        
+          <a href="/2026-08-12/" class="day-link">
+            <span>2026-08-12</span>
+            <span class="rec">50-79</span>
+          </a>
+          
+        
+          <a href="/2026-08-11/" class="day-link">
+            <span>2026-08-11</span>
+            <span class="rec">56-58</span>
+          </a>
+          
+        
+          <a href="/2026-08-10/" class="day-link">
+            <span>2026-08-10</span>
+            <span class="rec">48-44</span>
+          </a>
+          
+        
+          <a href="/2026-08-09/" class="day-link">
+            <span>2026-08-09</span>
+            <span class="rec">33-34</span>
+          </a>
+          
+        
+          <a href="/2026-08-08/" class="day-link">
+            <span>2026-08-08</span>
+            <span class="rec">35-61</span>
+          </a>
+          
+        
+          <a href="/2026-08-07/" class="day-link">
+            <span>2026-08-07</span>
+            <span class="rec">47-69</span>
+          </a>
+          
+        
+          <a href="/2026-08-06/" class="day-link">
+            <span>2026-08-06</span>
+            <span class="rec">38-57</span>
+          </a>
+          
+        
+          <a href="/2026-08-05/" class="day-link">
+            <span>2026-08-05</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-08-04/" class="day-link">
+            <span>2026-08-04</span>
+            <span class="rec">32-23</span>
+          </a>
+          
+        
+          <a href="/2026-08-03/" class="day-link">
+            <span>2026-08-03</span>
+            <span class="rec">11-32</span>
+          </a>
+          
+        
+          <a href="/2026-08-02/" class="day-link">
+            <span>2026-08-02</span>
+            <span class="rec">24-35</span>
+          </a>
+          
+        
+          <a href="/2026-08-01/" class="day-link">
+            <span>2026-08-01</span>
+            <span class="rec">33-26</span>
+          </a>
+          
+        
+          <a href="/2026-07-31/" class="day-link">
+            <span>2026-07-31</span>
+            <span class="rec">22-39</span>
+          </a>
+          
+        
+          <a href="/2026-07-30/" class="day-link">
+            <span>2026-07-30</span>
+            <span class="rec">14-12</span>
+          </a>
+          
+        
+          <a href="/2026-07-29/" class="day-link">
+            <span>2026-07-29</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-28/" class="day-link">
+            <span>2026-07-28</span>
+            <span class="rec">26-35</span>
+          </a>
+          
+        
+          <a href="/2026-07-27/" class="day-link">
+            <span>2026-07-27</span>
+            <span class="rec">23-36</span>
+          </a>
+          
+        
+          <a href="/2026-07-26/" class="day-link">
+            <span>2026-07-26</span>
+            <span class="rec">32-38</span>
+          </a>
+          
+        
+          <a href="/2026-07-25/" class="day-link">
+            <span>2026-07-25</span>
+            <span class="rec">47-26</span>
+          </a>
+          
+        
+          <a href="/2026-07-24/" class="day-link">
+            <span>2026-07-24</span>
+            <span class="rec">35-59</span>
+          </a>
+          
+        
+          <a href="/2026-07-23/" class="day-link">
+            <span>2026-07-23</span>
+            <span class="rec">9-13</span>
+          </a>
+          
+        
+          <a href="/2026-07-22/" class="day-link">
+            <span>2026-07-22</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-21/" class="day-link">
+            <span>2026-07-21</span>
+            <span class="rec">42-23</span>
+          </a>
+          
+        
+          <a href="/2026-07-20/" class="day-link">
+            <span>2026-07-20</span>
+            <span class="rec">20-48</span>
+          </a>
+          
+        
+          <a href="/2026-07-19/" class="day-link">
+            <span>2026-07-19</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-18/" class="day-link">
+            <span>2026-07-18</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-17/" class="day-link">
+            <span>2026-07-17</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-16/" class="day-link">
+            <span>2026-07-16</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-14/" class="day-link">
+            <span>2026-07-14</span>
+            <span class="rec">3-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-13/" class="day-link">
+            <span>2026-07-13</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-12/" class="day-link">
+            <span>2026-07-12</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-11/" class="day-link">
+            <span>2026-07-11</span>
+            <span class="rec">24-36</span>
+          </a>
+          
+        
+          <a href="/2026-07-10/" class="day-link">
+            <span>2026-07-10</span>
+            <span class="rec">20-40</span>
+          </a>
+          
+        
+          <a href="/2026-07-09/" class="day-link">
+            <span>2026-07-09</span>
+            <span class="rec">35-23</span>
+          </a>
+          
+        
+          <a href="/2026-07-08/" class="day-link">
+            <span>2026-07-08</span>
+            <span class="rec">28-29</span>
+          </a>
+          
+        
+          <a href="/2026-07-07/" class="day-link">
+            <span>2026-07-07</span>
+            <span class="rec">29-42</span>
+          </a>
+          
+        
+          <a href="/2026-07-06/" class="day-link">
+            <span>2026-07-06</span>
+            <span class="rec">16-33</span>
+          </a>
+          
+        
+          <a href="/2026-07-05/" class="day-link">
+            <span>2026-07-05</span>
+            <span class="rec">18-24</span>
+          </a>
+          
+        
+          <a href="/2026-07-04/" class="day-link">
+            <span>2026-07-04</span>
+            <span class="rec">25-23</span>
+          </a>
+          
+        
+          <a href="/2026-07-03/" class="day-link">
+            <span>2026-07-03</span>
+            <span class="rec">30-28</span>
+          </a>
+          
+        
+          <a href="/2026-07-02/" class="day-link">
+            <span>2026-07-02</span>
+            <span class="rec">29-18</span>
+          </a>
+          
+        
+          <a href="/2026-07-01/" class="day-link">
+            <span>2026-07-01</span>
+            <span class="rec">21-25</span>
+          </a>
+          
+        
+          <a href="/2026-06-30/" class="day-link">
+            <span>2026-06-30</span>
+            <span class="rec">33-22</span>
+          </a>
+          
+        
+          <a href="/2026-06-29/" class="day-link">
+            <span>2026-06-29</span>
+            <span class="rec">21-24</span>
+          </a>
+          
+        
+          <a href="/2026-06-28/" class="day-link">
+            <span>2026-06-28</span>
+            <span class="rec">15-21</span>
+          </a>
+          
+        
+          <a href="/2026-06-27/" class="day-link">
+            <span>2026-06-27</span>
+            <span class="rec">12-20</span>
+          </a>
+          
+        
+          <a href="/2026-06-26/" class="day-link">
+            <span>2026-06-26</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-06-25/" class="day-link">
+            <span>2026-06-25</span>
+            <span class="rec">9-21</span>
+          </a>
+          
+        
+          <a href="/2026-06-24/" class="day-link">
+            <span>2026-06-24</span>
+            <span class="rec">18-21</span>
+          </a>
+          
+        
+          <a href="/2026-06-23/" class="day-link">
+            <span>2026-06-23</span>
+            <span class="rec">31-41</span>
+          </a>
+          
+        
+          <a href="/2026-06-22/" class="day-link">
+            <span>2026-06-22</span>
+            <span class="rec">17-27</span>
+          </a>
+          
+        
+          <a href="/2026-06-21/" class="day-link">
+            <span>2026-06-21</span>
+            <span class="rec">29-16</span>
+          </a>
+          
+        
+          <a href="/2026-06-20/" class="day-link">
+            <span>2026-06-20</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-06-19/" class="day-link">
+            <span>2026-06-19</span>
+            <span class="rec">22-33</span>
+          </a>
+          
+        
+          <a href="/2026-06-18/" class="day-link">
+            <span>2026-06-18</span>
+            <span class="rec">35-26</span>
+          </a>
+          
+        
+          <a href="/2026-06-17/" class="day-link">
+            <span>2026-06-17</span>
+            <span class="rec">26-26</span>
+          </a>
+          
+        
+          <a href="/2026-06-16/" class="day-link">
+            <span>2026-06-16</span>
+            <span class="rec">44-28</span>
+          </a>
+          
+        
+          <a href="/2026-06-15/" class="day-link">
+            <span>2026-06-15</span>
+            <span class="rec">18-22</span>
+          </a>
+          
+        
+          <a href="/2026-06-14/" class="day-link">
+            <span>2026-06-14</span>
+            <span class="rec">13-9</span>
+          </a>
+          
+        
+          <a href="/2026-06-13/" class="day-link">
+            <span>2026-06-13</span>
+            <span class="rec">22-35</span>
+          </a>
+          
+        
+          <a href="/2026-06-12/" class="day-link">
+            <span>2026-06-12</span>
+            <span class="rec">29-31</span>
+          </a>
+          
+        
+          <a href="/2026-06-11/" class="day-link">
+            <span>2026-06-11</span>
+            <span class="rec">15-18</span>
+          </a>
+          
+        
+          <a href="/2026-06-10/" class="day-link">
+            <span>2026-06-10</span>
+            <span class="rec">24-33</span>
+          </a>
+          
+        
+          <a href="/2026-06-09/" class="day-link">
+            <span>2026-06-09</span>
+            <span class="rec">21-18</span>
+          </a>
+          
+        
+          <a href="/2026-06-08/" class="day-link">
+            <span>2026-06-08</span>
+            <span class="rec">22-17</span>
+          </a>
+          
+        
+          <a href="/2026-06-07/" class="day-link">
             <span>2026-06-07</span>
             <span class="rec">18-16</span>
           </a>
           
         
-          <a href="/2026-06-06/" class="active">
+          <a href="/2026-06-06/" class="day-link active">
             <span>2026-06-06</span>
             <span class="rec">14-24</span>
           </a>
@@ -323,37 +964,37 @@
             </div>
           
         
-          <a href="/2026-06-05/">
+          <a href="/2026-06-05/" class="day-link">
             <span>2026-06-05</span>
             <span class="rec">42-42</span>
           </a>
           
         
-          <a href="/2026-06-04/">
+          <a href="/2026-06-04/" class="day-link">
             <span>2026-06-04</span>
             <span class="rec">12-35</span>
           </a>
           
         
-          <a href="/2026-06-03/">
+          <a href="/2026-06-03/" class="day-link">
             <span>2026-06-03</span>
             <span class="rec">47-42</span>
           </a>
           
         
-          <a href="/2026-06-02/">
+          <a href="/2026-06-02/" class="day-link">
             <span>2026-06-02</span>
             <span class="rec">30-34</span>
           </a>
           
         
-          <a href="/2026-06-01/">
+          <a href="/2026-06-01/" class="day-link">
             <span>2026-06-01</span>
             <span class="rec">23-27</span>
           </a>
           
         
-          <a href="/2026-05-31/">
+          <a href="/2026-05-31/" class="day-link">
             <span>2026-05-31</span>
             <span class="rec">46-30</span>
           </a>
@@ -365,10 +1006,6 @@
       
   <header class="top">
     <h2>Saturday 6/6/26</h2>
-    <div class="toggle">
-      <a href="/2026-06-06/" class="active">By game</a>
-      <a href="/2026-06-06/source/" class="">By source</a>
-    </div>
   </header>
 
   <div class="summary">
@@ -404,9 +1041,11 @@
         <div class="desc">
           Nick Kurtz bb over 0.5
           
+          
         </div>
-        <span class="src">Calling Our Shot - MLB</span>
+        <a class="src" href="/source/calling-our-shot-mlb/">Calling Our Shot - MLB</a>
         <div class="rationale">The Astros pitcher has a 20%+ walk rate vs. lefties and Kurtz has a 24% walk rate vs. right-handed pitchers, making a walk likely.</div>
+        
       </div>
       <div class="actual">
         actual: 1.0
@@ -417,8 +1056,10 @@
         <div class="desc">
           Jeremy Peña hr over 1.5
           
+          
         </div>
-        <span class="src">Calling Our Shot - MLB</span>
+        <a class="src" href="/source/calling-our-shot-mlb/">Calling Our Shot - MLB</a>
+        
         
       </div>
       <div class="actual">
@@ -430,8 +1071,10 @@
         <div class="desc">
           Shay Langeliers hr over 0.5
           
+          
         </div>
-        <span class="src">Calling Our Shot - MLB</span>
+        <a class="src" href="/source/calling-our-shot-mlb/">Calling Our Shot - MLB</a>
+        
         
       </div>
       <div class="actual">
@@ -443,9 +1086,11 @@
         <div class="desc">
           Christian Walker hr over 0.5
           
+          
         </div>
-        <span class="src">Calling Our Shot - MLB</span>
+        <a class="src" href="/source/calling-our-shot-mlb/">Calling Our Shot - MLB</a>
         <div class="rationale">With A&#39;s potentially pitching around Yordan Alvarez, Walker batting behind him may see more hittable pitches.</div>
+        
       </div>
       <div class="actual">
         actual: 0.0
@@ -456,9 +1101,11 @@
         <div class="desc">
           Yordan Alvarez bb over 0.5
           
+          
         </div>
-        <span class="src">Calling Our Shot - MLB</span>
+        <a class="src" href="/source/calling-our-shot-mlb/">Calling Our Shot - MLB</a>
         <div class="rationale">A&#39;s are calling up Kade Morris, who had walk issues in spring and the minors, and may intentionally avoid Alvarez.</div>
+        
       </div>
       <div class="actual">
         actual: 1.0
@@ -469,8 +1116,10 @@
         <div class="desc">
           Over <i>9.5</i> <span class="inferred">(inferred)</span>
           
+          
         </div>
-        <span class="src">Calling Our Shot - MLB</span>
+        <a class="src" href="/source/calling-our-shot-mlb/">Calling Our Shot - MLB</a>
+        
         
       </div>
       <div class="actual">
@@ -482,9 +1131,11 @@
         <div class="desc">
           Houston Astros ML
           <span class="tier LEAN">LEAN</span>
+          
         </div>
-        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <a class="src" href="/source/pickdawgz-ron-s-rundown/">PickDawgz - Ron&#39;s Rundown</a>
         <div class="rationale">Athletics starter Cade Morris is making his MLB debut with limited strikeout stuff after only ~60 IP in the PCL, while the Astros have been hitting better at home recently.</div>
+        
       </div>
       <div class="actual">
         
@@ -495,9 +1146,11 @@
         <div class="desc">
           Over <i>9.5</i> <span class="inferred">(inferred)</span>
           <span class="tier LEAN">LEAN</span>
+          
         </div>
-        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <a class="src" href="/source/pickdawgz-ron-s-rundown/">PickDawgz - Ron&#39;s Rundown</a>
         <div class="rationale">Morris&#39;s debut with limited strikeout stuff and uncertainty about his performance at the MLB level raises concerns about run prevention for the Athletics.</div>
+        
       </div>
       <div class="actual">
         actual: 15.0
@@ -520,9 +1173,11 @@
         <div class="desc">
           Joe Ryan k over 6.5
           <span class="tier LOCK">LOCK</span>
+          
         </div>
-        <span class="src">Live With Lindy</span>
+        <a class="src" href="/source/live-with-lindy/">Live With Lindy</a>
         <div class="rationale">Ryan has a 28% K rate year-over-year and 26% K rate vs. lefties; Carter Jensen (30%+ K rate vs. RHP) now leads off guaranteeing 3 ABs, a taxed bullpen gives Ryan a longer leash, and +140 exceeds the consensus market number of +125.</div>
+        
       </div>
       <div class="actual">
         actual: 5.0
@@ -533,9 +1188,11 @@
         <div class="desc">
           Eric Hosmer hr over 0.5
           
+          
         </div>
-        <span class="src">Live With Lindy</span>
+        <a class="src" href="/source/live-with-lindy/">Live With Lindy</a>
         <div class="rationale">+950 at Bet365 described as a ridiculous pricing outlier and best available number.</div>
+        
       </div>
       <div class="actual">
         
@@ -546,8 +1203,10 @@
         <div class="desc">
           Eric Hosmer hr over 0.5
           
+          
         </div>
-        <span class="src">Live With Lindy</span>
+        <a class="src" href="/source/live-with-lindy/">Live With Lindy</a>
+        
         
       </div>
       <div class="actual">
@@ -559,9 +1218,11 @@
         <div class="desc">
           Brooks Lee h+r+rbi over
           
+          
         </div>
-        <span class="src">Live With Lindy</span>
+        <a class="src" href="/source/live-with-lindy/">Live With Lindy</a>
         <div class="rationale">Brooks Lee described as a consistently strong Pick&#39;em square on Underdog at minus 115.</div>
+        
       </div>
       <div class="actual">
         
@@ -572,9 +1233,11 @@
         <div class="desc">
           Minnesota Twins ML
           
+          
         </div>
-        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <a class="src" href="/source/pickdawgz-ron-s-rundown/">PickDawgz - Ron&#39;s Rundown</a>
         <div class="rationale">Joe Ryan posted 9 Ks over 6 IP in his last start and holds a 2.8 ERA at Target Field this season, while the Twins offense is expected to get to Avula and the Royals bullpen.</div>
+        
       </div>
       <div class="actual">
         
@@ -597,9 +1260,11 @@
         <div class="desc">
           Jacob Misarowski outs over 17.5
           <span class="tier LIKE">LIKE</span>
+          
         </div>
-        <span class="src">Calling Our Shot - MLB</span>
+        <a class="src" href="/source/calling-our-shot-mlb/">Calling Our Shot - MLB</a>
         <div class="rationale">Misarowski went 6+ innings in 5 straight starts and the Rockies have a high strikeout percentage and swing early, which plays into his 100+ mph fastball; altitude at Coors may make his fastball appear even faster.</div>
+        
       </div>
       <div class="actual">
         actual: 21.0
@@ -610,9 +1275,11 @@
         <div class="desc">
           Milwaukee Brewers ML
           <span class="tier LIKE">LIKE</span>
+          
         </div>
-        <span class="src">Calling Our Shot - MLB</span>
+        <a class="src" href="/source/calling-our-shot-mlb/">Calling Our Shot - MLB</a>
         <div class="rationale">Brewers offense is described as far superior to the Rockies, went 4-1 in Misarowski&#39;s last 5 starts, and does not rely on home runs, making Coors Field a potential bonus rather than a liability.</div>
+        
       </div>
       <div class="actual">
         
@@ -623,9 +1290,11 @@
         <div class="desc">
           Under 4.5
           <span class="tier LIKE">LIKE</span>
+          
         </div>
-        <span class="src">Guy Boston Sports - MLB</span>
+        <a class="src" href="/source/guy-boston-sports-mlb/">Guy Boston Sports - MLB</a>
         <div class="rationale">Brewers starter throws fastball ~63% of the time and has averaged 1.1 earned runs per start over his last 5 outings (6+ innings each), while the Rockies offense trends toward unders against heavy fastball usage.</div>
+        
       </div>
       <div class="actual">
         actual: 8.0
@@ -636,9 +1305,11 @@
         <div class="desc">
           Milwaukee Brewers -2.5
           <span class="tier LEAN">LEAN</span>
+          
         </div>
-        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <a class="src" href="/source/pickdawgz-ron-s-rundown/">PickDawgz - Ron&#39;s Rundown</a>
         <div class="rationale">Misiorowski has been one of the best pitchers in baseball this season with elite strikeout stuff, and the Brewers should back him up against Tanner Gordon and the Rockies bullpen, though the source officially labels this a stayaway.</div>
+        
       </div>
       <div class="actual">
         
@@ -661,9 +1332,11 @@
         <div class="desc">
           Moises Bello h+r+rbi under 1.5
           <span class="tier LIKE">LIKE</span>
+          
         </div>
-        <span class="src">Guy Boston Sports - MLB</span>
+        <a class="src" href="/source/guy-boston-sports-mlb/">Guy Boston Sports - MLB</a>
         <div class="rationale">Bello is averaging only 0.7 hits/runs/RBIs over his last 10 games and faces Landon Rupp, who throws sinker and curveball ~66% of the time — pitches against which Bello has negative run values and a high whiff rate.</div>
+        
       </div>
       <div class="actual">
         
@@ -674,9 +1347,11 @@
         <div class="desc">
           Under 4.5
           <span class="tier LIKE">LIKE</span>
+          
         </div>
-        <span class="src">Guy Boston Sports - MLB</span>
+        <a class="src" href="/source/guy-boston-sports-mlb/">Guy Boston Sports - MLB</a>
         <div class="rationale">Shane McClanahan&#39;s fastball/changeup mix has held the Marlins under in 9 of 10 home games this season, and a 15%/15% fastball-changeup filter shows a 70% under hit rate over the last 20 games.</div>
+        
       </div>
       <div class="actual">
         actual: 7.0
@@ -687,9 +1362,11 @@
         <div class="desc">
           Xavier Edwards hr over 0.5
           
+          
         </div>
-        <span class="src">Live With Lindy</span>
+        <a class="src" href="/source/live-with-lindy/">Live With Lindy</a>
         <div class="rationale">Edwards is back leading off the lineup, creating significant positive EV; +1500 (briefly showing +1300 before lineup dropped) cited as best available number.</div>
+        
       </div>
       <div class="actual">
         actual: 0.0
@@ -700,9 +1377,11 @@
         <div class="desc">
           Miami Marlins ML
           
+          
         </div>
-        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <a class="src" href="/source/pickdawgz-ron-s-rundown/">PickDawgz - Ron&#39;s Rundown</a>
         <div class="rationale">McClanahan&#39;s strikeout numbers are dipping (only 6 Ks in last 10.1 IP) while the Marlins rank top 10 in OPS vs. lefties and #2 in isolated power vs. lefties in the last 30 days.</div>
+        
       </div>
       <div class="actual">
         
@@ -725,9 +1404,11 @@
         <div class="desc">
           Cateel Marte hr over 0.5
           <span class="tier LIKE">LIKE</span>
+          
         </div>
-        <span class="src">Live With Lindy</span>
+        <a class="src" href="/source/live-with-lindy/">Live With Lindy</a>
         <div class="rationale">Opposing pitcher Zack Lattell has a 4.72 Sierra and 5.01 xFIP with unsustainable low BABIP and high strand rate masking true performance; Marte&#39;s expected numbers far exceed his actual results, making +350 a strong value.</div>
+        
       </div>
       <div class="actual">
         actual: 0.0
@@ -738,9 +1419,11 @@
         <div class="desc">
           Pavin Smith hr over 0.5
           <span class="tier LIKE">LIKE</span>
+          
         </div>
-        <span class="src">Live With Lindy</span>
+        <a class="src" href="/source/live-with-lindy/">Live With Lindy</a>
         <div class="rationale">Smith has a platoon advantage vs. lefty Zack Lattell, a career HR history vs. LHP, lofts the ball well, and Arizona&#39;s lineup of righties/switch hitters limits Washington&#39;s ability to bring in a lefty to neutralize him; +700 represents strong value.</div>
+        
       </div>
       <div class="actual">
         actual: 0.0
@@ -751,8 +1434,10 @@
         <div class="desc">
           Cateel Marte hr over 0.5
           
+          
         </div>
-        <span class="src">Live With Lindy</span>
+        <a class="src" href="/source/live-with-lindy/">Live With Lindy</a>
+        
         
       </div>
       <div class="actual">
@@ -764,9 +1449,11 @@
         <div class="desc">
           Washington Nationals ML
           
+          
         </div>
-        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <a class="src" href="/source/pickdawgz-ron-s-rundown/">PickDawgz - Ron&#39;s Rundown</a>
         <div class="rationale">Eduardo Rodriguez&#39;s 2.24 ERA masks an xERA and xFIP in the 4s suggesting regression, while Zack Latell has allowed 2 runs or fewer in 5 straight starts and the Nationals have won his last 4 games.</div>
+        
       </div>
       <div class="actual">
         
@@ -789,9 +1476,11 @@
         <div class="desc">
           New York Yankees ML
           <span class="tier LEAN">LEAN</span>
+          
         </div>
-        <span class="src">BettingPros - Daily Top Bets</span>
+        <a class="src" href="/source/bettingpros-daily-top-bets/">BettingPros - Daily Top Bets</a>
         <div class="rationale">Will Warren has won 4 consecutive starts and went 5-1 in May with a last start of 6 IP, 0 ER, while Ranger Suarez posted a 3.38 ERA and Boston went only 2-3 in his May starts.</div>
+        
       </div>
       <div class="actual">
         
@@ -802,9 +1491,11 @@
         <div class="desc">
           Boston Red Sox ML
           
+          
         </div>
-        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <a class="src" href="/source/pickdawgz-ron-s-rundown/">PickDawgz - Ron&#39;s Rundown</a>
         <div class="rationale">Rangers Suarez has good career numbers vs. the current Yankees lineup, which is significantly weakened without Aaron Judge, and Will Warren has regression concerns.</div>
+        
       </div>
       <div class="actual">
         
@@ -815,9 +1506,11 @@
         <div class="desc">
           New York Yankees ML
           <span class="tier LIKE">LIKE</span>
+          
         </div>
-        <span class="src">WagerTalk - Drew&#39;s Daily Diamond</span>
+        <a class="src" href="/source/wagertalk-drew-s-daily-diamond/">WagerTalk - Drew&#39;s Daily Diamond</a>
         <div class="rationale">Will Warren is 7-1 with a 70:19 K/BB ratio and the Yankees are 14-6 vs. left-handed pitchers, while Ranger Suárez has allowed 9 ER over his last 10 IP combined and gave up 4 ER in 4 IP in his last outing vs. New York; Boston ranks bottom 3 in baseball vs. right-handed pitching.</div>
+        
       </div>
       <div class="actual">
         
@@ -840,9 +1533,11 @@
         <div class="desc">
           Over <i>10.0</i> <span class="inferred">(inferred)</span>
           <span class="tier LOCK">LOCK</span>
+          
         </div>
-        <span class="src">Calling Our Shot - MLB</span>
+        <a class="src" href="/source/calling-our-shot-mlb/">Calling Our Shot - MLB</a>
         <div class="rationale">Andrew Painter has a 5.74 ERA, 1.52 WHIP, allows hard contact and fly balls with hitters batting .383 off his fastball; Shawn Burke has a poor whiff rate and bad ground ball-to-fly ball ratio; weather expected at ~90°F and both bullpens project to give up runs.</div>
+        
       </div>
       <div class="actual">
         actual: 9.0
@@ -853,9 +1548,11 @@
         <div class="desc">
           Chicago White Sox ML
           <span class="tier LEAN">LEAN</span>
+          
         </div>
-        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <a class="src" href="/source/pickdawgz-ron-s-rundown/">PickDawgz - Ron&#39;s Rundown</a>
         <div class="rationale">Shawn Burke has combined for 12.1 IP, 3 ER, and 14 K over his last two starts, while the White Sox rank top 10 in OPS vs. righties in the last 30 days.</div>
+        
       </div>
       <div class="actual">
         
@@ -866,9 +1563,11 @@
         <div class="desc">
           Under <i>10.0</i> <span class="inferred">(inferred)</span>
           <span class="tier LEAN">LEAN</span>
+          
         </div>
-        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <a class="src" href="/source/pickdawgz-ron-s-rundown/">PickDawgz - Ron&#39;s Rundown</a>
         <div class="rationale">Both Burke&#39;s recent strong outings and Painter&#39;s home effectiveness at Citizens Bank Park suggest a lower-scoring game, with the Phillies offense described as inconsistent.</div>
+        
       </div>
       <div class="actual">
         actual: 9.0
@@ -891,9 +1590,11 @@
         <div class="desc">
           Jose Fermín hr over 0.5
           <span class="tier LEAN">LEAN</span>
+          
         </div>
-        <span class="src">Live With Lindy</span>
+        <a class="src" href="/source/live-with-lindy/">Live With Lindy</a>
         <div class="rationale">87 mph wind blowing out in St. Louis combined with Fermín&#39;s pull-air tendency and launch angle improvement means any barrel contact is likely to leave the yard in the best hitting weather on the slate.</div>
+        
       </div>
       <div class="actual">
         actual: 0.0
@@ -904,9 +1605,11 @@
         <div class="desc">
           Cincinnati Reds ML
           
+          
         </div>
-        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <a class="src" href="/source/pickdawgz-ron-s-rundown/">PickDawgz - Ron&#39;s Rundown</a>
         <div class="rationale">Reds rank 2nd and 3rd in team OPS and isolated power vs. lefties in the last 30 days, have hit Libertore well historically with ~.700 expected slugging, and four current Reds have homered off him.</div>
+        
       </div>
       <div class="actual">
         
@@ -917,9 +1620,11 @@
         <div class="desc">
           Sal Stewart hr over 0.5
           <span class="tier LEAN">LEAN</span>
+          
         </div>
-        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <a class="src" href="/source/pickdawgz-ron-s-rundown/">PickDawgz - Ron&#39;s Rundown</a>
         <div class="rationale">Stewart has homered off Libertore in 3 career at-bats, giving him strong historical production against today&#39;s Cardinals starter.</div>
+        
       </div>
       <div class="actual">
         actual: 0.0
@@ -942,9 +1647,11 @@
         <div class="desc">
           Luke Raley hr over 0.5
           <span class="tier LOCK">LOCK</span>
+          
         </div>
-        <span class="src">Live With Lindy</span>
+        <a class="src" href="/source/live-with-lindy/">Live With Lindy</a>
         <div class="rationale">Kaider Montero is vulnerable to lefty power hitters and has been facing more lefties; Raley has hit HRs in 4 of 10 similar bets this season, and +500 pricing at Bet365 represents a massive outlier.</div>
+        
       </div>
       <div class="actual">
         actual: 0.0
@@ -955,9 +1662,11 @@
         <div class="desc">
           Cole Young h+r+rbi over 1.5
           
+          
         </div>
-        <span class="src">Live With Lindy</span>
+        <a class="src" href="/source/live-with-lindy/">Live With Lindy</a>
         <div class="rationale">Cole Young is leading off, which provides built-in value for a hits+runs+RBI combo at minus 115 on Underdog Pick&#39;em.</div>
+        
       </div>
       <div class="actual">
         actual: 1.0
@@ -968,9 +1677,11 @@
         <div class="desc">
           Seattle Mariners ML
           
+          
         </div>
-        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <a class="src" href="/source/pickdawgz-ron-s-rundown/">PickDawgz - Ron&#39;s Rundown</a>
         <div class="rationale">Bryce Miller had a dominant last start (5 IP, 1 H, 6 K, 0 ER) while Kater Montero has lost 5 straight starts with the Tigers failing to support him.</div>
+        
       </div>
       <div class="actual">
         
@@ -993,9 +1704,11 @@
         <div class="desc">
           Baltimore Orioles ML
           <span class="tier LEAN">LEAN</span>
+          
         </div>
-        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <a class="src" href="/source/pickdawgz-ron-s-rundown/">PickDawgz - Ron&#39;s Rundown</a>
         <div class="rationale">Kyle Bradish faced the Blue Jays last week for 7 IP with 1 unearned run and has good numbers vs. their current lineup, though Toronto&#39;s starter is unannounced making this a lean only.</div>
+        
       </div>
       <div class="actual">
         
@@ -1006,9 +1719,11 @@
         <div class="desc">
           Baltimore Orioles ML
           <span class="tier LOCK">LOCK</span>
+          
         </div>
-        <span class="src">WagerTalk - Drew&#39;s Daily Diamond</span>
+        <a class="src" href="/source/wagertalk-drew-s-daily-diamond/">WagerTalk - Drew&#39;s Daily Diamond</a>
         <div class="rationale">Kyle Bradish has a 1.10 ERA over his last 4 starts including a 7-inning shutout vs. Toronto, while Spencer Miles lasted only 3 innings with 6 ER in his last start against Baltimore; Orioles are 9-4 in their last 13 games and top 5 vs. right-handed pitching, whereas Toronto is 1-4 in their last 5.</div>
+        
       </div>
       <div class="actual">
         
@@ -1031,9 +1746,11 @@
         <div class="desc">
           Under 8.5
           <span class="tier LEAN">LEAN</span>
+          
         </div>
-        <span class="src">BettingPros - Daily Top Bets</span>
+        <a class="src" href="/source/bettingpros-daily-top-bets/">BettingPros - Daily Top Bets</a>
         <div class="rationale">Braxton Garrett Ashcroft carries a 1.97 road ERA with a .195 opposing batting average, while Spencer Strider holds a 1.69 home ERA, and both the Braves and Pirates have historically been profitable unders.</div>
+        
       </div>
       <div class="actual">
         actual: 9.0
@@ -1044,9 +1761,11 @@
         <div class="desc">
           Pittsburgh Pirates ML
           
+          
         </div>
-        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <a class="src" href="/source/pickdawgz-ron-s-rundown/">PickDawgz - Ron&#39;s Rundown</a>
         <div class="rationale">Spencer Strider is coming off one of his weakest outings (5 IP, 4 R, 7 H), while the Pirates rank 2nd in team OPS vs. right-handed pitching in the last 30 days and Braxton Ashcraft has won 4 of his last 5 starts.</div>
+        
       </div>
       <div class="actual">
         
@@ -1069,9 +1788,11 @@
         <div class="desc">
           Bryce Eldridge hr over 0.5
           <span class="tier LIKE">LIKE</span>
+          
         </div>
-        <span class="src">Live With Lindy</span>
+        <a class="src" href="/source/live-with-lindy/">Live With Lindy</a>
         <div class="rationale">Wind blowing out at Wrigley creates a favorable power environment; Eldridge has elite power potential (396 xwOBA), and +800 at BetMGM represents a significant pricing outlier before line movement.</div>
+        
       </div>
       <div class="actual">
         actual: 0.0
@@ -1082,9 +1803,11 @@
         <div class="desc">
           Chicago Cubs ML
           
+          
         </div>
-        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <a class="src" href="/source/pickdawgz-ron-s-rundown/">PickDawgz - Ron&#39;s Rundown</a>
         <div class="rationale">Ben Brown has allowed only 1 HR all season with good control, while Landon Rup gave up 8 runs last game and has allowed 7+ hits in 3 straight starts with the Giants losing his last 5.</div>
+        
       </div>
       <div class="actual">
         
@@ -1107,9 +1830,11 @@
         <div class="desc">
           Texas Rangers ML
           
+          
         </div>
-        <span class="src">PickDawgz - Ron&#39;s Rundown</span>
+        <a class="src" href="/source/pickdawgz-ron-s-rundown/">PickDawgz - Ron&#39;s Rundown</a>
         <div class="rationale">Jack Leiter had a dominant last start (5.2 IP, 10 K, shutout) and the Rangers have won 4 of his last 5 starts, while Tanner Bibee is described as the least profitable pitcher in MLB from a moneyline betting perspective with the Guardians losing 4 of his last 5.</div>
+        
       </div>
       <div class="actual">
         
@@ -1132,9 +1857,11 @@
         <div class="desc">
           New York Mets ML
           <span class="tier LIKE">LIKE</span>
+          
         </div>
-        <span class="src">Guy Boston Sports - MLB</span>
+        <a class="src" href="/source/guy-boston-sports-mlb/">Guy Boston Sports - MLB</a>
         <div class="rationale">Mets starter has a 0.9 WHIP and over 30% K rate exploiting a Padres lineup ranked 30th in average, slugging, and OPS over their last 7 games, while Padres starter Griffin Canning has poor numbers against lefty bats.</div>
+        
       </div>
       <div class="actual">
         
@@ -1145,6 +1872,71 @@
       
     </section>
   
+
+  <style>
+    a.src { text-decoration: none; }
+    a.src:hover { color: var(--accent) !important; text-decoration: underline; }
+    .src-head { color: var(--ink); text-decoration: none; }
+    .src-head:hover { color: var(--accent); }
+    .mine {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 6px;
+      background: var(--accent);
+      color: #1a1a1a;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      border-radius: 3px;
+      vertical-align: 1px;
+    }
+    .tail-form {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .tail-form summary {
+      cursor: pointer;
+      display: inline-block;
+      color: var(--muted);
+      user-select: none;
+    }
+    .tail-form summary:hover { color: var(--accent); }
+    .tail-form form {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 6px;
+    }
+    .tail-form label { display: inline-flex; align-items: center; gap: 2px; }
+    .tail-form input[type="number"] {
+      width: 70px;
+      padding: 3px 6px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--ink);
+      font-size: 12px;
+      font-family: inherit;
+    }
+    .tail-form button {
+      padding: 3px 10px;
+      background: var(--accent);
+      color: #1a1a1a;
+      border: none;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .tail-form .untail-btn {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      font-weight: 500;
+    }
+    .tail-form .untail-btn:hover { color: var(--loss); border-color: var(--loss); }
+  </style>
 
   
     <section class="sources">
@@ -1192,5 +1984,18 @@
 
     </main>
   </div>
+  <script>
+    // Clicking the already-active date collapses its section dropdown
+    // instead of reloading the page — quicker to scan the date list.
+    document.querySelectorAll('.nav a.day-link.active').forEach(function (a) {
+      a.addEventListener('click', function (e) {
+        var sub = a.nextElementSibling;
+        if (sub && sub.classList.contains('sub-nav')) {
+          e.preventDefault();
+          a.classList.toggle('collapsed');
+        }
+      });
+    });
+  </script>
 </body>
 </html>

@@ -1,0 +1,1697 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Calling Our Shot - NBA — Morning Bets</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #161c24;
+      --panel-2: #1d2530;
+      --ink: #e6e6e6;
+      --muted: #8c93a0;
+      --accent: #f4b840;
+      --win: #4ade80;
+      --loss: #f87171;
+      --push: #94a3b8;
+      --pending: #60a5fa;
+      --ungrade: #6b7280;
+      --border: #2a3340;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.45;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 250px 1fr;
+      gap: 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 22px 80px;
+    }
+    @media (max-width: 720px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; max-height: none; }
+    }
+    .sidebar {
+      position: sticky;
+      top: 24px;
+      align-self: start;
+      max-height: calc(100vh - 48px);
+      overflow-y: auto;
+    }
+    .sidebar h1 {
+      font-size: 18px;
+      margin: 0 0 14px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    .sidebar h1 a { color: var(--ink); text-decoration: none; }
+    .sidebar h1 a:hover { color: var(--accent); }
+    .sidebar .nav {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .sidebar .nav a {
+      padding: 6px 10px;
+      border-radius: 6px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .sidebar .nav a:hover { background: var(--panel-2); color: var(--ink); }
+    .sidebar .nav a.active { background: var(--panel); color: var(--ink); }
+    .sidebar .nav a .rec { color: var(--muted); font-size: 11px; }
+    .sidebar .nav a.active .rec { color: var(--accent); }
+    .sub-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      margin: 2px 0 6px 10px;
+      padding-left: 8px;
+      border-left: 1px solid var(--border);
+    }
+    .sub-nav a {
+      padding: 4px 8px;
+      font-size: 12px;
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 4px;
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sub-nav a:hover { color: var(--ink); background: var(--panel-2); }
+    .sub-nav a.active { color: var(--ink); background: var(--panel); }
+    /* Roster names are long — let them wrap instead of truncating. */
+    .roster .sub-nav a { white-space: normal; line-height: 1.3; }
+    .nav a.day-link.collapsed + .sub-nav { display: none; }
+
+    .roster { margin: 2px 0 6px; }
+    .roster > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      user-select: none;
+    }
+    .roster > summary::-webkit-details-marker { display: none; }
+    .roster > summary::before {
+      content: "▸";
+      font-size: 10px;
+      margin-right: 8px;
+      display: inline-block;
+      transition: transform 0.1s;
+    }
+    .roster[open] > summary::before { transform: rotate(90deg); }
+    .roster > summary:hover { background: var(--panel-2); color: var(--ink); }
+
+    .sub-toggle {
+      display: inline-flex;
+      align-self: start;
+      margin: 4px 0 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .sub-toggle a {
+      text-align: center;
+      padding: 5px 12px;
+      font-size: 11px;
+      color: var(--muted);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .sub-toggle a.active { background: var(--accent); color: #1a1a1a; font-weight: 600; }
+    .sub-toggle a:not(.active):hover { background: var(--panel-2); color: var(--ink); }
+
+    .main { min-width: 0; }
+    .main header.top {
+      display: flex; align-items: baseline; justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .main header.top h2 {
+      font-size: 22px; font-weight: 600; margin: 0;
+      letter-spacing: -0.01em;
+    }
+    .toggle { display: inline-flex; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .toggle a {
+      padding: 6px 12px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 12px;
+      letter-spacing: 0.02em;
+    }
+    .toggle a.active { background: var(--accent); color: #1a1a1a; font-weight: 600; }
+
+    a { color: var(--accent); }
+
+    .day-list { display: flex; flex-direction: column; gap: 8px; }
+    .day-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      background: var(--panel);
+      padding: 14px 18px;
+      border-radius: 8px;
+      text-decoration: none;
+      color: var(--ink);
+      border: 1px solid var(--border);
+      transition: background 0.12s;
+    }
+    .day-row:hover { background: var(--panel-2); }
+    .day-row .date { font-weight: 600; font-size: 16px; }
+    .day-row .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+    .day-row .tally { text-align: right; font-size: 14px; }
+    .day-row .record { font-weight: 600; }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+      gap: 10px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 28px;
+    }
+    .summary .stat { text-align: center; }
+    .summary .num { font-size: 22px; font-weight: 600; }
+    .summary .lbl {
+      font-size: 11px; color: var(--muted); text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .game {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .game h3 {
+      margin: 0;
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      background: var(--panel-2);
+      border-bottom: 1px solid var(--border);
+    }
+    .game h3 .final {
+      float: right;
+      font-weight: 500;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .game ul { list-style: none; padding: 4px 0; margin: 0; }
+    .subgame { border-bottom: 1px solid var(--border); }
+    .subgame:last-child { border-bottom: none; }
+    .subgame .sub-h {
+      padding: 8px 16px 4px;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+    .subgame .sub-h .final {
+      float: right;
+      text-transform: none;
+      letter-spacing: 0;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .bet {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      align-items: center;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .bet:last-child { border-bottom: none; }
+    .bet .desc { color: var(--ink); }
+    .bet .src { color: var(--muted); font-size: 12px; display: block; }
+    .bet .rationale { color: var(--muted); font-size: 12px; margin-top: 4px; font-style: italic; }
+    .bet .desc i { font-style: italic; color: var(--accent); }
+    .bet .desc .inferred { color: var(--muted); font-size: 11px; font-style: normal; }
+    .bet .tier {
+      display: inline-block;
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      padding: 1px 6px;
+      border-radius: 3px;
+      margin-left: 6px;
+      background: var(--panel-2);
+      color: var(--muted);
+      vertical-align: 1px;
+    }
+    .tier.LOCK { background: #4ade80; color: #03261a; }
+    .tier.LIKE { background: #60a5fa; color: #0a1d3d; }
+    .tier.LEAN { background: #fbbf24; color: #3d2a00; }
+
+    .actual { color: var(--muted); font-size: 12px; min-width: 56px; text-align: right; }
+    .badge {
+      display: inline-block;
+      min-width: 28px;
+      text-align: center;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .badge.W { background: var(--win); color: #02230d; }
+    .badge.L { background: var(--loss); color: #2a0606; }
+    .badge.PUSH { background: var(--push); color: #1a202c; }
+    .badge.PENDING { background: transparent; color: var(--pending); border: 1px solid var(--pending); }
+    .badge.UNGRADABLE { background: transparent; color: var(--ungrade); border: 1px solid var(--ungrade); }
+
+    .empty { text-align: center; color: var(--muted); padding: 40px 0; }
+
+    .sources {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-top: 24px;
+    }
+    .sources h3 {
+      margin: 0 0 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .sources ul { list-style: none; padding: 0; margin: 0; }
+    .sources li {
+      padding: 4px 0;
+      font-size: 13px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .sources li a { font-weight: 600; text-decoration: none; }
+    .sources li a:hover { text-decoration: underline; }
+    .sources .title { color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1><a href="/">Morning Bets</a></h1>
+      <nav class="nav">
+        <a href="/cappers/">
+          <span>📋 Cappers</span>
+        </a>
+        <a href="/me/">
+          <span>💰 Me</span>
+        </a>
+        
+          <details class="roster" open>
+            <summary>Roster</summary>
+            <div class="sub-nav">
+              
+                <a href="/source/pickdawgz-ron-s-rundown/"
+                   title="PickDawgz - Ron&#39;s Rundown"
+                   >
+                  PickDawgz - Ron&#39;s Rundown
+                </a>
+              
+                <a href="/source/guy-boston-sports-mlb/"
+                   title="Guy Boston Sports - MLB"
+                   >
+                  Guy Boston Sports - MLB
+                </a>
+              
+                <a href="/source/lindy-s-leans-likes-locks/"
+                   title="Lindy&#39;s Leans Likes &amp; Locks"
+                   >
+                  Lindy&#39;s Leans Likes &amp; Locks 🎲
+                </a>
+              
+                <a href="/source/doc-s-sports-craig-trapp-mlb/"
+                   title="Doc&#39;s Sports - Craig Trapp MLB"
+                   >
+                  Doc&#39;s Sports - Craig Trapp MLB
+                </a>
+              
+                <a href="/source/calling-our-shot-mlb/"
+                   title="Calling Our Shot - MLB"
+                   >
+                  Calling Our Shot - MLB 🎲
+                </a>
+              
+                <a href="/source/silverback-bets-mlb/"
+                   title="Silverback Bets - MLB"
+                   >
+                  Silverback Bets - MLB
+                </a>
+              
+                <a href="/source/panel-cynic/"
+                   title="Panel: Cynic"
+                   >
+                  Panel: Cynic 🎲
+                </a>
+              
+                <a href="/source/panel-quant/"
+                   title="Panel: Quant"
+                   >
+                  Panel: Quant 🎲
+                </a>
+              
+                <a href="/source/panel-careful/"
+                   title="Panel: Careful"
+                   >
+                  Panel: Careful 🎲
+                </a>
+              
+                <a href="/source/live-with-lindy/"
+                   title="Live With Lindy"
+                   >
+                  Live With Lindy 🎲
+                </a>
+              
+                <a href="/source/bettingpros-daily-top-bets/"
+                   title="BettingPros - Daily Top Bets"
+                   >
+                  BettingPros - Daily Top Bets 🎲
+                </a>
+              
+                <a href="/source/recommendation/"
+                   title="Recommendation"
+                   >
+                  Recommendation 🎲
+                </a>
+              
+                <a href="/source/consensus-sim-openai/"
+                   title="Consensus (sim:openai)"
+                   >
+                  Consensus (sim:openai) 🎲
+                </a>
+              
+                <a href="/source/consensus-sim/"
+                   title="Consensus (sim)"
+                   >
+                  Consensus (sim) 🎲
+                </a>
+              
+                <a href="/source/wagertalk-drew-s-daily-diamond/"
+                   title="WagerTalk - Drew&#39;s Daily Diamond"
+                   >
+                  WagerTalk - Drew&#39;s Daily Diamond 🎲
+                </a>
+              
+                <a href="/source/wagertalk-steve-merril/"
+                   title="WagerTalk - Steve Merril"
+                   >
+                  WagerTalk - Steve Merril
+                </a>
+              
+                <a href="/source/daft-previews/"
+                   title="Daft Previews"
+                   >
+                  Daft Previews
+                </a>
+              
+                <a href="/source/calling-our-shot-nba/"
+                   title="Calling Our Shot - NBA"
+                   class="active">
+                  Calling Our Shot - NBA
+                </a>
+              
+                <a href="/source/wagertalk-best-mlb-bets/"
+                   title="WagerTalk - Best MLB Bets"
+                   >
+                  WagerTalk - Best MLB Bets
+                </a>
+              
+                <a href="/source/wagertalk-first-five/"
+                   title="WagerTalk - First Five"
+                   >
+                  WagerTalk - First Five
+                </a>
+              
+                <a href="/source/oddsshopper-daily-dingers-hr-props/"
+                   title="OddsShopper - Daily Dingers (HR props)"
+                   >
+                  OddsShopper - Daily Dingers (HR props) 🎲
+                </a>
+              
+                <a href="/source/placed/"
+                   title="Placed"
+                   >
+                  Placed 🎲
+                </a>
+              
+                <a href="/source/manual/"
+                   title="Manual"
+                   >
+                  Manual
+                </a>
+              
+            </div>
+          </details>
+        
+        
+        
+          <div class="sub-toggle">
+            <a href="/2026-08-21/" class="">By game</a>
+            <a href="/2026-08-21/source/" class="">By source</a>
+          </div>
+        
+        
+          <a href="/2026-08-21/" class="day-link">
+            <span>2026-08-21</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-08-20/" class="day-link">
+            <span>2026-08-20</span>
+            <span class="rec">34-29</span>
+          </a>
+          
+        
+          <a href="/2026-08-19/" class="day-link">
+            <span>2026-08-19</span>
+            <span class="rec">45-66</span>
+          </a>
+          
+        
+          <a href="/2026-08-18/" class="day-link">
+            <span>2026-08-18</span>
+            <span class="rec">25-20</span>
+          </a>
+          
+        
+          <a href="/2026-08-17/" class="day-link">
+            <span>2026-08-17</span>
+            <span class="rec">35-34</span>
+          </a>
+          
+        
+          <a href="/2026-08-16/" class="day-link">
+            <span>2026-08-16</span>
+            <span class="rec">42-38</span>
+          </a>
+          
+        
+          <a href="/2026-08-15/" class="day-link">
+            <span>2026-08-15</span>
+            <span class="rec">45-50</span>
+          </a>
+          
+        
+          <a href="/2026-08-14/" class="day-link">
+            <span>2026-08-14</span>
+            <span class="rec">47-65</span>
+          </a>
+          
+        
+          <a href="/2026-08-13/" class="day-link">
+            <span>2026-08-13</span>
+            <span class="rec">41-43</span>
+          </a>
+          
+        
+          <a href="/2026-08-12/" class="day-link">
+            <span>2026-08-12</span>
+            <span class="rec">50-79</span>
+          </a>
+          
+        
+          <a href="/2026-08-11/" class="day-link">
+            <span>2026-08-11</span>
+            <span class="rec">56-58</span>
+          </a>
+          
+        
+          <a href="/2026-08-10/" class="day-link">
+            <span>2026-08-10</span>
+            <span class="rec">48-44</span>
+          </a>
+          
+        
+          <a href="/2026-08-09/" class="day-link">
+            <span>2026-08-09</span>
+            <span class="rec">33-34</span>
+          </a>
+          
+        
+          <a href="/2026-08-08/" class="day-link">
+            <span>2026-08-08</span>
+            <span class="rec">35-61</span>
+          </a>
+          
+        
+          <a href="/2026-08-07/" class="day-link">
+            <span>2026-08-07</span>
+            <span class="rec">47-69</span>
+          </a>
+          
+        
+          <a href="/2026-08-06/" class="day-link">
+            <span>2026-08-06</span>
+            <span class="rec">38-57</span>
+          </a>
+          
+        
+          <a href="/2026-08-05/" class="day-link">
+            <span>2026-08-05</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-08-04/" class="day-link">
+            <span>2026-08-04</span>
+            <span class="rec">32-23</span>
+          </a>
+          
+        
+          <a href="/2026-08-03/" class="day-link">
+            <span>2026-08-03</span>
+            <span class="rec">11-32</span>
+          </a>
+          
+        
+          <a href="/2026-08-02/" class="day-link">
+            <span>2026-08-02</span>
+            <span class="rec">24-35</span>
+          </a>
+          
+        
+          <a href="/2026-08-01/" class="day-link">
+            <span>2026-08-01</span>
+            <span class="rec">33-26</span>
+          </a>
+          
+        
+          <a href="/2026-07-31/" class="day-link">
+            <span>2026-07-31</span>
+            <span class="rec">22-39</span>
+          </a>
+          
+        
+          <a href="/2026-07-30/" class="day-link">
+            <span>2026-07-30</span>
+            <span class="rec">14-12</span>
+          </a>
+          
+        
+          <a href="/2026-07-29/" class="day-link">
+            <span>2026-07-29</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-28/" class="day-link">
+            <span>2026-07-28</span>
+            <span class="rec">26-35</span>
+          </a>
+          
+        
+          <a href="/2026-07-27/" class="day-link">
+            <span>2026-07-27</span>
+            <span class="rec">23-36</span>
+          </a>
+          
+        
+          <a href="/2026-07-26/" class="day-link">
+            <span>2026-07-26</span>
+            <span class="rec">32-38</span>
+          </a>
+          
+        
+          <a href="/2026-07-25/" class="day-link">
+            <span>2026-07-25</span>
+            <span class="rec">47-26</span>
+          </a>
+          
+        
+          <a href="/2026-07-24/" class="day-link">
+            <span>2026-07-24</span>
+            <span class="rec">35-59</span>
+          </a>
+          
+        
+          <a href="/2026-07-23/" class="day-link">
+            <span>2026-07-23</span>
+            <span class="rec">9-13</span>
+          </a>
+          
+        
+          <a href="/2026-07-22/" class="day-link">
+            <span>2026-07-22</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-21/" class="day-link">
+            <span>2026-07-21</span>
+            <span class="rec">42-23</span>
+          </a>
+          
+        
+          <a href="/2026-07-20/" class="day-link">
+            <span>2026-07-20</span>
+            <span class="rec">20-48</span>
+          </a>
+          
+        
+          <a href="/2026-07-19/" class="day-link">
+            <span>2026-07-19</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-18/" class="day-link">
+            <span>2026-07-18</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-17/" class="day-link">
+            <span>2026-07-17</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-16/" class="day-link">
+            <span>2026-07-16</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-14/" class="day-link">
+            <span>2026-07-14</span>
+            <span class="rec">3-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-13/" class="day-link">
+            <span>2026-07-13</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-12/" class="day-link">
+            <span>2026-07-12</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-07-11/" class="day-link">
+            <span>2026-07-11</span>
+            <span class="rec">24-36</span>
+          </a>
+          
+        
+          <a href="/2026-07-10/" class="day-link">
+            <span>2026-07-10</span>
+            <span class="rec">20-40</span>
+          </a>
+          
+        
+          <a href="/2026-07-09/" class="day-link">
+            <span>2026-07-09</span>
+            <span class="rec">35-23</span>
+          </a>
+          
+        
+          <a href="/2026-07-08/" class="day-link">
+            <span>2026-07-08</span>
+            <span class="rec">28-29</span>
+          </a>
+          
+        
+          <a href="/2026-07-07/" class="day-link">
+            <span>2026-07-07</span>
+            <span class="rec">29-42</span>
+          </a>
+          
+        
+          <a href="/2026-07-06/" class="day-link">
+            <span>2026-07-06</span>
+            <span class="rec">16-33</span>
+          </a>
+          
+        
+          <a href="/2026-07-05/" class="day-link">
+            <span>2026-07-05</span>
+            <span class="rec">18-24</span>
+          </a>
+          
+        
+          <a href="/2026-07-04/" class="day-link">
+            <span>2026-07-04</span>
+            <span class="rec">25-23</span>
+          </a>
+          
+        
+          <a href="/2026-07-03/" class="day-link">
+            <span>2026-07-03</span>
+            <span class="rec">30-28</span>
+          </a>
+          
+        
+          <a href="/2026-07-02/" class="day-link">
+            <span>2026-07-02</span>
+            <span class="rec">29-18</span>
+          </a>
+          
+        
+          <a href="/2026-07-01/" class="day-link">
+            <span>2026-07-01</span>
+            <span class="rec">21-25</span>
+          </a>
+          
+        
+          <a href="/2026-06-30/" class="day-link">
+            <span>2026-06-30</span>
+            <span class="rec">33-22</span>
+          </a>
+          
+        
+          <a href="/2026-06-29/" class="day-link">
+            <span>2026-06-29</span>
+            <span class="rec">21-24</span>
+          </a>
+          
+        
+          <a href="/2026-06-28/" class="day-link">
+            <span>2026-06-28</span>
+            <span class="rec">15-21</span>
+          </a>
+          
+        
+          <a href="/2026-06-27/" class="day-link">
+            <span>2026-06-27</span>
+            <span class="rec">12-20</span>
+          </a>
+          
+        
+          <a href="/2026-06-26/" class="day-link">
+            <span>2026-06-26</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-06-25/" class="day-link">
+            <span>2026-06-25</span>
+            <span class="rec">9-21</span>
+          </a>
+          
+        
+          <a href="/2026-06-24/" class="day-link">
+            <span>2026-06-24</span>
+            <span class="rec">18-21</span>
+          </a>
+          
+        
+          <a href="/2026-06-23/" class="day-link">
+            <span>2026-06-23</span>
+            <span class="rec">31-41</span>
+          </a>
+          
+        
+          <a href="/2026-06-22/" class="day-link">
+            <span>2026-06-22</span>
+            <span class="rec">17-27</span>
+          </a>
+          
+        
+          <a href="/2026-06-21/" class="day-link">
+            <span>2026-06-21</span>
+            <span class="rec">29-16</span>
+          </a>
+          
+        
+          <a href="/2026-06-20/" class="day-link">
+            <span>2026-06-20</span>
+            <span class="rec">0-0</span>
+          </a>
+          
+        
+          <a href="/2026-06-19/" class="day-link">
+            <span>2026-06-19</span>
+            <span class="rec">22-33</span>
+          </a>
+          
+        
+          <a href="/2026-06-18/" class="day-link">
+            <span>2026-06-18</span>
+            <span class="rec">35-26</span>
+          </a>
+          
+        
+          <a href="/2026-06-17/" class="day-link">
+            <span>2026-06-17</span>
+            <span class="rec">26-26</span>
+          </a>
+          
+        
+          <a href="/2026-06-16/" class="day-link">
+            <span>2026-06-16</span>
+            <span class="rec">44-28</span>
+          </a>
+          
+        
+          <a href="/2026-06-15/" class="day-link">
+            <span>2026-06-15</span>
+            <span class="rec">18-22</span>
+          </a>
+          
+        
+          <a href="/2026-06-14/" class="day-link">
+            <span>2026-06-14</span>
+            <span class="rec">13-9</span>
+          </a>
+          
+        
+          <a href="/2026-06-13/" class="day-link">
+            <span>2026-06-13</span>
+            <span class="rec">22-35</span>
+          </a>
+          
+        
+          <a href="/2026-06-12/" class="day-link">
+            <span>2026-06-12</span>
+            <span class="rec">29-31</span>
+          </a>
+          
+        
+          <a href="/2026-06-11/" class="day-link">
+            <span>2026-06-11</span>
+            <span class="rec">15-18</span>
+          </a>
+          
+        
+          <a href="/2026-06-10/" class="day-link">
+            <span>2026-06-10</span>
+            <span class="rec">24-33</span>
+          </a>
+          
+        
+          <a href="/2026-06-09/" class="day-link">
+            <span>2026-06-09</span>
+            <span class="rec">21-18</span>
+          </a>
+          
+        
+          <a href="/2026-06-08/" class="day-link">
+            <span>2026-06-08</span>
+            <span class="rec">22-17</span>
+          </a>
+          
+        
+          <a href="/2026-06-07/" class="day-link">
+            <span>2026-06-07</span>
+            <span class="rec">18-16</span>
+          </a>
+          
+        
+          <a href="/2026-06-06/" class="day-link">
+            <span>2026-06-06</span>
+            <span class="rec">14-24</span>
+          </a>
+          
+        
+          <a href="/2026-06-05/" class="day-link">
+            <span>2026-06-05</span>
+            <span class="rec">42-42</span>
+          </a>
+          
+        
+          <a href="/2026-06-04/" class="day-link">
+            <span>2026-06-04</span>
+            <span class="rec">12-35</span>
+          </a>
+          
+        
+          <a href="/2026-06-03/" class="day-link">
+            <span>2026-06-03</span>
+            <span class="rec">47-42</span>
+          </a>
+          
+        
+          <a href="/2026-06-02/" class="day-link">
+            <span>2026-06-02</span>
+            <span class="rec">30-34</span>
+          </a>
+          
+        
+          <a href="/2026-06-01/" class="day-link">
+            <span>2026-06-01</span>
+            <span class="rec">23-27</span>
+          </a>
+          
+        
+          <a href="/2026-05-31/" class="day-link">
+            <span>2026-05-31</span>
+            <span class="rec">46-30</span>
+          </a>
+          
+        
+      </nav>
+    </aside>
+    <main class="main">
+      
+  <header class="top">
+    <h2>Calling Our Shot - NBA</h2>
+    
+  </header>
+
+  <div class="pcard-stats source-summary">
+    <div class="stat">
+      <div class="num">0-0</div>
+      <div class="lbl">Record</div>
+    </div>
+    <div class="stat">
+      <div class="num">—</div>
+      <div class="lbl">Win rate</div>
+    </div>
+    <div class="stat">
+      <div class="num">—</div>
+      <div class="lbl">Staked</div>
+    </div>
+    <div class="stat">
+      <div class="num">—</div>
+      <div class="lbl">ROI</div>
+    </div>
+    <div class="stat">
+      <div class="num">0</div>
+      <div class="lbl">Pending</div>
+    </div>
+    
+  </div>
+
+  
+    <div class="pcard-days">
+      
+        <details class="day-block" open>
+          <summary class="day-summary">
+            <span class="day-date"><a href="/2026-06-10/">2026-06-10</a></span>
+            <span class="day-stats">
+              <span class="day-stat">11 picks</span>
+              
+            </span>
+          </summary>
+          <table class="bet-table">
+            <thead>
+              <tr>
+                <th>Bet</th>
+                <th class="num">Odds</th>
+                <th class="num">Stake</th>
+                <th>Result</th>
+                
+              </tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Dylan Harper pts+reb over 19.5</div>
+                    <div class="bet-sub">San Antonio Spurs @ New York Knicks</div>
+                    
+                      <div class="bet-rationale">Harper averaged 24, 21, and 22 points across Games 1–3 with strong rebounding, increased minutes (32 in back-to-back games), replacing Champenny in the lineup, and has gone over in 8 of his last 10 games with 25+ minutes while attempting at least 10 field goals in every game this series.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge W">W</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">De'Aaron Fox ast under 6.5</div>
+                    <div class="bet-sub">San Antonio Spurs @ New York Knicks</div>
+                    
+                      <div class="bet-rationale">Knicks are expected to do a better job limiting the Fox/Wembanyama pick-and-roll lobs in Game 4.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge L">L</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Wembanyama pts under 29.5</div>
+                    <div class="bet-sub">San Antonio Spurs @ New York Knicks</div>
+                    
+                      <div class="bet-rationale">Knicks are expected to do a better job defending Wembanyama in Game 4 and he is not projected to reach 30 points.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge W">W</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Stefon Castle pts over 12.0</div>
+                    <div class="bet-sub">San Antonio Spurs @ New York Knicks</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge W">W</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Josh Hart pts under</div>
+                    <div class="bet-sub">San Antonio Spurs @ New York Knicks</div>
+                    
+                      <div class="bet-rationale">Hart hit 30 points in Game 3 on four three-pointers but is not expected to have another big game.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge UNGRADABLE">UNGRADABLE</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Jaylen Brunson pts over 20.0</div>
+                    <div class="bet-sub">San Antonio Spurs @ New York Knicks</div>
+                    
+                      <div class="bet-rationale">Brunson is shooting approximately 25 times per night.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge W">W</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">OG Anobi pts under</div>
+                    <div class="bet-sub">San Antonio Spurs @ New York Knicks</div>
+                    
+                      <div class="bet-rationale">Knicks are expected to do a better job on him; he made 3-of-5 threes in Game 3 but is not shooting high volume.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge UNGRADABLE">UNGRADABLE</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Jose Alvarado pts over</div>
+                    <div class="bet-sub">San Antonio Spurs @ New York Knicks</div>
+                    
+                      <div class="bet-rationale">Alvarado is getting meaningful minutes off the bench and scored 6 points in Game 3 as a spark plug.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge UNGRADABLE">UNGRADABLE</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Julian Champenny pts under</div>
+                    <div class="bet-sub">San Antonio Spurs @ New York Knicks</div>
+                    
+                      <div class="bet-rationale">Harper is taking Champenny&#39;s minutes, and Fox and Castle always play, leaving fewer minutes for Champenny.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge UNGRADABLE">UNGRADABLE</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Dylan Harper pts over</div>
+                    <div class="bet-sub">San Antonio Spurs @ New York Knicks</div>
+                    
+                      <div class="bet-rationale">Correlated with Champenny under — Harper is taking Champenny&#39;s minutes and increasing his production.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge UNGRADABLE">UNGRADABLE</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">New York Knicks -1.5</div>
+                    <div class="bet-sub">San Antonio Spurs @ New York Knicks</div>
+                    
+                      <div class="bet-rationale">Home-court advantage, Knicks shot 0-for-9 from three in Q4 of Game 3 (expects improvement), and Brunson/OG missed free throws they should convert.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge L">L</span></td>
+                  
+                </tr>
+              
+            </tbody>
+          </table>
+        </details>
+      
+        <details class="day-block" >
+          <summary class="day-summary">
+            <span class="day-date"><a href="/2026-06-08/">2026-06-08</a></span>
+            <span class="day-stats">
+              <span class="day-stat">4 picks</span>
+              
+            </span>
+          </summary>
+          <table class="bet-table">
+            <thead>
+              <tr>
+                <th>Bet</th>
+                <th class="num">Odds</th>
+                <th class="num">Stake</th>
+                <th>Result</th>
+                
+              </tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Stephon Castle pts+ast over 22.5</div>
+                    <div class="bet-sub">San Antonio Spurs @ New York Knicks</div>
+                    
+                      <div class="bet-rationale">Castle averaging 15 shot attempts per game (16 in Game 1, 14 in Game 2) and had 14 potential assists in Game 1 and 9 in Game 2 despite foul trouble; over has hit in 13 of 20 playoff games and shortened rotation in a must-win spot keeps him on the floor longer.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge W">W</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Josh Hart pts+reb+ast over 22.5</div>
+                    <div class="bet-sub">San Antonio Spurs @ New York Knicks</div>
+                    
+                      <div class="bet-rationale">Hart had 15 rebounds in Game 1 and was limited to 18 minutes in Game 2 due to five fouls; Knicks need his high energy in a big home game and Spurs may continue leaving him open for threes, making the line feel too low.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge W">W</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">OG Anunoby fg3m under 2.5</div>
+                    <div class="bet-sub">San Antonio Spurs @ New York Knicks</div>
+                    
+                      <div class="bet-rationale">Anunoby is not taking many three-point attempts and is primarily taking step-back threes, suggesting low made-three volume.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge L">L</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">De'Aaron Fox fg3m under</div>
+                    <div class="bet-sub">San Antonio Spurs @ New York Knicks</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge UNGRADABLE">UNGRADABLE</span></td>
+                  
+                </tr>
+              
+            </tbody>
+          </table>
+        </details>
+      
+        <details class="day-block" >
+          <summary class="day-summary">
+            <span class="day-date"><a href="/2026-06-05/">2026-06-05</a></span>
+            <span class="day-stats">
+              <span class="day-stat">9 picks</span>
+              
+            </span>
+          </summary>
+          <table class="bet-table">
+            <thead>
+              <tr>
+                <th>Bet</th>
+                <th class="num">Odds</th>
+                <th class="num">Stake</th>
+                <th>Result</th>
+                
+              </tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Jalen Brunson pts over 25.0</div>
+                    <div class="bet-sub">New York Knicks @ San Antonio Spurs</div>
+                    
+                      <div class="bet-rationale">Brunson scored 25+ in 42 of 48 games shooting 20+ FGA, attempted 27/24/31 FGA in last three games vs. Spurs, and hit 25 in Game 1 despite an ankle injury while the Spurs show no signs of changing defensive coverage.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge L">L</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Devin Vassell pts+reb over 15.0</div>
+                    <div class="bet-sub">New York Knicks @ San Antonio Spurs</div>
+                    
+                      <div class="bet-rationale">Vassell had 18 points and 9 rebounds in Game 1 and is described as a great home player and consistent shooter.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge W">W</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Stephon Castle pts+ast over</div>
+                    <div class="bet-sub">New York Knicks @ San Antonio Spurs</div>
+                    
+                      <div class="bet-rationale">Castle had 20 points and 3 assists in Game 1 with roughly 14 potential assists, and the Knicks are leaving him open from three while he is expected to be more aggressive in Game 2.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge UNGRADABLE">UNGRADABLE</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Dylan Harper pts+reb over</div>
+                    <div class="bet-sub">New York Knicks @ San Antonio Spurs</div>
+                    
+                      <div class="bet-rationale">Spurs need to be more aggressive and Harper is expected to play more minutes in Game 2.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge UNGRADABLE">UNGRADABLE</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Victor Wembanyama pts over 23.0</div>
+                    <div class="bet-sub">New York Knicks @ San Antonio Spurs</div>
+                    
+                      <div class="bet-rationale">Wembanyama settled for too many jump shots in Game 1 and is expected to attack the paint more and run pick-and-roll with Castle, having not recorded a lob dunk in Game 1.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge W">W</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">OG Anunoby pts under</div>
+                    <div class="bet-sub">New York Knicks @ San Antonio Spurs</div>
+                    
+                      <div class="bet-rationale">Anunoby scored only 12 points in Game 1 and did not do much outside one fourth-quarter stretch, making it a poor matchup for him.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge UNGRADABLE">UNGRADABLE</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Landry Shamet fg3m under</div>
+                    <div class="bet-sub">New York Knicks @ San Antonio Spurs</div>
+                    
+                      <div class="bet-rationale">Shamet made three threes in Game 1 and the Knicks are expected to guard him more closely in Game 2.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge UNGRADABLE">UNGRADABLE</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Josh Hart pts under</div>
+                    <div class="bet-sub">New York Knicks @ San Antonio Spurs</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge UNGRADABLE">UNGRADABLE</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">De'Aaron Fox pts under 15.5</div>
+                    <div class="bet-sub">New York Knicks @ San Antonio Spurs</div>
+                    
+                      <div class="bet-rationale">An ankle injury is believed to be limiting Fox&#39;s ability to get past defenders and finish consistently.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge L">L</span></td>
+                  
+                </tr>
+              
+            </tbody>
+          </table>
+        </details>
+      
+        <details class="day-block" >
+          <summary class="day-summary">
+            <span class="day-date"><a href="/2026-06-03/">2026-06-03</a></span>
+            <span class="day-stats">
+              <span class="day-stat">5 picks</span>
+              
+            </span>
+          </summary>
+          <table class="bet-table">
+            <thead>
+              <tr>
+                <th>Bet</th>
+                <th class="num">Odds</th>
+                <th class="num">Stake</th>
+                <th>Result</th>
+                
+              </tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Jaylen Brunson pts over 24.5</div>
+                    <div class="bet-sub">New York Knicks @ San Antonio Spurs</div>
+                    
+                      <div class="bet-rationale">If Brunson reaches 20+ field goal attempts he has hit this line in 41 of 47 games; Knicks lead NBA playoffs in 3PT%, making double-teaming him risky, and the host believes the true line should be closer to 26.5.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge W">W</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Stefon Castle pts under 16.5</div>
+                    <div class="bet-sub">New York Knicks @ San Antonio Spurs</div>
+                    
+                      <div class="bet-rationale">Castle scored only 15, 5, and 13 points against the Knicks in three regular-season matchups with poor efficiency; his bully-ball style struggles against Josh Hart, and Brunson&#39;s charge-taking plus Knicks rim protection (Towns, Anunoby, Robinson) limits his drives.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge L">L</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Victor Wembanyama fg3m over 2.5</div>
+                    <div class="bet-sub">New York Knicks @ San Antonio Spurs</div>
+                    
+                      <div class="bet-rationale">Knicks are expected to go under his screens and dare him to shoot threes; in their most recent matchup he shot five or six threes in the first half alone.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge L">L</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Karl-Anthony Towns ast over 3.5</div>
+                    <div class="bet-sub">New York Knicks @ San Antonio Spurs</div>
+                    
+                      <div class="bet-rationale">Towns is expected to draw Devin Vassell or Castle defensively, creating mismatches, and Wembanyama drawing attention at the rim will force kick-outs to Towns; he has consistently hit 4+ assists since the switch in the Hawks series.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge W">W</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Josh Hart fg3m under 2.5</div>
+                    <div class="bet-sub">New York Knicks @ San Antonio Spurs</div>
+                    
+                      <div class="bet-rationale">The over is priced at around -180 on some books, which the host views as too juiced and believes the value has been squeezed out of the over side, making three threes an unlikely outcome.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge W">W</span></td>
+                  
+                </tr>
+              
+            </tbody>
+          </table>
+        </details>
+      
+        <details class="day-block" >
+          <summary class="day-summary">
+            <span class="day-date"><a href="/2026-05-31/">2026-05-31</a></span>
+            <span class="day-stats">
+              <span class="day-stat">6 picks</span>
+              
+            </span>
+          </summary>
+          <table class="bet-table">
+            <thead>
+              <tr>
+                <th>Bet</th>
+                <th class="num">Odds</th>
+                <th class="num">Stake</th>
+                <th>Result</th>
+                
+              </tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Stephon Castle pts+ast over</div>
+                    <div class="bet-sub">San Antonio Spurs @ Oklahoma City Thunder</div>
+                    
+                      <div class="bet-rationale">Castle has been running this play for three straight games; Thunder are going under screens begging him to shoot jumpers, he&#39;s getting 8+ free throw attempts per game, is a big part of the offense, and could hit the over in points alone with 18-20 points or rack up 10+ assists while guarding SGA.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge UNGRADABLE">UNGRADABLE</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">De'Aaron Fox reb+ast over 9.5</div>
+                    <div class="bet-sub">San Antonio Spurs @ Oklahoma City Thunder</div>
+                    
+                      <div class="bet-rationale">Fox has hit this line in every game since Game 3 (totals of 13, 15, 12, and 12), contributes assists running transition offense as the fastest player, and needs to help on the boards after the Spurs gave up 26 second-chance points in Game 5.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge UNGRADABLE">UNGRADABLE</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Isaiah Hartenstein pts+reb+ast over 19.0</div>
+                    <div class="bet-sub">San Antonio Spurs @ Oklahoma City Thunder</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge UNGRADABLE">UNGRADABLE</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">SGA reb+ast under 12.5</div>
+                    <div class="bet-sub">San Antonio Spurs @ Oklahoma City Thunder</div>
+                    
+                      <div class="bet-rationale">SGA has gone under this combined rebounds and assists line in three straight games.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge UNGRADABLE">UNGRADABLE</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">Dylan Harper pts under</div>
+                    <div class="bet-sub">San Antonio Spurs @ Oklahoma City Thunder</div>
+                    
+                      <div class="bet-rationale">Harper faces a tough matchup as a rookie role player on the road in a Game 7.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge UNGRADABLE">UNGRADABLE</span></td>
+                  
+                </tr>
+              
+                <tr>
+                  <td>
+                    <div class="bet-line">San Antonio Spurs ML</div>
+                    <div class="bet-sub">San Antonio Spurs @ Oklahoma City Thunder</div>
+                    
+                      <div class="bet-rationale">Jalen Williams and AJ Mitchell injuries leave too much asked of SGA who has struggled shooting, Stephon Castle is a great defender on SGA, and the Spurs are not doubling SGA and living with role players making threes.</div>
+                    
+                  </td>
+                  <td class="num"></td>
+                  <td class="num">—</td>
+                  <td><span class="badge UNGRADABLE">UNGRADABLE</span></td>
+                  
+                </tr>
+              
+            </tbody>
+          </table>
+        </details>
+      
+    </div>
+  
+
+  <style>
+    .main header.top .bankroll .num { font-size: 22px; font-weight: 600; }
+    .main header.top .bankroll .delta { margin-left: 10px; font-size: 14px; color: var(--muted); }
+    .main header.top .bankroll .delta.up { color: var(--win); }
+    .main header.top .bankroll .delta.down { color: var(--loss); }
+    .source-summary {
+      max-width: 760px;
+      margin-bottom: 24px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+      gap: 8px;
+      padding: 14px;
+    }
+    .source-summary .stat { text-align: center; }
+    .source-summary .num { font-size: 18px; font-weight: 600; }
+    .source-summary .lbl {
+      font-size: 10px; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .pcard-days {
+      padding: 0; background: var(--panel);
+      border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+    }
+    .day-block { border-bottom: 1px solid var(--border); }
+    .day-block:last-child { border-bottom: none; }
+    .day-summary {
+      list-style: none; cursor: pointer; padding: 10px 20px;
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 12px; user-select: none;
+    }
+    .day-summary::-webkit-details-marker { display: none; }
+    .day-summary::before {
+      content: "▸"; color: var(--muted); font-size: 10px;
+      margin-right: 8px; transition: transform 0.1s; display: inline-block;
+    }
+    details[open] .day-summary::before { transform: rotate(90deg); }
+    .day-date { font-weight: 600; font-size: 14px; }
+    .day-date a { color: var(--ink); text-decoration: none; }
+    .day-date a:hover { color: var(--accent); }
+    .day-stats { display: flex; gap: 14px; font-size: 12px; }
+    .day-stat { color: var(--muted); font-variant-numeric: tabular-nums; }
+    details[open] .day-summary { background: var(--panel-2); border-bottom: 1px solid var(--border); }
+    .bet-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .bet-table th, .bet-table td {
+      padding: 8px 12px; border-bottom: 1px solid var(--border);
+      text-align: left; vertical-align: top;
+    }
+    .bet-table th {
+      font-size: 11px; color: var(--muted); text-transform: uppercase;
+      letter-spacing: 0.04em; font-weight: 600;
+    }
+    .bet-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .bet-table tr:last-child td { border-bottom: none; }
+    .bet-line { color: var(--ink); }
+    .bet-line i { font-style: italic; color: var(--accent); }
+    .bet-line .inferred { color: var(--muted); font-size: 11px; font-style: normal; }
+    .bet-sub { color: var(--muted); font-size: 11px; margin-top: 2px; }
+    .bet-rationale {
+      color: var(--muted); font-size: 12px; font-style: italic;
+      margin-top: 6px; line-height: 1.4; max-width: 56ch;
+    }
+    .badge.SKIPPED { background: transparent; color: var(--muted); border: 1px solid var(--ungrade); }
+    .up { color: var(--win); }
+    .down { color: var(--loss); }
+  </style>
+
+    </main>
+  </div>
+  <script>
+    // Clicking the already-active date collapses its section dropdown
+    // instead of reloading the page — quicker to scan the date list.
+    document.querySelectorAll('.nav a.day-link.active').forEach(function (a) {
+      a.addEventListener('click', function (e) {
+        var sub = a.nextElementSibling;
+        if (sub && sub.classList.contains('sub-nav')) {
+          e.preventDefault();
+          a.classList.toggle('collapsed');
+        }
+      });
+    });
+  </script>
+</body>
+</html>
