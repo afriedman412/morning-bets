@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}{{ display_label }} — Morning Bets{% endblock %}
+{% block body %}
+  <header class="top">
+    <h2>{{ display_label }}</h2>
+    {% if b.is_panel %}
+      <div class="bankroll">
+        <span class="num">{{ b.current_cents | money }}</span>
+        <span class="delta {% if b.delta_cents > 0 %}up{% elif b.delta_cents < 0 %}down{% endif %}">
+          {{ b.delta_cents | signed_money }}
+        </span>
+      </div>
+    {% endif %}
+  </header>
+
+  <div class="pcard-stats source-summary">
+    <div class="stat">
+      <div class="num">{{ b.counts.W }}-{{ b.counts.L }}{% if b.counts.PUSH %}-{{ b.counts.PUSH }}{% endif %}</div>
+      <div class="lbl">Record</div>
+    </div>
+    <div class="stat">
+      <div class="num">{% if b.win_pct is not none %}{{ "%.0f"|format(b.win_pct) }}%{% else %}—{% endif %}</div>
+      <div class="lbl">Win rate</div>
+    </div>
+    <div class="stat">
+      <div class="num">{% if b.total_staked_cents %}{{ b.total_staked_cents | money }}{% else %}—{% endif %}</div>
+      <div class="lbl">Staked</div>
+    </div>
+    <div class="stat">
+      <div class="num">{% if b.roi_pct is not none %}{{ "%+.1f"|format(b.roi_pct) }}%{% else %}—{% endif %}</div>
+      <div class="lbl">ROI</div>
+    </div>
+    <div class="stat">
+      <div class="num">{{ b.counts.PENDING }}</div>
+      <div class="lbl">Pending</div>
+    </div>
+    {% if b.is_panel %}
+      <div class="stat">
+        <div class="num">{{ b.counts.SKIPPED }}</div>
+        <div class="lbl">Skipped</div>
+      </div>
+    {% endif %}
+  </div>
+
+  {% if b.days %}
+    <div class="pcard-days">
+      {% for day in b.days %}
+        <details class="day-block" {% if loop.first %}open{% endif %}>
+          <summary class="day-summary">
+            <span class="day-date"><a href="/{{ day.date }}/">{{ day.date }}</a></span>
+            <span class="day-stats">
+              <span class="day-stat">{{ day.picks | length }} pick{% if day.picks | length != 1 %}s{% endif %}</span>
+              {% if b.is_panel %}
+                <span class="day-stat">{{ day.staked_cents | money }} staked</span>
+                <span class="day-stat {% if day.profit_cents > 0 %}up{% elif day.profit_cents < 0 %}down{% endif %}">
+                  {{ day.profit_cents | signed_money }}
+                </span>
+                <span class="day-stat">→ {{ day.close_cents | money }}</span>
+              {% endif %}
+            </span>
+          </summary>
+          <table class="bet-table">
+            <thead>
+              <tr>
+                <th>Bet</th>
+                <th class="num">Odds</th>
+                <th class="num">Stake</th>
+                <th>Result</th>
+                {% if b.is_panel %}
+                  <th class="num">P/L</th>
+                  <th class="num">Bankroll</th>
+                {% endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for h in day.picks %}
+                <tr>
+                  <td>
+                    <div class="bet-line">{{ h.description | safe }}</div>
+                    <div class="bet-sub">{{ h.matchup or '' }}</div>
+                    {% if h.rationale %}
+                      <div class="bet-rationale">{{ h.rationale }}</div>
+                    {% endif %}
+                  </td>
+                  <td class="num">{{ h.american_odds | odds }}</td>
+                  <td class="num">{% if h.stake_cents is not none %}{{ h.stake_cents | money }}{% else %}—{% endif %}</td>
+                  <td><span class="badge {{ h.bucket }}">{{ h.bucket }}</span></td>
+                  {% if b.is_panel %}
+                    <td class="num {% if h.profit_cents > 0 %}up{% elif h.profit_cents < 0 %}down{% endif %}">
+                      {{ h.profit_cents | signed_money }}
+                    </td>
+                    <td class="num">{{ h.bankroll_after_cents | money }}</td>
+                  {% endif %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </details>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="empty">No picks recorded yet.</p>
+  {% endif %}
+
+  <style>
+    .main header.top .bankroll .num { font-size: 22px; font-weight: 600; }
+    .main header.top .bankroll .delta { margin-left: 10px; font-size: 14px; color: var(--muted); }
+    .main header.top .bankroll .delta.up { color: var(--win); }
+    .main header.top .bankroll .delta.down { color: var(--loss); }
+    .source-summary {
+      max-width: 760px;
+      margin-bottom: 24px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+      gap: 8px;
+      padding: 14px;
+    }
+    .source-summary .stat { text-align: center; }
+    .source-summary .num { font-size: 18px; font-weight: 600; }
+    .source-summary .lbl {
+      font-size: 10px; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .pcard-days {
+      padding: 0; background: var(--panel);
+      border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+    }
+    .day-block { border-bottom: 1px solid var(--border); }
+    .day-block:last-child { border-bottom: none; }
+    .day-summary {
+      list-style: none; cursor: pointer; padding: 10px 20px;
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 12px; user-select: none;
+    }
+    .day-summary::-webkit-details-marker { display: none; }
+    .day-summary::before {
+      content: "▸"; color: var(--muted); font-size: 10px;
+      margin-right: 8px; transition: transform 0.1s; display: inline-block;
+    }
+    details[open] .day-summary::before { transform: rotate(90deg); }
+    .day-date { font-weight: 600; font-size: 14px; }
+    .day-date a { color: var(--ink); text-decoration: none; }
+    .day-date a:hover { color: var(--accent); }
+    .day-stats { display: flex; gap: 14px; font-size: 12px; }
+    .day-stat { color: var(--muted); font-variant-numeric: tabular-nums; }
+    details[open] .day-summary { background: var(--panel-2); border-bottom: 1px solid var(--border); }
+    .bet-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .bet-table th, .bet-table td {
+      padding: 8px 12px; border-bottom: 1px solid var(--border);
+      text-align: left; vertical-align: top;
+    }
+    .bet-table th {
+      font-size: 11px; color: var(--muted); text-transform: uppercase;
+      letter-spacing: 0.04em; font-weight: 600;
+    }
+    .bet-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .bet-table tr:last-child td { border-bottom: none; }
+    .bet-line { color: var(--ink); }
+    .bet-line i { font-style: italic; color: var(--accent); }
+    .bet-line .inferred { color: var(--muted); font-size: 11px; font-style: normal; }
+    .bet-sub { color: var(--muted); font-size: 11px; margin-top: 2px; }
+    .bet-rationale {
+      color: var(--muted); font-size: 12px; font-style: italic;
+      margin-top: 6px; line-height: 1.4; max-width: 56ch;
+    }
+    .badge.SKIPPED { background: transparent; color: var(--muted); border: 1px solid var(--ungrade); }
+    .up { color: var(--win); }
+    .down { color: var(--loss); }
+  </style>
+{% endblock %}

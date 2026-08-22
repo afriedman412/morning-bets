@@ -4,6 +4,10 @@
 
 # Local data — never publish
 morning_bets.db
+# WAL mode puts the hot pages in a sibling file; the exact-name rule above
+# does not cover them.
+morning_bets.db-wal
+morning_bets.db-shm
 bets/*.json
 bets/*_graded.md
 sent.json

@@ -3,10 +3,6 @@
 {% block body %}
   <header class="top">
     <h2>{{ nice }}</h2>
-    <div class="toggle">
-      <a href="/{{ date_str }}/" class="{% if view != 'source' %}active{% endif %}">By game</a>
-      <a href="/{{ date_str }}/source/" class="{% if view == 'source' %}active{% endif %}">By source</a>
-    </div>
   </header>
 
   <div class="summary">
@@ -38,9 +34,32 @@
         <div class="desc">
           {{ b.description | safe }}
           {% if b.confidence %}<span class="tier {{ b.confidence }}">{{ b.confidence }}</span>{% endif %}
+          {% if b.tail %}
+            <span class="mine">MY BET {{ b.tail.stake_cents | money }} @ {{ b.tail.american_odds | odds }}</span>
+          {% endif %}
         </div>
-        {% if show_src %}<span class="src">{{ b.source_label }}</span>{% endif %}
+        {% if show_src %}<a class="src" href="/source/{{ source_slug(b.source_label) }}/">{{ b.source_label }}</a>{% endif %}
         {% if b.rationale %}<div class="rationale">{{ b.rationale }}</div>{% endif %}
+        {% if local %}
+          {% if b.tail %}
+            <form class="tail-form" method="post" action="/me/untail">
+              <input type="hidden" name="bet_id" value="{{ b.id }}">
+              <input type="hidden" name="next" value="/{{ date_str }}/{% if view == 'source' %}source/{% endif %}">
+              <button type="submit" class="untail-btn">remove</button>
+            </form>
+          {% else %}
+            <details class="tail-form">
+              <summary>tail</summary>
+              <form method="post" action="/me/tail">
+                <input type="hidden" name="bet_id" value="{{ b.id }}">
+                <input type="hidden" name="next" value="/{{ date_str }}/{% if view == 'source' %}source/{% endif %}">
+                <label>$<input type="number" step="0.01" min="0.01" name="stake" required></label>
+                <label>@<input type="number" name="odds" value="-110" required></label>
+                <button type="submit">tail</button>
+              </form>
+            </details>
+          {% endif %}
+        {% endif %}
       </div>
       <div class="actual">
         {% if b.actual_value is not none %}actual: {{ b.actual_value }}{% endif %}
@@ -50,9 +69,9 @@
   {%- endmacro %}
 
   {% for group_name, final, content in groups %}
-    <section class="game">
+    <section class="game" id="sec-{{ loop.index }}">
       <h3>
-        {{ group_name }}
+        {% if view == 'source' %}<a class="src-head" href="/source/{{ source_slug(group_name) }}/">{{ group_name }}</a>{% else %}{{ group_name }}{% endif %}
         {% if final %}<span class="final">{{ final }}</span>{% endif %}
       </h3>
       {% if view == 'source' %}
@@ -74,6 +93,71 @@
       {% endif %}
     </section>
   {% endfor %}
+
+  <style>
+    a.src { text-decoration: none; }
+    a.src:hover { color: var(--accent) !important; text-decoration: underline; }
+    .src-head { color: var(--ink); text-decoration: none; }
+    .src-head:hover { color: var(--accent); }
+    .mine {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 6px;
+      background: var(--accent);
+      color: #1a1a1a;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      border-radius: 3px;
+      vertical-align: 1px;
+    }
+    .tail-form {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .tail-form summary {
+      cursor: pointer;
+      display: inline-block;
+      color: var(--muted);
+      user-select: none;
+    }
+    .tail-form summary:hover { color: var(--accent); }
+    .tail-form form {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 6px;
+    }
+    .tail-form label { display: inline-flex; align-items: center; gap: 2px; }
+    .tail-form input[type="number"] {
+      width: 70px;
+      padding: 3px 6px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--ink);
+      font-size: 12px;
+      font-family: inherit;
+    }
+    .tail-form button {
+      padding: 3px 10px;
+      background: var(--accent);
+      color: #1a1a1a;
+      border: none;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .tail-form .untail-btn {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      font-weight: 500;
+    }
+    .tail-form .untail-btn:hover { color: var(--loss); border-color: var(--loss); }
+  </style>
 
   {% if sources %}
     <section class="sources">

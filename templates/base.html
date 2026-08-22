@@ -29,9 +29,9 @@
     }
     .layout {
       display: grid;
-      grid-template-columns: 220px 1fr;
-      gap: 28px;
-      max-width: 1180px;
+      grid-template-columns: 250px 1fr;
+      gap: 24px;
+      max-width: 1200px;
       margin: 0 auto;
       padding: 24px 22px 80px;
     }
@@ -73,6 +73,70 @@
     .sidebar .nav a.active { background: var(--panel); color: var(--ink); }
     .sidebar .nav a .rec { color: var(--muted); font-size: 11px; }
     .sidebar .nav a.active .rec { color: var(--accent); }
+    .sub-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      margin: 2px 0 6px 10px;
+      padding-left: 8px;
+      border-left: 1px solid var(--border);
+    }
+    .sub-nav a {
+      padding: 4px 8px;
+      font-size: 12px;
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 4px;
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sub-nav a:hover { color: var(--ink); background: var(--panel-2); }
+    .sub-nav a.active { color: var(--ink); background: var(--panel); }
+    /* Roster names are long — let them wrap instead of truncating. */
+    .roster .sub-nav a { white-space: normal; line-height: 1.3; }
+    .nav a.day-link.collapsed + .sub-nav { display: none; }
+
+    .roster { margin: 2px 0 6px; }
+    .roster > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      user-select: none;
+    }
+    .roster > summary::-webkit-details-marker { display: none; }
+    .roster > summary::before {
+      content: "▸";
+      font-size: 10px;
+      margin-right: 8px;
+      display: inline-block;
+      transition: transform 0.1s;
+    }
+    .roster[open] > summary::before { transform: rotate(90deg); }
+    .roster > summary:hover { background: var(--panel-2); color: var(--ink); }
+
+    .sub-toggle {
+      display: inline-flex;
+      align-self: start;
+      margin: 4px 0 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .sub-toggle a {
+      text-align: center;
+      padding: 5px 12px;
+      font-size: 11px;
+      color: var(--muted);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .sub-toggle a.active { background: var(--accent); color: #1a1a1a; font-weight: 600; }
+    .sub-toggle a:not(.active):hover { background: var(--panel-2); color: var(--ink); }
 
     .main { min-width: 0; }
     .main header.top {
@@ -252,11 +316,45 @@
     <aside class="sidebar">
       <h1><a href="/">Morning Bets</a></h1>
       <nav class="nav">
+        <a href="/cappers/"{% if cappers_active %} class="active"{% endif %}>
+          <span>📋 Cappers</span>
+        </a>
+        <a href="/me/"{% if me_active %} class="active"{% endif %}>
+          <span>💰 Me</span>
+        </a>
+        {% if roster %}
+          <details class="roster"{% if current_source_slug %} open{% endif %}>
+            <summary>Roster</summary>
+            <div class="sub-nav">
+              {% for r in roster %}
+                <a href="/source/{{ r.slug }}/"
+                   title="{{ r.label }}"
+                   {% if r.slug == current_source_slug %}class="active"{% endif %}>
+                  {{ r.label }}{% if r.is_panel %} 🎲{% endif %}
+                </a>
+              {% endfor %}
+            </div>
+          </details>
+        {% endif %}
+        {% set toggle_date = date_str or (all_days[0].date if all_days else None) %}
+        {% if toggle_date %}
+          <div class="sub-toggle">
+            <a href="/{{ toggle_date }}/" class="{% if view and view != 'source' %}active{% endif %}">By game</a>
+            <a href="/{{ toggle_date }}/source/" class="{% if view == 'source' %}active{% endif %}">By source</a>
+          </div>
+        {% endif %}
         {% for d in all_days %}
-          <a href="/{{ d.date }}/"{% if d.date == date_str %} class="active"{% endif %}>
+          <a href="/{{ d.date }}/" class="day-link{% if d.date == date_str %} active{% endif %}">
             <span>{{ d.date }}</span>
             <span class="rec">{{ d.wins or 0 }}-{{ d.losses or 0 }}</span>
           </a>
+          {% if d.date == date_str and sidebar_items %}
+            <div class="sub-nav">
+              {% for idx, label in sidebar_items %}
+                <a href="#sec-{{ idx }}" title="{{ label }}">{{ label }}</a>
+              {% endfor %}
+            </div>
+          {% endif %}
         {% endfor %}
       </nav>
     </aside>
@@ -264,5 +362,18 @@
       {% block body %}{% endblock %}
     </main>
   </div>
+  <script>
+    // Clicking the already-active date collapses its section dropdown
+    // instead of reloading the page — quicker to scan the date list.
+    document.querySelectorAll('.nav a.day-link.active').forEach(function (a) {
+      a.addEventListener('click', function (e) {
+        var sub = a.nextElementSibling;
+        if (sub && sub.classList.contains('sub-nav')) {
+          e.preventDefault();
+          a.classList.toggle('collapsed');
+        }
+      });
+    });
+  </script>
 </body>
 </html>
