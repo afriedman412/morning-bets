@@ -73,41 +73,71 @@ FIELDS: dict[str, Field] = {f.key: f for f in [
           "everyone. workload_context sees the behaviour change; this says "
           "whether to expect it to continue.",
           implemented=True),  # context.sources.statsapi.standings
-    Field("rest_and_travel", "game",
-          "Days off and time-zone movement for both clubs — the "
-          "day-after-a-night-game lineup is a real and cheap edge. "
-          "Derivable from the local games table plus venue coordinates."),
+    # Side-scoped: each club arrives at a game with its own schedule
+    # behind it, and a brief that averages the two describes neither.
+    Field("rest_and_travel", "starter",
+          "Days off, consecutive days played, miles flown and signed "
+          "time-zone shift. Eastbound is positive because it costs more — "
+          "the body arrives on a clock reading later than it is. Nearly "
+          "free: the local games table already holds the schedule, only "
+          "the thirty venue coordinates are fetched. On a mid-series day "
+          "every club reads zero miles, which is the correct answer and "
+          "not a missing value.",
+          implemented=True),  # context.sources.rest.for_team
     Field("line_movement", "game",
-          "Where the number opened against where it sits now. The system "
-          "records stated-vs-current per bet, but never the market's own "
-          "path, which is the part that says whether money moved a line or "
-          "a capper simply quoted it late. Needs repeated market snapshots "
-          "over a day — a storage decision, not a fetch."),
+          "The recorded path of this game's number across the day. Says "
+          "whether money moved a line or a capper simply quoted it late, "
+          "which stated-vs-current per bet cannot distinguish. Derived from "
+          "stored snapshots rather than fetched — it was the single "
+          "highest-coverage gap in the contract set and it turned out to be "
+          "a storage decision. Empty until a date has two snapshots, and "
+          "`first_seen` means first OBSERVED, not the true market open.",
+          implemented=True),  # context.snapshot.line_movement
     Field("umpire", "game",
-          "Plate umpire and their called-strike tendencies. Named in "
-          "Cynic's own system prompt as its edge and never once supplied. "
-          "Assignments publish the morning of; statsapi carries officials "
-          "on the boxscore, which may be too late to help."),
-    Field("injuries", "game",
-          "IL moves and late scratches for both clubs. A brief built "
-          "before a scratch is not wrong so much as stale, and there is "
-          "currently no way to tell which one you are reading."),
+          "Plate umpire, plus K/BB tendencies derived from the games he has "
+          "worked. THE TENDENCY HALF IS NOT USABLE YET and says so in its "
+          "own payload: 1,113 games spread over 90 umpires is ~12 games "
+          "each, only 4 clear a 15-game bar, and the apparent 77-118 K "
+          "index range collapses to 90-99 once any sample requirement is "
+          "applied. The assignment itself is solid. Every profile carries "
+          "`reliable` and a caveat; a real version needs pitch-level "
+          "called-strike data or several seasons of record.",
+          implemented=True),  # context.sources.officials
+    # Side-scoped for the same reason as rest: one club being down four
+    # regulars is a fact about that club.
+    Field("injuries", "starter",
+          "Who is unavailable, from each club's 40-man status, plus IL "
+          "moves in the last three days so a fresh scratch or activation "
+          "shows. 276 players were out across the league when this was "
+          "built, with five clubs down fourteen apiece. Zero of the "
+          "cappers' props named an injured player — the real value is "
+          "depletion context and keeping our OWN generated picks off "
+          "players who cannot play.",
+          implemented=True),  # context.sources.injuries
 
     # -- defence and receiving -----------------------------------------
-    Field("catcher_framing", "opponent",
-          "Framing runs for the catcher actually starting. Moves called "
-          "strikes by a wide margin at the extremes, which lands directly "
-          "on strikeout and walk props. Savant publishes it; the blocker "
-          "is knowing who is catching, i.e. confirmed_lineup."),
-    Field("defense", "opponent",
-          "Outs Above Average behind the pitcher. A hits-allowed or "
-          "earned-runs line is partly a bet on the gloves, and nothing in "
-          "the brief currently mentions them."),
-    Field("times_through_order", "starter",
-          "Splits for the first, second and third pass through a lineup. "
-          "The TTO penalty is one of the few large, well-established "
-          "effects in pitching, and it is the mechanism behind the hook "
-          "that workload_context can only measure from the outside."),
+    # Stored per SIDE, not per opponent: the catcher who matters for a
+    # pitcher's strikeout line is his own battery mate, while for a batter
+    # prop it is the catcher across the diamond. Both are present, and the
+    # consumer picks the side its bet is about.
+    Field("catcher_framing", "starter",
+          "Framing runs and shadow-zone strike rate for the catcher "
+          "receiving. A real signal, unlike the umpire half: the league "
+          "spans +7.7 to -10.7 runs and 49.4% to 44.5% on takes, an "
+          "18-run gap that lands directly on strikeout and walk props. "
+          "Falls back to the club's primary catcher by pitches framed when "
+          "no lineup is posted, flagged `estimated`.",
+          implemented=True),  # context.sources.catcher.for_team
+    # Side-scoped, like catcher_framing: the gloves that matter for a
+    # pitcher's line are the ones behind HIM.
+    Field("defense", "starter",
+          "Outs Above Average for the club behind the pitcher, with "
+          "directional and by-batter-hand splits. A hits-allowed or "
+          "earned-runs line is partly a bet on the gloves and the spread "
+          "is wide — the Cubs are +62 and the Mariners -45. Team level "
+          "rather than a sum over the nine starting, so it needs no posted "
+          "lineup.",
+          implemented=True),  # context.sources.defense.for_team
 
     # -- starting pitcher scope ----------------------------------------
     Field("starter_game_log", "starter",
@@ -153,23 +183,47 @@ FIELDS: dict[str, Field] = {f.key: f for f in [
           "two windows separately because statsapi serves handedness OR a "
           "date range, never both; see opponent.py.",
           implemented=True),  # context.sources.opponent.profile
-    Field("confirmed_lineup", "opponent",
-          "Posted lineup. Before it drops, any batter-level read is a "
-          "guess about who is even playing.",
-          implemented=False),
+    Field("confirmed_lineup", "starter",
+          "The nine names, posted. Before it drops, any batter-level read "
+          "is a guess about who is even playing — so `posted` is arguably "
+          "the single most useful bit in a brief, because it says whether "
+          "the rest of the batter-side evidence describes this game or a "
+          "typical one. Also names the receiver, which is what turns "
+          "catcher_framing from a guess into a fact.",
+          implemented=True),  # context.sources.lineup.lineups
 
     # -- individual batter scope ---------------------------------------
     Field("batter_xstats", "batter",
           "xwOBA/xBA/xSLG vs actuals — whether a hot streak is real.",
           implemented=True),  # panel.savant_batter_expected
     Field("batter_vs_pitcher", "batter",
-          "This batter against today's starter. Tiny samples; included "
-          "because it moves lines, not because it predicts much.",
-          implemented=False),
+          "Career head-to-head against today's starter. Included because "
+          "it moves markets, not because it predicts: a typical pair has "
+          "3-19 plate appearances, and Judge is .185 with a 51.5% K rate "
+          "against Sale in 33. Every record carries its `pa` and an "
+          "explicit caveat so the number cannot be read as more than it "
+          "is. Attached only when a lineup is posted.",
+          implemented=True),  # context.sources.batter.vs_pitcher
+    Field("batter_vs_arsenal", "batter",
+          "This hitter projected against THIS starter's actual pitch mix, "
+          "by weighting his per-pitch-type results by the starter's usage. "
+          "The answer head-to-head is reaching for, with real samples "
+          "behind it. Judge projects .354 wOBA against Chris Sale and .474 "
+          "against Framber Valdez — both left-handers, but Valdez is 45% "
+          "sinkers and Judge sits at .556 against sinkers while Sale is "
+          "40% sliders and Judge is .293 against those. A 120-point gap "
+          "that neither a platoon split nor a 15-PA history can see. "
+          "Carries `coverage` (share of the arsenal priced) and the "
+          "per-pitch components.",
+          implemented=True),  # context.sources.batter.vs_arsenal
     Field("batter_splits", "batter",
-          "Platoon split. A lefty mashing lefties is the exception the "
-          "aggregate line hides.",
-          implemented=False),
+          "Season platoon split, with the side matching today's starter "
+          "marked `facing` and the OPS gap computed. Real samples, unlike "
+          "head-to-head — a regular carries 150-400 PA against righties. "
+          "Judge walks 23.7% against lefties and 13.0% against righties, "
+          "which the aggregate line hides entirely. Attached only when a "
+          "lineup is posted.",
+          implemented=True),  # context.sources.batter.for_hand
 ]}
 
 
@@ -216,7 +270,7 @@ CONTRACTS: dict[str, Contract] = {
         "pitcher outs",
         required=_PITCHER_CORE + ("workload_context", "opponent_profile"),
         optional=("bullpen_state", "starter_vs_opponent", "park_factors",
-                  "weather", "team_situation", "times_through_order",
+                  "weather", "team_situation",
                   "umpire", "catcher_framing", "line_movement",
                   "injuries", "rest_and_travel"),
     ),
@@ -224,21 +278,20 @@ CONTRACTS: dict[str, Contract] = {
         "pitcher strikeouts",
         required=_PITCHER_CORE + ("opponent_profile", "workload_context"),
         optional=("bullpen_state", "starter_vs_opponent", "park_factors",
-                  "team_situation", "times_through_order", "umpire",
+                  "team_situation", "umpire",
                   "catcher_framing", "line_movement", "injuries"),
     ),
     "stat:er": Contract(
         "earned runs allowed",
         required=_PITCHER_CORE + ("park_factors",),
         optional=("opponent_profile", "weather", "starter_vs_opponent",
-                  "defense", "times_through_order", "line_movement",
+                  "defense", "line_movement",
                   "injuries"),
     ),
     "stat:h_allowed": Contract(
         "hits allowed",
         required=_PITCHER_CORE + ("opponent_profile",),
-        optional=("park_factors", "starter_vs_opponent", "defense",
-                  "times_through_order", "line_movement", "injuries"),
+        optional=("park_factors", "starter_vs_opponent", "defense", "line_movement", "injuries"),
     ),
     "stat:bb_allowed": Contract(
         "walks allowed",
@@ -254,19 +307,25 @@ CONTRACTS: dict[str, Contract] = {
         "pitcher prop (generic)",
         required=_PITCHER_CORE + ("workload_context",),
         optional=("opponent_profile", "bullpen_state", "park_factors",
-                  "weather", "starter_vs_opponent", "team_situation",
-                  "times_through_order", "line_movement", "injuries"),
+                  "weather", "starter_vs_opponent", "team_situation", "line_movement", "injuries"),
     ),
 
     # Batter props hinge on the matchup and the environment; the batter's
     # own form is the least of it.
+    # confirmed_lineup is REQUIRED here, unlike everywhere else. Until the
+    # card is posted, every batter-side number describes a typical game for
+    # this club rather than this one, and the batter a prop names may not be
+    # playing at all. Predicting the lineup from recent starts is a real
+    # project with real error, so the standing decision is to treat an
+    # unposted lineup as a failed contract rather than estimate around it.
     "type:prop_batter": Contract(
         "batter prop",
         required=("market", "batter_xstats", "starter_arsenal",
-                  "starter_percentiles", "park_factors"),
-        optional=("batter_splits", "batter_vs_pitcher", "weather",
-                  "confirmed_lineup", "catcher_framing", "umpire",
-                  "line_movement", "injuries"),
+                  "starter_percentiles", "park_factors",
+                  "confirmed_lineup"),
+        optional=("batter_vs_arsenal", "batter_splits",
+                  "batter_vs_pitcher", "weather",
+                  "catcher_framing", "umpire", "line_movement", "injuries"),
     ),
 
     # Totals are an environment question first and a pitching question

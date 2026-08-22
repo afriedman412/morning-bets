@@ -33,7 +33,10 @@ from datetime import date, datetime, timezone
 
 from src import parallel, roster
 from src.context import contracts
-from src.context.sources import opponent, park, savant, statsapi, workload
+from src.context.sources import (
+    batter, catcher, defense, injuries, lineup, officials, opponent,
+    park, rest, savant, statsapi, workload,
+)
 
 # Bumped whenever the shape or content of a snapshot changes in a way that
 # makes two snapshots non-comparable. The eval harness keys on this: without
@@ -71,6 +74,11 @@ def _side(
     opp_team_id: int | None, season: int, as_of: str,
     hooks: dict, pens: dict, standings: dict, arsenals: dict,
     is_home: bool = False, neutral: bool = False,
+    own_team_id: int | None = None, season_year: int | None = None,
+    side_lineup: list[dict] | None = None, lineup_posted: bool = False,
+    injured: dict | None = None, il_moves: list[dict] | None = None,
+    game_date: str = "", venue_id: int | None = None,
+    opp_lineup: list[dict] | None = None,
 ) -> dict:
     """One half of a game: the starter, his club's state, the lineup he faces.
 
@@ -92,7 +100,52 @@ def _side(
         "team_situation": standings.get(own_abbr),
         "workload_context": hooks.get(own_abbr),
         "bullpen_state": pens.get(own_abbr),
+        # This club's receiver. Lives on the side rather than under the
+        # starter because a batter prop needs the OTHER side's catcher —
+        # both are present and the consumer picks.
+        "catcher_framing": None,
+        # The gloves behind THIS side's pitcher, team-level so it does not
+        # need a posted lineup.
+        "defense": None,
+        "injuries": None,
+        "rest_and_travel": None,
+        "confirmed_lineup": (
+            {"posted": True, "players": side_lineup}
+            if lineup_posted and side_lineup else None
+        ),
     }
+    # A posted lineup names the actual receiver, which turns framing from
+    # an educated guess about the club's primary catcher into a fact.
+    named_catcher = None
+    if lineup_posted and side_lineup:
+        c = lineup.catcher_in(side_lineup)
+        named_catcher = c["name"] if c else None
+    if own_abbr:
+        try:
+            out["rest_and_travel"] = rest.for_team(
+                own_abbr, game_date, venue_id, season_year,
+            )
+        except Exception:
+            pass
+    if own_team_id:
+        out["injuries"] = {
+            "out": (injured or {}).get(own_team_id) or [],
+            "recent_moves": [m for m in (il_moves or [])
+                             if m.get("team_id") == own_team_id],
+        }
+        try:
+            out["defense"] = defense.for_team(
+                own_team_id, year=season_year, as_of=as_of,
+            )
+        except Exception:
+            pass
+        try:
+            out["catcher_framing"] = catcher.for_team(
+                own_team_id, catcher_name=named_catcher,
+                year=season_year, as_of=as_of,
+            )
+        except Exception:
+            pass
     if not starter_name:
         return out
 
@@ -128,6 +181,46 @@ def _side(
     out["starter"]["starter_arsenal"] = arsenals.get(
         (starter_name or "").lower().strip()
     )
+
+    # Batter-side detail for the nine actually hitting against this
+    # starter. Skipped entirely without a posted lineup — the same rule
+    # that makes confirmed_lineup required for a batter prop, applied to
+    # the evidence itself rather than just the score.
+    if lineup_posted and opp_lineup:
+        own_arsenal = arsenals.get((starter_name or "").lower().strip())
+
+        def _one_batter(pl: dict) -> dict:
+            bid = pl.get("id")
+            rec = {"name": pl.get("name"), "id": bid, "pos": pl.get("pos")}
+            if not bid:
+                return rec
+            try:
+                rec["batter_splits"] = batter.for_hand(
+                    bid, hand, season, as_of)
+            except Exception:
+                rec["batter_splits"] = None
+            if pid:
+                try:
+                    rec["batter_vs_pitcher"] = batter.vs_pitcher(
+                        bid, pid, season)
+                except Exception:
+                    rec["batter_vs_pitcher"] = None
+            try:
+                rec["batter_vs_arsenal"] = batter.vs_arsenal(
+                    pl.get("name") or "", own_arsenal, season_year, as_of)
+            except Exception:
+                rec["batter_vs_arsenal"] = None
+            # Head-to-head is only worth a reader's attention when it
+            # disagrees with the projection AND has the sample to disagree.
+            rec["h2h_verdict"] = batter.reconcile(
+                rec.get("batter_vs_pitcher"), rec.get("batter_vs_arsenal"))
+            return rec
+
+        from src import parallel as _par
+        out["opposing_batters"] = [
+            got for _, got, err in _par.gather(_one_batter, opp_lineup,
+                                               workers=6) if not err
+        ]
 
     # The lineup this starter has to get out.
     if opp_abbr:
@@ -182,6 +275,26 @@ def assemble(
             panel.savant_batter_expected(season, cutoff))) or {}
     team_ids = _safe(opponent.team_ids, season) or {}
 
+    # Record today's crew before reading it back, and top up any earlier
+    # dates that were never captured — the profile is only as good as the
+    # record behind it, and nothing else calls this.
+    _safe(officials.fetch_date, d)
+    _safe(officials.backfill_missing)
+    lus = _safe(lineup.lineups, d) or {}
+    inj = _safe(injuries.all_injuries, list(team_ids.values()),
+                season, cutoff) or {}
+    il_moves = _safe(injuries.recent_moves, cutoff) or []
+    # Derived from what is already on disk, not fetched.
+    from src.context import snapshot as _snap
+    moves = _safe(_snap.line_movement, d) or {}
+    ump_profiles = _safe(officials.profiles, cutoff) or {}
+    umps = {}
+    for g in slate:
+        crew = _safe(officials.for_game, g.get("game_id"))
+        if crew:
+            crew["profile"] = ump_profiles.get(crew.get("plate_ump"))
+            umps[g.get("game_id")] = crew
+
     league = {
         "park_factors": {v["venue"]: v for v in parks.values()},
         "standings": standings,
@@ -202,6 +315,9 @@ def assemble(
             "game_id": g.get("game_id"),
             "matchup": g.get("matchup"),
             "start_time": g.get("start_time"),
+            "start_utc": g.get("start_utc"),
+            "status": g.get("status"),
+            "detailed_status": g.get("detailed_status"),
             "venue": g.get("venue"),
             "venue_id": venue_id,
             # A game at a venue Savant does not rank is a neutral site, not
@@ -211,16 +327,38 @@ def assemble(
             "neutral_site": bool(venue_id and parks and not pf),
             "weather": g.get("weather"),
             "market": _market_for(g.get("matchup", ""), market),
+            # The recorded path of this game's number, from prior snapshots
+            # of this same date. Note it lags by one: `market` above is now,
+            # this is everything the system saw before now. Empty on a first
+            # assembly, which is correct — there is no movement to report
+            # until there are two observations.
+            "line_movement": moves.get(g.get("matchup")),
             "park_factors": pf,
+            # None until the crew is published, which happens the morning
+            # of — so an early assembly legitimately has no umpire.
+            "umpire": umps.get(g.get("game_id")),
         }
         neutral = rec["neutral_site"]
+        lu = lus.get(g.get("game_id")) or {}
         rec["sides"] = {
             "away": _side(g.get("away_probable"), away, home, home_id,
                           season, cutoff, hooks, pens, standings, arsenals,
-                          is_home=False, neutral=neutral),
+                          is_home=False, neutral=neutral,
+                          own_team_id=away_id, season_year=season,
+                          side_lineup=lu.get("away"),
+                          lineup_posted=lu.get("posted", False),
+                          injured=inj, il_moves=il_moves,
+                          game_date=d, venue_id=venue_id,
+                          opp_lineup=lu.get("home")),
             "home": _side(g.get("home_probable"), home, away, away_id,
                           season, cutoff, hooks, pens, standings, arsenals,
-                          is_home=True, neutral=neutral),
+                          is_home=True, neutral=neutral,
+                          own_team_id=home_id, season_year=season,
+                          side_lineup=lu.get("home"),
+                          lineup_posted=lu.get("posted", False),
+                          injured=inj, il_moves=il_moves,
+                          game_date=d, venue_id=venue_id,
+                          opp_lineup=lu.get("away")),
         }
         return rec
 
@@ -269,9 +407,36 @@ def _game_for(bet: dict, snapshot: dict) -> dict | None:
     return None
 
 
+_GAME_FIELDS = {"market", "weather", "park_factors", "umpire",
+                "line_movement"}
+
+
+def _names_a_player(bet: dict) -> bool:
+    """True when player_name holds a PERSON rather than a club.
+
+    team_total puts the club in player_name — persist_bets documents this —
+    so 'Milwaukee Brewers' would otherwise be hunted for among the starters,
+    fail, and drag a perfectly well-covered team total to zero.
+    """
+    return (bet.get("bet_type") or "").strip().lower() in ("prop", "combo")
+
+
+def _matched_side(bet: dict, game: dict) -> dict | None:
+    """The side whose starter is this bet's player, if any."""
+    if not _names_a_player(bet):
+        return None
+    who = (bet.get("player_name") or "").lower().strip()
+    if not who:
+        return None
+    for s in game.get("sides", {}).values():
+        if (s.get("starter", {}).get("name") or "").lower().strip() == who:
+            return s
+    return None
+
+
 def _lookup(field: str, bet: dict, game: dict, snapshot: dict):
     """Pull one contract field for one bet out of the snapshot."""
-    if field in ("market", "weather", "park_factors"):
+    if field in _GAME_FIELDS:
         return game.get(field)
     if field == "team_situation":
         return [s.get("team_situation") for s in game["sides"].values()]
@@ -280,20 +445,42 @@ def _lookup(field: str, bet: dict, game: dict, snapshot: dict):
         return snapshot["league"]["batter_xstats"].get(name)
 
     sides = list(game.get("sides", {}).values())
-    # A pitcher prop resolves to the side whose starter is the named player;
-    # everything else needs the field on BOTH sides to count as covered,
-    # since a total depends on two starters and two bullpens.
-    who = (bet.get("player_name") or "").lower().strip()
-    mine = [s for s in sides
-            if (s.get("starter", {}).get("name") or "").lower().strip() == who]
-    targets = mine or sides
 
     def get(s):
         return (s.get("starter", {}).get(field)
                 if field.startswith("starter_") else s.get(field))
 
-    vals = [get(s) for s in targets]
+    # A bet naming a pitcher resolves to that pitcher's side. If the name
+    # matches NEITHER starter the honest answer is "we have nothing for
+    # this player" — the previous code fell back to demanding the field on
+    # both sides, which scored a bet low for a reason that had nothing to
+    # do with the actual problem. 'Cade Anderson' against a slate listing
+    # 'Kade Anderson' looked like missing game logs rather than a name that
+    # did not resolve.
+    if _names_a_player(bet) and bet.get("player_name") \
+            and _is_pitcher_field(field):
+        mine = _matched_side(bet, game)
+        if mine:
+            return get(mine)
+        # The named player is not a starter in this game. What that means
+        # depends entirely on who he is, so ask the roster rather than
+        # guess: a PITCHER who is not starting has no data here and the
+        # honest answer is nothing. A BATTER legitimately has no side of
+        # his own — the starter fields his prop needs belong to whoever is
+        # pitching to him — so he falls through to both sides below.
+        if roster.is_pitcher(bet["player_name"]) is True:
+            return None
+
+    vals = [get(s) for s in sides]
     return vals if len(vals) > 1 else (vals[0] if vals else None)
+
+
+def _is_pitcher_field(field: str) -> bool:
+    return field.startswith("starter_") or field in (
+        "workload_context", "bullpen_state", "opponent_profile",
+        "catcher_framing", "defense", "injuries",
+        "rest_and_travel",
+    )
 
 
 def coverage(bet: dict, snapshot: dict) -> dict:
@@ -324,6 +511,19 @@ def coverage(bet: dict, snapshot: dict) -> dict:
         else:
             missing_opt.append(field)
 
+    # Distinguish "this pitcher has no data" from "this name matched no
+    # pitcher". Both leave the same holes and have completely different
+    # fixes: one is a debutant, the other is a typo in the source.
+    named = bet.get("player_name")
+    # Only a name that resolves to nobody is a name problem. A batter with
+    # no xstats row, or a reliever nobody is starting, are data gaps.
+    unmatched = bool(
+        named and _names_a_player(bet)
+        and _matched_side(bet, game) is None
+        and roster.player_id(named) is None
+        and not _present(_lookup("batter_xstats", bet, game, snapshot))
+    )
+
     return {
         "contract": c.name,
         "game_found": True,
@@ -333,6 +533,10 @@ def coverage(bet: dict, snapshot: dict) -> dict:
         "present": present,
         "missing_required": missing_req,
         "missing_optional": missing_opt,
+        "player_unmatched": unmatched,
+        **({"note": f"{named!r} matched no starter and no batter in this "
+                    f"game — check the name, not the data"} if unmatched
+           else {}),
     }
 
 

@@ -147,6 +147,24 @@ CREATE TABLE IF NOT EXISTS video_queue (
 CREATE INDEX IF NOT EXISTS idx_queue_pending
     ON video_queue(slate_date, processed_at);
 
+-- Who worked the plate, per game. Accumulated rather than fetched on demand:
+-- an umpire profile is only meaningful across a season of games, and the
+-- assignment for a single game is one row of a payload we already pull.
+-- Joined against mlb_pitching to derive tendencies, so this table stays a
+-- record of fact and the interpretation lives in code.
+CREATE TABLE IF NOT EXISTS game_officials (
+    game_id TEXT PRIMARY KEY REFERENCES games(game_id),
+    date TEXT NOT NULL,
+    plate_ump TEXT,
+    plate_ump_id INTEGER,
+    first_ump TEXT,
+    second_ump TEXT,
+    third_ump TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_officials_ump
+    ON game_officials(plate_ump_id);
+CREATE INDEX IF NOT EXISTS idx_officials_date ON game_officials(date);
+
 -- One row per digest actually sent, so a manual `make morning` and the
 -- scheduled run cannot both mail the same day's card.
 CREATE TABLE IF NOT EXISTS digests (

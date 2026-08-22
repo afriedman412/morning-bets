@@ -96,3 +96,7 @@ docs/build/*
 .elasticbeanstalk/*
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
+
+# Assembled context briefs — local record, regenerable-ish but not source.
+# Immutable and accumulating; several hundred KB a day compressed.
+snapshots/

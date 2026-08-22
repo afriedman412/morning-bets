@@ -122,7 +122,20 @@ case "${1:-status}" in
     write_plist grade    "src.grading --if-needed"  "$(hours_of 3 11)"
     write_plist discover "src.main discover"        "$(hours_of 3 17 5)"
     write_plist process  "src.main process"         "$(hours_of 6 17 20)"
-    for l in grade discover process; do
+    # Assemble + snapshot the day's evidence, hourly through the morning.
+    #
+    # Ends at 13:40 on purpose. ESPN drops a game's market the moment it
+    # starts, and `market` is required by all 11 contracts, so a brief
+    # assembled after first pitch scores worse no matter how good the
+    # adapters are. The whole slate is pregame before ~13:00 ET, so this
+    # window is the one where coverage is actually achievable.
+    #
+    # Running it repeatedly is the point, not redundancy: line_movement is
+    # derived from consecutive snapshots, so a single daily run would
+    # produce a field that is permanently empty. Identical content is
+    # skipped by content hash, so a quiet hour costs nothing.
+    write_plist context  "src.context.snapshot"     "$(hours_of 6 13 40)"
+    for l in grade discover process context; do
       launchctl unload "$AGENTS/$PREFIX.$l.plist" 2>/dev/null || true
       launchctl load  "$AGENTS/$PREFIX.$l.plist"
     done
@@ -134,7 +147,7 @@ case "${1:-status}" in
     echo "      with: crontab -l | grep -v morning-bets | crontab -"
     ;;
   uninstall)
-    for l in grade discover process; do
+    for l in grade discover process context; do
       launchctl unload "$AGENTS/$PREFIX.$l.plist" 2>/dev/null || true
       rm -f "$AGENTS/$PREFIX.$l.plist"
     done

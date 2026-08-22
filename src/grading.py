@@ -1326,9 +1326,11 @@ def fill_missing_prop_lines(
     Returns (lines_filled, odds_filled).
     """
     from src import kalshi, parallel
+    from src.context import gamestate
 
     rows = conn.execute(
-        "SELECT id, player_name, stat, side, line, american_odds FROM bets "
+        "SELECT id, player_name, stat, side, line, american_odds, "
+        "matchup FROM bets "
         "WHERE date=? AND sport='mlb' AND bet_type IN ('prop','combo') "
         "AND player_name IS NOT NULL "
         "AND (line IS NULL OR american_odds IS NULL)",
@@ -1340,13 +1342,22 @@ def fill_missing_prop_lines(
     # One lookup per distinct prop, not per row — the same pick from four
     # cappers is one question for the exchange.
     jobs: dict[tuple, list] = {}
+    skipped_live = 0
     for r in rows:
         if (r["stat"] or "").lower() not in kalshi.SERIES_BY_STAT:
             continue  # Kalshi has no series for this stat (er, decision, ...)
+        # Once first pitch happens the exchange is quoting a contract part
+        # way to settlement, not a line. Filling a null from that writes a
+        # number nothing downstream can tell is fiction.
+        if not gamestate.is_pregame(r["matchup"], date_str):
+            skipped_live += 1
+            continue
         jobs.setdefault(
             (r["player_name"], r["stat"], (r["side"] or "").lower(),
              r["line"]), [],
         ).append(r)
+    if skipped_live:
+        print(f"  skipped {skipped_live} prop(s) — game already underway")
     if not jobs:
         return 0, 0
 

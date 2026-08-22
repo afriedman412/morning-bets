@@ -1042,7 +1042,11 @@ def resolve_price(
     overwritten with the live book price; a model-supplied number is never
     trusted for something we can look up.
     """
-    real = market_odds_for(market, pick) if market else None
+    # Never reprice a game in progress: a live book is not a line, and the
+    # stake would be sized off a number that no longer exists.
+    from src.context import gamestate
+    live_ok = gamestate.is_pregame(pick.get("matchup"), date_str)
+    real = market_odds_for(market, pick) if (market and live_ok) else None
     if real is not None:
         pick["quoted_odds"] = pick.get("american_odds")
         pick["american_odds"] = real

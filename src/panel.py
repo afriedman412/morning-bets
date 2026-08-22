@@ -253,6 +253,12 @@ def mlb_schedule_with_probables(date_str: str) -> list[dict]:
                 "home_team": teams["home"]["team"].get("name"),
                 "venue_id": venue.get("id"),
                 "start_time": _format_et(g.get("gameDate")),
+                "start_utc": g.get("gameDate"),
+                # Whether the game has begun. Any "current" price fetched
+                # after first pitch is a live or settling number, not a
+                # line, so anything comparing against it has to know.
+                "status": (g.get("status") or {}).get("abstractGameState"),
+                "detailed_status": (g.get("status") or {}).get("detailedState"),
                 "venue": venue.get("name"),
                 "weather": {
                     "condition": weather.get("condition"),
