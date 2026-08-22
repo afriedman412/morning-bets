@@ -33,7 +33,7 @@ USER_AGENT = "morning-bets/1.0"
 _URL = (
     "https://statsapi.mlb.com/api/v1/sports/1/players?season={season}"
     "&fields=people,id,fullName,firstName,lastName,primaryPosition,type,"
-    "abbreviation"
+    "abbreviation,pitchHand,batSide,code,currentTeam"
 )
 
 # Position `type` as statsapi reports it. 'Two-Way Player' is deliberately in
@@ -92,20 +92,35 @@ def load(season: int | None = None, force: bool = False) -> dict:
     if people is None:
         people = json.loads(p.read_text()) if p.exists() else []
 
-    by_full: dict[str, str] = {}
-    by_last: dict[str, set[str]] = {}
-    by_initial: dict[tuple[str, str], set[str]] = {}
+    # Records, not bare position strings: the id is needed for every
+    # statsapi lookup downstream (game logs, splits), and having two name
+    # matchers in the codebase is how they drift apart.
+    by_full: dict[str, dict] = {}
+    by_last: dict[str, list[dict]] = {}
+    by_initial: dict[tuple[str, str], list[dict]] = {}
     for pl in people:
         ptype = (pl.get("primaryPosition") or {}).get("type")
         if not ptype:
             continue
-        by_full[_norm(pl.get("fullName", ""))] = ptype
+        rec = {
+            "id": pl.get("id"),
+            "type": ptype,
+            "pos": (pl.get("primaryPosition") or {}).get("abbreviation"),
+            "name": pl.get("fullName"),
+            # Which hand he throws with decides whether a lineup's vs-LHP or
+            # vs-RHP split is the relevant one — the single most load-bearing
+            # fact about a matchup, and one byte to carry.
+            "throws": (pl.get("pitchHand") or {}).get("code"),
+            "bats": (pl.get("batSide") or {}).get("code"),
+            "team_id": (pl.get("currentTeam") or {}).get("id"),
+        }
+        by_full[_norm(pl.get("fullName", ""))] = rec
         last = _norm(pl.get("lastName", ""))
         first = _norm(pl.get("firstName", ""))
         if last:
-            by_last.setdefault(last, set()).add(ptype)
+            by_last.setdefault(last, []).append(rec)
             if first:
-                by_initial.setdefault((first[0], last), set()).add(ptype)
+                by_initial.setdefault((first[0], last), []).append(rec)
     _index = {"season": season, "by_full": by_full, "by_last": by_last,
               "by_initial": by_initial, "n": len(by_full)}
     return _index
@@ -114,11 +129,8 @@ def load(season: int | None = None, force: bool = False) -> dict:
 _SUFFIXES = {"jr", "sr", "ii", "iii", "iv", "v"}
 
 
-def position(name: str, season: int | None = None) -> str | None:
-    """Position type for a player, or None when it cannot be pinned down.
-
-    Returning None is always safe — it means no repair, and a missed
-    mislabel is far cheaper than an invented one.
+def candidates(name: str, season: int | None = None) -> list[dict]:
+    """Every roster record a name could refer to. Empty when none fit.
 
     The surname index is ONLY consulted for a bare surname. Falling back to
     it for a full name that missed is how 'Eugenio Suarez' (a third baseman
@@ -131,27 +143,50 @@ def position(name: str, season: int | None = None) -> str | None:
     idx = load(season)
     key = _norm(name)
     if not key:
-        return None
+        return []
     if hit := idx["by_full"].get(key):
-        return hit
+        return [hit]
 
     parts = [p for p in key.split() if p not in _SUFFIXES]
     if not parts:
-        return None
+        return []
     # Re-try the exact index once suffixes are gone ("Jacob Lopez Jr").
     if len(parts) > 1 and (hit := idx["by_full"].get(" ".join(parts))):
-        return hit
-
-    def only(types: set[str] | None) -> str | None:
-        return next(iter(types)) if types and len(types) == 1 else None
-
+        return [hit]
     if len(parts) == 1:
-        return only(idx["by_last"].get(parts[0]))
-    # "J. Lopez" — an initial plus a surname, but only when that pair
-    # identifies exactly one kind of player.
+        return list(idx["by_last"].get(parts[0], []))
+    # "J. Lopez" — an initial plus a surname.
     if len(parts[0]) == 1:
-        return only(idx["by_initial"].get((parts[0], parts[-1])))
-    return None
+        return list(idx["by_initial"].get((parts[0], parts[-1]), []))
+    return []
+
+
+def position(name: str, season: int | None = None) -> str | None:
+    """Position type, or None when it cannot be pinned down.
+
+    Ambiguity is tolerable here in a way it is not for an id: several
+    players can share a surname and still answer the only question being
+    asked, so long as they all play the same side of the ball. 'Gore'
+    resolves; two Rodriguezes on opposite sides do not.
+
+    Returning None is always safe — it means no repair, and a missed
+    mislabel is far cheaper than an invented one.
+    """
+    cands = candidates(name, season)
+    types = {c["type"] for c in cands}
+    return next(iter(types)) if len(types) == 1 else None
+
+
+def player_id(name: str, season: int | None = None) -> int | None:
+    """MLB id, or None unless the name identifies exactly ONE player.
+
+    Stricter than position() on purpose. Three pitchers named Suarez give a
+    usable position and a meaningless id, and an id is what every downstream
+    statsapi call keys on — a wrong one silently returns another player's
+    game log rather than failing.
+    """
+    cands = candidates(name, season)
+    return cands[0]["id"] if len(cands) == 1 else None
 
 
 def is_pitcher(name: str, season: int | None = None) -> bool | None:
@@ -162,6 +197,13 @@ def is_pitcher(name: str, season: int | None = None) -> bool | None:
     if pos in _BATTER_TYPES:
         return False
     return None
+
+
+def throws(name: str, season: int | None = None) -> str | None:
+    """'R', 'L', or None. Same one-player rule as player_id — a handedness
+    guessed from the wrong Suarez would select the wrong lineup split."""
+    cands = candidates(name, season)
+    return cands[0].get("throws") if len(cands) == 1 else None
 
 
 if __name__ == "__main__":
@@ -176,4 +218,6 @@ if __name__ == "__main__":
     for who in sys.argv[1:]:
         if who.startswith("--"):
             continue
-        print(f"  {who}: {position(who)} (pitcher={is_pitcher(who)})")
+        cands = candidates(who)
+        print(f"  {who}: {position(who)} (pitcher={is_pitcher(who)}, "
+              f"id={player_id(who)}, {len(cands)} candidate(s))")

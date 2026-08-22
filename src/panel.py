@@ -142,7 +142,11 @@ def savant_batter_expected(year: int, today: str) -> list[dict]:
     """xwOBA / xBA / xSLG leaderboard for qualified batters."""
     url = (
         "https://baseballsavant.mlb.com/leaderboard/expected_statistics"
-        f"?type=batter&year={year}&position=&team=&min=q&csv=true"
+        # min=1 rather than min=q: the qualified filter drops every part-time
+        # bat, and props get written on exactly those. Andrew Vaughn had a
+        # capper prop on 8/22 and no xstats row, because 'qualified' means
+        # 3.1 PA per team game and he is short of it.
+        f"?type=batter&year={year}&position=&team=&min=1&csv=true"
     )
     return _load_cached_csv(
         f"savant_batter_xstats_{year}_{today}.csv", url,
@@ -238,6 +242,16 @@ def mlb_schedule_with_probables(date_str: str) -> list[dict]:
                     f"{teams['away']['team']['name']} @ "
                     f"{teams['home']['team']['name']}"
                 ),
+                # Carry the ids, not just the rendered names. Rebuilding a
+                # club from its name means matching 'Arizona Diamondbacks'
+                # against a standings row that says 'D-backs', which is a
+                # string problem invented by discarding an integer that was
+                # already in the payload.
+                "away_team_id": teams["away"]["team"].get("id"),
+                "home_team_id": teams["home"]["team"].get("id"),
+                "away_team": teams["away"]["team"].get("name"),
+                "home_team": teams["home"]["team"].get("name"),
+                "venue_id": venue.get("id"),
                 "start_time": _format_et(g.get("gameDate")),
                 "venue": venue.get("name"),
                 "weather": {
