@@ -37,7 +37,26 @@ from src.context import sim
 from src.context.sources import rates as rate_src
 
 #: Cents of markup over the exchange before it is worth saying out loud.
+#: Small, because Kalshi's own error is small — it beat the simulator head
+#: to head and its two sides sum to about 1.01.
 NOTABLE_MARKUP = 0.02
+
+#: Cents the book must differ from the SIMULATOR before we will say
+#: anything at all, when Kalshi has no contract to check against.
+#:
+#: Measured, not chosen for comfort. |sim - Kalshi| over 1,220 settled
+#: markets has a median of 3.7 cents and a 90th percentile of 11.4, and the
+#: error is not symmetric in usefulness: where the two agree within 5 cents
+#: the simulator is actually a shade better than Kalshi (Brier 0.1351 vs
+#: 0.1379), and where they disagree by 10+ it is much worse (0.2556 vs
+#: 0.2197). The sim is right precisely when it agrees and wrong precisely
+#: when it does not.
+#:
+#: RETAIL MARKUP IS 2-5 CENTS AND OUR NOISE IS ~5. So the simulator cannot
+#: do the job Kalshi does — it cannot separate a fair price from a marked-up
+#: one, because its own error is the same size as the quantity. It can only
+#: catch gross mispricing. Anything under this bar is silence, deliberately.
+SIM_ONLY_BAR = 0.10
 
 
 def american_to_prob(odds: str | int | float) -> float | None:
@@ -154,6 +173,18 @@ def quote(name: str, stat: str, side: str, line: float,
         if k and k.get("mid_prob") is not None:
             print(f"       advisory only — our disagreements measured "
                   f"zero information (t = -0.15)")
+        elif book_p is not None:
+            # No exchange price, so the simulator is all there is. Speak
+            # only above the bar its own measured error justifies.
+            d_ = book_p - ours
+            if abs(d_) < SIM_ONLY_BAR:
+                print(f"       within {SIM_ONLY_BAR * 100:.0f} cents of our"
+                      f" number ({d_ * 100:+.1f}) — that is inside our own"
+                      f" error, so we have NOTHING to say")
+            else:
+                print(f"       {d_ * 100:+.1f} cents vs our number — past the"
+                      f" {SIM_ONLY_BAR * 100:.0f}c bar, so worth a look, but"
+                      f" this is the regime where we are least reliable")
     else:
         print(f"    simulator              declines — {note}")
 

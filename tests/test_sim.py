@@ -986,3 +986,27 @@ def check_sac_and_cs_rates_are_measured_not_guessed():
     23,338 times on base at a ~79% success rate implies ~346 caught."""
     assert 0.005 <= sim.SAC_RATE <= 0.015, sim.SAC_RATE
     assert 0.008 <= sim.CS_RATE <= 0.025, sim.CS_RATE
+
+
+# ── quoting a bet ──────────────────────────────────────────────────────
+def check_sim_only_bar_exceeds_our_own_noise():
+    """When Kalshi has no contract the simulator is all there is, and it
+    must stay quiet below its own measured error.
+
+    |sim - Kalshi| over 1,220 settled markets: median 3.7 cents, p90 11.4.
+    Retail markup is 2-5 cents. Our noise is the same size as the quantity
+    we would be claiming to measure, so anything under a gross-mispricing
+    bar is noise dressed as a finding.
+    """
+    from src.context import quote
+    assert quote.SIM_ONLY_BAR >= 0.08, quote.SIM_ONLY_BAR
+    assert quote.SIM_ONLY_BAR > quote.NOTABLE_MARKUP * 3
+
+
+def check_american_odds_convert_both_signs():
+    from src.context import quote
+    assert abs(quote.american_to_prob(-110) - 0.5238) < 1e-3
+    assert abs(quote.american_to_prob("+140") - 0.4167) < 1e-3
+    assert abs(quote.american_to_prob(100) - 0.5) < 1e-9
+    assert quote.american_to_prob(None) is None
+    assert quote.american_to_prob("junk") is None
