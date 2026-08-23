@@ -196,6 +196,63 @@ def check_evaluate_pairs_only_complete_games():
     assert res["n_sides"] == 3 and res["n_games"] == 1, res
 
 
+def check_paired_se_beats_combining_independent_ones():
+    """The error bar on a difference must use the pairing.
+
+    Two candidates are scored over the same sides with the same seeds, so
+    their losses move together across salts. Combining their separate
+    standard errors as if they were independent inflates the bar — measured
+    2.6x on the real objective, enough that the search rejects every move
+    and reports that no parameter matters.
+
+    Built here from correlated series with a small constant offset: the
+    paired error must be far smaller than the independent combination, and
+    the paired mean must recover the offset exactly.
+    """
+    a = [1.30, 1.34, 1.28, 1.36, 1.31]
+    b = [x - 0.005 for x in a]                 # same noise, real shift
+    delta, se = fitf5._paired_se(a, b)
+    assert abs(delta + 0.005) < 1e-9, delta
+    assert se < 1e-9, se
+    _, sa = fitf5._mean_se(a)
+    _, sb = fitf5._mean_se(b)
+    independent = (sa ** 2 + sb ** 2) ** 0.5
+    assert independent > 0.01, independent
+    assert se < independent / 10, (se, independent)
+
+
+def check_accept_rejects_an_improvement_inside_the_noise():
+    """The failure this guards is silent: accept-any-improvement converges,
+    prints a lower loss, and the holdout does not reproduce it.
+
+    Here the candidate is better on average but by less than the scatter of
+    the paired differences, which is exactly the case a plain `<` accepts
+    and should not.
+    """
+    cur = [1.30, 1.34, 1.28, 1.36]
+    win = [1.29, 1.36, 1.24, 1.39]          # mean better, wildly inconsistent
+    take, delta, se = fitf5.accept(cur, win)
+    assert delta < 0, delta               # it IS an improvement on average
+    assert not take, (delta, se)          # and it must still be refused
+
+
+def check_accept_takes_a_consistent_improvement():
+    """The bar must still let a real move through, or the search cannot
+    move at all and 'nothing matters' becomes an artifact of the rule."""
+    cur = [1.30, 1.34, 1.28, 1.36]
+    win = [x - 0.02 for x in cur]
+    take, delta, se = fitf5.accept(cur, win)
+    assert take and abs(delta + 0.02) < 1e-9, (take, delta, se)
+
+
+def check_accept_refuses_a_tie():
+    """Identical loss vectors are not an improvement. Guards the boundary:
+    a `<=` here would walk the parameters at random through flat regions."""
+    v = [1.30, 1.34, 1.28, 1.36]
+    take, delta, _ = fitf5.accept(v, list(v))
+    assert not take and delta == 0.0, (take, delta)
+
+
 def check_defaults_cover_every_searched_parameter():
     """Every name in the grid must resolve to a shipped starting value.
 

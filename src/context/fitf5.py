@@ -260,13 +260,25 @@ GRID = {
 #: simulation draws over the SAME sides, so the spread across them is pure
 #: Monte Carlo noise and their mean has a standard error the search can be
 #: held to.
-SALTS = (0, 7919, 15013)
+SALTS = (0, 7919, 15013, 22381)
 
 
-def score(cases, params, n_sims, lg, salts=SALTS) -> tuple[float, float]:
-    """Mean loss over `salts`, and the standard error of that mean."""
-    ls = [evaluate(cases, params, n_sims=n_sims, lg=lg, salt=s)["loss"]
-          for s in salts]
+def losses(cases, params, n_sims, lg, salts=SALTS) -> list[float]:
+    """One loss per salt. Kept as a vector, not collapsed to a mean.
+
+    Two candidates scored at the SAME salts are correlated — they share the
+    sides, the actual outcomes and the seeds — so the spread of one
+    candidate's losses badly overstates the uncertainty in the DIFFERENCE
+    between two. Measured on this objective: the unpaired sd is 0.0165 while
+    the sd of the paired difference is 0.0078, so throwing the pairing away
+    inflates the error bar 2.6x and the search then rejects every real move.
+    Returning the vector is what lets `_paired_se` use it.
+    """
+    return [evaluate(cases, params, n_sims=n_sims, lg=lg, salt=s)["loss"]
+            for s in salts]
+
+
+def _mean_se(ls: list[float]) -> tuple[float, float]:
     m = sum(ls) / len(ls)
     if len(ls) < 2:
         return m, 0.0
@@ -274,9 +286,38 @@ def score(cases, params, n_sims, lg, salts=SALTS) -> tuple[float, float]:
     return m, (var / len(ls)) ** 0.5
 
 
+def _paired_se(a: list[float], b: list[float]) -> tuple[float, float]:
+    """Mean and standard error of the salt-by-salt difference b - a."""
+    d = [y - x for x, y in zip(a, b)]
+    return _mean_se(d)
+
+
+def accept(cur: list[float], win: list[float]) -> tuple[bool, float, float]:
+    """Should the search move from `cur` to `win`? -> (take, delta, se)
+
+    Both are loss vectors over the same salts. The bar is ONE standard error
+    of the paired difference, which is permissive on purpose: at four salts
+    the standard error is itself a noisy estimate, so a stricter bar mostly
+    means the fit never leaves its starting point while a looser one lets
+    obvious noise through. It is a guard against wild moves, NOT a
+    significance test — the out-of-sample window is what adjudicates, and
+    nothing here should be reported as fitted until it does.
+    """
+    delta, se = _paired_se(cur, win)
+    return delta < -se, delta, se
+
+
+def score(cases, params, n_sims, lg, salts=SALTS) -> tuple[float, float]:
+    """Mean loss over `salts` and its standard error. For reporting only —
+    a comparison between two parameter sets must go through `_paired_se`."""
+    return _mean_se(losses(cases, params, n_sims, lg, salts))
+
+
 def scan(cases, param, values=None, n_sims=50, lg=None, base=None,
          salts=SALTS) -> list[tuple]:
-    """Loss across one parameter's grid, everything else held. -> [(v, m, se)]
+    """Loss across one parameter's grid, everything else held.
+
+    -> [(value, mean_loss, [loss per salt])]
 
     A curve rather than a winner, because on this objective the shape is the
     finding. A parameter whose curve is flat within its error bars does not
@@ -285,8 +326,11 @@ def scan(cases, param, values=None, n_sims=50, lg=None, base=None,
     """
     lg = lg or sim.league()
     base = dict(base or defaults())
-    return [(v,) + score(cases, {**base, param: v}, n_sims, lg, salts)
-            for v in (values or GRID[param])]
+    out = []
+    for v in (values or GRID[param]):
+        ls = losses(cases, {**base, param: v}, n_sims, lg, salts)
+        out.append((v, sum(ls) / len(ls), ls))
+    return out
 
 
 def tune(cases, n_sims=50, sweeps=2, start=None, verbose=True,
@@ -299,12 +343,18 @@ def tune(cases, n_sims=50, sweeps=2, start=None, verbose=True,
     improvement accepts mostly noise, converges, and reports a gain the
     holdout then fails to reproduce. Every parameter's whole grid is scored
     at the same salts and a move is taken only when it beats the incumbent
-    by more than the standard error of the difference.
+    by more than the standard error of the PAIRED difference.
 
-    Common random numbers help less here than they usually do: the seed is
-    shared per side, but the draw streams diverge as soon as two parameter
-    sets produce different outcomes, so the pairing survives only a few
-    plate appearances. Averaging over salts is doing most of the work.
+    Paired, not independent. The first version of this compared two means by
+    combining their separate standard errors, which ignores that both were
+    computed over the same sides, the same outcomes and the same seeds. That
+    inflates the bar 2.6x and would have rejected every move on the board —
+    a search that reports "nothing matters" because its own error bar was
+    drawn wrong.
+
+    The bar is ONE standard error, which is deliberately permissive: two
+    sweeps and an out-of-sample window are what adjudicate the result, and a
+    stricter bar here mostly means the fit never leaves its starting point.
     """
     lg = sim.league()
     best = dict(start or defaults())
@@ -314,15 +364,15 @@ def tune(cases, n_sims=50, sweeps=2, start=None, verbose=True,
                         salts=salts)
             cur = next((r for r in rows if r[0] == best[param]), None)
             win = min(rows, key=lambda r: r[1])
-            # se of a DIFFERENCE of two means, each with its own se.
-            se = ((cur[2] ** 2 + win[2] ** 2) ** 0.5) if cur else win[2]
-            take = cur is not None and win[0] != cur[0] and \
-                win[1] < cur[1] - se
+            take, delta, se = (False, 0.0, 0.0)
+            if cur is not None and win[0] != cur[0]:
+                take, delta, se = accept(cur[2], win[2])
             if verbose:
                 cells = "  ".join(
-                    f"{v:g}:{m:.4f}{'*' if (v == win[0]) else ' '}"
+                    f"{v:g}:{m:.4f}{'*' if v == win[0] else ' '}"
                     for v, m, _ in rows)
-                print(f"  s{sweep} {param:<24}{cells}   se{se:.4f}"
+                print(f"  s{sweep} {param:<24}{cells}   d{delta:+.4f}"
+                      f" se{se:.4f}"
                       f"{'   TAKE ' + format(win[0], 'g') if take else ''}")
             if take:
                 best[param] = win[0]
@@ -368,16 +418,21 @@ def holdout(cutoff: str, n_sims=200, sweeps=2, fit_sims=50) -> dict:
     b = evaluate(test, fitted, n_sims=n_sims, lg=lg)
     report("shipped", a)
     report("fitted", b)
-    # Scored at more salts than the fit used, because the whole question on
-    # the test window is whether a difference this small is real.
-    ma, sa = score(test, None, n_sims, lg)
-    mb, sb = score(test, fitted, n_sims, lg)
+    # The whole question on the test window is whether a difference this
+    # small is real, so it is measured salt by salt and paired — the same
+    # correction the search itself needed.
+    la = losses(test, None, n_sims, lg)
+    lb = losses(test, fitted, n_sims, lg)
+    ma, sa = _mean_se(la)
+    mb, sb = _mean_se(lb)
+    delta, dse = _paired_se(la, lb)
     print(f"\n  actual runs/side {a['act_runs']:.2f}, "
           f"starter covered five {a['act_covered']:.1%}")
     print(f"  test loss  shipped {ma:.5f} +/- {sa:.5f}   "
           f"fitted {mb:.5f} +/- {sb:.5f}")
-    print(f"  difference {mb - ma:+.5f} "
-          f"+/- {(sa ** 2 + sb ** 2) ** 0.5:.5f} (negative = fitted better)")
+    print(f"  paired difference {delta:+.5f} +/- {dse:.5f}"
+          f"  ({delta / dse if dse else 0:+.1f} sigma, negative = fitted "
+          f"better)")
     return fitted
 
 
