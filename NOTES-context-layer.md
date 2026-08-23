@@ -11,41 +11,35 @@ measured, what is guessed, and what would waste a day if re-investigated.
 Three findings, in descending order of how much they should change what you
 do next. Everything below this section is older and partly superseded.
 
-### 1. FIRST FIVE INNINGS IS THE LEAD. It beat a settled market.
+### 1. FIRST FIVE INNINGS carries a real CLV edge — against the OPEN
 
-On 455 settled Kalshi F5-total contracts across 8 dates:
+On 2,149 settled Kalshi F5-total contracts across 41 dates:
 
 | | Brier | vs base rate |
 |---|---|---|
-| Kalshi close | 0.1919 | +18.2% |
-| Kalshi open | 0.1932 | +17.6% |
-| **our F5 sim** | **0.1890** | **+19.4%** |
+| Kalshi close | 0.1927 | +21.4% |
+| **our F5 sim** | **0.1947** | **+20.5%** |
+| Kalshi open | 0.1977 | +19.3% |
 
-**That is the first time anything in this project has beaten a settled
-market price on realised outcomes.** On strikeouts we never did — we scored
-35.8% against the market's 37.6% and only ever won against the OPEN.
+We beat the OPEN and lose to the CLOSE — the same shape as strikeouts.
 
-CLV on the same set: corr +0.369 against a shuffled control of −0.177,
-z +17.0, blend +17.9% at lambda 0.25. Weaker than K (z 43.5, +32.9%) but
-nowhere near the outs null (z 1.3).
+CLV: corr +0.463 against a shuffled control of −0.017, **z +31.4**, blend
++21.8% at lambda 0.5, and on the 760 contracts where we disagree with the
+open by 5+ cents we call direction **67.1%** and the line moves **+3.9
+cents** our way. That last number is better than K's +3.7.
 
-**Treat the Brier win as unconfirmed until the full history lands.** 455
-contracts on a 62.4% base rate is thin, and a 1.2-point skill edge is
-exactly the sort of thing that evaporates with more data. A run over all 41
-usable dates / 3,941 contracts was in flight at the end of the session —
-`venv/bin/python -m src.context.f5_market` with the dates from
-`/tmp/f5_dates.json`, results to `/tmp/f5_rows.json`.
+**A CORRECTION WORTH KEEPING.** An earlier 8-date sample (455 contracts) had
+us BEATING the settled close, 0.1890 against 0.1919, and this file recorded
+it as the first time anything here had done that. **It was noise and it did
+not survive.** At 2,149 contracts the market is ahead again. The caveat
+attached at the time — "a 1.2-point skill edge is exactly the sort of thing
+that evaporates" — was correct, and the lesson is that an outcome-Brier
+comparison at n≈450 on a 60% base rate cannot separate a real edge from
+nothing.
 
-One thing to distrust either way: 5-cent-plus disagreements called direction
-only 55.6% of the time against K's 73.2%. If that holds, the F5 edge is
-DIFFUSE — spread thinly over many contracts rather than concentrated in
-spots you can identify — which is much harder to trade than K's pattern even
-with a better aggregate number.
-
-**Why F5 and not the full game.** The full nine is ~40% bullpen and every
-bullpen signal tested came back dead. 75% of starts cover all five innings,
-so the removal decision usually never enters. And F5 is a SETTLEMENT VALUE
-rather than an upstream proxy, which is the whole point — see finding 3.
+The reverse also happened: 5-cent direction accuracy read 55.6% at 8 dates
+and 67.1% at 41. Both the flattering number and the discouraging one were
+noise. **Do not draw conclusions from a single week of this market.**
 
 ### 2. The K edge is real, robust, and only against the OPEN
 

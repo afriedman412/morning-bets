@@ -24,9 +24,10 @@ argued about:
 
   * Against the CLOSING price on strikeouts it adds NOTHING (t = -0.15).
   * Against the OPENING price it adds a lot (+32.9%, 73.2% direction).
-  * On FIRST FIVE INNINGS totals it beat a settled market on realised
-    outcomes — 0.1890 Brier against Kalshi's 0.1919. The only time anything
-    here has done that.
+  * On FIRST FIVE INNINGS totals it shows the same shape as strikeouts and
+    a comparable edge: beats the open (20.5% vs 19.3% Brier skill), loses
+    to the close, CLV z +31.4 with 67.1% direction accuracy and +3.9 cents
+    on five-cent disagreements over 2,149 settled contracts.
 
 The generalisation that came out of two days of measurement, and the single
 most useful line in these docs: **fit the settlement value, not the upstream
