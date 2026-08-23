@@ -96,6 +96,59 @@ objective cannot resolve is not thereby unimportant; it is unconstrained,
 which is more dangerous. Do not read the flat hook scans as a licence to
 ignore the hook.
 
+### THE WHOLE GAME NOW EXISTS (`src/context/game.py`) — and it found the cause
+
+Until 2026-08-23 nothing simulated past the starter's exit. `simulate_start`
+models ONE PITCHER and returns when the hook fires, so **a full team total
+could not be produced at all.** There were pitcher props, first-five via a
+stub, and no game. That is now built.
+
+**Both sides run in tandem, not jointly.** Away pitching faces the home
+nine, home pitching faces the away nine, and given the lineups those are
+independent — there is nothing to co-model. The only reason to interleave is
+ORDERING, so a live score exists when a manager decides in the bottom of the
+fifth. `Hook.per_margin` and `mid_per_margin` can finally see it. **Both
+default to ZERO**, so nothing changed until it is measured — and the sign is
+genuinely not obvious in advance (a big lead both buys a starter rope and
+gets him lifted).
+
+**The bullpen is SAMPLED.** 374 relief arms spanning K% 0.165-0.304, sd
+0.037, were being collapsed into one average reliever. Drawn without
+replacement weighted by appearances — uniform sampling hands every club a
+pen made mostly of its worst pitchers, since there are more of them.
+
+**Inherited runners are no longer a fudge.** `f5._side_runs` settles a
+departing starter's men at a flat 0.33 because it never simulates the
+reliever finishing the inning. The full game hands over the base-out state
+intact.
+
+#### THE COMPRESSED RUN DISTRIBUTION WAS THE BULLPEN, AND THE LEVEL GAP IS ERRORS
+
+Measured over 142 games on the unseen window:
+
+| | sim | actual |
+|---|---|---|
+| game total | 8.09 | 8.67 |
+| sd | 4.10 | 4.32 |
+| **sd / mean** | **0.507** | **0.498** |
+| starter outs | 16.09 | 16.07 |
+
+With a real bullpen the RELATIVE dispersion matches. The compression is
+gone; a league-average arm every night was causing it. What remains is a
+pure LEVEL gap of 6.7%.
+
+**That gap is unearned runs, and the arithmetic is not close to ambiguous.**
+League unearned share is 7.64% of all runs. The simulator models no errors,
+so it cannot produce them. 8.09 / (1 - 0.0764) = 8.76 against an actual
+8.67.
+
+This also explains the fit's behaviour: it kept shoving
+`FIRST_TO_THIRD_ON_1B` to the EDGE of its grid because that was the only
+channel it had for manufacturing the missing 7.6%. **Third time the
+"no parameter can reach the target, so the mechanism is missing" diagnostic
+has paid out here**, after the absent hit-by-pitch. Do not fit around this —
+add reached-on-error and unearned runs.
+
 ### What is built (`src/context/fitf5.py`, 22 checks)
 
 Fits on **SIDES**, not game totals. `games` stores `away_score_f5` and
