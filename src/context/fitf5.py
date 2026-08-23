@@ -51,31 +51,50 @@ from src import db
 from src.context import calibrate as cal
 from src.context import f5, sim
 
-#: Lines to score a SIDE at. A side allows 2.38 runs through five on
-#: average, so these bracket it; the outer two are thin but a fit that gets
-#: the tail wrong prices the shutout and the blowup wrong.
-SIDE_LINES = (0.5, 1.5, 2.5, 3.5, 4.5, 5.5)
-#: And a full game total. Kalshi's F5 board clusters on 4.5.
-TOTAL_LINES = (2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5)
+#: Thresholds the side distribution is scored across. This is the FULL
+#: SUPPORT of runs allowed through five, not a menu of book lines — a side
+#: allows 2.38 on average and essentially never more than eight.
+#:
+#: The distinction is the point. Summed across the whole support, ranked
+#: probability score IS the discrete CRPS: a measure of how far the
+#: simulated DISTRIBUTION sits from what happened, which is the definition
+#: of simulating the game correctly. Scored across a book's liquid lines
+#: instead, the same arithmetic quietly becomes "how well do we hit props",
+#: which would tune the model to the shape of somebody's board.
+SIDE_LINES = tuple(x + 0.5 for x in range(9))
+#: The same, for a full game's F5 total.
+TOTAL_LINES = tuple(x + 0.5 for x in range(13))
 
 #: Weight on the game-total term. Small on purpose: the total is the sum of
 #: two sides already in the objective, so it adds little beyond them — what
-#: it does add is the pairing, which is the only place the fit can see that
-#: an early hook puts a reliever into BOTH halves of a settled number.
+#: it does add is the pairing, which is the only place the fit can see both
+#: halves of one game at once.
 W_TOTAL = 0.25
 
-#: Hook fields the fit may move. Six of eleven — the mid-inning damage and
-#: baserunner terms and the hard cap are left where the outs fit put them,
-#: because F5 runs barely see them and a parameter a fit cannot resolve
-#: should not be handed to a search that will move it anyway.
+#: Hook fields a fit MAY move, and by default does not. Measured on the F5
+#: objective, every one of these is flat inside its own error bar: across
+#: its entire grid `intercept` moved the loss 0.0034 against a paired
+#: standard error of 0.0017, `per_run` 0.0050 against 0.0036, `pitch_center`
+#: 0.0059 against 0.0055. That is the expected result rather than a
+#: disappointment — the starter is still in through the fifth about
+#: three-quarters of the time, so the removal rule usually never fires
+#: inside the window being scored.
+#:
+#: The hook is a manager decision this model only ever reproduced in
+#: aggregate, and it is not what makes a simulated game right. Left where
+#: the outs work put it. `--with-hook` puts them back in the search.
 HOOK_KEYS = ("intercept", "per_inning", "per_run", "pitch_center",
              "mid_intercept", "mid_per_runner")
-#: Base-running constants, via `sim.rules`. These move F5 runs directly.
+
+#: What the fit actually moves: the mechanisms that PRODUCE RUNS. Every one
+#: is a rule about how a runner gets from where he is to home plate, which
+#: is the part of the simulation that has to be right for the innings to
+#: come out like real innings.
 RULE_KEYS = ("FIRST_TO_THIRD_ON_1B", "SECOND_SCORES_ON_1B",
              "FIRST_SCORES_ON_2B", "RUNNER_ADVANCES_ON_OUT",
-             "INHERITED_SCORE_RATE")
+             "INHERITED_SCORE_RATE", "WP_PB_RATE", "GIDP_RATE")
 
-PARAMS = HOOK_KEYS + RULE_KEYS
+PARAMS = RULE_KEYS
 
 
 def defaults() -> dict:
@@ -84,6 +103,24 @@ def defaults() -> dict:
     out = {k: getattr(h, k) for k in HOOK_KEYS}
     out.update({k: getattr(sim, k) for k in RULE_KEYS})
     return out
+
+
+def _dist(vals: list[int]) -> dict:
+    """Mean, spread and the two tails of a run distribution.
+
+    The headline check on whether a simulated inning behaves like a real
+    one. A model can carry a good score while producing the right average
+    out of the wrong shape — too few shutouts and too few crooked numbers —
+    and only the tails show it.
+    """
+    n = len(vals) or 1
+    m = sum(vals) / n
+    return {
+        "mean": m,
+        "sd": (sum((v - m) ** 2 for v in vals) / n) ** 0.5,
+        "p0": sum(1 for v in vals if v == 0) / n,
+        "p5": sum(1 for v in vals if v >= 5) / n,
+    }
 
 
 _F5_Q = """
@@ -194,8 +231,9 @@ def evaluate(cases: list[dict], params: dict | None = None, n_sims=60,
     rules = {k: p[k] for k in RULE_KEYS}
 
     side_tot = 0.0
-    sim_runs = act_runs = 0.0
     sim_cov = act_cov = 0
+    pooled: list[int] = []          # every simulated side, for the shape
+    actual: list[int] = []
     draws: dict[str, list[list[int]]] = defaultdict(list)
     actual_total: dict[str, int] = {}
 
@@ -211,8 +249,8 @@ def evaluate(cases: list[dict], params: dict | None = None, n_sims=60,
                 vals.append(runs)
                 sim_cov += r.outs >= 15
             side_tot += _rps(vals, c["runs"], SIDE_LINES)
-            sim_runs += sum(vals) / n_sims
-            act_runs += c["runs"]
+            pooled.extend(vals)
+            actual.append(c["runs"])
             act_cov += c["covered"]
             draws[c["game_id"]].append(vals)
             actual_total[c["game_id"]] = \
@@ -229,12 +267,17 @@ def evaluate(cases: list[dict], params: dict | None = None, n_sims=60,
                           actual_total[g], TOTAL_LINES)
     total_rps = total_tot / len(pairs) if pairs else 0.0
 
+    s, a = _dist(pooled), _dist(actual)
     return {
         "n_sides": n, "n_games": len(pairs),
         "side_rps": side_tot / n,
         "total_rps": total_rps,
         "loss": side_tot / n + W_TOTAL * total_rps,
-        "sim_runs": sim_runs / n, "act_runs": act_runs / n,
+        # Does a simulated inning look like a real one? The score above says
+        # how well the model ranks sides; this says whether the runs it
+        # invents have the right shape, which is the actual goal.
+        "sim": s, "act": a,
+        "sim_runs": s["mean"], "act_runs": a["mean"],
         "sim_covered": sim_cov / (n * n_sims), "act_covered": act_cov / n,
     }
 
@@ -251,8 +294,12 @@ GRID = {
     "FIRST_TO_THIRD_ON_1B": [0.22, 0.28, 0.34, 0.40],
     "SECOND_SCORES_ON_1B": [0.52, 0.60, 0.68, 0.76],
     "FIRST_SCORES_ON_2B": [0.35, 0.45, 0.55, 0.65],
-    "RUNNER_ADVANCES_ON_OUT": [0.15, 0.25, 0.35],
-    "INHERITED_SCORE_RATE": [0.25, 0.33, 0.42],
+    "RUNNER_ADVANCES_ON_OUT": [0.15, 0.25, 0.35, 0.45],
+    "INHERITED_SCORE_RATE": [0.25, 0.33, 0.42, 0.50],
+    "WP_PB_RATE": [0.014, 0.021, 0.028, 0.038],
+    # A double play ends a rally outright, so this is a run-production
+    # mechanism and not the outs term it looks like.
+    "GIDP_RATE": [0.07, 0.11, 0.15, 0.19],
 }
 
 
@@ -260,7 +307,7 @@ GRID = {
 #: simulation draws over the SAME sides, so the spread across them is pure
 #: Monte Carlo noise and their mean has a standard error the search can be
 #: held to.
-SALTS = (0, 7919, 15013, 22381)
+SALTS = (0, 7919, 15013, 22381, 31337, 40009)
 
 
 def losses(cases, params, n_sims, lg, salts=SALTS) -> list[float]:
@@ -386,10 +433,22 @@ def tune(cases, n_sims=50, sweeps=2, start=None, verbose=True,
     return best
 
 
+#: Column header matching `report`.
+HEAD = (f"  {'':<16}{'CRPS':>9}{'runs':>8}{'sd':>7}{'shutout':>9}"
+        f"{'5+ runs':>9}{'covered5':>10}")
+
+
 def report(label: str, res: dict) -> None:
-    print(f"  {label:<16}{res['loss']:>9.5f}{res['side_rps']:>10.5f}"
-          f"{res['total_rps']:>10.5f}{res['sim_runs']:>9.2f}"
-          f"{res['sim_covered']:>10.1%}")
+    """One line: the score, then whether the runs have the right shape."""
+    s = res["sim"]
+    print(f"  {label:<16}{res['loss']:>9.5f}{s['mean']:>8.2f}{s['sd']:>7.2f}"
+          f"{s['p0']:>9.1%}{s['p5']:>9.1%}{res['sim_covered']:>10.1%}")
+
+
+def report_actual(res: dict) -> None:
+    a = res["act"]
+    print(f"  {'ACTUAL':<16}{'':>9}{a['mean']:>8.2f}{a['sd']:>7.2f}"
+          f"{a['p0']:>9.1%}{a['p5']:>9.1%}{res['act_covered']:>10.1%}")
 
 
 def holdout(cutoff: str, n_sims=200, sweeps=2, fit_sims=50) -> dict:
@@ -408,16 +467,18 @@ def holdout(cutoff: str, n_sims=200, sweeps=2, fit_sims=50) -> dict:
     fitted = tune(train, n_sims=fit_sims, sweeps=sweeps)
 
     lg = sim.league()
-    print(f"\n{'':<16}{'loss':>9}{'side RPS':>10}{'total':>10}"
-          f"{'runs':>9}{'covered':>10}")
+    print(f"\n{HEAD}")
     print("  -- train --")
-    report("shipped", evaluate(train, None, n_sims=n_sims, lg=lg))
+    tr = evaluate(train, None, n_sims=n_sims, lg=lg)
+    report("shipped", tr)
     report("fitted", evaluate(train, fitted, n_sims=n_sims, lg=lg))
+    report_actual(tr)
     print("  -- test (unseen) --")
     a = evaluate(test, None, n_sims=n_sims, lg=lg)
     b = evaluate(test, fitted, n_sims=n_sims, lg=lg)
     report("shipped", a)
     report("fitted", b)
+    report_actual(a)
     # The whole question on the test window is whether a difference this
     # small is real, so it is measured salt by salt and paired — the same
     # correction the search itself needed.
@@ -450,10 +511,11 @@ def offsets_cost(cutoff: str, n_sims=60) -> None:
     moved = sum(1 for c in adj if c["offset"])
     print(f"{len(flat)} sides on/after {cutoff}, "
           f"{moved} carry a non-zero offset\n")
-    print(f"  {'':<16}{'loss':>9}{'side RPS':>10}{'total':>10}"
-          f"{'runs':>9}{'covered':>10}")
-    report("flat", evaluate(flat, None, n_sims=n_sims, lg=lg))
+    print(HEAD)
+    fa = evaluate(flat, None, n_sims=n_sims, lg=lg)
+    report("flat", fa)
     report("patience+leash", evaluate(adj, None, n_sims=n_sims, lg=lg))
+    report_actual(fa)
 
 
 if __name__ == "__main__":
@@ -466,15 +528,21 @@ if __name__ == "__main__":
 
     cut = opt("--cutoff", "2026-08-09")
     sims = int(opt("--sims", "60"))
+    if "--with-hook" in args:
+        # Off by default: measured, every hook term is flat inside its own
+        # error bar on this objective. See HOOK_KEYS.
+        PARAMS = HOOK_KEYS + RULE_KEYS                       # noqa: F811
+        globals()["PARAMS"] = PARAMS
     if "--offsets" in args:
         offsets_cost(cut, n_sims=sims)
     elif "--score" in args:
         lg = sim.league()
         cases = side_cases(since=cut, rates_before=cut)
         print(f"{len(cases)} sides on/after {cut}\n")
-        print(f"  {'':<16}{'loss':>9}{'side RPS':>10}{'total':>10}"
-              f"{'runs':>9}{'covered':>10}")
-        report("shipped", evaluate(cases, None, n_sims=sims, lg=lg))
+        print(HEAD)
+        res = evaluate(cases, None, n_sims=sims, lg=lg)
+        report("shipped", res)
+        report_actual(res)
     else:
         holdout(cut, n_sims=sims, sweeps=int(opt("--sweeps", "2")),
                 fit_sims=int(opt("--fit-sims", "40")))

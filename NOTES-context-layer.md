@@ -6,62 +6,159 @@ measured, what is guessed, and what would waste a day if re-investigated.
 
 ---
 
-## DO THIS NEXT — rebuild the fit around F5 (decided 2026-08-23)
+## WHAT THIS PROJECT IS MODELLING (settled 2026-08-23 — read this first)
 
-The plan, agreed and not yet built. Everything below this section is the
-evidence for it.
+**We are modelling F5 TEAM TOTALS, and to a lesser extent full team totals.
+That is the product. Props are not the target — they are expected to fall
+out of a game simulation that is actually right.**
 
-**The problem.** 221 parameters are fitted — 11 hook, 30 club patience, 176
-pitcher leash, 4 advancement — and **206 of them exist to make OUTS come out
-right per pitcher and per club.** Outs is the stat we measured no edge on
-(CLV z 1.3 against strikeouts' 43.5) and do not bet. They were accumulated
-across a long sequence of fits, each conditioned on the last, and never
-validated jointly out of sample.
+This is a change of goal, not a change of technique, and it retires a lot of
+what is written below. The old framing was "price the bets we can measure",
+which produced an objective aimed at the hazard curve and the outs
+distribution, 221 fitted parameters, and no edge on the thing being fitted.
+The new framing is: **simulate the game correctly and let everything
+downstream follow.**
 
-**The decision. Do not fit the hook. Fit the simulated GAME, and let the
-hook follow.** A parameter that does not move the objective does not need
-identifying — that is what "does not matter" means. The hook gets pinned
-down exactly to the extent it moves the outcomes we bet, and no further.
+Three consequences, each of which changed real code:
 
-    loss = w1 * f5_side_error     (dominant — the settlement value)
-         + w2 * game_total_error  (small — the only term that sees the hook,
-                                   via how many innings the bullpen covers)
+1. **Do not fit the hook.** It is a manager decision the model only ever
+   reproduced in aggregate, and it is not what makes a simulated game right.
+   Measured on the F5 objective, every hook term is flat inside its own
+   error bar — across its ENTIRE grid `intercept` moved the loss 0.0034
+   against a paired standard error of 0.0017, `per_run` 0.0050 against
+   0.0036, `pitch_center` 0.0059 against 0.0055. That is the expected
+   result: the starter is still in through the fifth about three-quarters of
+   the time, so the removal rule usually never fires inside the window being
+   scored. `fitf5.HOOK_KEYS` exists and is OFF; `--with-hook` puts it back.
 
-The outs distribution, hazard curve and boundary share become **reported
-diagnostics, never minimised.** They were only ever in `loss()` because they
-were measurable.
+2. **Do not fit to a book's lines.** Scoring across the lines a book happens
+   to offer is "how well do we hit props" wearing a scoring rule's clothes,
+   and it tunes the model to the shape of somebody's board. Scored across
+   the FULL SUPPORT of the run distribution, the same arithmetic is the
+   discrete CRPS — a measure of how far the simulated distribution sits from
+   what happened. `fitf5.SIDE_LINES` is the support, 0.5 through 8.5, and it
+   is deliberately not a line menu.
 
-**Fit on SIDES, not game totals.** `games` stores `away_score_f5` and
-`home_score_f5` separately: 512 games but **1,024 side observations, 909
-with a modelled rotation starter.** A side ties to ONE starter; a game total
-confounds two. That is double the sample and a cleaner signal. Roughly 90
-observations per parameter at ~10 parameters, against 2.3 today.
+3. **The headline diagnostic is the SHAPE of the run distribution**, not the
+   score. Mean, spread, shutout rate, crooked-number rate. A model can hold
+   a good score while producing the right average out of the wrong shape,
+   and only the tails show it. This was immediately vindicated: the first
+   run of the fit improved nothing and the shape columns found four real
+   defects. **Run `--score` and read the table; do not read the CRPS.**
 
-Kalshi has no F5 team-total series, but `F5TOTAL` + `F5SPREAD` together
-imply both sides, so evaluation can still be done at side level.
+### THE FIRST FIT RAN AND FOUND NOTHING. Ship nothing. (2026-08-23)
 
-**Target parameter set: ~10.** Keep the 4 advancement rates (they move F5
-runs directly) and a small hook (pitch and inning terms). **Drop the 176
-leashes and 30 patience offsets.** They reach F5 through one channel only —
-whether the starter is still in through the fifth — and he is 72% of the
-time, so the channel usually never opens.
+588 training sides before 2026-08-09, 321 unseen after. Two sweeps over the
+seven run-production constants.
 
-**Known cost of dropping them, accepted for now.** The leashes did capture
-something real: Andrew Painter and Emmet Sheehan came out as short-leash
-arms because they are genuinely on innings limits, which no rate model can
-know. Plan is to accumulate a small explicit OUTLIER list later rather than
-carry 176 fitted values to catch a handful of cases.
+**Three constants moved and all three are noise.** The paired difference on
+unseen sides is **-0.00174 +/- 0.00420, i.e. -0.4 sigma**. Worse: rescored
+at 200 sims, the fitted set was WORSE THAN SHIPPED ON THE TRAINING DATA
+ITSELF (1.5456 against 1.5324). The fit's claimed gain was 0.0020 and
+measuring it more precisely reversed it by 0.0132.
 
-**How to judge it.** Fit on earlier dates, score on later ones against real
-F5 outcomes and against Kalshi's F5 board. No separate baseline run of the
-current model is needed — we have absolute targets, and the existing F5 CLV
-(z +31.4) is a rough reference.
+**So the 1-sigma acceptance bar did NOT do its job, and the holdout did.**
+That is the reusable lesson: on a Monte Carlo objective, an in-search
+significance bar is not a substitute for out-of-sample scoring, because the
+bar is computed from the same noisy draws that produced the candidate.
 
-**CAVEAT ON THAT REFERENCE.** The F5 CLV run froze RATES before each date
-but used hook, patience and leash values fitted on the full season including
-those dates. `versus_market` has a `refit=True` path for exactly this; the
-F5 run did not use one. So z +31.4 is optimistic by an unknown amount and is
-not a clean comparator.
+**Four of seven constants were CONFIRMED at their published references** by
+an objective that never saw them — `SECOND_SCORES_ON_1B` 0.60 with a clean
+minimum rising in both directions, `RUNNER_ADVANCES_ON_OUT` 0.25,
+`WP_PB_RATE` 0.028, `GIDP_RATE` 0.11, each beating its neighbours by ~0.007
+against a ~0.0014 error bar. The base-running model is not fudged. That is
+the most valuable thing this run produced.
+
+### WHAT IS ACTUALLY WRONG — the shape, not the constants
+
+Consistent across both windows, from the `--score` diagnostic:
+
+| | model | actual |
+|---|---|---|
+| runs per side | 2.30 | 2.50 |
+| shutouts | 23.1% | 19.3% |
+| sides allowing 5+ | 15.1% | 17.4% |
+| **starter covered five innings** | **71.1%** | **76.0%** |
+
+The run distribution is COMPRESSED — too many shutouts AND too few crooked
+numbers — which is a different defect from being uniformly light, and only
+the tails show it. Part of the level gap is period drift (the training
+window really did score 2.33 a side against the test window's 2.50); the
+shape gaps are not.
+
+**A CORRECTION WORTH KEEPING.** Seeing every hook curve come back flat, I
+recorded that the hook does not matter for F5. That was the wrong
+conclusion. The model pulls the starter before the fifth 29% of the time
+against a real 24% — a five-point error in exactly the mechanism the hook
+controls — and the CRPS objective cannot see it. **Flat curves meant the
+objective is blind to it, not that the model is right.** A parameter the
+objective cannot resolve is not thereby unimportant; it is unconstrained,
+which is more dangerous. Do not read the flat hook scans as a licence to
+ignore the hook.
+
+### What is built (`src/context/fitf5.py`, 22 checks)
+
+Fits on **SIDES**, not game totals. `games` stores `away_score_f5` and
+`home_score_f5` separately: 512 games but **909 side observations with a
+modelled rotation starter**. A side ties to ONE starter; a game total
+confounds two. Runs allowed by a side = the OPPONENT'S F5 score, read off
+the `is_home` flag rather than by matching abbreviations.
+
+**Scored against TOTAL runs, not earned.** Everywhere else here the sim is
+graded on earned runs, because it simulates no errors and charging it for
+defence it never simulated read as a 12% deficit that was not there. That is
+right for a diagnostic and WRONG here — an F5 total settles on runs that
+crossed the plate. Expect fitted constants to sit a little hot against
+published references; that is the ~8% unearned share being absorbed, and it
+belongs in there.
+
+**What the fit moves: seven run-production constants**, all rules about how
+a runner gets home — the four advancement rates, `INHERITED_SCORE_RATE`,
+`WP_PB_RATE`, `GIDP_RATE`. **The 176 pitcher leashes and 30 club patience
+offsets are not applied** (`side_cases(offsets=False)`); `--offsets`
+measures what that costs rather than asserting it is free.
+
+### Two methodological traps this hit, both worth remembering
+
+**A Monte Carlo score is biased upward by its own sampling variance.** An
+RPS computed off `n` draws carries p(1-p)/n, and squaring puts it straight
+into the score: the SAME parameters scored 1.434 / 1.411 / 1.380 at 20 / 40
+/ 80 sims. That is not a model improving. `_rps` subtracts the plug-in
+estimate, which also makes the number comparable to a Brier somebody else
+computed. It cannot go negative — at p = k/n the squared error is
+(n-k)²/n² and the correction k(n-k)/(n²(n-1)), and they cross exactly at
+k = n-1 — so a clamp would only ever fire on a bug.
+
+**Comparing two candidates needs a PAIRED error bar.** Both are scored over
+the same sides with the same seeds, so their losses move together. The
+unpaired sd is 0.0165 where the paired difference's is 0.0078: combining
+separate standard errors inflates the bar 2.6x, and the search then rejects
+every real move and reports that no parameter matters. This nearly happened.
+
+**The acceptance bar is one standard error and is NOT a significance test.**
+At six salts the standard error is itself estimated from six numbers, and a
+one-sided 1σ bar admits ~16% of noise moves regardless. It guards against
+wild moves; the out-of-sample window adjudicates.
+
+### Known costs, accepted deliberately
+
+* **Dropping the leashes loses something real.** Andrew Painter and Emmet
+  Sheehan came out as short-leash arms because they are genuinely on innings
+  limits, which no rate model can know. The plan is a small explicit OUTLIER
+  list, not 176 fitted values to catch a handful of cases.
+* **The fit only ever simulates five innings**, so nothing in it constrains
+  hook behaviour in the sixth through ninth. Free for F5, NOT free for
+  strikeout props, which are priced off a nine-inning simulation and carry
+  the only robust CLV edge here (z +43.5). Measure outs and K as printed
+  diagnostics before writing any fitted constant into `sim.py`.
+
+### The existing F5 CLV number is not a clean comparator — twice over
+
+z +31.4 was measured with **rates frozen per date but hook, patience and
+leash fitted on the full season including those dates** (`versus_market` has
+a `refit=True` path for exactly this; the F5 run did not use one). And
+`f5_market.py` **never applies the home/road lineup adjustment**, which the
+fit does. Optimistic by an unknown amount, in two independent ways.
 
 ---
 

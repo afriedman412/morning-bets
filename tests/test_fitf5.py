@@ -260,12 +260,51 @@ def check_defaults_cover_every_searched_parameter():
     in PARAMS with no default raises mid-fit, after minutes of work.
     """
     d = fitf5.defaults()
-    assert set(fitf5.GRID) == set(fitf5.PARAMS), (
-        set(fitf5.GRID) ^ set(fitf5.PARAMS))
+    # GRID must cover everything that CAN be searched, including the hook
+    # terms `--with-hook` switches back on, and nothing else.
+    assert set(fitf5.GRID) == set(fitf5.HOOK_KEYS) | set(fitf5.RULE_KEYS), (
+        set(fitf5.GRID) ^ (set(fitf5.HOOK_KEYS) | set(fitf5.RULE_KEYS)))
+    assert set(fitf5.PARAMS) <= set(fitf5.GRID), fitf5.PARAMS
     for k in fitf5.PARAMS:
         assert k in d, k
+    # Every rule key must be reachable through the seam, or `sim.rules`
+    # raises mid-fit after minutes of work.
     for k in fitf5.RULE_KEYS:
         assert k in sim.FITTABLE, k
+    for k in fitf5.HOOK_KEYS:
+        assert hasattr(sim.Hook(), k), k
+
+
+def check_the_fit_does_not_move_the_hook_by_default():
+    """The goal is an accurate game simulation, not a tuned removal rule.
+
+    Measured, every hook term is flat inside its own error bar on this
+    objective, and the hook reaches an F5 number only when the starter fails
+    to finish the fifth — which he does about a quarter of the time. So the
+    default search moves run-production constants only. This pins the
+    default rather than the capability: `--with-hook` still exists.
+    """
+    assert set(fitf5.PARAMS) == set(fitf5.RULE_KEYS), fitf5.PARAMS
+    for k in fitf5.HOOK_KEYS:
+        assert k not in fitf5.PARAMS, k
+
+
+def check_scoring_covers_the_whole_run_distribution():
+    """The score must span the outcome space, not a book's liquid lines.
+
+    Summed across the full support this is the discrete CRPS — how far the
+    simulated DISTRIBUTION sits from what happened. Restricted to the lines
+    a book offers, the same arithmetic becomes 'how well do we hit props'
+    and tunes the model to the shape of somebody's board.
+
+    A side allows 2.38 runs through five on average and the thresholds have
+    to reach well past that, or the fit is blind to the blowups.
+    """
+    assert fitf5.SIDE_LINES[0] == 0.5, fitf5.SIDE_LINES
+    assert max(fitf5.SIDE_LINES) >= 8.5, fitf5.SIDE_LINES
+    steps = {b - a for a, b in zip(fitf5.SIDE_LINES, fitf5.SIDE_LINES[1:])}
+    assert steps == {1.0}, steps          # no gaps: every count is scored
+    assert max(fitf5.TOTAL_LINES) >= max(fitf5.SIDE_LINES), "totals run higher"
 
 
 # ── f5 ─────────────────────────────────────────────────────────────────

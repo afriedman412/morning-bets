@@ -669,7 +669,15 @@ def check_defaults_reproduce_point_estimate_simulation():
 def check_earned_runs_maps_to_simulated_runs_not_total_runs():
     """The simulation models no errors, so every run it produces is earned.
     Scoring it against total runs would charge the model for defence it
-    never simulated and read as a systematic under-prediction."""
+    never simulated and read as a systematic under-prediction.
+
+    SCOPED TO THIS DIAGNOSTIC, and `fitf5` deliberately does the opposite.
+    A first-five total settles on runs that crossed the plate, unearned ones
+    included, so fitting to earned runs there would build a model that is
+    right about a number nobody pays out on. Both are correct; the rule is
+    that a DIAGNOSTIC compares like with like and a FIT targets what
+    settles.
+    """
     from src.context import calibrate as cal
     assert cal._STAT_ATTR["er"] == "runs"
     assert cal._STAT_COL["er"] == "er"

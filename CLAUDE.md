@@ -40,10 +40,17 @@ which nobody bets, and outs is exactly where the model earns nothing.
 The two systems are only loosely joined. **Snapshots are NOT wired into the
 personas**, so `make panel` / `make recommend` still use the old blob.
 
+**WHAT THIS MODELS, settled 2026-08-23: F5 TEAM TOTALS, and to a lesser
+extent full team totals. Props are NOT the target** — they are expected to
+follow from a game simulation that is actually right. Two rules follow, and
+both are enforced in `fitf5.py`: do not score against the lines a book
+offers (score the full support of the run distribution, where the same
+arithmetic is the discrete CRPS), and do not fit the hook.
+
 **Before touching the context layer, read `NOTES-context-layer.md`.** It
-opens with the three findings that should drive what you do next, then the
-measured negatives — six features that cost real time and returned nothing,
-recorded so nobody re-runs them.
+opens with what the project is modelling and the first F5 fit's result —
+which found nothing, correctly — then the measured negatives: six features
+that cost real time and returned nothing, recorded so nobody re-runs them.
 
 ## Commands
 
