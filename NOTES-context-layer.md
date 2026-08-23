@@ -6,6 +6,59 @@ measured, what is guessed, and what would waste a day if re-investigated.
 
 ---
 
+## THE HEADLINE (2026-08-23): we lose to the close, we beat the open
+
+Corrects the conclusion recorded below it. Both are true and they are not
+in conflict.
+
+**Against Kalshi's CLOSING price the simulator adds nothing.** Blend weight
+0.00, corr with the market residual −0.0044, t = −0.15 over 1,220 settled
+markets. The close already contains what we know.
+
+**Against Kalshi's OPENING price it adds a lot.** That comparison is the
+fair one — our number is built from morning information, and the close
+carries confirmed lineups, weather and scratches that we never modelled.
+Comparing our morning estimate to their close was a rigged test and it was
+mine.
+
+| predictor | MSE vs the closing price |
+|---|---|
+| the open alone | 0.00243 |
+| our sim alone | 0.00448 |
+| **open + 0.25 × (sim − open)** | **0.00165** |
+
+Blending our number into the open predicts the close **32% better than the
+open by itself**. Direction of the move called right 72.5% overall, and
+73.3% on the 634 markets where we disagree with the open by 5+ cents, where
+the line then moves our way by **+3.7 cents** on average. Kalshi costs ~1
+cent to cross and 47 of 60 contracts sampled were two-sided inside 2 cents,
+so this is tradeable rather than theoretical.
+
+**THE ARTIFACT CHECK MATTERS AND CUT THE OTHER WAY.** `sim − open` and
+`close − open` share a `−open` term, which can manufacture correlation.
+Controls: shuffling our values across markets gives −0.2675, a constant
+model gives −0.4004. The artifact is NEGATIVE, so it was suppressing the
+signal. Real sits +43 sd above the shuffled distribution. Do not drop these
+controls if this is re-run.
+
+**SIZE IT HONESTLY BEFORE ACTING.** Kalshi's close beats its own open by
+only 1.3 points of Brier skill (37.6% vs 36.3%), and blending us into the
+open recovers +0.67 of that — about half the information the market itself
+adds during the day. So the 3.7 cents of line movement is real and the
+outcome-measured edge behind it is under a point of Brier. This is CLV, not
+demonstrated profit. λ=0.25 was chosen on this same data, 8 dates, K only.
+
+**What this changes.** "The simulator is a footnote" was wrong. It is a
+footnote AT THE CLOSE, which is the single moment it has nothing left to
+say. Its value is being early, and the way to realise that is to bet at or
+near the open — which is also where the books are thinnest, so execution is
+now the binding question rather than modelling.
+
+Open follow-ups: does it hold on outs as well as K; does it hold on dates
+outside 2026-08-14..21; can you actually get filled near the open.
+
+---
+
 ## PICK UP HERE (paused 2026-08-23, ~1am)
 
 **The open question, and it is the only one that matters now.**

@@ -92,6 +92,7 @@ def collect(dates, stat="k", n_sims=2000, seed=0, verbose=True) -> list[dict]:
             if (pp.get("trades") or 0) < MIN_TRADES:
                 continue
             mkt = pp["close_prob"]
+            opened = pp.get("open_prob")
 
             key = row["player_name"]
             if key not in cache:
@@ -119,6 +120,7 @@ def collect(dates, stat="k", n_sims=2000, seed=0, verbose=True) -> list[dict]:
             out.append({
                 "date": d, "player": key, "line": line, "stat": stat,
                 "ours": ours, "market": mkt, "gap": ours - mkt,
+                "open": opened,
                 "won": got > line, "actual": got, "trades": pp["trades"],
             })
         if verbose:

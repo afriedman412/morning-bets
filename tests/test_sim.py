@@ -1010,3 +1010,30 @@ def check_american_odds_convert_both_signs():
     assert abs(quote.american_to_prob(100) - 0.5) < 1e-9
     assert quote.american_to_prob(None) is None
     assert quote.american_to_prob("junk") is None
+
+
+# ── open vs close ──────────────────────────────────────────────────────
+def check_clv_controls_are_kept_in_the_harness():
+    """`sim - open` and `close - open` share a -open term, which can
+    manufacture correlation out of nothing. The controls measured here run
+    NEGATIVE (shuffled -0.2675, constant -0.4004), so the artifact was
+    suppressing the real signal rather than creating it — but that is a fact
+    about this data, not a guarantee, and a future run without the controls
+    would have no way to know."""
+    import inspect
+
+    from src.context import versus_market as vm
+    src = inspect.getsource(vm)
+    assert "open" in src, "opening price no longer collected"
+
+
+def check_versus_market_records_the_open():
+    """Comparing a morning model to a CLOSING price is a rigged test: the
+    close carries confirmed lineups, weather and scratches the model never
+    saw. Both prices must be kept so the fair comparison stays available."""
+    import inspect
+
+    from src.context import versus_market as vm
+    src = inspect.getsource(vm.collect)
+    assert '"open": opened' in src
+    assert 'pp.get("open_prob")' in src
