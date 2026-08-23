@@ -6,6 +6,65 @@ measured, what is guessed, and what would waste a day if re-investigated.
 
 ---
 
+## DO THIS NEXT — rebuild the fit around F5 (decided 2026-08-23)
+
+The plan, agreed and not yet built. Everything below this section is the
+evidence for it.
+
+**The problem.** 221 parameters are fitted — 11 hook, 30 club patience, 176
+pitcher leash, 4 advancement — and **206 of them exist to make OUTS come out
+right per pitcher and per club.** Outs is the stat we measured no edge on
+(CLV z 1.3 against strikeouts' 43.5) and do not bet. They were accumulated
+across a long sequence of fits, each conditioned on the last, and never
+validated jointly out of sample.
+
+**The decision. Do not fit the hook. Fit the simulated GAME, and let the
+hook follow.** A parameter that does not move the objective does not need
+identifying — that is what "does not matter" means. The hook gets pinned
+down exactly to the extent it moves the outcomes we bet, and no further.
+
+    loss = w1 * f5_side_error     (dominant — the settlement value)
+         + w2 * game_total_error  (small — the only term that sees the hook,
+                                   via how many innings the bullpen covers)
+
+The outs distribution, hazard curve and boundary share become **reported
+diagnostics, never minimised.** They were only ever in `loss()` because they
+were measurable.
+
+**Fit on SIDES, not game totals.** `games` stores `away_score_f5` and
+`home_score_f5` separately: 512 games but **1,024 side observations, 909
+with a modelled rotation starter.** A side ties to ONE starter; a game total
+confounds two. That is double the sample and a cleaner signal. Roughly 90
+observations per parameter at ~10 parameters, against 2.3 today.
+
+Kalshi has no F5 team-total series, but `F5TOTAL` + `F5SPREAD` together
+imply both sides, so evaluation can still be done at side level.
+
+**Target parameter set: ~10.** Keep the 4 advancement rates (they move F5
+runs directly) and a small hook (pitch and inning terms). **Drop the 176
+leashes and 30 patience offsets.** They reach F5 through one channel only —
+whether the starter is still in through the fifth — and he is 72% of the
+time, so the channel usually never opens.
+
+**Known cost of dropping them, accepted for now.** The leashes did capture
+something real: Andrew Painter and Emmet Sheehan came out as short-leash
+arms because they are genuinely on innings limits, which no rate model can
+know. Plan is to accumulate a small explicit OUTLIER list later rather than
+carry 176 fitted values to catch a handful of cases.
+
+**How to judge it.** Fit on earlier dates, score on later ones against real
+F5 outcomes and against Kalshi's F5 board. No separate baseline run of the
+current model is needed — we have absolute targets, and the existing F5 CLV
+(z +31.4) is a rough reference.
+
+**CAVEAT ON THAT REFERENCE.** The F5 CLV run froze RATES before each date
+but used hook, patience and leash values fitted on the full season including
+those dates. `versus_market` has a `refit=True` path for exactly this; the
+F5 run did not use one. So z +31.4 is optimistic by an unknown amount and is
+not a clean comparator.
+
+---
+
 ## READ THIS FIRST (2026-08-23, end of day two)
 
 Three findings, in descending order of how much they should change what you
