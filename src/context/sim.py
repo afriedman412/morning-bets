@@ -144,7 +144,8 @@ def log5(batter: float, pitcher: float, lg: float) -> float:
 # double-count: a plate appearance cannot be both a strikeout and a homer,
 # and the naive fix (renormalise afterwards) silently changes every rate.
 
-K, BB, HR, B1, B2, B3, OUT = "K", "BB", "HR", "1B", "2B", "3B", "OUT"
+K, BB, HR, B1, B2, B3, OUT, SAC = ("K", "BB", "HR", "1B", "2B", "3B",
+                                   "OUT", "SAC")
 
 
 def _sigmoid(z: float) -> float:
@@ -158,7 +159,8 @@ def _sigmoid(z: float) -> float:
 #: construction. TUNED, NOT FITTED — the boxscore cache has no pitch counts,
 #: so these were set to reproduce the observed distribution of starter pitch
 #: counts and are the least trustworthy numbers in this module.
-PITCH_COST = {K: 4.8, BB: 5.5, HR: 3.9, B1: 3.4, B2: 3.6, B3: 3.6, OUT: 3.5}
+PITCH_COST = {K: 4.8, BB: 5.5, HR: 3.9, B1: 3.4, B2: 3.6, B3: 3.6,
+              OUT: 3.5, SAC: 3.0}
 
 #: How much trouble each outcome represents, for the hook. NOT run value —
 #: this is "how alarmed is the dugout", which is a different quantity. Runs
@@ -169,7 +171,36 @@ PITCH_COST = {K: 4.8, BB: 5.5, HR: 3.9, B1: 3.4, B2: 3.6, B3: 3.6, OUT: 3.5}
 #: A home run scores more damage than a double despite clearing the bases,
 #: because it is the outcome that most reliably shortens a manager's
 #: patience. The relative weights are tuned; their ORDER is not in question.
-DAMAGE = {BB: 1.0, B1: 1.0, B2: 1.7, B3: 2.3, HR: 3.0, K: 0.0, OUT: 0.0}
+DAMAGE = {BB: 1.0, B1: 1.0, B2: 1.7, B3: 2.3, HR: 3.0, K: 0.0, OUT: 0.0,
+          SAC: 0.0}
+
+# ── outs the model could not produce ───────────────────────────────────
+#
+# Measured: the simulator converts 1.1% fewer batters into outs than reality
+# does — 0.7017 outs per batter against 0.7094 — while facing the same
+# number of them (22.87 vs 22.88). It manufactures the difference as
+# baserunners, which then trips the hook early and shortens the start. Two
+# out-sources it structurally cannot produce account for nearly all of it.
+#
+# SACRIFICES are plate appearances that are automatic outs. The sim has no
+# concept of them, so they land in the ball-in-play bucket and get a .294
+# BABIP roll, turning about 29% of them into hits that were never in doubt.
+# Published league share is ~1.0% of plate appearances (SH ~0.3, SF ~0.7).
+#
+# CAUGHT STEALING is an out with no batter attached, and it counts toward a
+# pitcher's innings pitched. Derived locally: 1,301 steals over 23,338 times
+# on base, and at the league ~79% success rate that implies ~346 runners
+# caught — 0.0148 per runner reaching, or about 0.10 outs a start.
+#
+# Neither is tuned. Both come from the local cache or from published league
+# shares, and both were sized BEFORE being implemented.
+
+#: Share of plate appearances that are a sacrifice bunt or fly. An
+#: automatic out; never a BABIP event.
+SAC_RATE = 0.010
+#: Chance a runner on first is caught stealing, per plate appearance he is
+#: aboard for. Removes the runner AND records an out.
+CS_RATE = 0.0148
 
 #: Share of ball-in-play outs that become double plays when there is a
 #: runner on first and fewer than two out. Matters for outs props directly:
@@ -242,6 +273,10 @@ def pa_outcome(
 ) -> str:
     """One plate appearance. Returns an outcome constant."""
     pk = park or NEUTRAL_PARK
+    # Off the top: a sacrifice is a plate appearance that was never going to
+    # be a strikeout or a walk, so it conditions everything below it.
+    if rng.random() < SAC_RATE:
+        return SAC
     k = log5(b.k_pct, p.k_pct, lg["k_pct"]) * pk["k"] * b.arsenal_k_mult
     k = min(max(k, 1e-6), 0.95)
     if rng.random() < k:
@@ -294,7 +329,10 @@ class Hook:
     """Removal rule. Fitted by `calibrate.tune`, not asserted.
 
     The defaults below came out of a coordinate descent against the league's
-    observed hazard curve, boundary share and threshold rates — so unlike the
+    observed hazard curve, boundary share and threshold rates. REFIT after
+    sacrifices and caught stealing were added: those cut the baserunners the
+    mid-inning terms key on, so the old fit left the hook firing too late.
+    Loss fell 0.0858 -> 0.0720 on the same target — so unlike the
     constants table in NOTES-context-layer.md, these were not invented. They
     are still fitted to MARGINALS rather than to game state, which is the
     honest limit of doing this without play-by-play: the model can reproduce
@@ -321,11 +359,11 @@ class Hook:
     # for a blowout: they pull on a rally, with a runner on and a pitch
     # count already high. So this is a per-batter hazard on the same terms
     # as the between-innings one, plus a term for traffic on the bases.
-    mid_intercept: float = -5.5
+    mid_intercept: float = -5.0
     mid_per_run: float = 0.45
     #: Per runner currently on base. The rally term — this is what makes
     #: removal happen DURING the trouble rather than after it.
-    mid_per_runner: float = 0.90
+    mid_per_runner: float = 0.55
     #: Per unit of DAMAGE accumulated in the current inning. Distinct from
     #: the runner term: bases loaded on three singles and bases loaded on
     #: three walks look the same to a runner count and do not feel the same
@@ -536,6 +574,11 @@ class StartResult:
     batters: int = 0
     innings_completed: int = 0
     pulled_mid_inning: bool = False
+    #: Outs recorded without a hit attached. Tracked so the calibration
+    #: harness can confirm they land at the measured league rate instead of
+    #: silently drifting with the hook.
+    sacrifices: int = 0
+    caught_stealing: int = 0
 
 
 def simulate_start(
@@ -566,7 +609,17 @@ def simulate_start(
             r.pitches += int(round(PITCH_COST[o]))
             inning_damage += DAMAGE[o]
 
-            if o == K:
+            if o == SAC:
+                # An automatic out that ADVANCES runners — that is the whole
+                # point of laying one down. Never a BABIP roll.
+                outs_this += 1
+                r.outs += 1
+                r.sacrifices += 1
+                if outs_this < 3 and any(bases):
+                    if bases[2]:
+                        r.runs += 1          # sacrifice fly
+                    bases[:] = [False, bases[0], bases[1]]
+            elif o == K:
                 r.k += 1
                 outs_this += 1
                 r.outs += 1
@@ -598,6 +651,16 @@ def simulate_start(
 
             if outs_this >= 3:
                 break
+            # A runner caught stealing is an out with no batter attached,
+            # and it counts toward the pitcher's innings pitched — which is
+            # why leaving it out cost roughly 0.10 outs a start.
+            if bases[0] and rng.random() < CS_RATE:
+                bases[0] = False
+                outs_this += 1
+                r.outs += 1
+                r.caught_stealing += 1
+                if outs_this >= 3:
+                    break
             if rng.random() < hook.mid_removal_p(
                     r.pitches, r.runs, sum(bases), inning_damage):
                 r.pulled_mid_inning = True

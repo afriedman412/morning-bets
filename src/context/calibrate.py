@@ -403,13 +403,18 @@ def report(res: dict) -> None:
     for lbl, key, f in (("outs", "o", "{:.2f}"), ("strikeouts", "k", "{:.2f}"),
                         ("walks", "bb", "{:.2f}"), ("hits", "h", "{:.2f}"),
                         ("home runs", "hr", "{:.2f}"),
-                        ("runs", "r", "{:.2f}")):
+                        # EARNED runs, not total: the simulation models no
+                        # errors, so every run it produces is earned by
+                        # construction. Scoring it against total runs
+                        # charges it for defence it never simulated, which
+                        # read as a 12% run deficit that was not there.
+                        ("earned runs", "er", "{:.2f}")):
         attr = {"o": "outs", "k": "k", "bb": "bb", "h": "h", "hr": "hr",
-                "r": "runs"}[key]
+                "er": "runs"}[key]
         line(lbl, sum(a[key] for a in act) / n_a,
              sum(getattr(r, attr) for r in sm) / n_s, f)
 
-    line("runs per 9", sum(a["r"] for a in act) * 27 / max(sum(a_outs), 1),
+    line("earned runs/9", sum(a["er"] for a in act) * 27 / max(sum(a_outs), 1),
          sum(r.runs for r in sm) * 27 / max(sum(s_outs), 1))
     line("K per 9", sum(a["k"] for a in act) * 27 / max(sum(a_outs), 1),
          sum(r.k for r in sm) * 27 / max(sum(s_outs), 1))

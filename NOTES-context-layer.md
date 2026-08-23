@@ -6,6 +6,59 @@ measured, what is guessed, and what would waste a day if re-investigated.
 
 ---
 
+## PICK UP HERE (paused 2026-08-23, ~1am)
+
+**The open question, and it is the only one that matters now.**
+`versus_market.py` compares the simulator to real Kalshi prices on 1,220
+settled markets with outcomes. Headline, already measured:
+
+| | Brier | vs base | AUC |
+|---|---|---|---|
+| market | 0.1547 | +37.6% | 0.854 |
+| sim | 0.1599 | +35.5% | 0.844 |
+
+The simulator lands just short of a real market. That is a respectable
+result and NOT the question. The question is whether our disagreement adds
+anything to a price that already exists, tested by blending: score
+`market + lam * gap` and sweep lam. **If the best lam is 0, the sim is
+decoration.** That run was started and had not printed when work stopped —
+re-run `venv/bin/python -m src.context.versus_market`.
+
+Do NOT use the `(gap > 0) == won` band table for this. It is confounded and
+labelled as such in the code: the sim runs systematically high, so its big
+gaps land on longshots, which lose, and the metric collapses for reasons
+that have nothing to do with information.
+
+**What landed just before the pause.** Sacrifices and caught stealing are
+now simulated (`SAC_RATE = 0.010` from published league shares, `CS_RATE =
+0.0148` derived locally from 1,301 steals over 23,338 times on base at a
+~79% success rate). Outs per batter moved 0.7017 → 0.7052 against a real
+0.7094, closing about half the measured gap. The hook was REFIT afterwards
+because the fix removes the baserunners its mid-inning terms key on — loss
+0.0858 → 0.0720, `mid_intercept` −5.5 → −5.0, `mid_per_runner` 0.90 → 0.55.
+
+Calibration shape is now close to exact:
+
+| | actual | sim |
+|---|---|---|
+| ends on inning boundary | 66.7% | 66.9% |
+| outs SD | 3.79 | 3.80 |
+| strikeouts | 5.04 | 5.02 |
+| outs | 16.11 | 16.24 |
+| earned runs/9 | 4.00 | 3.77 |
+
+**Two errors were cancelling and one is now exposed.** Run scoring is 5.8%
+light. It was hidden while the sim produced ~5% too many baserunners; with
+the phantom runners gone, the base-running advancement rates are visibly too
+conservative. That is the next thing to look at, and it matters because runs
+drive the hook. Hits are still +3.4% and walks +6%.
+
+Also fixed on the way: the calibration report compared simulated runs to
+TOTAL runs. The sim models no errors, so every run it produces is earned;
+scoring against total runs read as a 12% deficit that was not there.
+
+---
+
 ## THE SITUATION IN ONE PARAGRAPH
 
 `scan.py`'s flag rule is still broken, but **the diagnosis changed and the

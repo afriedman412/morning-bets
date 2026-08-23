@@ -91,8 +91,8 @@ def check_pa_outcomes_are_all_known_constants():
     seen = set()
     for _ in range(3000):
         seen.add(sim.pa_outcome(_lineup(1)[0], _pitcher(), LG, rng))
-    assert seen <= {sim.K, sim.BB, sim.HR, sim.B1, sim.B2, sim.B3, sim.OUT}, \
-        seen
+    assert seen <= {sim.K, sim.BB, sim.HR, sim.B1, sim.B2, sim.B3, sim.OUT,
+                    sim.SAC}, seen
 
 
 def check_pa_reproduces_league_rates():
@@ -929,3 +929,60 @@ def check_league_arsenal_usage_sums_sensibly():
     assert abs(total - 100.0) < 1e-6, total
     slider = next(p for p in mix if p["pitch"] == "Slider")
     assert abs(slider["usage_pct"] - 45.0) < 1e-6, slider
+
+
+# ── outs the model could not previously produce ────────────────────────
+def check_sacrifice_is_an_out_and_never_a_hit():
+    """A sacrifice is an automatic out. Before it existed as an outcome,
+    those plate appearances fell into the ball-in-play bucket and got a
+    .294 BABIP roll, turning ~29% of them into hits that were never in
+    doubt. That is half of why the simulator converted 1.1% fewer batters
+    into outs than reality (0.7017 vs 0.7094)."""
+    rng = random.Random(71)
+    seen = set()
+    for _ in range(20000):
+        seen.add(sim.pa_outcome(_lineup(1)[0], _pitcher(), LG, rng))
+    assert sim.SAC in seen, "sacrifices are not being drawn at all"
+    # It must carry no damage and cost few pitches — it is not trouble.
+    assert sim.DAMAGE[sim.SAC] == 0.0
+    assert sim.PITCH_COST[sim.SAC] < sim.PITCH_COST[sim.K]
+
+
+def check_sacrifice_advances_runners():
+    """The whole point of laying one down. An out that strands everybody is
+    just a ground out and would leave run scoring short."""
+    scored = advanced = 0
+    for seed in range(300):
+        rng = random.Random(seed)
+        r = sim.simulate_start(_pitcher(), _lineup(), LG, sim.Hook(), rng)
+        scored += r.runs
+        advanced += r.sacrifices
+    assert advanced > 0, "no sacrifices recorded across 300 starts"
+
+
+def check_caught_stealing_records_an_out_with_no_batter():
+    """CS counts toward a pitcher's innings pitched, so omitting it cost
+    about 0.10 outs a start. It must consume an out WITHOUT consuming a
+    plate appearance — if it increments `batters` the fix is wrong."""
+    res = sim.simulate(_pitcher(), _lineup(), LG, n=3000, seed=72)
+    cs = sum(r.caught_stealing for r in res) / len(res)
+    assert 0.03 < cs < 0.30, cs
+    for r in res:
+        assert r.k + r.caught_stealing + r.sacrifices <= r.outs, r
+
+
+def check_outs_per_batter_is_close_to_the_league():
+    """The headline number this fix exists to move. League is 0.7094; the
+    simulator read 0.7017 before sacrifices and caught stealing existed."""
+    res = sim.simulate(_pitcher(), _lineup(), LG, n=4000, seed=73)
+    bf = sum(r.batters for r in res)
+    o = sum(r.outs for r in res)
+    assert 0.700 < o / bf < 0.716, o / bf
+
+
+def check_sac_and_cs_rates_are_measured_not_guessed():
+    """SAC_RATE is the published league share of plate appearances
+    (SH ~0.3% + SF ~0.7%). CS_RATE is derived locally: 1,301 steals over
+    23,338 times on base at a ~79% success rate implies ~346 caught."""
+    assert 0.005 <= sim.SAC_RATE <= 0.015, sim.SAC_RATE
+    assert 0.008 <= sim.CS_RATE <= 0.025, sim.CS_RATE
