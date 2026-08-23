@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import urllib.error
 import urllib.request
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -74,7 +74,7 @@ def _ip_to_outs(ip: str | None) -> int | None:
 # ── starter_game_log ───────────────────────────────────────────────────
 def game_log(
     player_id: int, season: int | None = None, as_of: str | None = None,
-    last: int = 10,
+    last: int = 10, starts_only: bool = True,
 ) -> list[dict]:
     """The pitcher's most recent `last` appearances strictly before as_of.
 
@@ -103,6 +103,12 @@ def game_log(
             "date": s.get("date"),
             "opponent": (s.get("opponent") or {}).get("abbreviation"),
             "home": not (s.get("isHome") is False),
+            # Whether he STARTED. A converted reliever's recent appearances
+            # are mostly one-inning outings, and averaging those into a
+            # figure used to price a start is meaningless — Drew Anderson
+            # has 5 starts in 43 appearances, so his last-10 average reads
+            # 6.5 outs while his actual starts run 11, 12 and 15.
+            "is_start": bool(st.get("gamesStarted")),
             "outs": outs,
             "ip": st.get("inningsPitched"),
             "pitches": pitches,
@@ -117,18 +123,96 @@ def game_log(
             "h": st.get("hits"),
             "hr": st.get("homeRuns"),
         })
+    # Take the last `last` STARTS, not the last `last` appearances. For a
+    # swingman those are different sets entirely, and slicing appearances
+    # first can return a window containing no starts at all.
+    if starts_only and any(r["is_start"] for r in out):
+        return [r for r in out if r["is_start"]][-last:]
     return out[-last:]
 
 
-def game_log_summary(rows: list[dict]) -> dict:
-    """Roll a game log into the handful of numbers a brief should carry."""
+#: Recency window for the "what is he now" view, in days. Six weeks is
+#: roughly 6-8 starts on a normal turn — enough to mean something, short
+#: enough to exclude a pitcher's previous self.
+#:
+#: A flat last-10 mean silently spans role changes, stretch-outs and injury
+#: layoffs. Jacob Lopez averages 13.5 outs over his last ten starts and 16.3
+#: over the last six weeks, because the ten includes May outings of 2.0 and
+#: 1.2 innings from before he was built up. Andrew Painter's last ten span a
+#: six-week absence between 6/17 and 7/31 as though nothing happened.
+#:
+#: Both numbers are always reported; this only decides which one leads.
+RECENT_DAYS = 42
+#: Below this many starts inside the window, the recent view is noise and
+#: the fuller sample is the better estimate.
+MIN_RECENT_STARTS = 3
+
+
+def game_log_summary(
+    rows: list[dict], starts_only: bool = True, as_of: str | None = None,
+) -> dict:
+    """Roll a game log into the handful of numbers a brief should carry.
+
+    STARTS ONLY by default, because every consumer of this is pricing a
+    start. Mixing relief appearances in produces a number that describes
+    neither role: a converted reliever's average collapses toward one
+    inning and a swingman's lands somewhere that has never happened.
+
+    Falls back to all appearances when he has no starts on record, with
+    `basis` naming which it used — a rookie's first start has no start
+    history and something is better than nothing, so long as it says so.
+    """
     if not rows:
         return {}
+    starts = [r for r in rows if r.get("is_start")]
+    basis = "starts"
+    if starts_only and starts:
+        rows = starts
+    elif starts_only:
+        basis = "all appearances (no starts on record)"
+    else:
+        basis = "all appearances"
+
+    def _agg(rs: list[dict]) -> dict:
+        o = [r["outs"] for r in rs if r["outs"] is not None]
+        p_ = [r["pitches"] for r in rs if r["pitches"]]
+        pp = [r["pitches_per_inning"] for r in rs if r["pitches_per_inning"]]
+        return {
+            "starts": len(rs),
+            "avg_outs": round(sum(o) / len(o), 1) if o else None,
+            "avg_pitches": round(sum(p_) / len(p_)) if p_ else None,
+            "avg_pitches_per_inning": (
+                round(sum(pp) / len(pp), 1) if pp else None),
+            "pct_6ip": (
+                round(sum(1 for x in o if x >= 18) / len(o), 2) if o else None),
+        }
+
+    # The recent window, same both-numbers treatment team_hook uses.
+    recent: dict = {}
+    lead = "all"
+    if as_of:
+        cut = (date.fromisoformat(as_of)
+               - timedelta(days=RECENT_DAYS)).isoformat()
+        rs = [r for r in rows if (r.get("date") or "") >= cut]
+        if len(rs) >= MIN_RECENT_STARTS:
+            recent = _agg(rs)
+            lead = "recent"
+
     outs = [r["outs"] for r in rows if r["outs"] is not None]
     pit = [r["pitches"] for r in rows if r["pitches"]]
     ppi = [r["pitches_per_inning"] for r in rows if r["pitches_per_inning"]]
     tot_outs = sum(outs) or 0
     return {
+        "basis": basis,
+        "recent_days": RECENT_DAYS if recent else None,
+        "recent": recent or None,
+        # Which of the two a reader should lead with. The other is always
+        # here, and the gap between them is the signal when a pitcher has
+        # changed.
+        "lead": lead,
+        "expected_outs": (
+            recent.get("avg_outs") if recent
+            else (round(sum(outs) / len(outs), 1) if outs else None)),
         "starts": len(rows),
         "avg_outs": round(sum(outs) / len(outs), 1) if outs else None,
         "max_outs": max(outs) if outs else None,

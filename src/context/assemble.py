@@ -158,7 +158,7 @@ def _side(
             log = statsapi.game_log(pid, season, as_of)
             out["starter"]["starter_game_log"] = {
                 "starts": log,
-                "summary": statsapi.game_log_summary(log),
+                "summary": statsapi.game_log_summary(log, as_of=as_of),
             } if log else None
         except Exception:
             out["starter"]["starter_game_log"] = None
@@ -181,6 +181,42 @@ def _side(
     out["starter"]["starter_arsenal"] = arsenals.get(
         (starter_name or "").lower().strip()
     )
+
+    # Reconcile the club's hook against THIS starter's own record.
+    #
+    # workload_context is a team average, and handing it to a reader as if
+    # it described the man pitching is the catcher-framing mistake in
+    # another costume: when it is wrong it is wrong by the whole gap
+    # between him and his rotation. Measured across one slate the mean gap
+    # is 2.0 outs and the worst is TEN — the Tigers' primary pitcher
+    # averages 16.5 outs while Drew Anderson averages 6.5, and an outs prop
+    # on Anderson reading 16.5 is off by three innings in a direction
+    # anyone could have checked.
+    #
+    # So both travel, and `expected_outs` names which to lead with: his own
+    # record when he has one, the club's tendency only as a fallback.
+    wl = out.get("workload_context")
+    gl = (out["starter"].get("starter_game_log") or {}).get("summary") or {}
+    # expected_outs already prefers the six-week window over the flat
+    # last-10 when he has enough recent starts, so this inherits that.
+    own = gl.get("expected_outs") or gl.get("avg_outs")
+    if wl:
+        team_hook = wl.get("avg_outs_recent") or wl.get("avg_outs")
+        out["workload_context"] = {
+            **wl,
+            "starter_avg_outs": own,
+            "starter_starts": gl.get("starts"),
+            "expected_outs": own if own is not None else team_hook,
+            "expected_basis": (
+                f"this starter's own ({gl.get('lead', 'all')})"
+                if own is not None
+                else "club tendency — no game log for him"
+            ),
+            "starter_vs_team_gap": (
+                round(own - team_hook, 1)
+                if own is not None and team_hook is not None else None
+            ),
+        }
 
     # Batter-side detail for the nine actually hitting against this
     # starter. Skipped entirely without a posted lineup — the same rule

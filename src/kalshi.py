@@ -308,6 +308,167 @@ def price_prop(player: str, stat: str, line: float, side: str) -> dict | None:
     return None
 
 
+# ── retroactive price history ──────────────────────────────────────────
+#
+# Kalshi keeps settled markets and their trades, roughly two months back at
+# the time of writing (KXMLBOUTS reaches 2026-06-22). That makes closing
+# line value computable for props WITHOUT waiting to accumulate snapshots,
+# which matters because the alternative source has no history at all:
+# ESPN serves open/close only for current and upcoming games and returns no
+# odds node whatsoever for a past date. Verified on five past dates, zero
+# games with odds on any of them.
+#
+# So: game lines are forward-only, props are backfillable. That asymmetry
+# decides what can be evaluated today.
+
+_settled_cache: dict[str, list[dict]] = {}
+
+
+def settled_markets(series: str) -> list[dict]:
+    """Every settled market in a series, paginated, cached per process."""
+    if series in _settled_cache:
+        return _settled_cache[series]
+    out, cursor = [], None
+    while True:
+        q = f"/markets?series_ticker={series}&status=settled&limit=1000"
+        if cursor:
+            q += f"&cursor={cursor}"
+        d = _get(q)
+        out.extend(d.get("markets", []))
+        cursor = d.get("cursor")
+        if not cursor or not d.get("markets"):
+            break
+    _settled_cache[series] = out
+    return out
+
+
+def trades(ticker: str, limit: int = 1000) -> list[dict]:
+    """Every recorded trade for a market, oldest first."""
+    out, cursor = [], None
+    while True:
+        q = f"/markets/trades?ticker={ticker}&limit={min(limit, 1000)}"
+        if cursor:
+            q += f"&cursor={cursor}"
+        try:
+            d = _get(q)
+        except Exception:
+            break
+        out.extend(d.get("trades", []))
+        cursor = d.get("cursor")
+        if not cursor or not d.get("trades") or len(out) >= limit:
+            break
+    return sorted(out, key=lambda t: t.get("created_time", ""))
+
+
+def find_settled(
+    player: str, stat: str, line: float, date_str: str,
+) -> dict | None:
+    """The settled market matching one historical prop, or None.
+
+    Same name/threshold matching as price_prop, restricted to the date so a
+    pitcher who started twice in a window cannot match the wrong game.
+    """
+    series = SERIES_BY_STAT.get((stat or "").lower())
+    if series is None or line is None:
+        return None
+    want = threshold_for(line)
+    key = _name_key(player)
+    if not key:
+        return None
+    # Search settled AND open: a market for a game still in progress has
+    # not settled yet, so a today lookup would find nothing at all.
+    pool = settled_markets(series) + markets(series)
+    for m in pool:
+        if ticker_date(m["ticker"]) != date_str:
+            continue
+        p = _parse(m)
+        if not p:
+            continue
+        name, n = p
+        if n == want and (key & _name_key(name)):
+            return m
+    return None
+
+
+_TICKER_DT = re.compile(r"^[A-Z0-9]+-(\d{2})([A-Z]{3})(\d{2})(\d{4})")
+
+
+def ticker_start_utc(ticker: str) -> str | None:
+    """First pitch, in UTC, from the ticker's embedded date and time.
+
+    The time segment is Eastern — 'KXMLBOUTS-26AUG221335TORNYY' is a 13:35
+    ET start, and that game's statsapi gameDate is 17:35Z. Converting
+    through the ET zone rather than a fixed offset keeps it right across
+    the DST boundary.
+    """
+    hit = _TICKER_DT.match(ticker or "")
+    if not hit:
+        return None
+    mon = _MONTHS.get(hit.group(2))
+    if not mon:
+        return None
+    from datetime import datetime, timezone
+    from zoneinfo import ZoneInfo
+    hhmm = hit.group(4)
+    try:
+        naive = datetime(
+            2000 + int(hit.group(1)), mon, int(hit.group(3)),
+            int(hhmm[:2]), int(hhmm[2:]),
+        )
+    except ValueError:
+        return None
+    et = naive.replace(tzinfo=ZoneInfo("America/New_York"))
+    return et.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def price_path(ticker: str, side: str) -> dict | None:
+    """Opening and CLOSING price for one side, closing = at first pitch.
+
+    Over is YES on the N+ contract, under is NO — the same convention
+    price_prop uses. Prices are probabilities, so close minus open IS
+    closing line value in probability points: positive means the market
+    moved toward this side before the game started.
+
+    THE CUTOFF IS THE WHOLE THING. Kalshi keeps trading through a game and
+    settles at 0 or 1, so the last recorded trade on a finished market is
+    the RESULT, not a price. Taking it as the close made CLV perfectly
+    circular — Gerrit Cole's over closed at 0.01 and Mackenzie Gore's under
+    at 0.87, which is just the box score wearing a probability. Only trades
+    strictly before first pitch count.
+    """
+    start = ticker_start_utc(ticker)
+    tr = [t for t in trades(ticker)
+          if not start or (t.get("created_time") or "") < start]
+    if len(tr) < 2:
+        return None
+    over = (side or "").lower() != "under"
+    field = "yes_price_dollars" if over else "no_price_dollars"
+
+    def px(t):
+        try:
+            return float(t.get(field))
+        except (TypeError, ValueError):
+            return None
+
+    first = next((px(t) for t in tr if px(t) is not None), None)
+    last = next((px(t) for t in reversed(tr) if px(t) is not None), None)
+    if first is None or last is None:
+        return None
+    return {
+        "ticker": ticker,
+        "side": side,
+        "open_prob": round(first, 4),
+        "close_prob": round(last, 4),
+        # The headline. Positive = the market moved toward this side, i.e.
+        # taking it early was value regardless of whether it won.
+        "clv": round(last - first, 4),
+        "trades": len(tr),
+        "first_at": tr[0].get("created_time"),
+        "last_at": tr[-1].get("created_time"),
+        "first_pitch": ticker_start_utc(ticker),
+    }
+
+
 if __name__ == "__main__":
     from src import db
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
