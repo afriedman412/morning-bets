@@ -49,13 +49,28 @@ def fair_odds(p: float) -> int | None:
     return -round(100 * p / (1 - p)) if p >= 0.5 else round(100 * (1 - p) / p)
 
 
-def _shrink(hits: int, n: int) -> float:
-    """Empirical rate pulled toward 0.5 by SHRINK_K pseudo-observations."""
-    return (SHRINK_K * 0.5 + hits) / (SHRINK_K + n)
+def _shrink(hits: int, n: int, prior: float = 0.5) -> float:
+    """Empirical rate pulled toward a prior by SHRINK_K pseudo-observations.
+
+    THE PRIOR MUST NOT DEFAULT TO 0.5 IN PRACTICE. Shrinking toward a coin
+    flip is only sensible near even money; on a tail line it inflates
+    everything. Tyler Mahle struck out 9 twice in six starts, so 'over 8.5'
+    reads 2/6, and pulling that toward 0.5 produced 0.40 against a market
+    price of 0.07. Every line the first scan flagged was our number above
+    the market's, at every threshold, for exactly this reason — the
+    estimator was manufacturing disagreement at the tails.
+
+    Pass the market's implied probability as the prior wherever one exists.
+    That makes the question the right one: does this sample move us off the
+    market, and by enough to matter given how little of it there is? With
+    six starts the honest answer is usually "barely", which is what a
+    correctly-specified prior produces and a 0.5 prior hides.
+    """
+    return (SHRINK_K * prior + hits) / (SHRINK_K + n)
 
 
 def over_under(
-    values: list[float], line: float, side: str,
+    values: list[float], line: float, side: str, prior: float = 0.5,
 ) -> dict | None:
     """P(this side wins) from an empirical sample of past results.
 
@@ -70,9 +85,10 @@ def over_under(
         return None
     want_over = (side or "").lower() != "under"
     hits = sum(1 for v in live if (v > line) == want_over)
-    p = _shrink(hits, n)
+    p = _shrink(hits, n, prior)
     return {
         "p": round(p, 3),
+        "prior": round(prior, 3),
         "raw_rate": round(hits / n, 3),
         "hits": hits,
         "n": n,
@@ -136,6 +152,7 @@ JITTER_LEVELS = (0.0, 1.0, 2.0, 3.0)
 def bootstrap_p(
     values: list[float], line: float, side: str,
     n_boot: int = N_BOOT, jitter: float = 0.0, seed: int = 0,
+    prior: float = 0.5,
 ) -> dict | None:
     """Distribution of P(win) under resampling, optionally with added noise.
 
@@ -162,7 +179,7 @@ def bootstrap_p(
             live += 1
             hits += (v > line) == want_over
         if live:
-            ps.append(_shrink(hits, live))
+            ps.append(_shrink(hits, live, prior))
     if not ps:
         return None
     ps.sort()
@@ -191,9 +208,11 @@ def resilience(
     need = implied_prob(american)
     if need is None:
         return None
+    # The market price IS the prior. Anything else lets a six-start sample
+    # invent an edge at the tails.
     out, survives = {}, None
     for j in JITTER_LEVELS:
-        bs = bootstrap_p(values, line, side, jitter=j, seed=seed)
+        bs = bootstrap_p(values, line, side, jitter=j, seed=seed, prior=need)
         if not bs:
             return None
         share = sum(1 for p in bs["_ps"] if p > need) / len(bs["_ps"])
