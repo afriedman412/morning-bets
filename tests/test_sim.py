@@ -733,3 +733,199 @@ def check_neutral_park_reproduces_the_no_park_simulation():
                             park=sim.NEUTRAL_PARK) for _ in range(30)]
     assert [x.outs for x in a] == [x.outs for x in b]
     assert [x.k for x in a] == [x.k for x in b]
+
+
+# ── venue, home/road, day/night ────────────────────────────────────────
+def check_home_multipliers_come_from_the_measured_split():
+    """SET FROM DATA, not tuned against Brier — two free parameters searched
+    against the metric they are then scored on will find something whether
+    or not anything is there.
+
+    Measured contrast: K rate 0.2253 home vs 0.2110 away (+6.8%, z +3.49);
+    hit rate 0.2164 vs 0.2253 (-3.9%, z -2.15). Applied as HALF the contrast
+    each way — see the centring check below.
+    """
+    from src.context import calibrate as cal
+    assert abs(cal.HOME_OPP_K - 1.034) < 0.005, cal.HOME_OPP_K
+    assert abs(cal.HOME_OPP_CONTACT - 0.981) < 0.005, cal.HOME_OPP_CONTACT
+    # Directions: the visiting nine strike out MORE and hit LESS.
+    assert cal.HOME_OPP_K > 1.0 and cal.HOME_OPP_CONTACT < 1.0
+
+
+def check_home_road_is_centred_on_the_season_mean():
+    """A player's season rate already contains ~half home starts and ~half
+    away. Applying the FULL home-vs-away contrast at home and nothing away
+    would inflate every pitcher's K rate by ~3.4% overall rather than
+    redistributing it.
+
+    This is the same double-counting that makes park factors useless here:
+    a Rockies pitcher's season rates already include Coors, so multiplying
+    by the park index again counts it one and a half times.
+    """
+    from src.context import calibrate as cal
+    assert abs(cal.HOME_OPP_K * cal.AWAY_OPP_K - 1.0) < 1e-9
+    assert abs(cal.HOME_OPP_CONTACT * cal.AWAY_OPP_CONTACT - 1.0) < 1e-9
+
+
+def check_park_is_off_because_it_double_counts():
+    """MEASURED NEGATIVE. Mean Brier skill 7.25% without park, 7.15% with,
+    across 28 stat/line combinations — a wash, deltas alternating sign.
+
+    The cause is double-counting, not a wiring bug: player rates are raw
+    season totals that already contain that player's own park. Park cannot
+    contribute until the rates are park-neutralised first. The machinery is
+    kept and correct (`sim.park_mults`, `calibrate.park_for`); it is the
+    INPUTS that are not ready for it.
+    """
+    from src.context import calibrate as cal
+    assert cal.USE_PARK is False
+
+
+def check_home_hook_stays_zero_until_it_earns_a_place():
+    """The outs difference is +0.33 at z=1.80 — below 2 sigma. Whatever is
+    there should emerge from the rate effects rather than be added twice."""
+    from src.context import calibrate as cal
+    assert cal.HOME_HOOK == 0.0
+
+
+def check_no_day_night_term_exists():
+    """MEASURED NEGATIVE. Day vs night: K rate z -0.69, hit rate z -1.03,
+    outs z +0.45. Nothing there. `games.day_night` is populated so this can
+    be re-checked cheaply, but a term keyed on it would be fitting noise.
+    """
+    import inspect
+
+    from src.context import calibrate as cal
+    src = inspect.getsource(cal.per_start_probs_all)
+    assert "day_night" not in src, \
+        "a day/night term appeared; it measured z<1.1 on every stat"
+
+
+def check_park_lookup_never_borrows_a_neighbouring_park():
+    from src.context import calibrate as cal
+    assert cal.park_for(None) == sim.NEUTRAL_PARK
+    assert cal.park_for(0) == sim.NEUTRAL_PARK
+    # 2529 is the Athletics' Sacramento site: real, used 32 times, unrated.
+    assert cal.park_for(2529) == sim.NEUTRAL_PARK
+
+
+def check_primary_cte_uses_starter_ground_truth():
+    """Bullpen usage is derived from `rn > 1`. Under the old most-outs
+    heuristic that counted 2,026 reliever outs as starter work, understating
+    relief innings by 5% — and worst on exactly the nights the pen was most
+    taxed, since a long reliever only outranks the starter when the starter
+    was knocked out early."""
+    from src.context.sources import workload
+    cte = workload._primary_cte()
+    assert "is_starter" in cte, "bullpen usage is back on the heuristic"
+    assert "IS NOT NULL" in cte, "no fallback for unchecked games"
+
+
+# ── who we will price ──────────────────────────────────────────────────
+def check_price_gates_are_ordered_and_sane():
+    """Set from the first live slate, where the simulator produced a
+    50-point gap on Lake Bachar (5 starts in 24 appearances, 7.2 outs each)
+    by giving an opener a full starter's leash, and 96% on over 8.5 outs for
+    a pitcher with SEVEN batters faced on record.
+
+    Neither is a calibration miss. Both are the model answering a question
+    it has no basis for. Refusing is the correct output.
+    """
+    from src.context import price
+    assert price.MIN_STARTS >= 3, price.MIN_STARTS
+    assert price.MIN_BF >= 50, price.MIN_BF
+    # An opener averages 5-8 outs; a real starter 15-18. The bar has to sit
+    # between those and not swallow a genuine short-leash rookie whole.
+    assert 9.0 <= price.MIN_AVG_OUTS <= 13.0, price.MIN_AVG_OUTS
+    assert 0.4 <= price.MIN_START_SHARE <= 0.75, price.MIN_START_SHARE
+
+
+def check_leash_covers_thin_starters_not_just_established_ones():
+    """An 8-start bar left ~150 pitchers on the league default leash, which
+    is what let a two-inning opener be simulated out to sixteen outs.
+    LEASH_SHRINK_K discounts three starts to about a fifth of their apparent
+    residual, which beats pretending he is league-average."""
+    import inspect
+
+    from src.context import calibrate as cal
+    sig = inspect.signature(cal.fit_pitcher_leash)
+    assert sig.parameters["min_starts"].default <= 3, \
+        "leash coverage narrowed again; openers will get a starter's leash"
+    assert cal.LEASH_SHRINK_K >= 8, cal.LEASH_SHRINK_K
+
+
+def check_declining_to_price_is_reported_not_silent():
+    """A skipped pitcher must be named with a reason. Silently dropping him
+    reads identically to 'no market existed', and the whole point of the
+    gate is that the model knows it cannot answer."""
+    import inspect
+
+    from src.context import price
+    src = inspect.getsource(price.price_slate)
+    assert "skipped[name] = why" in src
+    assert "declined to price" in src
+
+
+# ── arsenal multipliers ────────────────────────────────────────────────
+def check_arsenal_k_and_contact_are_separate_channels():
+    """A pitch mix can miss bats without producing weak contact. Collapsing
+    both into one multiplier would make a slider-heavy righty and a
+    sinker-heavy one indistinguishable, which is the entire thing the
+    arsenal data exists to separate."""
+    b = _lineup(1, arsenal_mult=1.0, arsenal_k_mult=1.25)[0]
+    rng = random.Random(61)
+    n = 12000
+    c = {}
+    for _ in range(n):
+        o = sim.pa_outcome(b, _pitcher(), LG, rng)
+        c[o] = c.get(o, 0) + 1
+    # K should rise by roughly the multiplier; HR should not move.
+    assert c[sim.K] / n > LG["k_pct"] * 1.15, c[sim.K] / n
+    assert abs(c.get(sim.HR, 0) / n - LG["hr_pct"]) < 0.006
+
+
+def check_arsenal_multiplier_is_relative_to_a_league_average_mix():
+    """MUST divide by the batter's projection against a LEAGUE-AVERAGE
+    arsenal, not against his own season line.
+
+    His overall quality already lives in k_pct / babip / hr_pct. Dividing by
+    his own wOBA would put a good hitter's skill into the model twice and
+    make every good hitter look like a good matchup against everyone.
+    """
+    import inspect
+    src = inspect.getsource(rate_src.arsenal_mults)
+    assert "league_arsenal" in src, \
+        "arsenal multiplier no longer references a league-average mix"
+    assert "ref[\"proj_woba\"]" in src or "ref['proj_woba']" in src
+
+
+def check_arsenal_multipliers_are_clamped():
+    """A 40% swing off a per-pitch sample is noise, not a matchup, and the
+    simulator has no other guard against it."""
+    import inspect
+    src = inspect.getsource(rate_src.arsenal_mults)
+    assert "0.80" in src and "1.25" in src
+
+
+def check_thin_arsenal_coverage_returns_neutral():
+    """A projection built on 40% of a starter's usage is a partial answer.
+    Missing must mean neutral, never an extrapolation — the same rule the
+    context layer follows for an unrated catcher."""
+    import inspect
+    src = inspect.getsource(rate_src.arsenal_mults)
+    assert "coverage" in src, "no coverage gate on the arsenal projection"
+    assert rate_src.arsenal_mults(None, ["x"], {}) == {}
+
+
+def check_league_arsenal_usage_sums_sensibly():
+    ars = {"a": [{"pitch": "Four-Seam", "usage_pct": 60},
+                 {"pitch": "Slider", "usage_pct": 40}],
+           "b": [{"pitch": "Sinker", "usage_pct": 50},
+                 {"pitch": "Slider", "usage_pct": 50}]}
+    rate_src._LEAGUE_ARSENAL = None
+    mix = rate_src.league_arsenal(ars)
+    rate_src._LEAGUE_ARSENAL = None
+    total = sum(p["usage_pct"] for p in mix)
+    assert abs(total - 100.0) < 1e-6, total
+    slider = next(p for p in mix if p["pitch"] == "Slider")
+    assert abs(slider["usage_pct"] - 45.0) < 1e-6, slider

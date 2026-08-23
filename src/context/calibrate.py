@@ -46,6 +46,8 @@ _STARTS_Q = """
 with pr as (
   select p.game_id, p.team, p.player_name, p.outs_recorded o,
          p.k, p.bb, p.h, p.hr, p.r, p.er, g.date, p.is_starter,
+         g.venue_id, g.day_night,
+         case when p.team = g.home_team_abbr then 1 else 0 end is_home,
          row_number() over (partition by p.game_id, p.team
                             order by p.outs_recorded desc) rn,
          max(case when p.is_starter is not null then 1 else 0 end)
@@ -168,6 +170,102 @@ _CASES: dict[tuple, list] = {}
 #: one flag instead of rebuilding it.
 USE_HANDEDNESS = False
 
+#: Apply Savant park multipliers, keyed by the game's venue_id. An unrated
+#: venue resolves to neutral, never to the home club's park — the Athletics
+#: played 38 home games this season at sites Savant does not rate.
+USE_PARK = False
+
+#: Apply per-matchup arsenal multipliers.
+#:
+#: OFF. Measured 9.79% mean Brier skill with and 9.79% without — dead even
+#: across 20 stat/line combinations.
+#:
+#: The structural argument for it was sound and is worth keeping on record,
+#: because it correctly predicted why handedness failed and it did NOT save
+#: this. Handedness varies by batter and nine of them average it away; an
+#: arsenal varies by PITCHER and the whole lineup faces the same one, so it
+#: survives to the start level — measured per-start mean k-multiplier sd
+#: 0.0642, range 0.864-1.180, where handedness scored about zero. The
+#: variance is genuinely there and it still bought nothing.
+#:
+#: One hint, below the noise floor and recorded so it is not mistaken for a
+#: new idea later: every HIGH K line improved on both Brier and AUC
+#: (k 7.5 +0.67pp, AUC 0.813 -> 0.822; k 6.5 +0.62pp) while the low lines
+#: and outs got slightly worse. Consistent with a whiff signal helping
+#: discriminate big strikeout games. Each delta is under the 0.5pp
+#: detection floor, and selecting the four lines that rose is how findings
+#: get manufactured — so if this is revisited, re-run at n_sims >= 400 and
+#: decide on the high-K lines BEFORE looking.
+USE_ARSENAL = False
+
+#: Divide each player's rates by the park they were accumulated in before
+#: applying tonight's. Without this a park multiplier double-counts the
+#: home side and mis-bases the road side — see rates.park_neutralise.
+NEUTRALISE_PARK = False
+
+#: Home/road adjustment, centred on each player's season mean.
+USE_HOME_ROAD = True
+
+# ── home / road ────────────────────────────────────────────────────────
+#
+# MEASURED, NOT TUNED. Set from the observed league split rather than fitted
+# against Brier, because two free parameters searched against the same
+# metric they are then scored on will find something whether or not anything
+# is there.
+#
+#   K rate    home 0.2253 vs away 0.2110   +6.8%   z +3.49
+#   hit rate  home 0.2164 vs away 0.2253   -3.9%   z -2.15
+#   outs      home 16.12  vs away 15.79    +0.33   z +1.80  (not sig alone)
+#
+# Applied to the OPPOSING LINEUP, not to the pitcher: the visiting nine hit
+# worse, which is the same statement viewed from the other side and keeps
+# the pitcher's own rates meaning one thing everywhere.
+#
+# Two multipliers rather than one because a single knob cannot fit both — K
+# moves +6.8% while contact moves -3.9%, and forcing them to share a
+# parameter would split the difference and get both wrong.
+#
+# NOT CONFOUNDED WITH PARK at this level, contrary to the obvious worry:
+# every park hosts 81 home starts and 81 away starts, so park balances out
+# in the league-wide split. The confounding is real only PER PITCHER, whose
+# home starts all happen at one venue — which is why any per-pitcher home
+# term must still be fitted after park.
+# CENTRED ON THE SEASON MEAN, not applied one-sided. A player's season rate
+# already contains ~half home starts and ~half away, so giving the home
+# start the full +6.8% and the away start nothing would inflate every
+# pitcher's K rate by ~3.4% overall. Half the contrast each way leaves the
+# average untouched and only redistributes it.
+#
+# This is the same double-counting that makes PARK FACTORS useless here: a
+# Rockies pitcher's season rates already include his starts at Coors, so
+# multiplying by the park index again counts it one and a half times. Park
+# cannot help until the underlying rates are park-neutralised.
+HOME_OPP_K = 1.034
+HOME_OPP_CONTACT = 0.981
+AWAY_OPP_K = 1.0 / HOME_OPP_K
+AWAY_OPP_CONTACT = 1.0 / HOME_OPP_CONTACT
+#: Extra log-odds on the hook at home. Left at zero: the outs difference
+#: does not clear 2 sigma on its own, and whatever is there should fall out
+#: of the rate effects above rather than being double-counted here.
+HOME_HOOK = 0.0
+
+
+_PARK_CACHE: dict = {}
+
+
+def park_for(venue_id) -> dict:
+    """Rate multipliers for a venue. Neutral when unrated or unknown."""
+    if not venue_id:
+        return sim.NEUTRAL_PARK
+    if venue_id not in _PARK_CACHE:
+        try:
+            from src.context.sources import park as park_src
+            rec = park_src.park_factors().get(f"id:{venue_id}")
+        except Exception:
+            rec = None
+        _PARK_CACHE[venue_id] = sim.park_mults(rec)
+    return _PARK_CACHE[venue_id]
+
 
 def build_cases(season=None, before=None, max_starts=None, since=None,
                 rates_before=None, handed=None) -> list[tuple]:
@@ -178,7 +276,8 @@ def build_cases(season=None, before=None, max_starts=None, since=None,
     and lineups each time made a two-minute search a twenty-minute one.
     """
     handed = USE_HANDEDNESS if handed is None else handed
-    key = (season, before, max_starts, since, rates_before, handed)
+    key = (season, before, max_starts, since, rates_before, handed,
+           NEUTRALISE_PARK, USE_ARSENAL)
     if key in _CASES:
         return _CASES[key]
 
@@ -190,10 +289,26 @@ def build_cases(season=None, before=None, max_starts=None, since=None,
     pr = rate_src.pitcher_rates(lg, season, rb)
     br = rate_src.batter_rates(lg, season, rb)
     split = rate_src.batter_rates_by_hand(lg, season, rb) if handed else {}
+    if NEUTRALISE_PARK:
+        pr = rate_src.neutralise(
+            pr, rate_src.park_exposure("pitcher", season, rb))
+        br = rate_src.neutralise(
+            br, rate_src.park_exposure("batter", season, rb))
     lineups = opposing_lineups()
     league_bats = sim.BatterRates(name="league", k_pct=lg["k_pct"],
                                   bb_pct=lg["bb_pct"], hr_pct=lg["hr_pct"],
                                   babip=lg["babip"])
+
+    arsenals = {}
+    if USE_ARSENAL:
+        try:
+            from datetime import date as _d
+            from src import panel
+            stamp = rb or _d.today().isoformat()
+            arsenals = panel._pitcher_arsenal_blob(
+                panel.savant_pitcher_arsenal(season or 2026, stamp)) or {}
+        except Exception:
+            arsenals = {}
 
     cases = []
     for s in actual_starts(season, before, max_starts, since):
@@ -217,6 +332,16 @@ def build_cases(season=None, before=None, max_starts=None, since=None,
                 sim.BatterRates(name=nm, k_pct=use["k_pct"],
                                 bb_pct=use["bb_pct"], hr_pct=use["hr_pct"],
                                 babip=use["babip"], pa=b["pa"]))
+        if arsenals:
+            mix = arsenals.get((s["player_name"] or "").lower().strip())
+            mm = rate_src.arsenal_mults(
+                mix, [x.name for x in lineup], arsenals, season, rb) \
+                if mix else {}
+            for x in lineup:
+                v = mm.get(x.name)
+                if v:
+                    x.arsenal_mult = v["contact"]
+                    x.arsenal_k_mult = v["k"]
         cases.append((s, sim.PitcherRates(
             name=p["name"], k_pct=p["k_pct"], bb_pct=p["bb_pct"],
             hr_pct=p["hr_pct"], babip=p["babip"], pa=p["pa"]), lineup))
@@ -368,9 +493,28 @@ def per_start_probs_all(stat: str, lines, season=None, before=None,
         rng = random.Random(seed)
         hook = sim.for_start(sim.Hook(), s["team"], pitcher.name) \
             if adjusted else sim.Hook()
+        pk = park_for(s.get("venue_id")) if USE_PARK else sim.NEUTRAL_PARK
+        # Home/road, applied only to the home starter and only on top of
+        # park. Two channels because home advantage is not purely a leash
+        # effect: the visiting lineup hits worse, and the manager is a
+        # little more patient with his own crowd behind him.
+        nine = lineup
+        if USE_HOME_ROAD and HOME_OPP_K != 1.0:
+            home = bool(s.get("is_home"))
+            mk = HOME_OPP_K if home else AWAY_OPP_K
+            mc = HOME_OPP_CONTACT if home else AWAY_OPP_CONTACT
+            nine = [sim.BatterRates(
+                name=b.name, pa=b.pa, arsenal_mult=b.arsenal_mult,
+                k_pct=min(0.95, b.k_pct * mk),
+                bb_pct=b.bb_pct * mc, hr_pct=b.hr_pct * mc,
+                babip=b.babip * mc) for b in lineup]
+            if HOME_HOOK and home:
+                hook = sim.Hook(**{**hook.__dict__,
+                                   "team_offset": hook.team_offset
+                                   + HOME_HOOK})
         vals = []
         for _ in range(n_sims):
-            r = sim.simulate_start(pitcher, lineup, lg, hook, rng)
+            r = sim.simulate_start(pitcher, nine, lg, hook, rng, park=pk)
             vals.append(getattr(r, attr))
         for ln in lines:
             out[ln].append(
@@ -683,7 +827,7 @@ def fit_patience(season=None, sims=40, seed=0, write=True,
 LEASH_SHRINK_K = 12
 
 
-def fit_pitcher_leash(season=None, sims=60, seed=0, min_starts=8,
+def fit_pitcher_leash(season=None, sims=60, seed=0, min_starts=3,
                       write=True, before=None) -> dict:
     """Per-pitcher leash, on top of his club's patience.
 
@@ -696,6 +840,13 @@ def fit_pitcher_leash(season=None, sims=60, seed=0, min_starts=8,
     Uses a linear residual-to-offset conversion rather than a search per
     pitcher: the response is close to linear over this range, and measuring
     the slope once turns a nine-pass fit over 700 pitchers into two.
+
+    `min_starts` is 3, not 8. The earlier bar left 150-odd pitchers on the
+    league default leash, and pricing today's board showed what that costs:
+    the simulator ran a two-inning opener out to sixteen outs because it had
+    no reason not to. Three starts is thin, but LEASH_SHRINK_K discounts it
+    to roughly a fifth of its apparent residual, which is a better estimate
+    than pretending he is league-average.
     """
     import json
 

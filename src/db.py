@@ -249,6 +249,13 @@ def init() -> None:
         gcols = {r[1] for r in conn.execute("PRAGMA table_info(games)")}
         if "venue_id" not in gcols:
             conn.execute("ALTER TABLE games ADD COLUMN venue_id INTEGER")
+        # MLB's own day/night classification, not inferred from the clock:
+        # a 5pm first pitch is a day game in one park and a night game in
+        # another, and the league is the authority on which.
+        if "day_night" not in gcols:
+            conn.execute("ALTER TABLE games ADD COLUMN day_night TEXT")
+        if "start_utc" not in gcols:
+            conn.execute("ALTER TABLE games ADD COLUMN start_utc TEXT")
 
         pcols = {r[1] for r in conn.execute("PRAGMA table_info(mlb_pitching)")}
         if "is_starter" not in pcols:

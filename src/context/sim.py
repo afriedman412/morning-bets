@@ -199,10 +199,19 @@ class BatterRates:
     babip: float = 0.295
     pa: int = 0
     #: Multiplier on contact quality from the arsenal projection — this
-    #: hitter's projected wOBA against this starter's actual pitch mix,
-    #: over his own season wOBA. 1.0 means the mix is neutral for him.
-    #: This is where `batter.vs_arsenal` enters the simulation.
+    #: hitter's projection against this starter's actual pitch mix, over
+    #: his projection against a LEAGUE-AVERAGE mix. 1.0 means the mix is
+    #: neutral for him.
+    #:
+    #: Relative to the league arsenal and NOT to his own season line: his
+    #: overall quality already lives in the rates above, and dividing by it
+    #: would count him twice. This is where `batter.vs_arsenal` enters the
+    #: simulation, and until it was wired it fed nothing.
     arsenal_mult: float = 1.0
+    #: The same idea on the strikeout channel, from projected whiff rate.
+    #: Separate because a mix can miss bats without producing weak contact —
+    #: a slider-heavy righty and a sinker-heavy one fail differently.
+    arsenal_k_mult: float = 1.0
 
 
 #: Neutral park. Every factor is a multiplier on a rate, 1.0 = league.
@@ -233,7 +242,7 @@ def pa_outcome(
 ) -> str:
     """One plate appearance. Returns an outcome constant."""
     pk = park or NEUTRAL_PARK
-    k = log5(b.k_pct, p.k_pct, lg["k_pct"]) * pk["k"]
+    k = log5(b.k_pct, p.k_pct, lg["k_pct"]) * pk["k"] * b.arsenal_k_mult
     k = min(max(k, 1e-6), 0.95)
     if rng.random() < k:
         return K
@@ -668,6 +677,7 @@ def _jitter_pitcher(p: PitcherRates, rng: random.Random) -> PitcherRates:
 def _jitter_batter(b: BatterRates, rng: random.Random) -> BatterRates:
     return BatterRates(
         name=b.name, pa=b.pa, arsenal_mult=b.arsenal_mult,
+        arsenal_k_mult=b.arsenal_k_mult,
         k_pct=_draw(b.k_pct, b.pa, rng),
         bb_pct=_draw(b.bb_pct, b.pa, rng),
         hr_pct=_draw(b.hr_pct, b.pa, rng),

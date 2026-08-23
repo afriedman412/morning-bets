@@ -268,3 +268,178 @@ def batter_rates_by_hand(lg: dict, season: int | None = None,
                              base["babip"], base["babip"]),
             }
     return out
+
+
+# ── park neutralisation ────────────────────────────────────────────────
+#
+# WHY RATES MUST BE NEUTRALISED BEFORE A PARK MULTIPLIER MEANS ANYTHING.
+# A player's season line is not park-neutral: he takes roughly half his
+# plate appearances in one stadium. Logan Gilbert's strikeout rate is
+# inflated 10.6% by half a season at T-Mobile; Tanner Gordon's is suppressed
+# 7.9% by Coors. Applying tonight's park index to those raw rates counts the
+# home park one and a half times and the road park not at all.
+#
+# Measured: the usage-weighted SO park a starter pitched in ranges 0.921 to
+# 1.106 (sd 0.032), and for batters 0.940 to 1.091 (sd 0.030) — the two are
+# the same size, because hitters play half at home too.
+#
+# This is why the first park A/B came out a wash (mean Brier skill 7.25%
+# without park, 7.15% with): the home side was over-adjusted and the road
+# side correctly adjusted, and the two roughly cancelled. The machinery was
+# right; the inputs were not ready for it.
+#
+# Requires `games.venue_id`, which is why this could not be built before the
+# venue backfill.
+
+#: Which Savant index neutralises which rate.
+_PARK_KEY = {"k_pct": "so", "bb_pct": "bb", "hr_pct": "hr", "babip": "bacon"}
+
+_EXPOSURE_Q = {
+    "pitcher": """
+        select p.player_name nm, g.venue_id v, p.outs_recorded w
+        from mlb_pitching p join games g on g.game_id = p.game_id
+        where g.sport = 'mlb' and g.status = 'Final'
+          and p.is_starter = 1 and g.venue_id is not null {where}
+    """,
+    "batter": """
+        select mb.player_name nm, g.venue_id v, mb.ab + mb.bb w
+        from mlb_batting mb join games g on g.game_id = mb.game_id
+        where g.sport = 'mlb' and g.status = 'Final'
+          and g.venue_id is not null {where}
+    """,
+}
+
+
+def park_exposure(side: str, season=None, before=None, conn=None) -> dict:
+    """{name: {rate_key: weighted park multiplier}} for the games he played.
+
+    Divide a raw rate by this to get the park-neutral version. A venue
+    Savant does not rate contributes 1.0 rather than being dropped — the
+    player really did accumulate those plate appearances, and treating them
+    as neutral is the honest reading when the park is unknown.
+    """
+    from src.context.sources import park as park_src
+    try:
+        pf = park_src.park_factors()
+    except Exception:
+        return {}
+
+    def _run(c):
+        return c.execute(
+            _EXPOSURE_Q[side].format(where=_where(season, before))).fetchall()
+
+    rows = _run(conn) if conn is not None else _with(_run)
+    acc: dict[str, dict] = {}
+    for r in rows:
+        w = r["w"] or 0
+        if w <= 0:
+            continue
+        rec = pf.get(f"id:{r['v']}")
+        d = acc.setdefault(r["nm"], {"_w": 0.0})
+        d["_w"] += w
+        for key, col in _PARK_KEY.items():
+            v = (rec or {}).get(col)
+            d[key] = d.get(key, 0.0) + w * ((v / 100.0) if v else 1.0)
+    out = {}
+    for nm, d in acc.items():
+        w = d.pop("_w")
+        out[nm] = {k: (v / w if w else 1.0) for k, v in d.items()}
+    return out
+
+
+def neutralise(rates: dict, exposure: dict) -> dict:
+    """Divide each rate by the park it was accumulated in.
+
+    Clamped, because dividing a rate by a multiplier below 1 can push it
+    past a probability. Names absent from `exposure` are returned untouched
+    rather than guessed at.
+    """
+    out = {}
+    for nm, r in rates.items():
+        exp = exposure.get(nm)
+        if not exp:
+            out[nm] = r
+            continue
+        adj = dict(r)
+        for key in _PARK_KEY:
+            m = exp.get(key) or 1.0
+            if m > 0 and key in adj and adj[key] is not None:
+                adj[key] = min(max(adj[key] / m, 1e-6), 0.95)
+        out[nm] = adj
+    return out
+
+
+# ── arsenal matchup multipliers ────────────────────────────────────────
+#
+# The one input the simulator has a slot for and has never been given.
+# `BatterRates.arsenal_mult` has defaulted to 1.0 since the module was
+# written, so `vs_arsenal` — the per-pitch whiff and usage work — has been
+# feeding nothing.
+#
+# WHY THIS MIGHT SUCCEED WHERE HANDEDNESS FAILED. Handedness varies by
+# BATTER, and nine batters average it away, which is why it moved
+# between-batter variance 20% and changed nothing. An arsenal varies by
+# PITCHER and every hitter in the lineup faces the same one, so it does not
+# cancel — it shifts the whole start. That is the axis the model is short on.
+#
+# RELATIVE TO A LEAGUE-AVERAGE ARSENAL, not to the batter's own season line.
+# His overall quality is already in his k_pct and babip; dividing by his own
+# wOBA would put it in twice. What is wanted here is only "is this
+# particular mix good or bad for him", which is the ratio of his projection
+# against this arsenal to his projection against a league-typical one.
+
+_LEAGUE_ARSENAL: list | None = None
+
+
+def league_arsenal(arsenals: dict) -> list[dict]:
+    """Usage-weighted average pitch mix across every pitcher on record."""
+    global _LEAGUE_ARSENAL
+    if _LEAGUE_ARSENAL is not None:
+        return _LEAGUE_ARSENAL
+    tot: dict[str, float] = {}
+    for mix in arsenals.values():
+        for p in mix or []:
+            try:
+                tot[p.get("pitch")] = tot.get(p.get("pitch"), 0.0) + float(
+                    p.get("usage_pct") or 0)
+            except (TypeError, ValueError):
+                continue
+    n = len(arsenals) or 1
+    _LEAGUE_ARSENAL = [{"pitch": k, "usage_pct": v / n}
+                       for k, v in tot.items() if k]
+    return _LEAGUE_ARSENAL
+
+
+def arsenal_mults(starter_arsenal, batter_names, arsenals, season=None,
+                  as_of=None) -> dict[str, dict]:
+    """{batter: {'contact': m, 'k': m}} for one starter's mix.
+
+    `contact` scales home runs and balls in play; `k` scales the strikeout
+    rate off projected whiff. Both are ratios against the same batter
+    projected onto a league-average arsenal, so a hitter who is simply good
+    gets 1.0 — his quality already lives in his rates.
+
+    A batter Savant has no per-pitch rows for returns neutral rather than a
+    guess. So does a projection built on thin arsenal coverage.
+    """
+    from src.context.sources import batter as bat
+    if not starter_arsenal:
+        return {}
+    ref_mix = league_arsenal(arsenals)
+    out: dict[str, dict] = {}
+    for nm in batter_names:
+        here = bat.vs_arsenal(nm, starter_arsenal, season, as_of)
+        ref = bat.vs_arsenal(nm, ref_mix, season, as_of)
+        if not here or not ref or not ref.get("proj_woba"):
+            continue
+        if (here.get("coverage") or 0) < 0.6:
+            continue
+        c = here["proj_woba"] / ref["proj_woba"]
+        k = 1.0
+        if here.get("proj_whiff_pct") and ref.get("proj_whiff_pct"):
+            k = here["proj_whiff_pct"] / ref["proj_whiff_pct"]
+        # Clamped: a 40% swing off a per-pitch sample is noise, not a
+        # matchup, and the simulator has no other guard against it.
+        out[nm] = {"contact": min(max(c, 0.80), 1.25),
+                   "k": min(max(k, 0.80), 1.25)}
+    return out

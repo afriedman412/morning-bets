@@ -24,8 +24,13 @@ BASE = "https://statsapi.mlb.com/api/v1"
 TIMEOUT = 25
 
 
-def _schedule(date_str: str) -> list[tuple[str, int, str]]:
-    """[(game_id, venue_id, venue_name)] for one date."""
+def _schedule(date_str: str) -> list[tuple]:
+    """[(game_id, venue_id, venue_name, day_night, start_utc)] for a date.
+
+    `dayNight` is MLB's own classification, not a guess from the clock —
+    which matters because a 5pm first pitch is a day game in one park and
+    a night game in another, and the league is the authority on which.
+    """
     url = f"{BASE}/schedule?sportId=1&date={date_str}"
     try:
         with urllib.request.urlopen(url, timeout=TIMEOUT) as r:
@@ -38,7 +43,8 @@ def _schedule(date_str: str) -> list[tuple[str, int, str]]:
             v = g.get("venue") or {}
             pk, vid = g.get("gamePk"), v.get("id")
             if pk and vid:
-                out.append((f"mlb-{pk}", int(vid), v.get("name")))
+                out.append((f"mlb-{pk}", int(vid), v.get("name"),
+                            g.get("dayNight"), g.get("gameDate")))
     return out
 
 
@@ -47,7 +53,8 @@ def backfill(workers: int = 6, verbose: bool = True) -> dict:
     with db.connect() as conn:
         dates = [r["date"] for r in conn.execute("""
             select distinct date from games
-            where sport = 'mlb' and venue_id is null
+            where sport = 'mlb'
+              and (venue_id is null or day_night is null)
             order by date""")]
     if verbose:
         print(f"{len(dates)} date(s) to look up")
@@ -59,11 +66,12 @@ def backfill(workers: int = 6, verbose: bool = True) -> dict:
         for _, got, err in parallel.gather(_schedule, dates, workers=workers):
             if err or not got:
                 continue
-            for gid, vid, _name in got:
+            for gid, vid, _name, dn, start in got:
                 rows += conn.execute(
-                    "update games set venue_id = ? "
-                    "where game_id = ? and venue_id is null",
-                    (vid, gid)).rowcount
+                    "update games set venue_id = coalesce(venue_id, ?), "
+                    "day_night = coalesce(day_night, ?), "
+                    "start_utc = coalesce(start_utc, ?) "
+                    "where game_id = ?", (vid, dn, start, gid)).rowcount
             done += 1
     if verbose:
         print(f"resolved {done} dates, set venue on {rows} games")
@@ -75,6 +83,8 @@ def audit() -> dict:
     q = """
     select count(*) n,
            sum(case when venue_id is null then 1 else 0 end) missing,
+           sum(case when day_night is null then 1 else 0 end) no_daynight,
+           sum(case when day_night = 'day' then 1 else 0 end) day_games,
            count(distinct venue_id) venues,
            count(distinct home_team) clubs
     from games where sport = 'mlb'
@@ -98,6 +108,9 @@ if __name__ == "__main__":
     a = audit()
     print(f"\n{a['n']} MLB games, {a['missing']} without a venue")
     print(f"  {a['venues']} distinct venues across {a['clubs']} home clubs")
+    print(f"  {a['day_games']} day games, {a['missing'] and '?' or ''}"
+          f"{a['n'] - a['day_games'] - a['no_daynight']} night, "
+          f"{a['no_daynight']} unclassified")
     n = a["clubs_with_multiple_home_venues"]
     print(f"  {n} club(s) hosted at more than one venue"
           + ("  <- these are the games home_team would get wrong" if n

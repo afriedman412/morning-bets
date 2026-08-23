@@ -173,7 +173,58 @@ SELF-CONSISTENT — the sim's plate appearances exclude HBP and sacrifices,
 so its rates should sit above per-real-PA rates by exactly that much. Not
 the bug; do not re-chase it.
 
-### Park factors — wired 2026-08-22, needs an A/B
+### How many simulations is enough (measured)
+
+Same config, three seeds, k 5.5 over 600 starts:
+
+| n_sims | seed 1 | seed 2 | seed 3 | sd | theory 1/n |
+|---|---|---|---|---|---|
+| 40 | 20.18% | 17.71% | 19.94% | 1.11% | 2.50% |
+| 110 | 21.08% | 19.93% | 21.41% | **0.63%** | 0.91% |
+| 300 | 21.52% | 21.04% | 20.73% | 0.32% | 0.33% |
+
+Two separate effects. Monte Carlo noise **systematically deflates Brier
+skill** — 40 sims reads ~19.3% where 300 reads ~21.1% — because it inflates
+Brier by p(1−p)/n. That cancels in an A/B where both arms share n_sims, so
+it does not bias a comparison, but it does mean any ABSOLUTE skill number
+quoted from a low-sim run is understated.
+
+What does not cancel is the 0.63pp seed scatter at n=110. **An A/B at 110
+sims can detect a true effect of roughly 0.5pp or larger, not smaller.**
+Quote that floor whenever a delta comes in small.
+
+### Park factors — the double-count, and the fix
+
+Three-way A/B, mean Brier skill over K/outs/hits/HR lines at n_sims=110:
+
+| config | mean Brier skill |
+|---|---|
+| no park | 8.66% |
+| park applied to raw rates | 8.59% |
+| **park + rates neutralised** | **9.00%** |
+
+The ORDERING is exactly what the mechanism predicts, which is the
+interesting part: raw park is slightly WORSE than no park at all, and
+neutralising recovers more than it costs.
+
+Why raw park fails: a player's season line is not park-neutral. He takes
+about half his plate appearances in one stadium, so Logan Gilbert's K rate
+is inflated 10.6% by T-Mobile and Tanner Gordon's suppressed 7.9% by Coors.
+Applying tonight's index to that raw rate counts the home park one and a
+half times and mis-bases the road side. Measured exposure spread: starters
+0.921–1.106 (sd 0.032), batters 0.940–1.091 (sd 0.030) — **the same size,
+because hitters play half at home too.** An earlier note here claimed
+hitters average over fifteen parks and are therefore fine; that was wrong.
+
+`rates.park_exposure` / `rates.neutralise` divide each rate by the
+usage-weighted park it was accumulated in. Requires `games.venue_id`, which
+is why this could not exist before the venue backfill.
+
+**+0.34pp is BELOW the 0.5pp detection floor above.** Direction and ordering
+both match theory, which is worth something, but this is not established.
+Confirm at n_sims >= 300 before switching `NEUTRALISE_PARK` on by default.
+
+### Park factors — wiring notes
 
 `games.venue_id` now exists, backfilled over 1,117 games from the schedule
 endpoint (one call per DATE, not per game). `sim.park_mults` converts
@@ -196,6 +247,103 @@ exogenous term. Fit home/road as a residual on what park does not already
 explain — fitting them jointly, or home/road first, lets the home term
 absorb park. Same trap as using a club's raw starter length for manager
 patience. Unmodelled: any park × home interaction.
+
+### Home/road is real; day/night is not
+
+Raw league splits over 1,776 rotation starts, before any modelling:
+
+| split | metric | value | z |
+|---|---|---|---|
+| home v away | K rate | 0.2253 vs 0.2110 (+6.8%) | **+3.49** |
+| home v away | hit rate | 0.2164 vs 0.2253 (−3.9%) | **−2.15** |
+| home v away | outs | 16.12 vs 15.79 (+0.33) | +1.80 |
+| day v night | K rate | 0.2159 vs 0.2189 (−1.4%) | −0.69 |
+| day v night | hit rate | 0.2180 vs 0.2225 (−2.0%) | −1.03 |
+| day v night | outs | 16.01 vs 15.92 (+0.09) | +0.45 |
+
+`HOME_OPP_K = 1.068` and `HOME_OPP_CONTACT = 0.961`, applied to the opposing
+lineup. **Set from the measurement, not tuned against Brier** — two free
+parameters searched against the metric they are then scored on will find
+something whether or not anything is there. Two multipliers because one
+cannot fit both: K moves +6.8% while contact moves −3.9%.
+
+`HOME_HOOK` stays 0.0. The outs difference does not clear 2σ on its own and
+should emerge from the rate effects rather than be counted twice.
+
+**Correction to an earlier worry in this file.** Park and home/road are NOT
+confounded at the league level: every park hosts 81 home starts and 81 away
+starts, so park balances out in the aggregate split. The confounding is real
+only PER PITCHER, whose home starts all happen at one venue — so a
+per-pitcher home term must still be fitted after park, but the league-wide
+numbers above stand on their own.
+
+**Day/night is a measured negative.** `games.day_night` and `games.start_utc`
+are populated (MLB's own classification, not inferred from the clock) so this
+is cheap to re-check, but nothing in it clears z=1.1 and a term keyed on it
+would be fitting noise.
+
+### Bullpen usage was being measured with the broken heuristic
+
+`workload._primary_cte` used most-outs, which counted 2,026 reliever outs as
+starter work and 880 starter outs as relief — a net 5% **understatement** of
+relief innings. The error is not random: a long reliever only outranks the
+starter when the starter was knocked out early, which is exactly the night
+the pen had to cover six innings. So it was most wrong on the days the
+bullpen was most taxed, which is the entire signal `bullpen()` exists to
+measure. Now uses `is_starter` where available.
+
+Still **not consulted by the simulator.** A gassed pen means a longer leash,
+and `bullpen(as_of)` is already as-of correct and local, so this is a wired
+gap rather than a missing capability.
+
+### The scoreboard, and the pattern in it
+
+Everything tried on top of the simulator, measured the same way:
+
+| addition | verdict | evidence |
+|---|---|---|
+| club patience + pitcher leash | **KEEP** | outs skill 3.8–9.8% vs 1.2–5.2% flat |
+| home/road | **KEEP** | K rate z=+3.49, hit rate z=−2.15 |
+| park + neutralised rates | maybe | +0.34pp, below the 0.5pp floor |
+| park on raw rates | reject | −0.07pp; double-counts |
+| handedness splits | reject | deltas alternate sign, AUC unchanged |
+| arsenal multipliers | reject | 9.79% vs 9.79%, exactly zero |
+| day/night | reject | nothing clears z=1.1 |
+| bullpen availability | reject | z ≤ 1.4 under four proxies |
+| input uncertainty | reject | actively harmful; compresses further |
+
+**The two that worked are the two fitted as residuals against the model's
+own output. Every one imported as a known baseball effect failed.** That is
+not a coincidence worth ignoring: the market prices the consensus
+construction, and handedness, park, day/night and bullpen ARE the consensus
+construction. Adding them to a model already near consensus buys nothing.
+
+**The defect hunt is 4-for-4 over the same period**: the starter heuristic
+truncating the left tail, the double-advance base-running bug, baserunner
+over-production, and openers being priced as starters. Spend time there.
+
+### Arsenal multipliers: right theory, zero result
+
+Worth recording in full because the reasoning was correct and still lost.
+
+The prediction was that arsenal would succeed where handedness failed,
+because handedness varies by BATTER and nine of them average it away, while
+an arsenal varies by PITCHER and the whole lineup faces the same one. That
+prediction was verified — per-start mean k-multiplier sd is 0.0642 (range
+0.864–1.180) where handedness scored about zero on the same measure. The
+between-start variance is genuinely there.
+
+It bought nothing. 9.79% mean Brier skill with, 9.79% without.
+
+One sub-pattern, below the noise floor, recorded so it is not rediscovered
+as a fresh idea: every HIGH K line improved on both Brier and AUC — k 7.5
++0.67pp with AUC 0.813 → 0.822, k 6.5 +0.62pp — while low K lines and outs
+slipped. Consistent with a whiff-derived signal discriminating big
+strikeout games. If revisited: re-run at n_sims >= 400 and commit to the
+high-K hypothesis BEFORE looking, or this is just subset selection.
+
+`rates.arsenal_mults` and `BatterRates.arsenal_k_mult` are kept and correct;
+`calibrate.USE_ARSENAL` is the flag.
 
 ### Measured negative: handedness splits do nothing
 

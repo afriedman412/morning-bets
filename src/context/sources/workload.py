@@ -50,12 +50,27 @@ USAGE_DAYS = 3
 
 
 def _primary_cte() -> str:
-    """SQL for one row per team-game: the pitcher who recorded the most outs."""
+    """One row per pitcher-game with `rn = 1` marking the starter.
+
+    Ground truth where the boxscore has been consulted, most-outs only
+    where it has not. The difference is not cosmetic for bullpen usage: the
+    heuristic counts 2,026 reliever outs as starter work and 880 starter
+    outs as relief, netting to a 5% UNDERSTATEMENT of relief innings.
+
+    Worse, that error is not random. A long reliever only outranks the
+    starter when the starter was knocked out early — which is exactly the
+    night the bullpen had to cover six innings. So the heuristic is most
+    wrong on the days the pen was most taxed, which is the entire signal
+    `bullpen()` exists to measure.
+    """
     return """
         SELECT p.game_id, p.team, p.player_name, p.outs_recorded AS outs,
                p.er, p.k, p.bb, p.h, p.hr, g.date,
-               ROW_NUMBER() OVER (PARTITION BY p.game_id, p.team
-                                  ORDER BY p.outs_recorded DESC) AS rn
+               CASE WHEN p.is_starter IS NOT NULL
+                    THEN (CASE WHEN p.is_starter = 1 THEN 1 ELSE 2 END)
+                    ELSE ROW_NUMBER() OVER (PARTITION BY p.game_id, p.team
+                                            ORDER BY p.outs_recorded DESC)
+               END AS rn
         FROM mlb_pitching p
         JOIN games g ON g.game_id = p.game_id
         WHERE p.outs_recorded IS NOT NULL
