@@ -109,6 +109,54 @@ The estimator barely beats quoting the base rate. Refitting the offsets on
 the training window moved the sim by +0.3pt, so the earlier leakage was
 negligible — but `refit=True` is the default now and should stay.
 
+### Outs: decent ranking, poor calibration — which is the fixable kind
+
+| line | AUC | Brier skill |
+|---|---|---|
+| outs 11.5 | 0.616 | 1.2% |
+| outs 14.5 | 0.640 | 2.9% |
+| outs 15.5 | 0.645 | 4.4% |
+| outs 17.5 | 0.643 | 5.2% |
+| outs 18.5 | 0.677 | 4.2% |
+| outs 20.5 | 0.688 | 3.9% |
+
+AUC 0.62–0.69 is real ranking ability, so the low Brier skill is
+MISCALIBRATION, not absence of signal — bias runs −4.0% at 14.5 and +2.8%
+at 18.5. An isotonic or Platt fit on a holdout should recover a chunk of the
+gap. (An earlier note in this file called outs "weak discrimination, the
+unfixable kind". That was wrong; these AUCs say otherwise.)
+
+### Measured negative: handedness splits do nothing
+
+Hypothesis was that vs-LHP/vs-RHP batter rates would supply the missing
+between-start variance. Built (`rates.batter_rates_by_hand`, derived
+locally from the opposing starter's throwing hand so it stays as-of
+correct), A/B'd over 1,776 starts, and it is a wash:
+
+- K lines: Brier skill deltas −0.23% to +0.49%, alternating sign
+- outs lines: −0.20% to +0.40%
+- AUC unchanged to three decimals on all twelve lines
+
+It genuinely adds 20.3% more between-BATTER K% spread, which is why this is
+worth recording rather than quietly dropping: **between-batter variance is
+not between-start variance.** Platoon deviations largely average out across
+nine hitters.
+
+Confound not yet ruled out: the derivation is attenuated, because a batter's
+game line includes plate appearances against relievers and `SPLIT_STABILISE`
+then pulls each split halfway back to his overall rate. Testing statsapi's
+exact splits would separate "the idea is wrong" from "our splits are too
+small". `calibrate.USE_HANDEDNESS` is the flag; code is kept, default off.
+
+### The bigger hole for outs, not yet built
+
+The sim has **no game score**. It simulates one pitcher against one lineup
+and does not know whether his team is winning, so a starter at 95 pitches in
+a 1–0 game and one at 95 pitches in an 8–1 game are the same decision to it.
+It also never consults `workload.bullpen()`, which is already in the local
+cache. Both plausibly matter more for "which starters go deep" than platoon
+splits do, and neither needs play-by-play.
+
 **Known defect: the model is under-dispersed**, and specifically it
 under-rates the top bucket at every line by 5–6 points (said 22.2% →
 happened 28.5% at k 8.5; said 49.8% → 55.2% at k 6.5). Note the direction:

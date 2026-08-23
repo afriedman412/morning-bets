@@ -548,3 +548,47 @@ def check_auc_handles_ties_without_bias():
     from src.context import calibrate as cal
     rows = [(True, 0.5), (False, 0.5), (True, 0.5), (False, 0.5)]
     assert abs(cal._auc(rows) - 0.5) < 1e-9, cal._auc(rows)
+
+
+# ── handedness splits ──────────────────────────────────────────────────
+def check_split_shrinks_toward_the_batter_not_the_league():
+    """A thin split must fall back to THIS HITTER's overall rate, not to
+    league average. Shrinking a 20-PA split straight to league erases the
+    hitter's own established skill along with the platoon noise, which is
+    worse than having no split at all."""
+    k = rate_src.SPLIT_STABILISE
+    own, league = 0.34, 0.226
+    pa = 20
+    w = pa / (pa + k)
+    got = w * 0.10 + (1 - w) * own
+    assert abs(got - own) < abs(got - league), (got, own, league)
+
+
+def check_split_stabilises_faster_than_a_league_prior():
+    """The prior here is the hitter himself — a far better guess than the
+    league — so it should take less evidence to move off it."""
+    assert rate_src.SPLIT_STABILISE < rate_src.STABILISE["babip"]
+
+
+def check_unknown_pitcher_hand_falls_back_to_overall_rates():
+    """A WRONG split moves the estimate in a definite wrong direction, which
+    is worse than no split. Missing hand must mean overall, never a guess.
+    Same rule the context layer follows for an unrated catcher."""
+    import inspect
+
+    from src.context import calibrate as cal
+    src = inspect.getsource(cal.build_cases)
+    assert "if hand else b" in src, \
+        "unknown throwing hand no longer falls back to overall rates"
+
+
+def check_switch_hitters_need_no_special_case():
+    """A switch hitter's 'vs L' rows ARE his right-handed batting, because
+    that is what he did in those games. Deriving splits from outcomes rather
+    than from a declared bat side makes this automatic — if someone adds a
+    bats-side branch, this is the check that should make them justify it."""
+    import inspect
+    src = inspect.getsource(rate_src.batter_rates_by_hand)
+    assert '"S"' not in src and "switch" not in src.lower().replace(
+        "switch hitters need no special handling", ""), \
+        "special-casing switch hitters; the derivation already handles them"

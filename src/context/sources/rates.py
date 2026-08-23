@@ -169,3 +169,102 @@ if __name__ == "__main__":
     for v in thin:
         print(f"  {v['name'][:22]:<24}{v['k_pct']:>7.1%}  raw "
               f"{v['raw_k_pct']:>6.1%}  BF {v['pa']:>4}")
+
+
+# ── handedness splits, derived locally ─────────────────────────────────
+#
+# WHY DERIVE RATHER THAN FETCH. statsapi serves exact vs-LHP/vs-RHP splits,
+# but only season-to-date at the moment of the call — so a backtest over
+# June would apply September's splits to it. That is the same trap the
+# snapshot layer exists to avoid with Savant. Deriving from the local
+# boxscore cache is approximate and AS-OF CORRECT, which is worth more.
+#
+# THE APPROXIMATION, STATED PLAINLY. A batter's line for a game is credited
+# entirely to the opposing STARTER's throwing hand, but perhaps 35-40% of his
+# plate appearances that night came against relievers of assorted hands. That
+# contamination pulls each measured split toward the batter's overall rate,
+# so the splits below UNDERSTATE the true platoon effect. The direction is
+# knowable and safe: the model gets less spread than reality has, never more.
+#
+# Switch hitters need no special handling. Their "vs L" rows already are
+# their right-handed batting, because that is what they did in those games.
+
+#: Split-sample plate appearances at which a batter's own split outweighs
+#: his overall rate. Lower than the STABILISE constants because the prior
+#: here is the batter himself rather than the league — a much better guess,
+#: so it takes less evidence to move off it.
+SPLIT_STABILISE = 120
+
+_SPLIT_Q = """
+with st as (
+  select game_id, team, player_name
+  from mlb_pitching where is_starter = 1
+)
+select mb.player_name name, st.player_name opp_starter,
+       sum(mb.ab) ab, sum(mb.bb) bb, sum(mb.h) h, sum(mb.so) so,
+       sum(mb.hr) hr
+from mlb_batting mb
+join games g on g.game_id = mb.game_id
+join st on st.game_id = mb.game_id and st.team <> mb.team
+where g.sport = 'mlb' and g.status = 'Final' {where}
+group by mb.player_name, st.player_name
+"""
+
+
+def batter_rates_by_hand(lg: dict, season: int | None = None,
+                         before: str | None = None, conn=None) -> dict:
+    """{name: {'L': rates, 'R': rates}}, shrunk toward the batter's own line.
+
+    Two-level shrinkage, which is the rule the rest of this codebase
+    follows: a split with little behind it falls back to the hitter's
+    overall rate, and only a hitter with nothing at all falls back to the
+    league. Shrinking a thin split straight to league average would erase
+    the very platoon signal this exists to add.
+    """
+    from src import roster
+
+    overall = batter_rates(lg, season, before, conn)
+
+    def _run(c):
+        return c.execute(_SPLIT_Q.format(
+            where=_where(season, before))).fetchall()
+
+    rows = _run(conn) if conn is not None else _with(_run)
+
+    hand_of: dict[str, str | None] = {}
+    acc: dict[str, dict[str, dict]] = {}
+    for r in rows:
+        sp = r["opp_starter"]
+        if sp not in hand_of:
+            hand_of[sp] = roster.throws(sp)
+        hand = hand_of[sp]
+        if hand not in ("L", "R"):
+            continue
+        d = acc.setdefault(r["name"], {}).setdefault(
+            hand, {"ab": 0, "bb": 0, "h": 0, "so": 0, "hr": 0})
+        for k in d:
+            d[k] += r[k] or 0
+
+    out: dict[str, dict] = {}
+    for name, byhand in acc.items():
+        base = overall.get(name)
+        if not base:
+            continue
+        out[name] = {}
+        for hand, d in byhand.items():
+            pa = d["ab"] + d["bb"]
+            bip = d["ab"] - d["so"] - d["hr"]
+            w = pa / (pa + SPLIT_STABILISE) if pa else 0.0
+
+            def mix(obs, prior):
+                return w * obs + (1 - w) * prior if pa else prior
+
+            out[name][hand] = {
+                "name": name, "hand": hand, "pa": pa,
+                "k_pct": mix(d["so"] / pa if pa else 0, base["k_pct"]),
+                "bb_pct": mix(d["bb"] / pa if pa else 0, base["bb_pct"]),
+                "hr_pct": mix(d["hr"] / pa if pa else 0, base["hr_pct"]),
+                "babip": mix((d["h"] - d["hr"]) / bip if bip > 0 else
+                             base["babip"], base["babip"]),
+            }
+    return out

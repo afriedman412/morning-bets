@@ -29,7 +29,7 @@ import random
 import sys
 from collections import Counter
 
-from src import db
+from src import db, roster
 from src.context import sim
 from src.context.sources import rates as rate_src
 
@@ -146,15 +146,39 @@ def _with(fn):
 _CASES: dict[tuple, list] = {}
 
 
+#: Use derived vs-LHP/vs-RHP batter rates instead of overall rates.
+#:
+#: OFF, because it was measured and it does nothing. The hypothesis was that
+#: handedness would supply the between-start variance the model is missing,
+#: and it does add 20.3% more between-BATTER spread in K% — but A/B'd over
+#: 1,776 starts the Brier skill deltas alternate sign between -0.23% and
+#: +0.49% on K, and -0.20% to +0.40% on outs, with AUC unchanged to three
+#: decimals on all twelve lines.
+#:
+#: Two explanations, and they point at different follow-ups. Platoon effects
+#: largely AVERAGE OUT across nine hitters, so between-batter variance is
+#: not the same thing as between-start variance. And the derivation is
+#: attenuated: crediting a batter's whole game line to the opposing
+#: starter's hand includes his plate appearances against relievers, then
+#: SPLIT_STABILISE pulls each split roughly halfway back to his overall
+#: rate. Testing statsapi's exact splits would separate the two — if those
+#: also fail, the averaging argument wins and the idea is dead.
+#:
+#: Kept rather than deleted so the next person with this instinct can flip
+#: one flag instead of rebuilding it.
+USE_HANDEDNESS = False
+
+
 def build_cases(season=None, before=None, max_starts=None, since=None,
-                rates_before=None) -> list[tuple]:
+                rates_before=None, handed=None) -> list[tuple]:
     """[(actual_row, PitcherRates, [BatterRates])] for every replayable start.
 
     Split out from the simulation and memoised because the tuner evaluates
     a hundred candidate hooks against the same cases, and rebuilding rates
     and lineups each time made a two-minute search a twenty-minute one.
     """
-    key = (season, before, max_starts, since, rates_before)
+    handed = USE_HANDEDNESS if handed is None else handed
+    key = (season, before, max_starts, since, rates_before, handed)
     if key in _CASES:
         return _CASES[key]
 
@@ -165,6 +189,7 @@ def build_cases(season=None, before=None, max_starts=None, since=None,
     lg = sim.league(season)
     pr = rate_src.pitcher_rates(lg, season, rb)
     br = rate_src.batter_rates(lg, season, rb)
+    split = rate_src.batter_rates_by_hand(lg, season, rb) if handed else {}
     lineups = opposing_lineups()
     league_bats = sim.BatterRates(name="league", k_pct=lg["k_pct"],
                                   bb_pct=lg["bb_pct"], hr_pct=lg["hr_pct"],
@@ -176,14 +201,22 @@ def build_cases(season=None, before=None, max_starts=None, since=None,
         names = lineups.get((s["game_id"], s["team"]))
         if not p or not names or len(names) < 9:
             continue
+        # The starter's throwing hand picks each hitter's split. Unknown
+        # hand falls back to overall rates rather than guessing a side —
+        # a wrong split moves the estimate in a definite wrong direction,
+        # which is worse than no split at all.
+        hand = roster.throws(s["player_name"]) if handed else None
         lineup = []
         for nm in names:
             b = br.get(nm)
+            if b is None:
+                lineup.append(league_bats)
+                continue
+            use = (split.get(nm, {}).get(hand) or b) if hand else b
             lineup.append(
-                sim.BatterRates(name=nm, k_pct=b["k_pct"],
-                                bb_pct=b["bb_pct"], hr_pct=b["hr_pct"],
-                                babip=b["babip"], pa=b["pa"])
-                if b else league_bats)
+                sim.BatterRates(name=nm, k_pct=use["k_pct"],
+                                bb_pct=use["bb_pct"], hr_pct=use["hr_pct"],
+                                babip=use["babip"], pa=b["pa"]))
         cases.append((s, sim.PitcherRates(
             name=p["name"], k_pct=p["k_pct"], bb_pct=p["bb_pct"],
             hr_pct=p["hr_pct"], babip=p["babip"], pa=p["pa"]), lineup))
