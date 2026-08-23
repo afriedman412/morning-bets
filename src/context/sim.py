@@ -694,6 +694,20 @@ class StartResult:
     caught_stealing: int = 0
     stolen_bases: int = 0
     hbp: int = 0
+    #: Runs allowed through the end of the fifth inning, and whether the
+    #: starter was still in when it ended. F5 markets settle on the score
+    #: after five, so a start that ends early leaves innings for a reliever
+    #: and `covered_f5` says whether that happened.
+    runs_f5: int = 0
+    outs_f5: int = 0
+    covered_f5: bool = False
+    #: Runners aboard when the outing ended, and how many outs were already
+    #: recorded in that inning. A starter pulled mid-inning strands men who
+    #: still score roughly a third of the time — those runs are charged to
+    #: him and they count in the F5 score, so dropping them understates
+    #: relief scoring by about half.
+    left_on_base: int = 0
+    outs_when_pulled: int = 0
 
 
 def simulate_start(
@@ -788,16 +802,23 @@ def simulate_start(
             if rng.random() < hook.mid_removal_p(
                     r.pitches, r.runs, sum(bases), inning_damage):
                 r.pulled_mid_inning = True
+                r.left_on_base, r.outs_when_pulled = sum(bases), outs_this
+                if not r.covered_f5:
+                    r.runs_f5, r.outs_f5 = r.runs, r.outs
                 return r
             if r.pitches >= hook.hard_pitch_cap:
                 r.pulled_mid_inning = True
                 return r
 
         r.innings_completed = inning
+        if inning == 5:
+            r.runs_f5, r.outs_f5, r.covered_f5 = r.runs, r.outs, True
         if inning >= max_innings:
             break
         if rng.random() < hook.removal_p(r.pitches, r.runs, inning,
                                          r.h + r.bb):
+            if not r.covered_f5:
+                r.runs_f5, r.outs_f5 = r.runs, r.outs
             break
         if r.pitches >= hook.hard_pitch_cap:
             break
