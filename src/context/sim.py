@@ -98,13 +98,22 @@ def _starter_league(conn=None) -> dict | None:
 
 
 def league(season: int | None = None, conn=None) -> dict:
-    """Season-to-date league rates, per plate appearance.
+    """Season-to-date league rates for the simulator.
 
-    PA is approximated as AB + BB: the boxscore cache carries neither HBP
-    nor sacrifices, which understates PA by roughly 2%. That inflates every
-    rate by the same 2%, and since the model uses these only as the neutral
-    reference point in a log5 ratio, a common factor largely divides out.
-    Worth knowing before anyone reads `k_pct` as a published statistic.
+    The batting-side figures are computed first, per AB + BB, and are then
+    OVERWRITTEN by `_starter_league` — rotation starters, per batter faced.
+    They survive only as the denominator for `batter_scale`, which is what
+    converts hitters onto the same footing.
+
+    An earlier version of this docstring argued that the AB + BB
+    approximation was harmless because "a common factor largely divides out"
+    of the log5 ratio. That was wrong and it cost a day: the factor is only
+    common if both sides share a denominator, and the pitcher rates never
+    did. It inflated simulated walks by 6-8%.
+
+    So do not read `k_pct` here as a published statistic, and do not assume
+    it describes all pitchers — it describes rotation starters, which is the
+    only population this module ever simulates.
     """
     if season in _LEAGUE_CACHE:
         return _LEAGUE_CACHE[season]
@@ -425,7 +434,10 @@ class Hook:
     observed hazard curve, boundary share and threshold rates. REFIT after
     sacrifices and caught stealing were added: those cut the baserunners the
     mid-inning terms key on, so the old fit left the hook firing too late.
-    Loss fell 0.0858 -> 0.0720 on the same target — so unlike the
+    Loss fell 0.0858 -> 0.0720 on the same target, then to 0.0668 after the
+    league baselines were moved onto rotation starters and steals and HBP
+    were added — a softer pitch curve (scale 11 -> 15) once the walk rate
+    stopped running high — so unlike the
     constants table in NOTES-context-layer.md, these were not invented. They
     are still fitted to MARGINALS rather than to game state, which is the
     honest limit of doing this without play-by-play: the model can reproduce
@@ -436,7 +448,7 @@ class Hook:
     #: Individual leashes override this — see `for_pitcher`.
     pitch_center: float = 92.0
     #: How sharply the pitch-count term turns on. Larger is a softer curve.
-    pitch_scale: float = 11.0
+    pitch_scale: float = 15.0
     #: Added to the removal log-odds per run allowed so far.
     per_run: float = 0.60
     #: Added per inning completed, capturing the times-through-order effect
