@@ -85,7 +85,12 @@ class F5Result:
 
 
 def _side_runs(starter, lineup, lg, hook, rng, park, relief):
-    """Runs a pitching side allows through five, starter plus relief."""
+    """Runs a pitching side allows through five, and the starter's line.
+
+    Returns `(runs, StartResult)`. The result comes back so a caller can
+    report how far the starter got WITHOUT re-simulating him — the F5 fit
+    reports that share as a diagnostic and must not pay for it twice.
+    """
     r = sim.simulate_start(starter, lineup, lg, hook, rng, park=park,
                            max_innings=5)
     # `runs_f5` already contains the men he stranded — sim.simulate_start
@@ -106,7 +111,7 @@ def _side_runs(starter, lineup, lg, hook, rng, park, relief):
         # pitched.
         if rel.outs:
             runs += int(round(rel.runs * left / rel.outs))
-    return runs
+    return runs, r
 
 
 def simulate_f5(away_sp, away_lineup, home_sp, home_lineup, lg,
@@ -122,10 +127,10 @@ def simulate_f5(away_sp, away_lineup, home_sp, home_lineup, lg,
     park = away_park or home_park or sim.NEUTRAL_PARK
     out = []
     for _ in range(n):
-        home_scored = _side_runs(away_sp, home_lineup, lg,
-                                 away_hook or sim.Hook(), rng, park, relief)
-        away_scored = _side_runs(home_sp, away_lineup, lg,
-                                 home_hook or sim.Hook(), rng, park, relief)
+        home_scored, _ = _side_runs(away_sp, home_lineup, lg,
+                                    away_hook or sim.Hook(), rng, park, relief)
+        away_scored, _ = _side_runs(home_sp, away_lineup, lg,
+                                    home_hook or sim.Hook(), rng, park, relief)
         out.append(F5Result(away=away_scored, home=home_scored))
     return out
 

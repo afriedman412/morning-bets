@@ -250,6 +250,29 @@ AWAY_OPP_CONTACT = 1.0 / HOME_OPP_CONTACT
 HOME_HOOK = 0.0
 
 
+def adjust_lineup(lineup: list, is_home: bool) -> list:
+    """The opposing nine, shifted for who is batting at home.
+
+    Applied to the LINEUP rather than to the pitcher so his own rates keep
+    meaning one thing everywhere, and centred on the season mean so the
+    league average is untouched — see the HOME_OPP_* block above.
+
+    Factored out of `per_start_probs_all` when the F5 fit needed the same
+    nine. Two copies of a centring rule is exactly how one of them ends up
+    one-sided.
+    """
+    if not USE_HOME_ROAD or HOME_OPP_K == 1.0:
+        return lineup
+    mk = HOME_OPP_K if is_home else AWAY_OPP_K
+    mc = HOME_OPP_CONTACT if is_home else AWAY_OPP_CONTACT
+    return [sim.BatterRates(
+        name=b.name, pa=b.pa, arsenal_mult=b.arsenal_mult,
+        arsenal_k_mult=b.arsenal_k_mult,
+        k_pct=min(0.95, b.k_pct * mk),
+        bb_pct=b.bb_pct * mc, hr_pct=b.hr_pct * mc,
+        babip=b.babip * mc) for b in lineup]
+
+
 _PARK_CACHE: dict = {}
 
 
@@ -503,20 +526,11 @@ def per_start_probs_all(stat: str, lines, season=None, before=None,
         # park. Two channels because home advantage is not purely a leash
         # effect: the visiting lineup hits worse, and the manager is a
         # little more patient with his own crowd behind him.
-        nine = lineup
-        if USE_HOME_ROAD and HOME_OPP_K != 1.0:
-            home = bool(s.get("is_home"))
-            mk = HOME_OPP_K if home else AWAY_OPP_K
-            mc = HOME_OPP_CONTACT if home else AWAY_OPP_CONTACT
-            nine = [sim.BatterRates(
-                name=b.name, pa=b.pa, arsenal_mult=b.arsenal_mult,
-                k_pct=min(0.95, b.k_pct * mk),
-                bb_pct=b.bb_pct * mc, hr_pct=b.hr_pct * mc,
-                babip=b.babip * mc) for b in lineup]
-            if HOME_HOOK and home:
-                hook = sim.Hook(**{**hook.__dict__,
-                                   "team_offset": hook.team_offset
-                                   + HOME_HOOK})
+        home = bool(s.get("is_home"))
+        nine = adjust_lineup(lineup, home)
+        if HOME_HOOK and home:
+            hook = sim.Hook(**{**hook.__dict__,
+                               "team_offset": hook.team_offset + HOME_HOOK})
         vals = []
         for _ in range(n_sims):
             r = sim.simulate_start(pitcher, nine, lg, hook, rng, park=pk)

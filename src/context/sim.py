@@ -31,6 +31,7 @@ needs the network.
 """
 from __future__ import annotations
 
+import contextlib
 import random
 from dataclasses import dataclass
 
@@ -643,6 +644,41 @@ INHERITED_SCORE_RATE = 0.33
 #: runner up a base with no hit and no out, which is one of the mechanisms
 #: the advancement rates have been standing in for.
 WP_PB_RATE = 0.028
+
+
+#: The base-running constants a fit is allowed to move, by name.
+#:
+#: They live as module globals rather than as fields on a rules object
+#: because every one of them is read from inside the innermost loop of the
+#: plate-appearance model, and threading a dataclass through `_advance` for
+#: the sake of a search that runs twice a season is the wrong trade. The
+#: context manager below is the seam instead.
+#:
+#: The hook is NOT in here. It is a dataclass already and travels per start,
+#: which is what lets one club have a quicker one than another.
+FITTABLE = ("FIRST_TO_THIRD_ON_1B", "SECOND_SCORES_ON_1B",
+            "FIRST_SCORES_ON_2B", "RUNNER_ADVANCES_ON_OUT",
+            "INHERITED_SCORE_RATE", "WP_PB_RATE", "GIDP_RATE")
+
+
+@contextlib.contextmanager
+def rules(**overrides):
+    """Temporarily replace fittable constants, then put them back.
+
+    An unknown name raises rather than being ignored. A typo'd parameter in
+    a coordinate descent is invisible otherwise: the search runs, every
+    candidate scores identically, and the flat surface reads as "this
+    parameter does not matter" when it was never applied at all.
+    """
+    bad = [k for k in overrides if k not in FITTABLE]
+    if bad:
+        raise ValueError(f"not fittable: {bad} (known: {list(FITTABLE)})")
+    prev = {k: globals()[k] for k in overrides}
+    globals().update(overrides)
+    try:
+        yield
+    finally:
+        globals().update(prev)
 
 
 def _leave(r: "StartResult", bases: list, outs_this: int,
