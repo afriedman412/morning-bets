@@ -494,23 +494,38 @@ class Hook:
     #: what is left over.
     team_offset: float = 0.0
 
+    #: Log-odds per run of LEAD his own team holds. A manager treats a
+    #: starter at 1-0 and the same starter at 8-0 completely differently, and
+    #: until now the model could not tell them apart: a single pitching side
+    #: was simulated in isolation with no idea what its own offence had done.
+    #:
+    #: BOTH DEFAULT TO ZERO, so nothing changes until this is measured. The
+    #: sign is not obvious in advance — a big lead buys a starter rope
+    #: because the game is safe, and also gets him lifted because there is
+    #: nothing left to protect — which is exactly why it should be fitted
+    #: against observed removal timing rather than asserted.
+    per_margin: float = 0.0
+    mid_per_margin: float = 0.0
+
     def removal_p(self, pitches: int, runs: int, innings: int,
-                  baserunners: int = 0) -> float:
+                  baserunners: int = 0, margin: int = 0) -> float:
         """P(pulled) evaluated at the end of a completed inning."""
         return _sigmoid(self.intercept + self.team_offset
                         + (pitches - self.pitch_center) / self.pitch_scale
                         + self.per_run * runs
                         + self.per_baserunner * baserunners
+                        + self.per_margin * margin
                         + self.per_inning * innings)
 
     def mid_removal_p(self, pitches: int, runs: int, on_base: int,
-                      inning_damage: float = 0.0) -> float:
+                      inning_damage: float = 0.0, margin: int = 0) -> float:
         """P(pulled) evaluated after a batter, inning still alive."""
         return _sigmoid(self.mid_intercept + self.team_offset
                         + (pitches - self.pitch_center) / self.pitch_scale
                         + self.mid_per_run * runs
                         + self.mid_per_runner * on_base
-                        + self.mid_per_damage * inning_damage)
+                        + self.mid_per_damage * inning_damage
+                        + self.mid_per_margin * margin)
 
 
 _HERE = __file__.rsplit("/", 1)[0]
@@ -784,6 +799,93 @@ class StartResult:
     wp_pb: int = 0
 
 
+def apply_pa(o: str, r: StartResult, bases: list, outs_this: int,
+             inning_damage: float, rng: random.Random) -> tuple[int, float]:
+    """Apply one plate-appearance outcome. Mutates `r` and `bases`.
+
+    Returns the updated (outs_this, inning_damage).
+
+    EXTRACTED so a full game and a single start cannot drift apart. Both
+    `simulate_start` and `game.py` walk the same base-out state machine, and
+    a second hand-written copy of the double-play rule or the
+    third-out-scores-nobody rule is a bug waiting for the day someone fixes
+    one of them.
+    """
+    r.batters += 1
+    r.pitches += int(round(PITCH_COST[o]))
+    inning_damage += DAMAGE[o]
+
+    if o == SAC:
+        # An automatic out that ADVANCES runners — that is the whole point
+        # of laying one down. Never a BABIP roll.
+        outs_this += 1
+        r.outs += 1
+        r.sacrifices += 1
+        if outs_this < 3 and any(bases):
+            if bases[2]:
+                r.runs += 1                      # sacrifice fly
+            bases[:] = [False, bases[0], bases[1]]
+    elif o == HBP:
+        r.hbp += 1
+        r.runs += _advance(bases, BB, rng)       # forces like a walk
+    elif o == K:
+        r.k += 1
+        outs_this += 1
+        r.outs += 1
+    elif o == OUT:
+        # Double play only with a runner on first and a base open for the
+        # force, and it ends the inning if it is the second and third out.
+        if bases[0] and outs_this < 2 and rng.random() < GIDP_RATE:
+            bases[0] = False
+            outs_this += 2
+            r.outs += 2
+        else:
+            outs_this += 1
+            r.outs += 1
+            # Productive outs only advance a runner if the inning is still
+            # alive. A sacrifice fly for the third out scores nobody, and
+            # crediting it would inflate runs in exactly the innings that
+            # ended badly.
+            if outs_this < 3:
+                r.runs += _advance(bases, OUT, rng)
+    else:
+        if o == BB:
+            r.bb += 1
+        else:
+            r.h += 1
+            if o == HR:
+                r.hr += 1
+        r.runs += _advance(bases, o, rng)
+    return outs_this, inning_damage
+
+
+def baserunning(r: StartResult, bases: list, outs_this: int,
+                rng: random.Random) -> int:
+    """Wild pitches, steals and caught stealing between plate appearances.
+
+    A runner caught stealing is an out with no batter attached and it counts
+    toward innings pitched, which is why leaving it out cost roughly 0.10
+    outs a start. Returns the updated outs_this.
+    """
+    if any(bases) and rng.random() < WP_PB_RATE:
+        if bases[2]:
+            r.runs += 1
+        bases[:] = [False, bases[0], bases[1]]
+        r.wp_pb += 1
+    if bases[0] and not bases[1]:
+        roll = rng.random()
+        if roll < CS_RATE:
+            bases[0] = False
+            outs_this += 1
+            r.outs += 1
+            r.caught_stealing += 1
+        elif roll < CS_RATE + SB_RATE:
+            # Second base is open or he would not be going.
+            bases[0], bases[1] = False, True
+            r.stolen_bases += 1
+    return outs_this
+
+
 def simulate_start(
     pitcher: PitcherRates, lineup: list[BatterRates], lg: dict,
     hook: Hook | None = None, rng: random.Random | None = None,
@@ -808,76 +910,14 @@ def simulate_start(
             b = lineup[idx % len(lineup)]
             idx += 1
             o = pa_outcome(b, pitcher, lg, rng, hr_park, park)
-            r.batters += 1
-            r.pitches += int(round(PITCH_COST[o]))
-            inning_damage += DAMAGE[o]
-
-            if o == SAC:
-                # An automatic out that ADVANCES runners — that is the whole
-                # point of laying one down. Never a BABIP roll.
-                outs_this += 1
-                r.outs += 1
-                r.sacrifices += 1
-                if outs_this < 3 and any(bases):
-                    if bases[2]:
-                        r.runs += 1          # sacrifice fly
-                    bases[:] = [False, bases[0], bases[1]]
-            elif o == HBP:
-                r.hbp += 1
-                r.runs += _advance(bases, BB, rng)   # forces like a walk
-            elif o == K:
-                r.k += 1
-                outs_this += 1
-                r.outs += 1
-            elif o == OUT:
-                # Double play only with a runner on first and a base open
-                # for the force, and it ends the inning if it is the second
-                # and third out.
-                if bases[0] and outs_this < 2 and rng.random() < GIDP_RATE:
-                    bases[0] = False
-                    outs_this += 2
-                    r.outs += 2
-                else:
-                    outs_this += 1
-                    r.outs += 1
-                    # Productive outs only advance a runner if the inning is
-                    # still alive. A sacrifice fly for the third out scores
-                    # nobody, and crediting it would inflate runs in exactly
-                    # the innings that ended badly.
-                    if outs_this < 3:
-                        r.runs += _advance(bases, OUT, rng)
-            else:
-                if o == BB:
-                    r.bb += 1
-                else:
-                    r.h += 1
-                    if o == HR:
-                        r.hr += 1
-                r.runs += _advance(bases, o, rng)
+            outs_this, inning_damage = apply_pa(
+                o, r, bases, outs_this, inning_damage, rng)
 
             if outs_this >= 3:
                 break
-            # A runner caught stealing is an out with no batter attached,
-            # and it counts toward the pitcher's innings pitched — which is
-            # why leaving it out cost roughly 0.10 outs a start.
-            if any(bases) and rng.random() < WP_PB_RATE:
-                if bases[2]:
-                    r.runs += 1
-                bases[:] = [False, bases[0], bases[1]]
-                r.wp_pb += 1
-            if bases[0] and not bases[1]:
-                roll = rng.random()
-                if roll < CS_RATE:
-                    bases[0] = False
-                    outs_this += 1
-                    r.outs += 1
-                    r.caught_stealing += 1
-                    if outs_this >= 3:
-                        break
-                elif roll < CS_RATE + SB_RATE:
-                    # Second base is open or he would not be going.
-                    bases[0], bases[1] = False, True
-                    r.stolen_bases += 1
+            outs_this = baserunning(r, bases, outs_this, rng)
+            if outs_this >= 3:
+                break
             if rng.random() < hook.mid_removal_p(
                     r.pitches, r.runs, sum(bases), inning_damage):
                 return _leave(r, bases, outs_this, rng)

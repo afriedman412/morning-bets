@@ -452,3 +452,75 @@ def arsenal_mults(starter_arsenal, batter_names, arsenals, season=None,
         out[nm] = {"contact": min(max(c, 0.80), 1.25),
                    "k": min(max(k, 0.80), 1.25)}
     return out
+
+
+# ── bullpens ───────────────────────────────────────────────────────────
+#
+# WHY PER-CLUB AND PER-ARM, rather than one league-average reliever.
+#
+# `f5.relief_rates()` collapses the entire relief population into a single
+# set of rates and uses it for every leftover out. That is a defensible stub
+# for first-five, where relief appears in maybe a quarter of sides and
+# usually for under an inning. It is badly wrong for a full game, where the
+# bullpen throws roughly 40% of the innings EVERY time.
+#
+# The reason is variance, not level. A league-average arm every night makes
+# the run distribution smooth, and the model's measured defect is already
+# that its run distribution is COMPRESSED — too many shutouts and too few
+# crooked numbers at the same time. Bullpens are the largest single source
+# of game-to-game variance in run scoring: a club's best reliever and its
+# mop-up man are not the same pitcher, and which one appears depends on the
+# score. Averaging them away destroys exactly the spread that is missing.
+#
+# The per-arm rates were already being computed and then thrown away.
+
+_PEN_Q = """
+select p.player_name name, p.team team,
+       sum(p.outs_recorded) o, sum(p.h) h, sum(p.bb) bb,
+       sum(p.k) k, sum(p.hr) hr, count(*) apps
+from mlb_pitching p join games g on g.game_id = p.game_id
+where g.sport = 'mlb' and g.status = 'Final' and p.is_starter = 0 {where}
+group by p.player_name, p.team
+"""
+
+#: An arm needs this many appearances before it is a bullpen member rather
+#: than a position player mopping up a blowout or a starter's one relief
+#: outing. Low, because carrying the fringe arms is the point — they are
+#: where the bad innings come from.
+MIN_PEN_APPS = 5
+
+
+def bullpens(lg: dict, season: int | None = None, before: str | None = None,
+             conn=None) -> dict[str, list[dict]]:
+    """{team: [reliever rates, most-used first]}.
+
+    Each arm carries `apps`, which is the sampling weight — a leverage
+    reliever appears far more often than the twelfth man, and drawing
+    uniformly would hand every club a bullpen made mostly of its worst
+    pitchers.
+    """
+    def _run(c):
+        return c.execute(_PEN_Q.format(where=_where(season, before))).fetchall()
+
+    rows = _run(conn) if conn is not None else _with(_run)
+    out: dict[str, list[dict]] = {}
+    for r in rows:
+        bf = (r["o"] or 0) + (r["h"] or 0) + (r["bb"] or 0)
+        if bf < 1 or (r["apps"] or 0) < MIN_PEN_APPS:
+            continue
+        bip = bf - (r["k"] or 0) - (r["bb"] or 0) - (r["hr"] or 0)
+        out.setdefault((r["team"] or "").upper(), []).append({
+            "name": r["name"],
+            "pa": bf,
+            "apps": r["apps"],
+            "k_pct": _shrink((r["k"] or 0) / bf, lg["k_pct"], bf, "k_pct"),
+            "bb_pct": _shrink((r["bb"] or 0) / bf, lg["bb_pct"], bf,
+                              "bb_pct"),
+            "hr_pct": _shrink((r["hr"] or 0) / bf, lg["hr_pct"], bf,
+                              "hr_pct"),
+            "babip": _shrink((((r["h"] or 0) - (r["hr"] or 0)) / bip)
+                             if bip > 0 else None, lg["babip"], bip, "babip"),
+        })
+    for arms in out.values():
+        arms.sort(key=lambda a: -a["apps"])
+    return out
