@@ -16,20 +16,33 @@ market is built scores AUC 0.537 against actual results, which is nothing.
 The market price *is* the consensus construction, so reproducing it well
 buys nothing.
 
-The current goal is narrower and better posed: **validate the lines that are
-actually offered.** Assemble the evidence deterministically, compare it to
-each posted price, and surface only disagreements that survive resampling.
-Most flags will be small samples being loud, and a meaningful share will be
-our own bugs — which is how most of this system's defects were found.
+What replaced it is a plate-appearance SIMULATOR (`sim.py`) that prices a
+start from the pitcher's rates, the specific nine he faces and a fitted
+removal hook. It is calibrated to within 2% on every per-start rate, and
+what it is worth has been measured against real Kalshi prices rather than
+argued about:
 
-The two are only loosely joined today. **Snapshots are NOT yet wired into
-the personas**, so `make panel` / `make recommend` still use the old blob.
-Closing that gap is the main outstanding piece of work.
+  * Against the CLOSING price on strikeouts it adds NOTHING (t = -0.15).
+  * Against the OPENING price it adds a lot (+32.9%, 73.2% direction).
+  * On FIRST FIVE INNINGS totals it beat a settled market on realised
+    outcomes — 0.1890 Brier against Kalshi's 0.1919. The only time anything
+    here has done that.
+
+The generalisation that came out of two days of measurement, and the single
+most useful line in these docs: **fit the settlement value, not the upstream
+proxy.** Every feature imported as known baseball (handedness, park,
+day/night, bullpen, arsenal) measured zero. Everything fitted as a residual
+against the model's own error helped. And the quantity you tune against
+decides what you get: `calibrate.loss()` targets the outs distribution,
+which nobody bets, and outs is exactly where the model earns nothing.
+
+The two systems are only loosely joined. **Snapshots are NOT wired into the
+personas**, so `make panel` / `make recommend` still use the old blob.
 
 **Before touching the context layer, read `NOTES-context-layer.md`.** It
-carries the live debugging state: the one known-broken flag rule, a
-half-applied fix, every constant that was invented rather than derived, and
-a list of findings that would waste a day if re-investigated.
+opens with the three findings that should drive what you do next, then the
+measured negatives — six features that cost real time and returned nothing,
+recorded so nobody re-runs them.
 
 ## Commands
 
@@ -53,13 +66,17 @@ Run everything through the Makefile's Python virtualenv (`venv/bin/python`).
 - `venv/bin/python -m src.context.movement [DATE]` — is each capper's quoted number still on the board.
 - `venv/bin/python -m src.context.gamestate [DATE]` — which games are safe to price.
 - `venv/bin/python -m src.context.sources.<name>` — every source module has a demo main.
+- `venv/bin/python -m src.context.quote "Name" k under 4.5 +102` — price ONE bet: your book, Kalshi's mid AND ask, the markup in cents, our number as advisory.
+- `venv/bin/python -m src.context.price [DATE]` — price the whole slate against Kalshi; declines openers and thin-sample arms out loud.
+- `venv/bin/python -m src.context.f5` / `... f5_market [DATE]` — first-five simulation, and its open-vs-close test.
+- `venv/bin/python -m src.context.versus_market` — the same test for K props.
 - `venv/bin/python -m src.context.calibrate` — replay real starts, compare the simulated distribution to what happened.
 - `... calibrate --reliability k|outs|all` — does a simulated 60% win 60% of the time? Pooled across starts, bucketed by what the model said. The check that matters for pricing.
 - `... calibrate --tune` — coordinate descent on the hook against the observed hazard curve.
 - `... calibrate --patience` / `--leash` — fit club and pitcher removal offsets as RESIDUALS. Order matters: club first, pitcher against the remainder, or the manager gets counted twice.
 - `... calibrate --holdout YYYY-MM-DD` — refit on the training window only, score on unseen starts.
 - `venv/bin/python -m src.context.sources.starters --backfill` — ground truth for who started. `grading.py` sets this going forward; the backfill is for history.
-- `make test` / `make test ARGS=sim` — 107 offline checks, ~40s.
+- `make test` / `make test ARGS=sim` — 140 offline checks, ~60s.
 
 Tests ship with the module, not afterwards. `tests/run.py` collects every
 `check_*` — no pytest, no network. **Verify a new check by mutation:**
@@ -141,6 +158,11 @@ src/context/
   estimate.py      deterministic estimator + bootstrap resilience
   sim.py           plate-appearance simulator; log5 + base-out + fitted hook
   calibrate.py     replays real starts; tunes the hook; reliability + Brier
+  f5.py            first five innings: both starters + relief -> run totals
+  f5_market.py     F5 against Kalshi's settled board, open vs close
+  versus_market.py the same test for player props
+  price.py         prices a whole slate against Kalshi
+  quote.py         prices ONE bet you are looking at
   movement.py      per-bet: is the capper's quoted number still on the board
   gamestate.py     has this game started (guards every live-price fetch)
   scan.py          scans every offered line for robust disagreement
@@ -159,12 +181,26 @@ is either enormous or noise.
 the specific nine he faces, a base-out state machine, and a hook fitted to
 the league's own removal behaviour. Offline, no API key, ~15k starts/sec.
 
-**It works for strikeouts and does not yet work for outs.** Measured on
-1,776 rotation starts, Brier against the base rate: K lines +13.6% to
-+19.0%; outs lines +1.2% to +2.9%. That split is the model telling the truth
-about itself — K is driven by rate, which it models well, and outs are
-driven by the hook, which is fitted only to marginals because the local
-cache has no game state at removal.
+**What it is worth, measured against real prices.** Against Kalshi's
+CLOSING price the strikeout model adds nothing (blend weight 0.00,
+t = −0.15 over 1,220 settled contracts). Against the OPENING price it adds a
+lot: 32.9% better at predicting the close, 73.2% direction accuracy, +3.7
+cents on five-cent disagreements. So its value is being EARLY, and realising
+that means betting near the open where books are thinnest.
+
+**First five innings is the lead, and it beat a settled market.** On 455
+settled F5-total contracts our number scored 0.1890 Brier against Kalshi's
+close at 0.1919 — the only time anything here has beaten a settled price on
+realised outcomes. Unconfirmed at that sample; a 41-date run was in flight.
+
+**Outs is the dead half.** CLV z = 1.3 against K's 43.5, because outs ARE
+the hook — a manager decision the model reproduces only in aggregate.
+
+The generalisation, and the most useful thing in these notes: **fit the
+settlement value, not the upstream proxy.** `calibrate.loss()` targets the
+hazard curve and outs distribution, which nobody bets, and that is the best
+explanation for why the outs machinery calibrates beautifully and earns
+nothing while F5 — an actual settled quantity — does better.
 
 **Read `NOTES-context-layer.md` before changing any of this.** It carries
 the measured calibration tables, which constants are fitted versus guessed,

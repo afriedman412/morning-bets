@@ -66,10 +66,11 @@ def collect(dates, n_sims=400, seed=0, verbose=True) -> list[dict]:
         games = _games(d)
         if not games:
             continue
+        # Rates frozen strictly before the date; the starts scored are the
+        # ones ON it. `rates_before` is what keeps those separate — tying
+        # them together is what makes an "out-of-sample" test quietly
+        # in-sample.
         cal._CASES.clear()
-        cases = cal.build_cases(before=d, rates_before=d)
-        # rates frozen before the date; starts are today's, so rebuild
-        # the per-game sides from the slate itself
         sides = defaultdict(list)
         for s, p, l in cal.build_cases(since=d, rates_before=d):
             if s["date"] == d:

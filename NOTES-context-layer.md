@@ -6,7 +6,74 @@ measured, what is guessed, and what would waste a day if re-investigated.
 
 ---
 
-## THE HEADLINE (2026-08-23): we lose to the close, we beat the open
+## READ THIS FIRST (2026-08-23, end of day two)
+
+Three findings, in descending order of how much they should change what you
+do next. Everything below this section is older and partly superseded.
+
+### 1. FIRST FIVE INNINGS IS THE LEAD. It beat a settled market.
+
+On 455 settled Kalshi F5-total contracts across 8 dates:
+
+| | Brier | vs base rate |
+|---|---|---|
+| Kalshi close | 0.1919 | +18.2% |
+| Kalshi open | 0.1932 | +17.6% |
+| **our F5 sim** | **0.1890** | **+19.4%** |
+
+**That is the first time anything in this project has beaten a settled
+market price on realised outcomes.** On strikeouts we never did — we scored
+35.8% against the market's 37.6% and only ever won against the OPEN.
+
+CLV on the same set: corr +0.369 against a shuffled control of −0.177,
+z +17.0, blend +17.9% at lambda 0.25. Weaker than K (z 43.5, +32.9%) but
+nowhere near the outs null (z 1.3).
+
+**Treat the Brier win as unconfirmed until the full history lands.** 455
+contracts on a 62.4% base rate is thin, and a 1.2-point skill edge is
+exactly the sort of thing that evaporates with more data. A run over all 41
+usable dates / 3,941 contracts was in flight at the end of the session —
+`venv/bin/python -m src.context.f5_market` with the dates from
+`/tmp/f5_dates.json`, results to `/tmp/f5_rows.json`.
+
+One thing to distrust either way: 5-cent-plus disagreements called direction
+only 55.6% of the time against K's 73.2%. If that holds, the F5 edge is
+DIFFUSE — spread thinly over many contracts rather than concentrated in
+spots you can identify — which is much harder to trade than K's pattern even
+with a better aggregate number.
+
+**Why F5 and not the full game.** The full nine is ~40% bullpen and every
+bullpen signal tested came back dead. 75% of starts cover all five innings,
+so the removal decision usually never enters. And F5 is a SETTLEMENT VALUE
+rather than an upstream proxy, which is the whole point — see finding 3.
+
+### 2. The K edge is real, robust, and only against the OPEN
+
+Measured twice, before and after a substantial model overhaul, and it did
+not move: corr +0.586, z +43.5 against a shuffled −0.270, blend +32.9%,
+direction 73.2%, +3.7 cents on 5-cent disagreements. Against the CLOSE it is
+exactly zero (blend weight 0.00, t = −0.15).
+
+An edge that survives changing the walk baseline 8%, adding two mechanisms,
+and refitting the hook and all 176 leashes is not a parameterisation
+artifact. But realising it means betting near the open, where books are
+thinnest — execution is the binding constraint, not modelling.
+
+### 3. Fit the settlement value, not the upstream proxy
+
+`calibrate.loss()` targets the hazard curve, boundary share and outs
+distribution — quantities chosen because they were measurable, not because
+anyone bets them. That is why the outs machinery calibrated beautifully and
+produced no edge, and it is the best available explanation for why F5, which
+IS the settled quantity, does better.
+
+**Nothing in the fitted objective currently knows what a settled bet looks
+like.** Adding an F5 term to `loss()` is the obvious next move if the full
+history holds up.
+
+---
+
+## THE EARLIER HEADLINE (superseded by the above): we lose to the close, we beat the open
 
 Corrects the conclusion recorded below it. Both are true and they are not
 in conflict.
@@ -56,6 +123,59 @@ now the binding question rather than modelling.
 
 Open follow-ups: does it hold on outs as well as K; does it hold on dates
 outside 2026-08-14..21; can you actually get filled near the open.
+
+---
+
+## The day-two recalibration (all of this is now in the model)
+
+The rate model was wrong in four ways and all four are fixed. Recorded
+because each was found by a different route and two of them I had
+explicitly cleared earlier.
+
+**The league baseline was the wrong population.** log5 returns the league
+value when batter and pitcher are both average, so the baseline is the
+simulator's floor — and it was the whole pitcher pool on the BATTING
+denominator (BB 0.0886) while the simulator only ever simulates rotation
+starters (BB 0.0784). Every start was pulled toward a walkier population.
+Baselines now come from `sim._starter_league`; the BATTER rates are scaled
+onto that footing via `batter_scale`. Scaling the pitchers instead was tried
+first and made walks WORSE (6.3% → 8.5%): their denominator was never the
+problem, the reference was.
+
+**Successful steals were missing** while caught stealing was not. For half a
+day the model took every downside of baserunning and none of the upside —
+1,301 steals in the data against ~346 caught.
+
+**Hit by pitch was missing entirely.** ~1.1% of plate appearances. Its
+absence made the run target UNREACHABLE rather than merely missed: runs per
+hit-or-walk is measured in a world that also has hit batsmen putting men on,
+and their runs land in the real numerator and never in ours. The giveaway
+was that no plausible advancement rate closed the gap.
+
+**Sacrifices and HBP are drawn off the top**, so everything after is
+conditional on neither firing and needs rescaling by 1/(1 − SAC − HBP).
+Without it every marginal rate came out light by exactly that much — K/9
+8.16 against a real 8.44, on the one stat where the edge lives.
+
+Advancement was then refitted, IN THAT ORDER, once hits, walks and batters
+faced each landed inside 2%. Fitting it earlier buries the baserunner error
+inside the run total, which the first attempt did.
+
+Result — every per-start rate inside 2%:
+
+    outs 16.08 vs 16.07    K 4.97 vs 5.03    walks 1.76 vs 1.73
+    hits 4.86 vs 4.95      earned runs 2.33 vs 2.38    K/9 8.35 vs 8.44
+
+**Two diagnostics worth reusing.** When no plausible parameter value reaches
+the target, the mechanism is missing rather than mistuned. And when a fitted
+constant lands far from its published reference, it is absorbing something —
+the advancement rates sit ~30% high and are standing in for wild pitches,
+passed balls and advancement on errors.
+
+**One regression, not chased:** the outs distribution widened with the
+softer pitch curve (SD 4.11 against a real 3.81, P(under 15) 29.3% vs
+25.7%). `loss()` does not weight spread, so the tuner traded it away. It
+matters little for K and would matter for an outs bet.
 
 ---
 
