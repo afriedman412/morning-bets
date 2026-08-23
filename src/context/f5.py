@@ -39,11 +39,6 @@ from mlb_pitching p join games g on g.game_id = p.game_id
 where g.sport = 'mlb' and g.status = 'Final' and p.is_starter = 0
 """
 
-#: Share of runners stranded by a departing starter who go on to score.
-#: The league figure is about a third. Ignoring them left relief supplying
-#: 0.184 runs a side against the 0.344 the data requires — roughly half.
-INHERITED_SCORE_RATE = 0.33
-
 _RELIEF: sim.PitcherRates | None = None
 
 
@@ -93,12 +88,10 @@ def _side_runs(starter, lineup, lg, hook, rng, park, relief):
     """Runs a pitching side allows through five, starter plus relief."""
     r = sim.simulate_start(starter, lineup, lg, hook, rng, park=park,
                            max_innings=5)
+    # `runs_f5` already contains the men he stranded — sim.simulate_start
+    # credits them to him, which is how earned runs actually work. Adding
+    # them again here would double-count.
     runs = r.runs_f5
-    # Men he left on base. Charged to him in reality, and part of the F5
-    # score either way, so they cannot simply be stranded here.
-    if r.left_on_base and not r.covered_f5:
-        runs += sum(1 for _ in range(r.left_on_base)
-                    if rng.random() < INHERITED_SCORE_RATE)
     left = 15 - r.outs_f5
     if left > 0:
         # Whoever finishes the fifth. Simulated as its own short outing with

@@ -606,24 +606,61 @@ def for_pitcher(base: Hook, avg_pitches: float | None,
 # nine matches the league's actual 4.63 — which is a real test, not a
 # reassurance, because nothing here was tuned to hit it.
 
-#: Extra-base advancement. FITTED to runs-per-baserunner (0.3530 against a
-#: target 0.3516) AFTER the baserunner count itself was made correct — order
-#: matters, because tuning these while the sim produced 4% too many runners
-#: just buries one error inside another, which is what the first attempt did.
+#: Extra-base advancement, at the PUBLISHED league references — deliberately
+#: unfitted right now.
 #:
-#: They sit roughly 30% above the public references (first-to-third on a
-#: single ~0.28, scoring from second ~0.60, from first on a double ~0.45),
-#: so they ARE absorbing something. The likely residue is mechanisms still
-#: absent: wild pitches, passed balls, and advancement on errors — all of
-#: which move runners without a hit. Prefer adding those to raising these
-#: further.
-FIRST_TO_THIRD_ON_1B = 0.38
-SECOND_SCORES_ON_1B = 0.72
-FIRST_SCORES_ON_2B = 0.60
+#: They were briefly fitted up to 0.38/0.72/0.60/0.30 to close a run gap, and
+#: that inflation turned out to be standing in for two absent mechanisms:
+#: runners a departing starter strands (58% of the gap) and wild
+#: pitches/passed balls. Both now exist, so the crutch is not needed — and
+#: with them in place even these published values run about 4% HOT on runs
+#: per baserunner, which says the additions slightly overshoot (WP+PB comes
+#: out at 0.273 a start against a published ~0.24).
+#:
+#: Left at the references rather than re-fitted because the whole fitting
+#: objective is being rebuilt around F5 outcomes. Fitting them one more time
+#: against runs-per-baserunner — an upstream proxy — would be repeating the
+#: mistake the rebuild exists to correct. See NOTES.
+FIRST_TO_THIRD_ON_1B = 0.28
+SECOND_SCORES_ON_1B = 0.60
+FIRST_SCORES_ON_2B = 0.45
 #: A ball-in-play out that is not a double play still moves runners some of
 #: the time — the ground out to the right side, the sacrifice fly. Leaving
 #: this at zero strands runners the model should have scored.
-RUNNER_ADVANCES_ON_OUT = 0.30
+RUNNER_ADVANCES_ON_OUT = 0.25
+
+#: Runners a departing starter leaves on who go on to score. They are
+#: CHARGED TO HIM as earned runs, so `r.runs` has to include them or the
+#: calibration target is unreachable and the advancement rates get inflated
+#: to cover it. Measured: 38.3% of starts end mid-inning stranding 0.97
+#: runners each — 0.122 earned runs a start, 58% of the gap the advancement
+#: refit was closing.
+INHERITED_SCORE_RATE = 0.33
+
+#: Wild pitches and passed balls, per plate appearance with a runner
+#: aboard. Published rates are ~0.35 WP and ~0.08 PB per team-game over ~38
+#: plate appearances, and they only matter with someone on. They move every
+#: runner up a base with no hit and no out, which is one of the mechanisms
+#: the advancement rates have been standing in for.
+WP_PB_RATE = 0.028
+
+
+def _leave(r: "StartResult", bases: list, outs_this: int,
+           rng: random.Random) -> "StartResult":
+    """End an outing mid-inning, with the bookkeeping every exit needs.
+
+    Two branches used to do this separately and one of them did neither —
+    the hard-pitch-cap exit returned without recording the runners left on
+    or the F5 line, so a cap-driven exit before the fifth reported zero runs
+    through five no matter how many it had allowed.
+    """
+    r.pulled_mid_inning = True
+    r.left_on_base, r.outs_when_pulled = sum(bases), outs_this
+    r.runs += sum(1 for _ in range(r.left_on_base)
+                  if rng.random() < INHERITED_SCORE_RATE)
+    if not r.covered_f5:
+        r.runs_f5, r.outs_f5 = r.runs, r.outs
+    return r
 
 
 def _advance(bases: list[bool], outcome: str, rng: random.Random) -> int:
@@ -708,6 +745,7 @@ class StartResult:
     #: relief scoring by about half.
     left_on_base: int = 0
     outs_when_pulled: int = 0
+    wp_pb: int = 0
 
 
 def simulate_start(
@@ -786,6 +824,11 @@ def simulate_start(
             # A runner caught stealing is an out with no batter attached,
             # and it counts toward the pitcher's innings pitched — which is
             # why leaving it out cost roughly 0.10 outs a start.
+            if any(bases) and rng.random() < WP_PB_RATE:
+                if bases[2]:
+                    r.runs += 1
+                bases[:] = [False, bases[0], bases[1]]
+                r.wp_pb += 1
             if bases[0] and not bases[1]:
                 roll = rng.random()
                 if roll < CS_RATE:
@@ -801,14 +844,13 @@ def simulate_start(
                     r.stolen_bases += 1
             if rng.random() < hook.mid_removal_p(
                     r.pitches, r.runs, sum(bases), inning_damage):
-                r.pulled_mid_inning = True
-                r.left_on_base, r.outs_when_pulled = sum(bases), outs_this
-                if not r.covered_f5:
-                    r.runs_f5, r.outs_f5 = r.runs, r.outs
-                return r
+                return _leave(r, bases, outs_this, rng)
             if r.pitches >= hook.hard_pitch_cap:
-                r.pulled_mid_inning = True
-                return r
+                # Same bookkeeping as any other mid-inning exit. This branch
+                # used to `return` without recording the runners left on OR
+                # the F5 line, so a hard-cap exit before the fifth reported
+                # zero runs through five however many it had allowed.
+                return _leave(r, bases, outs_this, rng)
 
         r.innings_completed = inning
         if inning == 5:
