@@ -237,6 +237,17 @@ def init() -> None:
                 "ALTER TABLE bets ADD COLUMN period TEXT "
                 "NOT NULL DEFAULT 'full'"
             )
+        # Ground truth for who started, from the boxscore. The local cache
+        # otherwise carries no such flag, so callers were inferring it as
+        # "most outs on that team that game" — right 91.7% of the time, and
+        # wrong precisely on the short starts, which truncates the left tail
+        # of every distribution built on it. NULL means "not yet checked",
+        # 0 means "checked, did not start"; see context/sources/starters.py.
+        pcols = {r[1] for r in conn.execute("PRAGMA table_info(mlb_pitching)")}
+        if "is_starter" not in pcols:
+            conn.execute(
+                "ALTER TABLE mlb_pitching ADD COLUMN is_starter INTEGER")
+
         if "stated_line" not in cols:
             conn.execute("ALTER TABLE bets ADD COLUMN stated_line REAL")
             # Backfill history: before the prop backfill existed, `line` was

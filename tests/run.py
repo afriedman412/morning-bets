@@ -18,7 +18,8 @@ import importlib
 import sys
 import traceback
 
-MODULES = ["tests.test_pure", "tests.test_regressions"]
+MODULES = ["tests.test_pure", "tests.test_regressions",
+           "tests.test_sim"]
 
 
 def main(argv: list[str]) -> int:

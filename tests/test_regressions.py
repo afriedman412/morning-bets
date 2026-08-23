@@ -306,3 +306,55 @@ def check_no_orphan_or_undeclared_contract_fields():
             for k in c.all_fields()}
     assert not (used - declared), f"undeclared: {used - declared}"
     assert not (declared - used), f"orphaned: {declared - used}"
+
+
+def check_starter_query_prefers_ground_truth_over_the_outs_heuristic():
+    """The local boxscore cache had no starter flag, so `_STARTS_Q` inferred
+    one as "most outs on that team that game". Measured against 2,012
+    boxscores that is wrong 8.6% of the time, and every miss is a starter
+    knocked out early whose long reliever passed him — Tyler Gilbert at two
+    outs credited to David Sandlin, Zack Wheeler at six credited to Kyle
+    Bradish.
+
+    The bias runs one way and it matters: P(under 9 outs) read 2.9% off the
+    heuristic against a true 8.6%. A hook fitted to that has been taught
+    that starters do not get blown out, which is exactly the region an under
+    lives in.
+
+    This pins the SQL shape rather than the data, so it runs offline: when
+    a game has been checked, only the flagged starter may be selected.
+    """
+    from src.context import calibrate
+    q = calibrate._STARTS_Q
+    assert "is_starter" in q, "starter query no longer consults ground truth"
+    assert "has_truth" in q, \
+        "no per-game guard — the heuristic could override a checked game"
+    assert "has_truth = 1 and is_starter = 1" in q, \
+        "checked games must select the flagged starter, not the outs leader"
+    # The old `o >= 3` floor existed only because the heuristic could never
+    # return a shorter start. With ground truth a two-out start is real.
+    assert "o >= 1" in q, "left tail is being truncated again"
+
+
+def check_openers_are_excluded_from_the_modelled_population():
+    """Openers are genuine starters by the boxscore's definition — 101 of
+    the 172 starts the old heuristic missed were openers averaging 4.5 outs.
+    They belong in the data and NOT in the population being modelled: no
+    book offers an outs line on a bulk reliever, and their outings drag the
+    fitted hook toward a leash nobody in the modelled set is on."""
+    from src.context import calibrate
+    assert calibrate.ROTATION_MIN_GS >= 3, calibrate.ROTATION_MIN_GS
+    assert "having sum(case when is_starter = 1 then 1 else 0 end) >= {gs}" \
+        in calibrate._ROTATION_JOIN
+
+
+def check_grading_records_who_started():
+    """If `cache_mlb_box` stops writing is_starter, the backfill silently
+    goes stale and every new game falls back to the broken heuristic."""
+    import inspect
+
+    from src import grading
+    src = inspect.getsource(grading.mlb_boxscore)
+    assert '"is_starter"' in src, "boxscore parser dropped is_starter"
+    assert "gamesStarted" in src, \
+        "is_starter is no longer sourced from the API's own flag"

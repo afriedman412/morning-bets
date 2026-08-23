@@ -53,7 +53,18 @@ Run everything through the Makefile's Python virtualenv (`venv/bin/python`).
 - `venv/bin/python -m src.context.movement [DATE]` — is each capper's quoted number still on the board.
 - `venv/bin/python -m src.context.gamestate [DATE]` — which games are safe to price.
 - `venv/bin/python -m src.context.sources.<name>` — every source module has a demo main.
-- `make test` / `make test ARGS=regressions` — 42 offline checks, ~1s.
+- `venv/bin/python -m src.context.calibrate` — replay real starts, compare the simulated distribution to what happened.
+- `... calibrate --reliability k|outs|all` — does a simulated 60% win 60% of the time? Pooled across starts, bucketed by what the model said. The check that matters for pricing.
+- `... calibrate --tune` — coordinate descent on the hook against the observed hazard curve.
+- `... calibrate --patience` / `--leash` — fit club and pitcher removal offsets as RESIDUALS. Order matters: club first, pitcher against the remainder, or the manager gets counted twice.
+- `... calibrate --holdout YYYY-MM-DD` — refit on the training window only, score on unseen starts.
+- `venv/bin/python -m src.context.sources.starters --backfill` — ground truth for who started. `grading.py` sets this going forward; the backfill is for history.
+- `make test` / `make test ARGS=sim` — 107 offline checks, ~40s.
+
+Tests ship with the module, not afterwards. `tests/run.py` collects every
+`check_*` — no pytest, no network. **Verify a new check by mutation:**
+reintroduce the bug it guards and confirm that exact check fails. A test
+that guards nothing looks identical to one that guards something.
 
 `make test` runs `tests/run.py`, not pytest — pytest is not installed and is
 not a dependency. The `lint` target still references tooling that isn't there.
@@ -128,11 +139,36 @@ src/context/
   assemble.py      builds one slate's snapshot; coverage() scores a bet
   snapshot.py      immutable gzipped storage + per-game market path
   estimate.py      deterministic estimator + bootstrap resilience
+  sim.py           plate-appearance simulator; log5 + base-out + fitted hook
+  calibrate.py     replays real starts; tunes the hook; reliability + Brier
   movement.py      per-bet: is the capper's quoted number still on the board
   gamestate.py     has this game started (guards every live-price fetch)
   scan.py          scans every offered line for robust disagreement
   sources/         one module per data source, all offline-cacheable
 ```
+
+### The simulator supersedes the estimator (`sim.py`, `calibrate.py`)
+
+`estimate.py` counts how many of a pitcher's last six starts would have won
+a bet. That cannot work and the reason is not fixable by tuning: **six
+starts cannot distinguish a 50% line from a 65% one.** Measured power at
+alpha 0.05 is 8%, rising to 9% at ten starts. Every disagreement it reports
+is either enormous or noise.
+
+`sim.py` replaces the sample with a simulation — log5 matchup rates against
+the specific nine he faces, a base-out state machine, and a hook fitted to
+the league's own removal behaviour. Offline, no API key, ~15k starts/sec.
+
+**It works for strikeouts and does not yet work for outs.** Measured on
+1,776 rotation starts, Brier against the base rate: K lines +13.6% to
++19.0%; outs lines +1.2% to +2.9%. That split is the model telling the truth
+about itself — K is driven by rate, which it models well, and outs are
+driven by the hook, which is fitted only to marginals because the local
+cache has no game state at removal.
+
+**Read `NOTES-context-layer.md` before changing any of this.** It carries
+the measured calibration tables, which constants are fitted versus guessed,
+and the known under-dispersion defect.
 
 **Contracts vs adapters.** `contracts.py` declares WHAT a bet type needs;
 `sources/*` know HOW to fetch it. Keeping them apart is what makes

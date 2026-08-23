@@ -1,18 +1,31 @@
 # Where the context work stands — resume here
 
-Written 2026-08-22 at the end of a long session. This is the debugging
-state, not documentation: what is half-finished, what is measured, what is
-guessed, and what would waste a day if re-investigated.
+Written 2026-08-22, updated the same day after the simulator landed. This is
+the debugging state, not documentation: what is half-finished, what is
+measured, what is guessed, and what would waste a day if re-investigated.
 
 ---
 
-## THE ONE THING TO FIX FIRST
+## THE SITUATION IN ONE PARAGRAPH
 
-`scan.py` flags a line when `our_p - market_p >= MIN_DISAGREEMENT` (0.08).
-**That rule is wrong and produces roughly six spurious flags a slate.**
+`scan.py`'s flag rule is still broken, but **the diagnosis changed and the
+fix is no longer a better threshold.** Six starts cannot distinguish a 50%
+line from a 65% one — measured power at alpha 0.05 is 8%, rising only to 9%
+at ten starts. No threshold repairs that, because the information is not in
+the sample. The answer was a better estimate, and that is what `sim.py` now
+is. Wiring the simulator into the scanner is the outstanding work.
 
-Measured false-flag rate — the chance a sample clears the threshold when the
-market is *exactly right*, pure sampling noise:
+---
+
+## Why the threshold rule cannot be fixed in place
+
+`scan.py` flags when `our_p - market_p >= MIN_DISAGREEMENT` (0.08). Because
+the prior IS the market price, that reduces exactly to *the surplus of
+winning starts over what the market predicts, divided by (n + 4)* — a
+binomial residual test with a constant bar on a quantity whose noise scale
+moves with both `p` and `n`.
+
+False-flag rate when the market is exactly right (pure noise):
 
 | market p | n=6 | n=10 | n=20 |
 |---|---|---|---|
@@ -21,19 +34,116 @@ market is *exactly right*, pure sampling noise:
 | **0.50** | **34%** | **17%** | **25%** |
 | 0.65 | 32% | 26% | 25% |
 
-Two things to take from it:
+Three things to take from it:
 
-1. **More data barely helps.** 25% at n=20. This is not a sample-size
-   problem — a fixed 0.08 threshold is small relative to binomial noise at
-   any realistic n.
+1. **More data barely helps.** The required excess grows linearly in n while
+   binomial noise grows as sqrt(n), so the bar improves at sqrt(n) from a
+   terrible start: 0.65 standard deviations at six starts, 0.71 at ten. You
+   would need ~100 starts to reach a respectable 1.7.
 2. **The tails are the SAFEST region, not the worst.** Noise peaks at
    p=0.5. I claimed the opposite mid-session and was wrong; don't
    reintroduce a "skip tail lines" restriction on that basis.
+3. **An exact tail test would be correctly calibrated and nearly silent.**
+   Its false-flag rate is alpha by construction at every price and n — but
+   its POWER at n=6 is 8% against a 50-vs-65 mispricing. Correct, and
+   useless. This is why the effort went into the simulator instead.
 
-**The fix:** replace the fixed gap test with a tail probability — *how
-unlikely is this sample if the market is exactly right?* The bootstrap is
-already almost computing it. A single constant cannot work because the
-required threshold varies with both `p` and `n`.
+If a threshold rule is ever wanted anyway, use the exact binomial tail, not
+a standard-error z-score: at n=6 and tail prices the normal approximation is
+worst exactly where the scan fires most.
+
+---
+
+## The simulator (`sim.py`) — built and measured
+
+Replaces "count his last six starts" with a plate-appearance simulation:
+log5 matchup rates against the specific nine he faces, a base-out state
+machine, and a fitted hook. No network, no API key, ~15k simulated starts a
+second.
+
+**Measured calibration, K props, 1,776 rotation starts** (in-sample on
+rates; see leakage note):
+
+| line | base | model | bias | Brier vs base rate |
+|---|---|---|---|---|
+| k 3.5 | 70.2% | 70.9% | +0.7% | +14.5% |
+| k 4.5 | 54.1% | 54.7% | +0.6% | +16.8% |
+| k 5.5 | 37.3% | 38.6% | +1.3% | +19.0% |
+| k 6.5 | 24.6% | 25.2% | +0.5% | +18.9% |
+| k 7.5 | 14.8% | 15.3% | +0.5% | +17.3% |
+| k 8.5 | 9.9% | 8.3% | −1.6% | +13.6% |
+
+**Outs is the weak half, and the split is diagnostic:**
+
+| line | base | model | bias | Brier vs base rate |
+|---|---|---|---|---|
+| outs 11.5 | 90.3% | 88.7% | −1.5% | +1.2% |
+| outs 14.5 | 74.6% | 70.3% | −4.3% | +2.9% |
+| outs 15.5 | 54.2% | 50.5% | −3.8% | +4.4% |
+| outs 17.5 | 41.4% | 41.7% | +0.4% | +5.2% |
+| outs 18.5 | 17.5% | 20.1% | +2.6% | +4.2% |
+| outs 20.5 | 12.4% | 12.8% | +0.4% | +3.9% |
+
+K runs +13.6% to +19.0%; outs runs +1.2% to +5.2%. **K is driven by rate,
+which the sim models well. Outs are driven by the hook, which is fitted only
+to marginals** because the local cache has no game state at removal. This is
+the measurement that says play-by-play would buy something — and says it
+would buy it for OUTS specifically, not for K.
+
+Worst single cell: outs 15.5, top bucket, said 60.0% → happened 71.0%.
+The model does not know which starters will be allowed to go deep.
+
+### Out-of-sample, against the estimator it replaces
+
+`versus_estimator("2026-08-01", refit=True)` — rates AND hook offsets
+trained strictly before the cutoff, scored on 445 unseen starts:
+
+| line | sim Brier | est Brier | sim AUC | est AUC |
+|---|---|---|---|---|
+| k 3.5 | +6.3% | −0.7% | 0.656 | 0.592 |
+| k 4.5 | +7.3% | +1.0% | 0.660 | 0.607 |
+| k 5.5 | +8.9% | +5.7% | 0.673 | 0.650 |
+| k 6.5 | +9.8% | +0.1% | 0.708 | 0.672 |
+
+The estimator barely beats quoting the base rate. Refitting the offsets on
+the training window moved the sim by +0.3pt, so the earlier leakage was
+negligible — but `refit=True` is the default now and should stay.
+
+**Known defect: the model is under-dispersed**, and specifically it
+under-rates the top bucket at every line by 5–6 points (said 22.2% →
+happened 28.5% at k 8.5; said 49.8% → 55.2% at k 6.5). Note the direction:
+Monte Carlo noise would push the extremes *toward* the base rate, so the
+true effect is LARGER than the tables show. The model is missing real
+between-start variance. Candidates, untested: batter handedness splits are
+not used (lineups carry only four overall rates), park applies to home runs
+only, and there is no pitcher form/recency term.
+
+Practical consequence: the sim **under-flags** rather than manufacturing
+edges. That is the safe direction, and the opposite failure mode from the
+0.08 rule.
+
+### What is fitted and what is guessed
+
+| thing | status |
+|---|---|
+| league rates, hit mix, BABIP | computed from the local boxscore cache |
+| hook parameters | fitted by `calibrate.tune` against the observed hazard curve, boundary share and threshold rates |
+| club patience | fitted as a RESIDUAL against what the model already predicts — never raw team average, which would double-count rotation quality |
+| pitcher leash | fitted on top of club patience, in that order, shrunk by start count |
+| `PITCH_COST`, `GIDP_RATE`, advancement rates | tuned to reproduce marginals; the boxscore cache has no pitch counts, so these are the least trustworthy numbers in the module |
+
+### Leakage, and what has NOT been shown
+
+Player rates in the reliability tables are season-long, including the games
+being replayed. That is correct for "does the machinery produce the right
+shape" and wrong for "does it predict". `calibrate.versus_estimator(cutoff)`
+does the clean split and compares against the old estimator; run it before
+believing any of the above predicts anything.
+
+**Nothing has been compared against a price yet.** Calibration says the
+probabilities are honest. A perfectly calibrated model that agrees with the
+book everywhere earns nothing. The market comparison is a DEFECT check
+first: if the sim disagrees with Kalshi's whole board, we are broken.
 
 ---
 
@@ -53,6 +163,43 @@ Threaded through:
 `assess()` *has* `bet["american_odds"]` and uses it only afterward in
 `edge()`. Thread it into `estimate_outs`, then **re-run the AUC** — the
 0.537 figure below was computed with the broken prior.
+
+**Lower priority now than it was.** This fixes the estimator the simulator
+is meant to replace. Worth doing only to keep the baseline honest for
+`versus_estimator`, which is exactly the comparison that decides whether the
+simulator earned its keep — so do it before trusting that comparison, and
+not before.
+
+---
+
+## Starter identification — fixed 2026-08-22, keep it fixed
+
+`mlb_pitching` carried no starter flag, so callers inferred one as "most
+outs on that team that game". Measured against 2,012 boxscores that is
+**wrong 8.6% of the time**, and the misses are not random: every one is a
+starter knocked out early whose long reliever passed him. Tyler Gilbert at
+two outs was credited to David Sandlin; Zack Wheeler at six to Kyle Bradish.
+
+The bias runs one way and it is large where it matters:
+
+| | mean outs | P(<12 outs) | P(<9 outs) |
+|---|---|---|---|
+| ground truth | 15.21 | 15.2% | **8.6%** |
+| most-outs heuristic | 15.78 | 11.0% | **2.9%** |
+
+A hook fitted to the heuristic has been taught that starters do not get
+blown out — which is precisely the region an under bet lives in.
+
+Now: `mlb_pitching.is_starter`, backfilled over 1,005 games and set going
+forward by `grading.mlb_boxscore` from the API's own `gamesStarted` field.
+`context/sources/starters.py` holds the backfill and an audit.
+
+**Openers are correctly flagged as starters and are excluded from the
+MODELLED population** via `calibrate.ROTATION_MIN_GS` (5 starts on the
+season). Of the 172 heuristic misses, 101 were openers averaging 4.5 outs
+and 71 were rotation starters knocked out early. The first group belongs in
+the data and not in the model — no book offers an outs line on a bulk
+reliever. The second group belongs in both, and was the thing being lost.
 
 ---
 
@@ -121,14 +268,35 @@ mis-set by looking at what they actually admitted.
 
 ## Not built
 
+- **The simulator is not wired into `scan.py`.** This is the top of the
+  list: the scanner still uses the six-start estimator behind the broken
+  0.08 rule, and the simulator exists precisely to replace both halves.
+- **Nothing has been priced against the market.** Run the sim over Kalshi's
+  whole board and compare. Read it as a defect report first — nearly every
+  large divergence this project has chased turned out to be our own bug.
+- `versus_estimator(cutoff)` is written but its verdict has not been
+  recorded here. Until it has, "the simulator is better" is unproven.
 - Snapshots are **not** wired into the personas — they still get the old
   52k blob plus `web_search`
 - No MCP server
-- Estimator covers `outs` only; `k` and `h_allowed` are more mechanical and
-  should show resilience more clearly if it's real
+- Simulator covers `outs` and `k`. `h_allowed` and earned runs fall out of
+  the same `StartResult` and need only calibration lines and tests.
 - Scan population is Kalshi's board, which is the right unfiltered set —
   earlier evaluations used capper selections and had a 65% base rate, which
   no real market has
+
+## Testing convention
+
+`make test` — 107 checks, ~40s, offline, no pytest. `tests/run.py` collects
+every `check_*`. Three modules: `test_pure.py` (properties),
+`test_regressions.py` (one check per shipped bug), `test_sim.py`
+(simulator invariants).
+
+**Verify a new test by mutation.** Reintroduce the bug it guards and confirm
+that exact check fails. Six mutations were run against `test_sim.py` and all
+six were caught — but the first attempt at one of them mutated the wrong
+line and passed, which is the failure mode to watch: a test that guards
+nothing looks identical to a test that guards something.
 
 ## Gotcha worth remembering
 

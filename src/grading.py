@@ -214,6 +214,15 @@ def mlb_boxscore(game_id: str) -> dict:
                     "bb": pit.get("baseOnBalls", 0),
                     "hr": pit.get("homeRuns", 0),
                     "decision": decision,
+                    # The API's own flag, not an inference. Without it the
+                    # only way to identify a starter from the local cache is
+                    # "most outs on that team", which is wrong 8.6% of the
+                    # time and wrong specifically on short starts — the
+                    # starter knocked out in the second gets passed by the
+                    # long reliever behind him. That truncates the left tail
+                    # of every distribution built on the cache; measured,
+                    # P(under 9 outs) reads 2.9% instead of 8.6%.
+                    "is_starter": 1 if pit.get("gamesStarted") else 0,
                 })
     return {"batting": batting, "pitching": pitching}
 
