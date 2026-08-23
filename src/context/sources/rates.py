@@ -78,17 +78,20 @@ def pitcher_rates(
 ) -> dict[str, dict]:
     """{player_name: rates} for every pitcher with a line on record.
 
-    Batters faced is approximated as outs + hits + walks. The cache carries
-    no HBP and no reached-on-error, so this runs a couple of percent light —
-    the same direction and roughly the same magnitude as the league
-    denominator in `sim.league`, so the ratio the model actually consumes is
-    close to unaffected.
+    Batters faced is approximated as outs + hits + walks — the cache carries
+    no HBP and no reached-on-error. That is the same footing
+    `sim._starter_league` uses for its baselines, so pitcher and league agree
+    and the BATTER rates are the ones converted onto it.
     """
     def _run(c):
         return c.execute(
             _PITCHER_Q.format(where=_where(season, before))).fetchall()
 
     rows = _run(conn) if conn is not None else _with(_run)
+    # These are already per BATTER FACED, which is the footing the league
+    # baselines now use (see sim._starter_league). It is the BATTER rates
+    # that get scaled onto it, not these. Scaling the pitchers was tried
+    # first and made walks worse — their denominator was never the problem.
     out = {}
     for r in rows:
         bf = (r["o"] or 0) + (r["h"] or 0) + (r["bb"] or 0)
@@ -128,17 +131,23 @@ def batter_rates(
         if pa < 1:
             continue
         bip = (r["ab"] or 0) - (r["so"] or 0) - (r["hr"] or 0)
+        # Batters are measured per batting plate appearance; the baselines
+        # are per batter faced by a rotation starter. Put them on that
+        # footing before they meet a pitcher in log5.
+        bs = lg.get("batter_scale") or {}
         out[r["name"]] = {
             "name": r["name"],
             "pa": pa,
             "games": r["games"],
-            "k_pct": _shrink((r["so"] or 0) / pa, lg["k_pct"], pa, "k_pct"),
-            "bb_pct": _shrink((r["bb"] or 0) / pa, lg["bb_pct"], pa,
-                              "bb_pct"),
-            "hr_pct": _shrink((r["hr"] or 0) / pa, lg["hr_pct"], pa,
-                              "hr_pct"),
+            "k_pct": _shrink((r["so"] or 0) / pa * bs.get("k_pct", 1.0),
+                             lg["k_pct"], pa, "k_pct"),
+            "bb_pct": _shrink((r["bb"] or 0) / pa * bs.get("bb_pct", 1.0),
+                              lg["bb_pct"], pa, "bb_pct"),
+            "hr_pct": _shrink((r["hr"] or 0) / pa * bs.get("hr_pct", 1.0),
+                              lg["hr_pct"], pa, "hr_pct"),
             "babip": _shrink(
-                (((r["h"] or 0) - (r["hr"] or 0)) / bip) if bip > 0 else None,
+                ((((r["h"] or 0) - (r["hr"] or 0)) / bip)
+                 * bs.get("babip", 1.0)) if bip > 0 else None,
                 lg["babip"], max(bip, 0), "babip"),
         }
     return out

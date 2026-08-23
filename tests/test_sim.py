@@ -17,24 +17,37 @@ import random
 from src.context import sim
 from src.context.sources import rates as rate_src
 
+# Mirrors what `sim.league()` returns: baselines from ROTATION STARTERS on
+# the pitching denominator, not the whole pitcher pool on the batting one.
+# When this drifted from the real thing it failed a check for the right
+# reason — the fixture still carried BB 0.089 (the pool) after the code had
+# moved to 0.078 (rotation starters), so the simulated walk rate was high
+# and outs per batter came out low.
 LG = {
     "season": 2026, "pa": 100000,
-    "k_pct": 0.226, "bb_pct": 0.089, "hr_pct": 0.033, "babip": 0.294,
-    "hit_mix": {"1b": 0.764, "2b": 0.216, "3b": 0.020},
+    "k_pct": 0.2176, "bb_pct": 0.0784,
+    "hr_pct": 0.0336, "babip": 0.2792,
+    "hit_mix": {"1b": 0.763, "2b": 0.217,
+                "3b": 0.020},
     "runs_per_9": 4.63,
 }
 
 
+# "Neutral" must mean EQUAL TO THE BASELINE, or log5's defining identity —
+# average batter against average pitcher returns the league rate — stops
+# holding and half these checks measure the drift instead of the property.
 def _pitcher(**kw):
-    return sim.PitcherRates(**{"name": "P", "k_pct": 0.226, "bb_pct": 0.089,
-                               "hr_pct": 0.033, "babip": 0.294, "pa": 600,
-                               **kw})
+    return sim.PitcherRates(**{"name": "P", "k_pct": LG["k_pct"],
+                               "bb_pct": LG["bb_pct"],
+                               "hr_pct": LG["hr_pct"],
+                               "babip": LG["babip"], "pa": 600, **kw})
 
 
 def _lineup(n=9, **kw):
-    return [sim.BatterRates(**{"name": f"B{i}", "k_pct": 0.226,
-                               "bb_pct": 0.089, "hr_pct": 0.033,
-                               "babip": 0.294, "pa": 500, **kw})
+    return [sim.BatterRates(**{"name": f"B{i}", "k_pct": LG["k_pct"],
+                               "bb_pct": LG["bb_pct"],
+                               "hr_pct": LG["hr_pct"],
+                               "babip": LG["babip"], "pa": 500, **kw})
             for i in range(n)]
 
 
@@ -92,7 +105,7 @@ def check_pa_outcomes_are_all_known_constants():
     for _ in range(3000):
         seen.add(sim.pa_outcome(_lineup(1)[0], _pitcher(), LG, rng))
     assert seen <= {sim.K, sim.BB, sim.HR, sim.B1, sim.B2, sim.B3, sim.OUT,
-                    sim.SAC}, seen
+                    sim.SAC, sim.HBP}, seen
 
 
 def check_pa_reproduces_league_rates():
@@ -972,11 +985,18 @@ def check_caught_stealing_records_an_out_with_no_batter():
 
 
 def check_outs_per_batter_is_close_to_the_league():
-    """The headline number this fix exists to move. League is 0.7094; the
-    simulator read 0.7017 before sacrifices and caught stealing existed."""
+    """The headline number the sacrifice/CS fix exists to move. League is
+    0.7094; the simulator read 0.7017 before those outcomes existed.
+
+    Denominator must be outs + h + bb, NOT `batters`. The boxscore cache has
+    no hit-by-pitch column so the league figure is computed that way, and
+    once HBP was added to the simulation `batters` included plate
+    appearances the league number excludes — which made this check fail at
+    0.6974 while the comparable figure was 0.708, exactly right.
+    """
     res = sim.simulate(_pitcher(), _lineup(), LG, n=4000, seed=73)
-    bf = sum(r.batters for r in res)
     o = sum(r.outs for r in res)
+    bf = o + sum(r.h + r.bb for r in res)
     assert 0.700 < o / bf < 0.716, o / bf
 
 
@@ -1037,3 +1057,58 @@ def check_versus_market_records_the_open():
     src = inspect.getsource(vm.collect)
     assert '"open": opened' in src
     assert 'pp.get("open_prob")' in src
+
+
+# ── the mechanisms that close the run gap ──────────────────────────────
+def check_steals_exist_alongside_caught_stealing():
+    """Adding CS without SB was a real bug that shipped for half a day: the
+    simulator took every downside of baserunning and none of the upside, and
+    runs per baserunner read 10% light while the baserunner COUNT was
+    correct. The data has 1,301 steals against ~346 caught."""
+    assert sim.SB_RATE > sim.CS_RATE * 2, (sim.SB_RATE, sim.CS_RATE)
+    res = sim.simulate(_pitcher(), _lineup(), LG, n=2500, seed=81)
+    sb = sum(r.stolen_bases for r in res) / len(res)
+    cs = sum(r.caught_stealing for r in res) / len(res)
+    assert sb > cs, (sb, cs)
+
+
+def check_hit_by_pitch_is_tracked_apart_from_walks():
+    """HBP must not be folded into `bb`, or the walk total stops matching
+    the boxscore — which is the number the calibration checks."""
+    res = sim.simulate(_pitcher(), _lineup(), LG, n=2500, seed=82)
+    hbp = sum(r.hbp for r in res) / len(res)
+    assert 0.10 < hbp < 0.45, hbp
+    assert sim.DAMAGE[sim.HBP] == sim.DAMAGE[sim.BB]
+
+
+def check_rates_are_conditioned_on_the_off_the_top_draws():
+    """Sacrifices and hit-by-pitches are drawn before the strikeout branch,
+    so everything after is conditional on neither firing. Without dividing
+    by (1 - SAC_RATE - HBP_RATE) every marginal rate comes out light by
+    exactly that much — measured as K/9 8.16 against a real 8.44."""
+    import inspect
+    src = inspect.getsource(sim.pa_outcome)
+    assert "cond = 1.0 - SAC_RATE - HBP_RATE" in src
+    assert src.count("/ cond") >= 3, "not every branch is rescaled"
+
+
+def check_league_baselines_come_from_rotation_starters():
+    """log5 returns the LEAGUE value when batter and pitcher are both
+    average, so the baseline is the simulator's floor. Feeding the whole
+    pitcher pool (BB 0.0859) instead of rotation starters (0.0784) inflated
+    simulated walks by 6-8%, because openers and relievers walk more than
+    the population being simulated."""
+    lg = sim.league()
+    assert 0.070 < lg["bb_pct"] < 0.085, lg["bb_pct"]
+    assert 0.205 < lg["k_pct"] < 0.230, lg["k_pct"]
+    assert "batter_scale" in lg, "batters not put on the pitching footing"
+
+
+def check_advancement_was_fitted_after_the_counts_were_right():
+    """Order matters. Tuning advancement while the simulator produced 4% too
+    many baserunners buries one error inside another — the first attempt
+    picked 0.44/0.76 doing exactly that. These were refitted only once
+    hits, walks and batters faced each landed inside 2%."""
+    assert sim.FIRST_TO_THIRD_ON_1B < 0.45, sim.FIRST_TO_THIRD_ON_1B
+    assert sim.SECOND_SCORES_ON_1B < 0.80, sim.SECOND_SCORES_ON_1B
+    assert sim.FIRST_SCORES_ON_2B <= 0.65, sim.FIRST_SCORES_ON_2B

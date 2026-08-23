@@ -60,6 +60,43 @@ where g.sport = 'mlb' and g.status = 'Final' {where}
 """
 
 
+_SP_Q = """
+select sum(p.outs_recorded) o, sum(p.h) h, sum(p.bb) bb, sum(p.k) k,
+       sum(p.hr) hr
+from mlb_pitching p join games g on g.game_id = p.game_id
+where g.sport = 'mlb' and g.status = 'Final' and p.is_starter = 1
+  and p.player_name in (
+      select player_name from mlb_pitching where is_starter is not null
+      group by player_name
+      having sum(case when is_starter = 1 then 1 else 0 end) >= 5)
+"""
+
+
+def _starter_league(conn=None) -> dict | None:
+    """Rate baselines from ROTATION STARTERS, per batter faced.
+
+    The population the simulator simulates. Openers are excluded on the
+    same 5-start bar `calibrate.ROTATION_MIN_GS` uses.
+    """
+    def _run(c):
+        return c.execute(_SP_Q).fetchone()
+    if conn is not None:
+        r = _run(conn)
+    else:
+        with db.connect() as c:
+            r = _run(c)
+    if not r or not r["o"]:
+        return None
+    bf = (r["o"] or 0) + (r["h"] or 0) + (r["bb"] or 0)
+    bip = bf - (r["k"] or 0) - (r["bb"] or 0) - (r["hr"] or 0)
+    return {
+        "k_pct": (r["k"] or 0) / bf,
+        "bb_pct": (r["bb"] or 0) / bf,
+        "hr_pct": (r["hr"] or 0) / bf,
+        "babip": (((r["h"] or 0) - (r["hr"] or 0)) / bip) if bip > 0 else 0.294,
+    }
+
+
 def league(season: int | None = None, conn=None) -> dict:
     """Season-to-date league rates, per plate appearance.
 
@@ -112,6 +149,32 @@ def league(season: int | None = None, conn=None) -> dict:
         },
         "runs_per_9": ((p["r"] or 0) * 27) / (p["o"] or 1),
     }
+
+    # ---- everything on the population we actually simulate ----
+    #
+    # log5 returns the LEAGUE value when batter and pitcher are both
+    # average, so the league baseline is the simulator's floor. Feeding it
+    # the whole pitcher pool's rate pulls every simulated start toward a
+    # population we never simulate: rotation starters walk 0.0784 per batter
+    # faced, all starters 0.0801, the full pool 0.0859. Using 0.0886 — the
+    # pool, on the BATTING denominator — inflated simulated walks by 6-8%.
+    #
+    # So the baselines come from rotation starters on the pitching
+    # denominator, and the BATTER rates are scaled onto that same footing.
+    # Scaling the pitchers instead was tried and made walks worse: the
+    # pitcher rates were already on the right denominator, it was the
+    # reference that was wrong.
+    sp = _starter_league(conn)
+    if sp:
+        out["batter_scale"] = {
+            k: (sp[k] / out[k]) if out.get(k) else 1.0
+            for k in ("k_pct", "bb_pct", "hr_pct", "babip")
+        }
+        out.update({k: sp[k] for k in
+                    ("k_pct", "bb_pct", "hr_pct", "babip")})
+    else:
+        out["batter_scale"] = {k: 1.0 for k in
+                               ("k_pct", "bb_pct", "hr_pct", "babip")}
     _LEAGUE_CACHE[season] = out
     return out
 
@@ -144,8 +207,8 @@ def log5(batter: float, pitcher: float, lg: float) -> float:
 # double-count: a plate appearance cannot be both a strikeout and a homer,
 # and the naive fix (renormalise afterwards) silently changes every rate.
 
-K, BB, HR, B1, B2, B3, OUT, SAC = ("K", "BB", "HR", "1B", "2B", "3B",
-                                   "OUT", "SAC")
+K, BB, HR, B1, B2, B3, OUT, SAC, HBP = ("K", "BB", "HR", "1B", "2B", "3B",
+                                        "OUT", "SAC", "HBP")
 
 
 def _sigmoid(z: float) -> float:
@@ -160,7 +223,7 @@ def _sigmoid(z: float) -> float:
 #: so these were set to reproduce the observed distribution of starter pitch
 #: counts and are the least trustworthy numbers in this module.
 PITCH_COST = {K: 4.8, BB: 5.5, HR: 3.9, B1: 3.4, B2: 3.6, B3: 3.6,
-              OUT: 3.5, SAC: 3.0}
+              OUT: 3.5, SAC: 3.0, HBP: 3.2}
 
 #: How much trouble each outcome represents, for the hook. NOT run value —
 #: this is "how alarmed is the dugout", which is a different quantity. Runs
@@ -172,7 +235,7 @@ PITCH_COST = {K: 4.8, BB: 5.5, HR: 3.9, B1: 3.4, B2: 3.6, B3: 3.6,
 #: because it is the outcome that most reliably shortens a manager's
 #: patience. The relative weights are tuned; their ORDER is not in question.
 DAMAGE = {BB: 1.0, B1: 1.0, B2: 1.7, B3: 2.3, HR: 3.0, K: 0.0, OUT: 0.0,
-          SAC: 0.0}
+          SAC: 0.0, HBP: 1.0}
 
 # ── outs the model could not produce ───────────────────────────────────
 #
@@ -198,9 +261,32 @@ DAMAGE = {BB: 1.0, B1: 1.0, B2: 1.7, B3: 2.3, HR: 3.0, K: 0.0, OUT: 0.0,
 #: Share of plate appearances that are a sacrifice bunt or fly. An
 #: automatic out; never a BABIP event.
 SAC_RATE = 0.010
+#: Share of plate appearances ending in a hit by pitch. A free baserunner
+#: the model never had.
+#:
+#: Why its absence mattered more than 1% suggests: the calibration target is
+#: runs per HIT-OR-WALK, measured in a world that also has hit batsmen and
+#: reached-on-errors putting men on. Their runs land in the real numerator
+#: and could never land in ours, so the target was unreachable by
+#: construction — which is why no advancement rate could close it.
+#:
+#: Tracked separately from walks so `bb` still matches the boxscore.
+HBP_RATE = 0.011
 #: Chance a runner on first is caught stealing, per plate appearance he is
 #: aboard for. Removes the runner AND records an out.
 CS_RATE = 0.0148
+#: Chance he steals second instead. Derived the same way: 1,301 steals over
+#: 23,338 times on base.
+#:
+#: ADDING CS WITHOUT THIS WAS A BUG OF MINE. For half a day the simulator
+#: took every downside of baserunning and none of the upside — runners were
+#: thrown out and never advanced — which showed up as runs per baserunner
+#: 10% light while the baserunner count itself was correct. The giveaway
+#: was that no plausible advancement rate could close the gap: pushing
+#: "scores from second on a single" to 0.75 against a published ~0.60 still
+#: left it 3.6% short. When a parameter cannot reach the target, the
+#: mechanism is missing rather than mistuned.
+SB_RATE = 0.0557
 
 #: Share of ball-in-play outs that become double plays when there is a
 #: runner on first and fewer than two out. Matters for outs props directly:
@@ -277,7 +363,14 @@ def pa_outcome(
     # be a strikeout or a walk, so it conditions everything below it.
     if rng.random() < SAC_RATE:
         return SAC
-    k = log5(b.k_pct, p.k_pct, lg["k_pct"]) * pk["k"] * b.arsenal_k_mult
+    if rng.random() < HBP_RATE:
+        return HBP
+    # Sacrifices and hit-by-pitches were taken off the top, so everything
+    # below is conditional on neither firing. Without this rescale the
+    # marginal rates all come out light by exactly SAC_RATE + HBP_RATE —
+    # measured as K/9 8.16 against a real 8.44 when it was missing.
+    cond = 1.0 - SAC_RATE - HBP_RATE
+    k = log5(b.k_pct, p.k_pct, lg["k_pct"]) * pk["k"] * b.arsenal_k_mult / cond
     k = min(max(k, 1e-6), 0.95)
     if rng.random() < k:
         return K
@@ -285,13 +378,13 @@ def pa_outcome(
     # Remaining probabilities are conditional on not having struck out, so
     # each is rescaled by what is left rather than used as a raw PA rate.
     rest = 1.0 - k
-    bb = log5(b.bb_pct, p.bb_pct, lg["bb_pct"])
+    bb = log5(b.bb_pct, p.bb_pct, lg["bb_pct"]) / cond
     if rest > 0 and rng.random() < bb / rest:
         return BB
 
     rest -= bb
     hr = log5(b.hr_pct, p.hr_pct, lg["hr_pct"]) * hr_park * pk["hr"] \
-        * b.arsenal_mult
+        * b.arsenal_mult / cond
     if rest > 0 and rng.random() < hr / rest:
         return HR
 
@@ -501,16 +594,24 @@ def for_pitcher(base: Hook, avg_pitches: float | None,
 # nine matches the league's actual 4.63 — which is a real test, not a
 # reassurance, because nothing here was tuned to hit it.
 
-#: Extra-base advancement, from the public league splits. Runners do not
-#: move one base at a time and modelling them that way is what made the
-#: first pass here score 3.59 runs per nine against a real 4.03.
-FIRST_TO_THIRD_ON_1B = 0.28
-SECOND_SCORES_ON_1B = 0.60
-FIRST_SCORES_ON_2B = 0.45
+#: Extra-base advancement. FITTED to runs-per-baserunner (0.3530 against a
+#: target 0.3516) AFTER the baserunner count itself was made correct — order
+#: matters, because tuning these while the sim produced 4% too many runners
+#: just buries one error inside another, which is what the first attempt did.
+#:
+#: They sit roughly 30% above the public references (first-to-third on a
+#: single ~0.28, scoring from second ~0.60, from first on a double ~0.45),
+#: so they ARE absorbing something. The likely residue is mechanisms still
+#: absent: wild pitches, passed balls, and advancement on errors — all of
+#: which move runners without a hit. Prefer adding those to raising these
+#: further.
+FIRST_TO_THIRD_ON_1B = 0.38
+SECOND_SCORES_ON_1B = 0.72
+FIRST_SCORES_ON_2B = 0.60
 #: A ball-in-play out that is not a double play still moves runners some of
 #: the time — the ground out to the right side, the sacrifice fly. Leaving
 #: this at zero strands runners the model should have scored.
-RUNNER_ADVANCES_ON_OUT = 0.25
+RUNNER_ADVANCES_ON_OUT = 0.30
 
 
 def _advance(bases: list[bool], outcome: str, rng: random.Random) -> int:
@@ -579,6 +680,8 @@ class StartResult:
     #: silently drifting with the hook.
     sacrifices: int = 0
     caught_stealing: int = 0
+    stolen_bases: int = 0
+    hbp: int = 0
 
 
 def simulate_start(
@@ -619,6 +722,9 @@ def simulate_start(
                     if bases[2]:
                         r.runs += 1          # sacrifice fly
                     bases[:] = [False, bases[0], bases[1]]
+            elif o == HBP:
+                r.hbp += 1
+                r.runs += _advance(bases, BB, rng)   # forces like a walk
             elif o == K:
                 r.k += 1
                 outs_this += 1
@@ -654,13 +760,19 @@ def simulate_start(
             # A runner caught stealing is an out with no batter attached,
             # and it counts toward the pitcher's innings pitched — which is
             # why leaving it out cost roughly 0.10 outs a start.
-            if bases[0] and rng.random() < CS_RATE:
-                bases[0] = False
-                outs_this += 1
-                r.outs += 1
-                r.caught_stealing += 1
-                if outs_this >= 3:
-                    break
+            if bases[0] and not bases[1]:
+                roll = rng.random()
+                if roll < CS_RATE:
+                    bases[0] = False
+                    outs_this += 1
+                    r.outs += 1
+                    r.caught_stealing += 1
+                    if outs_this >= 3:
+                        break
+                elif roll < CS_RATE + SB_RATE:
+                    # Second base is open or he would not be going.
+                    bases[0], bases[1] = False, True
+                    r.stolen_bases += 1
             if rng.random() < hook.mid_removal_p(
                     r.pitches, r.runs, sum(bases), inning_damage):
                 r.pulled_mid_inning = True
