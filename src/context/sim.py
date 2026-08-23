@@ -205,12 +205,36 @@ class BatterRates:
     arsenal_mult: float = 1.0
 
 
+#: Neutral park. Every factor is a multiplier on a rate, 1.0 = league.
+#: Savant publishes these as indices where 100 is average, so a caller
+#: converts with index/100 — see `park_mults`.
+NEUTRAL_PARK = {"hr": 1.0, "k": 1.0, "bip": 1.0}
+
+
+def park_mults(factors: dict | None) -> dict:
+    """Savant park indices -> rate multipliers, or neutral when unknown.
+
+    None in, neutral out. A venue Savant does not rate must NOT fall back to
+    the home club's park: the Athletics played 38 home games this season at
+    a site with no published factors, and borrowing Oakland's for them would
+    be confidently wrong 38 times.
+    """
+    if not factors:
+        return dict(NEUTRAL_PARK)
+    def m(key, default=100):
+        v = factors.get(key)
+        return (v / 100.0) if v else (default / 100.0)
+    return {"hr": m("hr"), "k": m("so"), "bip": m("bacon", 100)}
+
+
 def pa_outcome(
     b: BatterRates, p: PitcherRates, lg: dict, rng: random.Random,
-    hr_park: float = 1.0,
+    hr_park: float = 1.0, park: dict | None = None,
 ) -> str:
     """One plate appearance. Returns an outcome constant."""
-    k = log5(b.k_pct, p.k_pct, lg["k_pct"])
+    pk = park or NEUTRAL_PARK
+    k = log5(b.k_pct, p.k_pct, lg["k_pct"]) * pk["k"]
+    k = min(max(k, 1e-6), 0.95)
     if rng.random() < k:
         return K
 
@@ -222,13 +246,15 @@ def pa_outcome(
         return BB
 
     rest -= bb
-    hr = log5(b.hr_pct, p.hr_pct, lg["hr_pct"]) * hr_park * b.arsenal_mult
+    hr = log5(b.hr_pct, p.hr_pct, lg["hr_pct"]) * hr_park * pk["hr"] \
+        * b.arsenal_mult
     if rest > 0 and rng.random() < hr / rest:
         return HR
 
     # Ball in play. The arsenal multiplier applies here too: a mix this
     # hitter handles well produces harder contact, not just more homers.
-    babip = min(0.95, log5(b.babip, p.babip, lg["babip"]) * b.arsenal_mult)
+    babip = min(0.95, log5(b.babip, p.babip, lg["babip"])
+                * pk["bip"] * b.arsenal_mult)
     if rng.random() >= babip:
         return OUT
     mix, r = lg["hit_mix"], rng.random()
@@ -507,6 +533,7 @@ def simulate_start(
     pitcher: PitcherRates, lineup: list[BatterRates], lg: dict,
     hook: Hook | None = None, rng: random.Random | None = None,
     hr_park: float = 1.0, max_innings: int = 9,
+    park: dict | None = None,
 ) -> StartResult:
     """One start, plate appearance by plate appearance.
 
@@ -525,7 +552,7 @@ def simulate_start(
         while outs_this < 3:
             b = lineup[idx % len(lineup)]
             idx += 1
-            o = pa_outcome(b, pitcher, lg, rng, hr_park)
+            o = pa_outcome(b, pitcher, lg, rng, hr_park, park)
             r.batters += 1
             r.pitches += int(round(PITCH_COST[o]))
             inning_damage += DAMAGE[o]
@@ -581,15 +608,102 @@ def simulate_start(
     return r
 
 
+# ── uncertainty in the inputs ──────────────────────────────────────────
+#
+# THE DEFECT THIS FIXES. Ten thousand simulated starts using ONE k_pct and
+# ONE hook offset produce only within-start sampling noise. Two real sources
+# of variation are missing, and the reliability tables measured their
+# absence: the model is under-dispersed, saying 60.0% where 71.0% happens.
+#
+#   1. We do not know the pitcher's true rate. It was estimated from a few
+#      hundred plate appearances and then treated as exact. `pa` is already
+#      carried on both rate objects, so the posterior costs nothing.
+#   2. We do not know the night's conditions. One start the bullpen is
+#      gassed, another it is a blowout, another he is on short rest. The
+#      hook gets one fitted offset and applies it identically every time.
+#
+# Both are the same mistake — treating an estimate as a fact — and both
+# inject variance BETWEEN starts, which is what was missing. Note that
+# handedness splits failed here precisely because they add variance between
+# BATTERS, which averages out across nine of them.
+
+#: Standard deviation of the per-start hook offset, in log-odds. Represents
+#: everything about tonight that shifts a manager's leash and is not
+#: modelled: bullpen state, score, series context, travel. FITTED by
+#: `calibrate.fit_dispersion` against Brier across all lines at once, not
+#: guessed. 0.0 reproduces the old point-estimate behaviour exactly.
+HOOK_SIGMA = 0.0
+#: Draw each rate from its Beta posterior per simulated start rather than
+#: using the point estimate. Off reproduces the old behaviour.
+DRAW_RATES = False
+#: Floor on the pseudo-sample behind a rate. A batter with 12 PA would
+#: otherwise get a posterior so wide the draw is noise, which overstates
+#: uncertainty rather than representing it.
+MIN_POSTERIOR_PA = 40.0
+
+
+def _draw(rate: float, pa: float, rng: random.Random) -> float:
+    """One draw from the Beta posterior implied by `rate` over `pa` trials.
+
+    Beta(rate*pa, (1-rate)*pa) has mean `rate` and a spread set by how much
+    evidence stands behind it — so a 600-PA starter barely moves and a
+    40-PA one moves a lot, which is the honest difference between them.
+    """
+    n = max(pa or 0.0, MIN_POSTERIOR_PA)
+    a = max(rate * n, 1e-3)
+    b = max((1.0 - rate) * n, 1e-3)
+    return min(max(rng.betavariate(a, b), 1e-6), 1 - 1e-6)
+
+
+def _jitter_pitcher(p: PitcherRates, rng: random.Random) -> PitcherRates:
+    return PitcherRates(
+        name=p.name, pa=p.pa,
+        k_pct=_draw(p.k_pct, p.pa, rng),
+        bb_pct=_draw(p.bb_pct, p.pa, rng),
+        hr_pct=_draw(p.hr_pct, p.pa, rng),
+        babip=_draw(p.babip, p.pa, rng),
+    )
+
+
+def _jitter_batter(b: BatterRates, rng: random.Random) -> BatterRates:
+    return BatterRates(
+        name=b.name, pa=b.pa, arsenal_mult=b.arsenal_mult,
+        k_pct=_draw(b.k_pct, b.pa, rng),
+        bb_pct=_draw(b.bb_pct, b.pa, rng),
+        hr_pct=_draw(b.hr_pct, b.pa, rng),
+        babip=_draw(b.babip, b.pa, rng),
+    )
+
+
 def simulate(
     pitcher: PitcherRates, lineup: list[BatterRates], lg: dict,
     n: int = 10000, hook: Hook | None = None, seed: int = 0,
-    hr_park: float = 1.0,
+    hr_park: float = 1.0, hook_sigma: float | None = None,
+    draw_rates: bool | None = None, park: dict | None = None,
 ) -> list[StartResult]:
-    """`n` independent starts. Deterministic for a seed."""
+    """`n` independent starts. Deterministic for a seed.
+
+    Each start optionally redraws the rates and the hook offset, so the
+    spread across the returned list reflects uncertainty in what we know
+    about this matchup and not only the coin flips inside one game.
+    """
     rng = random.Random(seed)
-    return [simulate_start(pitcher, lineup, lg, hook, rng, hr_park)
-            for _ in range(n)]
+    base = hook or Hook()
+    sigma = HOOK_SIGMA if hook_sigma is None else hook_sigma
+    draw = DRAW_RATES if draw_rates is None else draw_rates
+
+    out = []
+    for _ in range(n):
+        h = base
+        if sigma:
+            h = Hook(**{**base.__dict__,
+                        "team_offset": base.team_offset + rng.gauss(0.0,
+                                                                    sigma)})
+        p = _jitter_pitcher(pitcher, rng) if draw else pitcher
+        nine = [_jitter_batter(b, rng) for b in lineup] if draw else lineup
+        out.append(simulate_start(p, nine, lg, h, rng, hr_park,
+                                  park=park))
+    return out
 
 
 # ── reading a distribution off the simulation ──────────────────────────

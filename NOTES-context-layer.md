@@ -126,6 +126,77 @@ at 18.5. An isotonic or Platt fit on a holdout should recover a chunk of the
 gap. (An earlier note in this file called outs "weak discrimination, the
 unfixable kind". That was wrong; these AUCs say otherwise.)
 
+### THE LEAD: the sim over-produces baserunners, and that shortens starts
+
+Calibrating all six counting stats at once found what outs alone could not.
+1,776 starts, club patience and pitcher leash applied:
+
+| stat | line | bias | Brier skill | AUC |
+|---|---|---|---|---|
+| k | 5.5 | +1.1% | 20.4% | 0.771 |
+| outs | 14.5 | −4.9% | 7.2% | 0.691 |
+| outs | 15.5 | −4.1% | 9.7% | 0.686 |
+| **h** | 3.5 | **+7.2%** | 0.4% | 0.615 |
+| **bb** | 2.5 | **+6.2%** | 6.4% | 0.703 |
+| **hr** | 0.5 | **+4.5%** | 5.2% | 0.660 |
+| er | 4.5 | −3.7% | 0.2% | 0.582 |
+
+Hits, walks and home runs all read high; outs read low. **That is one
+defect, not two.** Excess baserunners feed `per_baserunner` and `per_run`,
+the hook fires early, starts come out short.
+
+Isolated:
+
+```
+                    sim    actual     diff
+outs / batter    0.7017    0.7094   -0.0077   (-1.1%)
+batters / start   22.87     22.88     same
+baserunners       7.06      6.65     +0.41
+```
+
+Batters faced matches exactly; the sim converts fewer of them to outs, by
+0.18 outs per start. Two out-sources it structurally cannot produce account
+for nearly all of it:
+
+- **Caught stealing / pickoffs** — measured at ~0.10 per start. CS counts
+  toward a pitcher's outs recorded, so this is a direct loss.
+- **Sacrifice bunts and flies** — automatic outs. The sim rolls BABIP on
+  those plate appearances instead, turning ~29% of them into hits.
+
+Neither is in `StartResult`. Both add an out without a hit. This is the
+highest-value fix on the list and it needs no new data source.
+
+Corollary already checked and ruled out: the batting-side league rates run
+3.2% above the pitching-side ones, uniformly across K, BB and HR. That is
+pure denominator scaling (PA approximated as AB+BB) and it is
+SELF-CONSISTENT — the sim's plate appearances exclude HBP and sacrifices,
+so its rates should sit above per-real-PA rates by exactly that much. Not
+the bug; do not re-chase it.
+
+### Park factors — wired 2026-08-22, needs an A/B
+
+`games.venue_id` now exists, backfilled over 1,117 games from the schedule
+endpoint (one call per DATE, not per game). `sim.park_mults` converts
+Savant indices to rate multipliers for HR, K and balls in play.
+
+Why the id and not the home team: **the Athletics played 38 home games this
+season at venues Savant does not rate, and the Twins one.** Under a
+home-team lookup all 39 would silently have received the wrong club's park.
+`park_mults(None)` returns neutral, never a borrowed park.
+
+Spread available: runs 83–125, HR 75–125, **SO 89–116** — the last matters
+because K is where the model has signal.
+
+NOT YET A/B'd against no-park. Do that before believing it helps.
+
+**Park and home/road are confounded; fit in that order.** Savant's indices
+are team-neutral by construction (three rolling years, every club visits),
+and home advantage is roughly constant across parks, so park is the
+exogenous term. Fit home/road as a residual on what park does not already
+explain — fitting them jointly, or home/road first, lets the home term
+absorb park. Same trap as using a club's raw starter length for manager
+patience. Unmodelled: any park × home interaction.
+
 ### Measured negative: handedness splits do nothing
 
 Hypothesis was that vs-LHP/vs-RHP batter rates would supply the missing

@@ -243,6 +243,13 @@ def init() -> None:
         # wrong precisely on the short starts, which truncates the left tail
         # of every distribution built on it. NULL means "not yet checked",
         # 0 means "checked, did not start"; see context/sources/starters.py.
+        # Which ballpark, by id. home_team is not a substitute: MLB plays
+        # neutral-site games and Mexico City is one of the most extreme run
+        # environments anywhere. See context/sources/venues.py.
+        gcols = {r[1] for r in conn.execute("PRAGMA table_info(games)")}
+        if "venue_id" not in gcols:
+            conn.execute("ALTER TABLE games ADD COLUMN venue_id INTEGER")
+
         pcols = {r[1] for r in conn.execute("PRAGMA table_info(mlb_pitching)")}
         if "is_starter" not in pcols:
             conn.execute(

@@ -592,3 +592,144 @@ def check_switch_hitters_need_no_special_case():
     assert '"S"' not in src and "switch" not in src.lower().replace(
         "switch hitters need no special handling", ""), \
         "special-casing switch hitters; the derivation already handles them"
+
+
+# ── input uncertainty (measured harmful; kept off) ─────────────────────
+def check_posterior_draw_is_centred_on_the_rate():
+    rng = random.Random(41)
+    draws = [sim._draw(0.30, 600, rng) for _ in range(3000)]
+    assert abs(sum(draws) / len(draws) - 0.30) < 0.01
+
+
+def check_posterior_is_wider_for_a_thinner_sample():
+    """A 600-PA starter's rate barely moves; a 60-PA one moves a lot. If
+    this inverts, the model would be most confident about the players it
+    knows least."""
+    import statistics as st
+    rng = random.Random(42)
+    wide = st.pstdev([sim._draw(0.30, 60, rng) for _ in range(2000)])
+    tight = st.pstdev([sim._draw(0.30, 600, rng) for _ in range(2000)])
+    assert wide > tight * 1.8, (wide, tight)
+
+
+def check_posterior_floor_bounds_a_tiny_sample():
+    """Without MIN_POSTERIOR_PA a 5-PA hitter gets a posterior so wide the
+    draw is pure noise — that overstates uncertainty rather than
+    representing it."""
+    import statistics as st
+    rng = random.Random(43)
+    sd = st.pstdev([sim._draw(0.30, 5, rng) for _ in range(2000)])
+    ref = st.pstdev([sim._draw(0.30, sim.MIN_POSTERIOR_PA, rng)
+                     for _ in range(2000)])
+    assert abs(sd - ref) < 0.02, (sd, ref)
+
+
+def check_uncertainty_knobs_default_off():
+    """MEASURED HARMFUL, do not switch on without re-measuring.
+
+    Drawing rates and jittering the hook per start was built to cure the
+    model's compressed probabilities and does the opposite: widening a
+    single start's distribution pushes its P(over) TOWARD the base rate,
+    which is the direction the defect already runs. On 600 starts at outs
+    15.5, Brier skill fell 10.3% -> 9.5% (hook sigma) and -> 9.3% (rate
+    draws), with sd(p) falling 0.120 -> 0.114.
+
+    The compression is missing SIGNAL, not missing noise.
+    """
+    assert sim.HOOK_SIGMA == 0.0, sim.HOOK_SIGMA
+    assert sim.DRAW_RATES is False
+
+
+def check_defaults_reproduce_point_estimate_simulation():
+    """With both knobs off, `simulate` must be bit-identical to simulating
+    the same seed directly — otherwise every calibration number recorded
+    before they existed is silently invalidated."""
+    p, l = _pitcher(), _lineup()
+    a = sim.simulate(p, l, LG, n=40, seed=77)
+    rng = random.Random(77)
+    b = [sim.simulate_start(p, l, LG, sim.Hook(), rng) for _ in range(40)]
+    assert [x.outs for x in a] == [x.outs for x in b]
+    assert [x.k for x in a] == [x.k for x in b]
+
+
+# ── multi-stat calibration coverage ────────────────────────────────────
+def check_earned_runs_maps_to_simulated_runs_not_total_runs():
+    """The simulation models no errors, so every run it produces is earned.
+    Scoring it against total runs would charge the model for defence it
+    never simulated and read as a systematic under-prediction."""
+    from src.context import calibrate as cal
+    assert cal._STAT_ATTR["er"] == "runs"
+    assert cal._STAT_COL["er"] == "er"
+
+
+def check_every_calibrated_stat_has_a_column_and_an_attribute():
+    from src.context import calibrate as cal
+    for stat in cal.LINES:
+        assert stat in cal._STAT_COL, stat
+        assert stat in cal._STAT_ATTR, stat
+        assert hasattr(sim.StartResult(), cal._STAT_ATTR[stat]), stat
+
+
+def check_calibration_lines_are_sorted_and_half_points():
+    """Half-point lines only: an integer line creates pushes, and the
+    reliability maths treats every start as a win or a loss."""
+    from src.context import calibrate as cal
+    for stat, lines in cal.LINES.items():
+        assert list(lines) == sorted(lines), stat
+        for ln in lines:
+            assert abs(ln - int(ln) - 0.5) < 1e-9, (stat, ln)
+
+
+# ── park factors ───────────────────────────────────────────────────────
+def check_unknown_park_is_neutral_not_the_home_club():
+    """A venue Savant does not rate must return neutral multipliers.
+
+    Not hypothetical: the Athletics played 38 home games this season at
+    sites with no published factors, and the Twins one. Borrowing the home
+    club's park for those would be confidently wrong 39 times, which is the
+    same failure `park.for_venue` already refuses to make.
+    """
+    assert sim.park_mults(None) == sim.NEUTRAL_PARK
+    assert sim.park_mults({}) == sim.NEUTRAL_PARK
+
+
+def check_park_index_100_is_neutral():
+    """Savant publishes indices where 100 is league average, not 1.0.
+    Reading one as a raw multiplier would suppress every rate by 99%."""
+    m = sim.park_mults({"hr": 100, "so": 100, "bacon": 100})
+    assert m == {"hr": 1.0, "k": 1.0, "bip": 1.0}, m
+
+
+def check_park_moves_the_right_outcomes():
+    """A high-strikeout park raises K; a homer park raises HR. If the keys
+    were crossed, Coors would suppress offence."""
+    hot = sim.park_mults({"hr": 125, "so": 90, "bacon": 113})
+    cold = sim.park_mults({"hr": 75, "so": 116, "bacon": 94})
+    assert hot["hr"] > cold["hr"] and hot["k"] < cold["k"]
+
+    def counts(park):
+        rng = random.Random(51)
+        res = [sim.simulate_start(_pitcher(), _lineup(), LG, sim.Hook(),
+                                  rng, park=park) for _ in range(700)]
+        return (sum(r.k for r in res) / len(res),
+                sum(r.hr for r in res) / len(res))
+    k_hot, hr_hot = counts(hot)
+    k_cold, hr_cold = counts(cold)
+    assert hr_hot > hr_cold * 1.2, (hr_hot, hr_cold)
+    assert k_cold > k_hot, (k_cold, k_hot)
+
+
+def check_missing_park_index_falls_back_to_neutral_per_key():
+    """One absent column must not zero the multiplier for that outcome."""
+    m = sim.park_mults({"hr": 120})
+    assert m["hr"] == 1.2 and m["k"] == 1.0 and m["bip"] == 1.0, m
+
+
+def check_neutral_park_reproduces_the_no_park_simulation():
+    p, l = _pitcher(), _lineup()
+    a = [sim.simulate_start(p, l, LG, sim.Hook(), random.Random(9))
+         for _ in range(30)]
+    b = [sim.simulate_start(p, l, LG, sim.Hook(), random.Random(9),
+                            park=sim.NEUTRAL_PARK) for _ in range(30)]
+    assert [x.outs for x in a] == [x.outs for x in b]
+    assert [x.k for x in a] == [x.k for x in b]

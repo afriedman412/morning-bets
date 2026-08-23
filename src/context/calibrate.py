@@ -45,7 +45,7 @@ from src.context.sources import rates as rate_src
 _STARTS_Q = """
 with pr as (
   select p.game_id, p.team, p.player_name, p.outs_recorded o,
-         p.k, p.bb, p.h, p.hr, p.r, g.date, p.is_starter,
+         p.k, p.bb, p.h, p.hr, p.r, p.er, g.date, p.is_starter,
          row_number() over (partition by p.game_id, p.team
                             order by p.outs_recorded desc) rn,
          max(case when p.is_starter is not null then 1 else 0 end)
@@ -322,7 +322,26 @@ def report(res: dict) -> None:
 LINES = {
     "outs": (11.5, 14.5, 15.5, 17.5, 18.5, 20.5),
     "k": (3.5, 4.5, 5.5, 6.5, 7.5, 8.5),
+    # Every counting stat the boxscore cache carries and the simulation
+    # already emits. These are not all liquid markets — the point is
+    # DIAGNOSTIC COVERAGE. Each one isolates a different part of the model,
+    # so a defect that hides in the outs total shows up plainly somewhere
+    # else: walks test the BB path alone, hits test BABIP and the hit mix,
+    # earned runs test the base-running rules that nothing else checks.
+    "h": (3.5, 4.5, 5.5, 6.5, 7.5),
+    "bb": (0.5, 1.5, 2.5, 3.5),
+    "hr": (0.5, 1.5, 2.5),
+    "er": (1.5, 2.5, 3.5, 4.5),
 }
+
+#: Boxscore column and StartResult attribute for each stat. Earned runs, not
+#: runs: the simulation models no errors, so every run it produces is earned
+#: by construction and comparing against total runs would charge it for
+#: defence it never simulated.
+_STAT_COL = {"outs": "o", "k": "k", "h": "h", "bb": "bb", "hr": "hr",
+             "er": "er"}
+_STAT_ATTR = {"outs": "outs", "k": "k", "h": "h", "bb": "bb", "hr": "hr",
+              "er": "runs"}
 
 
 def per_start_probs_all(stat: str, lines, season=None, before=None,
@@ -343,7 +362,7 @@ def per_start_probs_all(stat: str, lines, season=None, before=None,
     lg = sim.league(season)
     cases = build_cases(season, before=before, since=since,
                         rates_before=before)
-    key = {"outs": "o", "k": "k"}[stat]
+    key, attr = _STAT_COL[stat], _STAT_ATTR[stat]
     out = {ln: [] for ln in lines}
     for s, pitcher, lineup in cases:
         rng = random.Random(seed)
@@ -352,7 +371,7 @@ def per_start_probs_all(stat: str, lines, season=None, before=None,
         vals = []
         for _ in range(n_sims):
             r = sim.simulate_start(pitcher, lineup, lg, hook, rng)
-            vals.append(r.outs if stat == "outs" else r.k)
+            vals.append(getattr(r, attr))
         for ln in lines:
             out[ln].append(
                 (s[key], sum(1 for v in vals if v > ln) / len(vals)))
@@ -478,7 +497,7 @@ def versus_estimator(cutoff: str, stat="outs", n_sims=200, seed=0,
 
     lg = sim.league()
     cases = build_cases(since=cutoff, rates_before=cutoff)
-    key = {"outs": "o", "k": "k"}[stat]
+    key = _STAT_COL[stat]
     print(f"holdout from {cutoff}: {len(cases)} starts\n")
 
     with db.connect() as conn:
