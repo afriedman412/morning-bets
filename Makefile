@@ -17,8 +17,13 @@ endif
 
 .PHONY: test
 
+# Offline test suite. No pytest dependency — tests/run.py collects every
+# check_* function and runs it. Every network-backed adapter is exercised
+# through injected fixtures, so this works with no connection and no API key.
+#   make test              # everything
+#   make test ARGS=pure    # only modules matching a substring
 test:
-	@export FLASK_ENV=test && python -m pytest tests/
+	${PYTHON} -m tests.run $(ARGS)
 
 .PHONY: install
 
