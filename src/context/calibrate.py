@@ -433,11 +433,13 @@ def report(res: dict) -> None:
                         # read as a 12% run deficit that was not there.
                         ("earned runs", "er", "{:.2f}")):
         attr = {"o": "outs", "k": "k", "bb": "bb", "h": "h", "hr": "hr",
-                "er": "runs"}[key]
+                "er": "earned"}[key]
         line(lbl, sum(a[key] for a in act) / n_a,
              sum(getattr(r, attr) for r in sm) / n_s, f)
 
     line("earned runs/9", sum(a["er"] for a in act) * 27 / max(sum(a_outs), 1),
+         sum(r.earned for r in sm) * 27 / max(sum(s_outs), 1))
+    line("TOTAL runs/9", sum(a["r"] for a in act) * 27 / max(sum(a_outs), 1),
          sum(r.runs for r in sm) * 27 / max(sum(s_outs), 1))
     line("K per 9", sum(a["k"] for a in act) * 27 / max(sum(a_outs), 1),
          sum(r.k for r in sm) * 27 / max(sum(s_outs), 1))
@@ -494,7 +496,7 @@ LINES = {
 _STAT_COL = {"outs": "o", "k": "k", "h": "h", "bb": "bb", "hr": "hr",
              "er": "er"}
 _STAT_ATTR = {"outs": "outs", "k": "k", "h": "h", "bb": "bb", "hr": "hr",
-              "er": "runs"}
+              "er": "earned"}
 
 
 def per_start_probs_all(stat: str, lines, season=None, before=None,

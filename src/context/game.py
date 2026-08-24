@@ -96,24 +96,22 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
     disagree — and both come from `sim.apply_pa`, which is the single copy
     of the base-out state machine.
     """
-    bases = [False, False, False]
-    outs = 0
-    damage = 0.0
-    while outs < 3:
+    fr = sim.Frame()
+    while fr.outs < 3:
         b = side.lineup[side.idx % len(side.lineup)]
         side.idx += 1
         o = sim.pa_outcome(b, side.current, lg, rng, 1.0, park)
 
         before = side.cur_line.runs
-        outs, damage = sim.apply_pa(o, side.cur_line, bases, outs, damage, rng)
+        sim.apply_pa(o, side.cur_line, fr, rng)
         side.runs += side.cur_line.runs - before
-        if outs >= 3:
+        if fr.outs >= 3:
             break
 
         before = side.cur_line.runs
-        outs = sim.baserunning(side.cur_line, bases, outs, rng)
+        sim.baserunning(side.cur_line, fr, rng)
         side.runs += side.cur_line.runs - before
-        if outs >= 3:
+        if fr.outs >= 3:
             break
 
         # Mid-inning removal, starter only. A reliever who has just come in
@@ -123,10 +121,10 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
         if not side.starter_out:
             ln = side.line
             if (rng.random() < side.hook.mid_removal_p(
-                    ln.pitches, ln.runs, sum(bases), damage, margin)
+                    ln.pitches, ln.runs, fr.on_base, fr.damage, margin)
                     or ln.pitches >= side.hook.hard_pitch_cap):
                 ln.pulled_mid_inning = True
-                ln.left_on_base, ln.outs_when_pulled = sum(bases), outs
+                ln.left_on_base, ln.outs_when_pulled = fr.on_base, fr.outs
                 if not ln.covered_f5:
                     ln.runs_f5, ln.outs_f5 = ln.runs, ln.outs
                 # The reliever inherits the bases and the outs exactly as

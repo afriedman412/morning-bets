@@ -217,8 +217,8 @@ def log5(batter: float, pitcher: float, lg: float) -> float:
 # double-count: a plate appearance cannot be both a strikeout and a homer,
 # and the naive fix (renormalise afterwards) silently changes every rate.
 
-K, BB, HR, B1, B2, B3, OUT, SAC, HBP = ("K", "BB", "HR", "1B", "2B", "3B",
-                                        "OUT", "SAC", "HBP")
+K, BB, HR, B1, B2, B3, OUT, SAC, HBP, ROE = ("K", "BB", "HR", "1B", "2B",
+                                             "3B", "OUT", "SAC", "HBP", "ROE")
 
 
 def _sigmoid(z: float) -> float:
@@ -233,7 +233,7 @@ def _sigmoid(z: float) -> float:
 #: so these were set to reproduce the observed distribution of starter pitch
 #: counts and are the least trustworthy numbers in this module.
 PITCH_COST = {K: 4.8, BB: 5.5, HR: 3.9, B1: 3.4, B2: 3.6, B3: 3.6,
-              OUT: 3.5, SAC: 3.0, HBP: 3.2}
+              OUT: 3.5, SAC: 3.0, HBP: 3.2, ROE: 3.5}
 
 #: How much trouble each outcome represents, for the hook. NOT run value —
 #: this is "how alarmed is the dugout", which is a different quantity. Runs
@@ -244,8 +244,11 @@ PITCH_COST = {K: 4.8, BB: 5.5, HR: 3.9, B1: 3.4, B2: 3.6, B3: 3.6,
 #: A home run scores more damage than a double despite clearing the bases,
 #: because it is the outcome that most reliably shortens a manager's
 #: patience. The relative weights are tuned; their ORDER is not in question.
+#: A reached-on-error is a baserunner the dugout did not concede, so it
+#: carries a runner's damage but not a hit's — the manager is annoyed at his
+#: defence, not at his pitcher.
 DAMAGE = {BB: 1.0, B1: 1.0, B2: 1.7, B3: 2.3, HR: 3.0, K: 0.0, OUT: 0.0,
-          SAC: 0.0, HBP: 1.0}
+          SAC: 0.0, HBP: 1.0, ROE: 0.5}
 
 # ── outs the model could not produce ───────────────────────────────────
 #
@@ -302,6 +305,30 @@ SB_RATE = 0.0557
 #: runner on first and fewer than two out. Matters for outs props directly:
 #: a double play is two of them from one batter.
 GIDP_RATE = 0.11
+
+# ── the runs the model could not produce ───────────────────────────────
+#
+# THE LAST BIG MISSING MECHANISM, and it was found the way the absent
+# hit-by-pitch was: by a fit driving a parameter to the edge of its grid
+# rather than by inspection. Simulating whole games showed the run level
+# 6.7% light (8.09 a game against 8.67) while the SHAPE was right once the
+# bullpen was sampled properly. A uniform 6.7% shortfall with correct
+# dispersion is not a mistuned rate; it is a missing source of runs.
+#
+# It is fielding errors. The simulator converts every ball in play into a
+# hit or an out, so a defence that boots one cannot exist, and unearned runs
+# are 7.64% of all runs in the local record — 9,273 total against 8,565
+# earned. 8.09 / (1 - 0.0764) = 8.76 against an actual 8.67.
+#
+# Modelled as a would-be OUT that becomes a baserunner instead: no hit, no
+# out recorded, batter on first. That is what reaching on an error IS, and
+# it is why an error hurts twice — the run that scores and the out that did
+# not.
+
+#: Share of ball-in-play OUTS on which the batter reaches on an error.
+#: CALIBRATED against the local unearned-run share (7.64%), which is a
+#: measured quantity in this database and not a published constant.
+ROE_PER_OUT = 0.018
 
 
 @dataclass
@@ -403,7 +430,11 @@ def pa_outcome(
     babip = min(0.95, log5(b.babip, p.babip, lg["babip"])
                 * pk["bip"] * b.arsenal_mult)
     if rng.random() >= babip:
-        return OUT
+        # A ball in play the defence should have converted and did not.
+        # Drawn HERE rather than from the whole plate appearance because an
+        # error is specifically a fielding failure on a batted ball: a
+        # strikeout or a walk cannot become one.
+        return ROE if rng.random() < ROE_PER_OUT else OUT
     mix, r = lg["hit_mix"], rng.random()
     if r < mix["1b"]:
         return B1
@@ -696,19 +727,24 @@ def rules(**overrides):
         globals().update(prev)
 
 
-def _leave(r: "StartResult", bases: list, outs_this: int,
-           rng: random.Random) -> "StartResult":
+def _leave(r: "StartResult", fr: "Frame", rng: random.Random) -> "StartResult":
     """End an outing mid-inning, with the bookkeeping every exit needs.
 
     Two branches used to do this separately and one of them did neither —
     the hard-pitch-cap exit returned without recording the runners left on
     or the F5 line, so a cap-driven exit before the fifth reported zero runs
     through five no matter how many it had allowed.
+
+    Takes the whole frame rather than bases and outs because the inherited
+    runners have to be scored through `_score`: crediting `r.runs` directly
+    skipped the earned/unearned split, which a check caught the moment
+    errors existed — `runs` and `earned` diverged even with the error rate
+    switched off.
     """
     r.pulled_mid_inning = True
-    r.left_on_base, r.outs_when_pulled = sum(bases), outs_this
-    r.runs += sum(1 for _ in range(r.left_on_base)
-                  if rng.random() < INHERITED_SCORE_RATE)
+    r.left_on_base, r.outs_when_pulled = fr.on_base, fr.outs
+    _score(r, fr, sum(1 for _ in range(r.left_on_base)
+                      if rng.random() < INHERITED_SCORE_RATE))
     if not r.covered_f5:
         r.runs_f5, r.outs_f5 = r.runs, r.outs
     return r
@@ -770,7 +806,22 @@ class StartResult:
     bb: int = 0
     h: int = 0
     hr: int = 0
+    #: TOTAL runs allowed, unearned included. This is what a team total
+    #: settles on, so it is the headline figure.
     runs: int = 0
+    #: Earned runs only. Approximated as runs scoring in innings where no
+    #: error has yet occurred — the official rule reconstructs the inning as
+    #: it would have gone without the error, which needs a scorer's
+    #: judgement the model does not have. The approximation over-counts
+    #: unearned slightly, since a run that would have scored anyway is
+    #: forgiven once an error precedes it.
+    #:
+    #: Carried so `calibrate` can keep comparing like with like against the
+    #: boxscore's `er` column. Before errors existed the two were identical
+    #: by construction and `runs` stood in for both.
+    earned: int = 0
+    #: Batters who reached on an error.
+    roe: int = 0
     pitches: int = 0
     batters: int = 0
     innings_completed: int = 0
@@ -799,11 +850,40 @@ class StartResult:
     wp_pb: int = 0
 
 
-def apply_pa(o: str, r: StartResult, bases: list, outs_this: int,
-             inning_damage: float, rng: random.Random) -> tuple[int, float]:
-    """Apply one plate-appearance outcome. Mutates `r` and `bases`.
+@dataclass
+class Frame:
+    """State inside one half-inning.
 
-    Returns the updated (outs_this, inning_damage).
+    Replaced three loose locals once errors arrived and a fourth — whether
+    the defence has already booted one — had to travel with them. Passing
+    four values through two call sites and back is how one of them ends up
+    silently not updated.
+    """
+    bases: list = None
+    outs: int = 0
+    damage: float = 0.0
+    #: An error has occurred this inning, so runs from here on are charged
+    #: as unearned.
+    errored: bool = False
+
+    def __post_init__(self):
+        if self.bases is None:
+            self.bases = [False, False, False]
+
+    @property
+    def on_base(self) -> int:
+        return sum(self.bases)
+
+
+def _score(r: StartResult, fr: Frame, runs: int) -> None:
+    """Credit runs, splitting earned from unearned by the frame's state."""
+    r.runs += runs
+    if not fr.errored:
+        r.earned += runs
+
+
+def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random) -> None:
+    """Apply one plate-appearance outcome. Mutates `r` and `fr`.
 
     EXTRACTED so a full game and a single start cannot drift apart. Both
     `simulate_start` and `game.py` walk the same base-out state machine, and
@@ -811,43 +891,52 @@ def apply_pa(o: str, r: StartResult, bases: list, outs_this: int,
     third-out-scores-nobody rule is a bug waiting for the day someone fixes
     one of them.
     """
+    bases = fr.bases
     r.batters += 1
     r.pitches += int(round(PITCH_COST[o]))
-    inning_damage += DAMAGE[o]
+    fr.damage += DAMAGE[o]
 
     if o == SAC:
         # An automatic out that ADVANCES runners — that is the whole point
         # of laying one down. Never a BABIP roll.
-        outs_this += 1
+        fr.outs += 1
         r.outs += 1
         r.sacrifices += 1
-        if outs_this < 3 and any(bases):
+        if fr.outs < 3 and any(bases):
             if bases[2]:
-                r.runs += 1                      # sacrifice fly
+                _score(r, fr, 1)                 # sacrifice fly
             bases[:] = [False, bases[0], bases[1]]
     elif o == HBP:
         r.hbp += 1
-        r.runs += _advance(bases, BB, rng)       # forces like a walk
+        _score(r, fr, _advance(bases, BB, rng))  # forces like a walk
+    elif o == ROE:
+        # No hit, no out, batter on first — and every run after this in the
+        # inning is unearned. The out that did not happen is the reason an
+        # error costs more than a single: the inning is extended, not just
+        # occupied.
+        r.roe += 1
+        fr.errored = True
+        _score(r, fr, _advance(bases, B1, rng))
     elif o == K:
         r.k += 1
-        outs_this += 1
+        fr.outs += 1
         r.outs += 1
     elif o == OUT:
         # Double play only with a runner on first and a base open for the
         # force, and it ends the inning if it is the second and third out.
-        if bases[0] and outs_this < 2 and rng.random() < GIDP_RATE:
+        if bases[0] and fr.outs < 2 and rng.random() < GIDP_RATE:
             bases[0] = False
-            outs_this += 2
+            fr.outs += 2
             r.outs += 2
         else:
-            outs_this += 1
+            fr.outs += 1
             r.outs += 1
             # Productive outs only advance a runner if the inning is still
             # alive. A sacrifice fly for the third out scores nobody, and
             # crediting it would inflate runs in exactly the innings that
             # ended badly.
-            if outs_this < 3:
-                r.runs += _advance(bases, OUT, rng)
+            if fr.outs < 3:
+                _score(r, fr, _advance(bases, OUT, rng))
     else:
         if o == BB:
             r.bb += 1
@@ -855,35 +944,33 @@ def apply_pa(o: str, r: StartResult, bases: list, outs_this: int,
             r.h += 1
             if o == HR:
                 r.hr += 1
-        r.runs += _advance(bases, o, rng)
-    return outs_this, inning_damage
+        _score(r, fr, _advance(bases, o, rng))
 
 
-def baserunning(r: StartResult, bases: list, outs_this: int,
-                rng: random.Random) -> int:
+def baserunning(r: StartResult, fr: Frame, rng: random.Random) -> None:
     """Wild pitches, steals and caught stealing between plate appearances.
 
     A runner caught stealing is an out with no batter attached and it counts
     toward innings pitched, which is why leaving it out cost roughly 0.10
-    outs a start. Returns the updated outs_this.
+    outs a start.
     """
+    bases = fr.bases
     if any(bases) and rng.random() < WP_PB_RATE:
         if bases[2]:
-            r.runs += 1
+            _score(r, fr, 1)
         bases[:] = [False, bases[0], bases[1]]
         r.wp_pb += 1
     if bases[0] and not bases[1]:
         roll = rng.random()
         if roll < CS_RATE:
             bases[0] = False
-            outs_this += 1
+            fr.outs += 1
             r.outs += 1
             r.caught_stealing += 1
         elif roll < CS_RATE + SB_RATE:
             # Second base is open or he would not be going.
             bases[0], bases[1] = False, True
             r.stolen_bases += 1
-    return outs_this
 
 
 def simulate_start(
@@ -903,30 +990,27 @@ def simulate_start(
     idx = 0
 
     for inning in range(1, max_innings + 1):
-        bases = [False, False, False]
-        outs_this = 0
-        inning_damage = 0.0
-        while outs_this < 3:
+        fr = Frame()
+        while fr.outs < 3:
             b = lineup[idx % len(lineup)]
             idx += 1
             o = pa_outcome(b, pitcher, lg, rng, hr_park, park)
-            outs_this, inning_damage = apply_pa(
-                o, r, bases, outs_this, inning_damage, rng)
+            apply_pa(o, r, fr, rng)
 
-            if outs_this >= 3:
+            if fr.outs >= 3:
                 break
-            outs_this = baserunning(r, bases, outs_this, rng)
-            if outs_this >= 3:
+            baserunning(r, fr, rng)
+            if fr.outs >= 3:
                 break
             if rng.random() < hook.mid_removal_p(
-                    r.pitches, r.runs, sum(bases), inning_damage):
-                return _leave(r, bases, outs_this, rng)
+                    r.pitches, r.runs, fr.on_base, fr.damage):
+                return _leave(r, fr, rng)
             if r.pitches >= hook.hard_pitch_cap:
                 # Same bookkeeping as any other mid-inning exit. This branch
                 # used to `return` without recording the runners left on OR
                 # the F5 line, so a hard-cap exit before the fifth reported
                 # zero runs through five however many it had allowed.
-                return _leave(r, bases, outs_this, rng)
+                return _leave(r, fr, rng)
 
         r.innings_completed = inning
         if inning == 5:

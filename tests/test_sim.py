@@ -105,7 +105,10 @@ def check_pa_outcomes_are_all_known_constants():
     for _ in range(3000):
         seen.add(sim.pa_outcome(_lineup(1)[0], _pitcher(), LG, rng))
     assert seen <= {sim.K, sim.BB, sim.HR, sim.B1, sim.B2, sim.B3, sim.OUT,
-                    sim.SAC, sim.HBP}, seen
+                    sim.SAC, sim.HBP, sim.ROE}, seen
+    # ROE must actually appear, or the whole errors mechanism is dead code
+    # that still leaves the run level 6.7% light.
+    assert sim.ROE in seen, "reached-on-error never drawn"
 
 
 def check_pa_reproduces_league_rates():
@@ -666,21 +669,25 @@ def check_defaults_reproduce_point_estimate_simulation():
 
 
 # ── multi-stat calibration coverage ────────────────────────────────────
-def check_earned_runs_maps_to_simulated_runs_not_total_runs():
-    """The simulation models no errors, so every run it produces is earned.
-    Scoring it against total runs would charge the model for defence it
-    never simulated and read as a systematic under-prediction.
+def check_earned_runs_maps_to_the_earned_column_not_total_runs():
+    """Earned runs must be compared against the sim's EARNED runs.
 
-    SCOPED TO THIS DIAGNOSTIC, and `fitf5` deliberately does the opposite.
-    A first-five total settles on runs that crossed the plate, unearned ones
-    included, so fitting to earned runs there would build a model that is
-    right about a number nobody pays out on. Both are correct; the rule is
-    that a DIAGNOSTIC compares like with like and a FIT targets what
-    settles.
+    THIS CHECK'S PREMISE CHANGED, which is worth recording rather than
+    quietly editing. It used to assert the opposite — that `er` maps to
+    `runs` — on the grounds that the simulator models no errors, so every
+    run it produced was earned by construction. That was true and is not
+    any more: `ROE_PER_OUT` exists, unearned runs exist, and `runs` now
+    includes them. Comparing the boxscore's `er` against total simulated
+    runs would now overstate the model by the ~7.6% unearned share.
+
+    `fitf5` still targets TOTAL runs, and correctly: a team total settles on
+    runs that crossed the plate. A diagnostic compares like with like; a fit
+    targets what settles.
     """
     from src.context import calibrate as cal
-    assert cal._STAT_ATTR["er"] == "runs"
+    assert cal._STAT_ATTR["er"] == "earned"
     assert cal._STAT_COL["er"] == "er"
+    assert hasattr(sim.StartResult(), "earned")
 
 
 def check_every_calibrated_stat_has_a_column_and_an_attribute():
@@ -1120,3 +1127,92 @@ def check_advancement_was_fitted_after_the_counts_were_right():
     assert sim.FIRST_TO_THIRD_ON_1B < 0.45, sim.FIRST_TO_THIRD_ON_1B
     assert sim.SECOND_SCORES_ON_1B < 0.80, sim.SECOND_SCORES_ON_1B
     assert sim.FIRST_SCORES_ON_2B <= 0.65, sim.FIRST_SCORES_ON_2B
+
+
+# ── reached on error ───────────────────────────────────────────────────
+def check_roe_puts_a_runner_on_without_recording_an_out():
+    """An error costs twice: the runner it gives and the out it does not.
+
+    Modelling it as a hit would give back the out and halve the damage;
+    modelling it as an out with a runner attached is not a thing that
+    happens. This pins both halves.
+    """
+    r = sim.StartResult()
+    fr = sim.Frame()
+    sim.apply_pa(sim.ROE, r, fr, random.Random(1))
+    assert fr.outs == 0, fr.outs
+    assert r.outs == 0, r.outs
+    assert fr.bases[0] is True, fr.bases
+    assert r.h == 0 and r.roe == 1, (r.h, r.roe)
+
+
+def check_runs_after_an_error_are_unearned():
+    """The frame remembers the error, so later runs stop being earned."""
+    r = sim.StartResult()
+    fr = sim.Frame()
+    rng = random.Random(2)
+    sim.apply_pa(sim.ROE, r, fr, rng)
+    assert fr.errored is True
+    fr.bases[:] = [True, True, True]
+    sim.apply_pa(sim.HR, r, fr, rng)
+    assert r.runs == 4, r.runs
+    assert r.earned == 0, r.earned
+
+
+def check_runs_before_an_error_stay_earned():
+    """Only runs AFTER the error are forgiven. Charging the whole inning
+    would make a late error erase a rally the pitcher genuinely gave up."""
+    r = sim.StartResult()
+    fr = sim.Frame()
+    rng = random.Random(3)
+    fr.bases[:] = [True, True, True]
+    sim.apply_pa(sim.HR, r, fr, rng)
+    assert r.runs == 4 and r.earned == 4, (r.runs, r.earned)
+    sim.apply_pa(sim.ROE, r, fr, rng)
+    fr.bases[:] = [True, True, True]
+    sim.apply_pa(sim.HR, r, fr, rng)
+    assert r.runs == 8 and r.earned == 4, (r.runs, r.earned)
+
+
+def check_earned_never_exceeds_total_runs():
+    """An invariant, not a preference. `earned` is a subset of `runs`, and
+    any path that credits one without the other breaks the `er` diagnostic
+    silently."""
+    rng = random.Random(4)
+    for _ in range(120):
+        r = sim.simulate_start(_pitcher(), _lineup(), LG, sim.Hook(), rng)
+        assert r.earned <= r.runs, (r.earned, r.runs)
+        assert r.earned >= 0 and r.runs >= 0
+
+
+def check_no_errors_means_no_unearned_runs():
+    """With the mechanism switched off the model reverts exactly to what it
+    was before errors existed: every run earned, `runs == earned`."""
+    rng = random.Random(5)
+    old = sim.ROE_PER_OUT
+    sim.ROE_PER_OUT = 0.0
+    try:
+        for _ in range(80):
+            r = sim.simulate_start(_pitcher(), _lineup(), LG, sim.Hook(), rng)
+            assert r.runs == r.earned, (r.runs, r.earned)
+            assert r.roe == 0, r.roe
+    finally:
+        sim.ROE_PER_OUT = old
+
+
+def check_errors_raise_the_run_level():
+    """The whole reason this exists. Simulating no errors left the run level
+    6.7% light against a league where unearned runs are 7.64% of the total,
+    and the fit was trying to make up the difference by driving the
+    advancement rates to the edge of their grid."""
+    def runs(roe):
+        old = sim.ROE_PER_OUT
+        sim.ROE_PER_OUT = roe
+        try:
+            rng = random.Random(6)
+            return sum(sim.simulate_start(_pitcher(), _lineup(), LG,
+                                          sim.Hook(), rng).runs
+                       for _ in range(400))
+        finally:
+            sim.ROE_PER_OUT = old
+    assert runs(0.018) > runs(0.0) * 1.02, (runs(0.0), runs(0.018))
