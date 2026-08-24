@@ -107,6 +107,95 @@ mistake waiting to happen.
 
 ---
 
+## SCRAPE PLAY-BY-PLAY, THEN BUILD THE BULLPEN MODEL
+
+This is the main opportunity and I got it wrong twice before Andy corrected
+me. Both corrections are worth reading.
+
+### Correction 1: the bullpen IS worth modelling
+
+I concluded "do not model reliever deployment — back-half mechanism, no
+back-half edge." Wrong. Edge decays as bullpen share rises, which admits two
+readings: (A) our relief model injects error, or (B) bullpens are
+unpredictable for everyone. I treated those as opposed and picked (B).
+
+**They are not opposed. We are part of EVERYONE** — if bullpens are hard for
+the market too, being less bad at them IS the edge. Both readings say build
+it.
+
+And (A) is what the data says. Team-total direction accuracy, split by how
+deep the opposing starter actually went:
+
+    <= 15 outs   n=479   49.9%
+    16-18 outs   n=446   52.7%
+    19+ outs     n=163   57.1%
+
+Monotone. In games the bullpen barely touched, the team-total edge is nearly
+F5-sized. The relief innings destroy it — so the ~40%-bullpen markets (team
+totals 4,943 contracts, game totals 4,222) are RECOVERABLE, not hopeless.
+
+### Correction 2: scrape the WHOLE GAME, not just pitcher changes
+
+I proposed extracting only pitcher-change events to save space. False
+economy on both axes — the API calls are identical either way, and storage
+is nothing:
+
+    raw JSON     624 KB/game  ->  1.19 GB
+    gzipped      102 KB/game  ->   201 MB   (6.1x)
+    2,006 games, 8 workers    ->  ~1 minute
+
+**Fetch once, store gzipped, extract whatever later.** Re-scraping to get a
+field we discarded is the expensive mistake, not disk.
+
+### What whole-game play-by-play unlocks
+
+* **State AT REMOVAL** — pitch count, bases, outs and score when the hook
+  fired. `sim.py` says outright that the boxscore "cannot give the state at
+  removal, only the totals," and calls this "the specific thing play-by-play
+  would buy later." It is the hook's documented blind spot, and the hook is
+  the model's largest remaining defect (real starts are LEFT-SKEWED, mean 84
+  pitches against median 89, and a single logistic cannot be bimodal).
+* **Advancement rates MEASURED on this league** instead of published
+  references. That mechanism just moved runs-per-baserunner from -4.2% to
+  -0.2%; measuring rather than importing it is the obvious next gain.
+* **Reliever deployment conditioned on game state** — entry inning, entry
+  score, base-out state at entry. That is the bullpen model.
+* Times through the order, real batting positions faced, inherited-runner
+  outcomes, productive-out rates by base-out state.
+
+### What is wrong with the bullpen model today
+
+`game.build_side` samples eight arms weighted by season appearances, then
+uses them **in sample order, one inning each, regardless of game state.** The
+closer can pitch the 6th of a blowout and the mop-up man the 9th of a
+one-run game. Two measured defects:
+
+* **Only 52.6% of real relief outings are one clean inning.** 21.7% are
+  fewer than three outs (mid-inning entries), 25.7% more. Mean 3.51 outs.
+* **Deployment is independent of the score**, destroying a real correlation:
+  good arms pitch close games, mop-up arms pitch blowouts. That correlation
+  shapes the run distribution's tails, and `game.py` ALREADY tracks the live
+  margin — the trigger is sitting there unused.
+
+Boxscores already carry appearance ORDER, `inheritedRunners`, `saves`,
+`holds` and `gamesFinished`, so roles are partly identifiable even before
+the scrape.
+
+### Order of work
+
+1. Scrape whole-game PBP, store gzipped, one row per game.
+2. MEASURE deployment before modelling it — which arm, which inning, at what
+   margin, with what base-out state.
+3. Deploy by role rather than at random; condition entry on the live margin.
+4. Allow multi-inning and mid-inning relief outings.
+5. Re-measure advancement rates from PBP against the published tables.
+6. Re-run team totals and game totals — the targets this unlocks.
+
+Do NOT fit team-specific bullpen offsets. That is the patience/leash mistake
+waiting to happen.
+
+---
+
 ## DO THIS FIRST (highest value, roughly in order)
 
 1. **`quote.py` may have a live line-matching bug.** DraftKings' 7.0 can
