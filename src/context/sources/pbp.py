@@ -164,6 +164,28 @@ class Stint:
         return self.last_inning - self.inning + 1
 
 
+def resolve(runners) -> tuple[dict, list]:
+    """({runner_id: [start, end, is_out]}, ids in listed order).
+
+    A runner can appear twice — advance, then thrown out trying for another
+    base — so the LAST record that resolves him is the one that counts.
+    Shared by the base-state reconstruction and by the advancement
+    measurement, which must agree on what "where did he end up" means.
+    """
+    final: dict = {}
+    order: list = []
+    for r in runners:
+        mv = r.get("movement") or {}
+        rid = ((r.get("details") or {}).get("runner") or {}).get("id")
+        if rid not in final:
+            order.append(rid)
+            final[rid] = [mv.get("start") or mv.get("originBase"),
+                          mv.get("end"), bool(mv.get("isOut"))]
+        elif mv.get("end") is not None or mv.get("isOut"):
+            final[rid][1:] = [mv.get("end"), bool(mv.get("isOut"))]
+    return final, order
+
+
 def _apply(runners, bases: list) -> int:
     """Move the runners for one play, in place. Returns runs scored.
 
@@ -178,17 +200,7 @@ def _apply(runners, bases: list) -> int:
     another base — so the last record that resolves him is the one that
     counts.
     """
-    final: dict = {}
-    order: list = []
-    for r in runners:
-        mv = r.get("movement") or {}
-        rid = ((r.get("details") or {}).get("runner") or {}).get("id")
-        if rid not in final:
-            order.append(rid)
-            final[rid] = [mv.get("start") or mv.get("originBase"),
-                          mv.get("end"), bool(mv.get("isOut"))]
-        elif mv.get("end") is not None or mv.get("isOut"):
-            final[rid][1:] = [mv.get("end"), bool(mv.get("isOut"))]
+    final, order = resolve(runners)
     for rid in order:
         start = final[rid][0]
         if start in _BASES:
@@ -205,6 +217,38 @@ def _apply(runners, bases: list) -> int:
     return runs
 
 
+def plays(game_id: str, data: dict | None = None):
+    """Yield (play, bases_before, outs_before, away_before, home_before).
+
+    THE STATE IS THE PRODUCT, not the play. Everything this scrape was for
+    — deployment, removal, advancement — is a conditional rate keyed on the
+    situation a play started from, and statsapi reports only what the
+    situation became. Reconstructing it once here means the deployment
+    measurement and the advancement measurement cannot disagree about what
+    "bases loaded, one out" meant.
+    """
+    data = data if data is not None else fetch(game_id)
+    if not data:
+        return
+    bases = [False, False, False]
+    outs = 0
+    half = None
+    away = home = 0
+    for play in data.get("allPlays") or []:
+        ab = play.get("about") or {}
+        key = (ab.get("inning"), ab.get("halfInning"))
+        if key != half:
+            half, bases, outs = key, [False, False, False], 0
+        yield play, tuple(bases), outs, away, home
+        after = (play.get("count") or {}).get("outs")
+        _apply(play.get("runners") or [], bases)
+        if after is not None:
+            outs = after
+        res = play.get("result") or {}
+        if res.get("awayScore") is not None:
+            away, home = res["awayScore"], res["homeScore"]
+
+
 def stints(game_id: str, data: dict | None = None) -> list[Stint]:
     """Every pitcher's outing, with the base-out-score state at entry.
 
@@ -213,27 +257,16 @@ def stints(game_id: str, data: dict | None = None) -> list[Stint]:
     play, which makes an inning-start entry and a mid-inning entry the same
     piece of code rather than two.
     """
-    data = data if data is not None else fetch(game_id)
-    if not data:
-        return []
     out: list[Stint] = []
     current: dict = {}
     count: dict = defaultdict(int)
-    bases = [False, False, False]
-    outs = 0
-    half = None
-    away = home = 0        # running score BEFORE the play being read
-    for play in data["allPlays"]:
+    for play, bases, outs, away, home in plays(game_id, data):
         ab = play.get("about") or {}
         mu = play.get("matchup") or {}
         p = mu.get("pitcher") or {}
         if not p.get("id"):
             continue
-        key = (ab.get("inning"), ab.get("halfInning"))
-        if key != half:
-            half, bases, outs = key, [False, False, False], 0
         side = "home" if ab.get("isTopInning") else "away"
-        res = play.get("result") or {}
         if current.get(side) != p["id"]:
             count[side] += 1
             current[side] = p["id"]
@@ -255,10 +288,10 @@ def stints(game_id: str, data: dict | None = None) -> list[Stint]:
         after = (play.get("count") or {}).get("outs")
         if after is not None:
             s.outs_recorded += max(after - outs, 0)
-            outs = after
-        s.runs += _apply(play.get("runners") or [], bases)
-        if res.get("awayScore") is not None:
-            away, home = res["awayScore"], res["homeScore"]
+        # The bases are already the pre-play state from `plays`, so runs on
+        # this play are counted against a throwaway copy rather than the
+        # generator's own, which owns the state.
+        s.runs += _apply(play.get("runners") or [], list(bases))
     return out
 
 
