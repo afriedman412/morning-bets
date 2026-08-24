@@ -49,7 +49,8 @@ from collections import defaultdict
 
 from src import db
 from src.context import calibrate as cal
-from src.context import f5, sim
+from src.context import f5, game, sim
+from src.context.sources import rates as rate_src
 
 #: Thresholds the side distribution is scored across. This is the FULL
 #: SUPPORT of runs allowed through five, not a menu of book lines — a side
@@ -90,7 +91,14 @@ HOOK_KEYS = ("intercept", "per_inning", "per_run", "pitch_center",
 #: is a rule about how a runner gets from where he is to home plate, which
 #: is the part of the simulation that has to be right for the innings to
 #: come out like real innings.
-RULE_KEYS = ("INHERITED_SCORE_RATE", "WP_PB_RATE", "GIDP_RATE")
+#:
+#: INHERITED_SCORE_RATE IS GONE. It only ever existed because the f5.py stub
+#: could not simulate the reliever finishing the inning, so a departing
+#: starter's stranded runners were settled by a flat 0.33. `game.py` hands
+#: over the base-out state and they score for real reasons. The fit drove it
+#: to its grid ceiling on the stub and the holdout rejected the move at 2.6
+#: sigma — a constant straining on a path the product does not use.
+RULE_KEYS = ("WP_PB_RATE", "GIDP_RATE")
 
 PARAMS = RULE_KEYS
 
@@ -210,6 +218,28 @@ def _rps(vals: list[int], actual: int, lines) -> float:
     return tot
 
 
+def game_pairs(cases: list[dict]) -> list[tuple]:
+    """Sides regrouped into (away, home) pairs — one entry per game.
+
+    `game.py` simulates BOTH sides at once, so the objective moves from
+    sides to games. Two consequences, both wanted: one simulation per game
+    instead of two, and sides whose opposing starter is not modelled drop
+    out. About 10% are lost that way, which is the price of scoring on the
+    engine the product actually uses.
+    """
+    by: dict[str, list] = {}
+    for c in cases:
+        by.setdefault(c["game_id"], []).append(c)
+    out = []
+    for v in by.values():
+        if len(v) != 2 or sum(bool(x["is_home"]) for x in v) != 1:
+            continue
+        home = next(x for x in v if x["is_home"])
+        away = next(x for x in v if not x["is_home"])
+        out.append((away, home))
+    return out
+
+
 def evaluate(cases: list[dict], params: dict | None = None, n_sims=60,
              lg=None, salt=0) -> dict:
     """Score one parameter set. Lower `loss` is better.
@@ -232,39 +262,55 @@ def evaluate(cases: list[dict], params: dict | None = None, n_sims=60,
     sim_cov = act_cov = 0
     pooled: list[int] = []          # every simulated side, for the shape
     actual: list[int] = []
+    pairs = game_pairs(cases)
+    pens = rate_src.bullpens(lg)
     draws: dict[str, list[list[int]]] = defaultdict(list)
     actual_total: dict[str, int] = {}
 
     with sim.rules(**rules):
-        for c in cases:
-            hook = (base if not c["offset"] else
-                    sim.Hook(**{**base.__dict__, "team_offset": c["offset"]}))
-            rng = random.Random(c["seed"] + salt)
-            vals = []
+        for away, home in pairs:
+            rng = random.Random(away["seed"] + salt)
+            vals = {"away": [], "home": []}
             for _ in range(n_sims):
-                runs, r = f5._side_runs(c["pitcher"], c["lineup"], lg, hook,
-                                        rng, sim.NEUTRAL_PARK, relief)
-                vals.append(runs)
-                sim_cov += r.outs >= 15
-            side_tot += _rps(vals, c["runs"], SIDE_LINES)
-            pooled.extend(vals)
-            actual.append(c["runs"])
-            act_cov += c["covered"]
-            draws[c["game_id"]].append(vals)
-            actual_total[c["game_id"]] = \
-                actual_total.get(c["game_id"], 0) + c["runs"]
+                A = game.build_side(
+                    away["pitcher"],
+                    pens.get((away["team"] or "").upper(), []),
+                    home["lineup"], base, rng)
+                H = game.build_side(
+                    home["pitcher"],
+                    pens.get((home["team"] or "").upper(), []),
+                    away["lineup"], base, rng)
+                game.simulate_game(A, H, lg, rng)
+                # `Side.runs_f5` is runs ALLOWED through five by that
+                # pitching side, which is exactly what the side observation
+                # records. `GameResult.away_f5` is the opposite convention —
+                # runs SCORED — and mixing them is the obvious way to build
+                # this backwards.
+                vals["away"].append(A.runs_f5)
+                vals["home"].append(H.runs_f5)
+                sim_cov += (A.line.outs >= 15) + (H.line.outs >= 15)
+            for who, c in (("away", away), ("home", home)):
+                side_tot += _rps(vals[who], c["runs"], SIDE_LINES)
+                pooled.extend(vals[who])
+                actual.append(c["runs"])
+                act_cov += c["covered"]
+            gid = away["game_id"]
+            draws[gid] = [vals["away"], vals["home"]]
+            actual_total[gid] = away["runs"] + home["runs"]
 
-    n = len(cases) or 1
-    # A game total only exists where BOTH starters are modelled. Pairing
-    # draw j of one side with draw j of the other is an independent sum,
-    # which is what two starters facing different lineups are.
-    pairs = [(g, v) for g, v in draws.items() if len(v) == 2]
+    # The game total, from the SAME simulated game rather than two
+    # independent side draws added together. Under the stub the two sides
+    # were simulated separately and pairing draw j with draw j assumed
+    # independence; `game.py` plays them in one game, so this is now the
+    # actual joint distribution — which is the only place the objective can
+    # see both halves of a total at once.
     total_tot = 0.0
-    for g, (a, b) in pairs:
-        total_tot += _rps([x + y for x, y in zip(a, b)],
-                          actual_total[g], TOTAL_LINES)
-    total_rps = total_tot / len(pairs) if pairs else 0.0
+    for gid, (av, hv) in draws.items():
+        total_tot += _rps([x + y for x, y in zip(av, hv)],
+                          actual_total[gid], TOTAL_LINES)
+    total_rps = total_tot / len(draws) if draws else 0.0
 
+    n = len(pairs) * 2 or 1
     s, a = _dist(pooled), _dist(actual)
     return {
         "n_sides": n, "n_games": len(pairs),
@@ -294,7 +340,6 @@ GRID = {
     # fitted — see sim.py. They are scanned as a single multiplier on the
     # whole table instead, so the SHAPE stays published and only the level
     # can move.
-    "INHERITED_SCORE_RATE": [0.25, 0.33, 0.42, 0.50],
     "WP_PB_RATE": [0.010, 0.0155, 0.022, 0.030],
     # A double play ends a rally outright, so this is a run-production
     # mechanism and not the outs term it looks like.

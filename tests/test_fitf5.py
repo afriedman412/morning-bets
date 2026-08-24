@@ -156,17 +156,29 @@ def check_rps_debias_never_goes_negative():
 
 
 # ── the objective ──────────────────────────────────────────────────────
-def _case(runs, seed=1, offset=0.0, game="G1", **kw):
-    return {"game_id": game, "date": "2026-08-01", "team": "XXX",
-            "is_home": True, "pitcher": _pitcher(), "lineup": _lineup(),
+def _case(runs, seed=1, offset=0.0, game="G1", home=True, **kw):
+    return {"game_id": game, "date": "2026-08-01",
+            "team": "HOM" if home else "AWY",
+            "is_home": home, "pitcher": _pitcher(), "lineup": _lineup(),
             "runs": runs, "covered": True, "offset": offset, "seed": seed,
             **kw}
+
+
+def _pair(runs=2, game="G1", seed=1):
+    """A complete game: one home side and one away side.
+
+    `evaluate` scores GAMES now, not sides — `game.py` simulates both halves
+    at once — so a fixture of same-side cases produces no pairs at all and
+    every score comes back zero.
+    """
+    return [_case(runs, seed=seed, game=game, home=True),
+            _case(runs, seed=seed + 1, game=game, home=False)]
 
 
 def check_evaluate_is_deterministic():
     """Same parameters, same seed, same score. Common random numbers are the
     only reason a coordinate descent on this objective converges at all."""
-    cases = [_case(2, seed=i) for i in range(6)]
+    cases = _pair(2, game="A") + _pair(3, game="B", seed=9)
     a = fitf5.evaluate(cases, None, n_sims=12, lg=dict(LG))
     b = fitf5.evaluate(cases, None, n_sims=12, lg=dict(LG))
     assert a["loss"] == b["loss"], (a["loss"], b["loss"])
@@ -180,7 +192,8 @@ def check_evaluate_applies_its_parameters():
     the objective flat in that direction while the search happily explored
     it.
     """
-    cases = [_case(2, seed=i) for i in range(8)]
+    cases = (_pair(2, game="A") + _pair(3, game="B", seed=9)
+             + _pair(1, game="C", seed=21))
     base = fitf5.evaluate(cases, None, n_sims=20, lg=dict(LG))
     for k, v in (("GIDP_RATE", 0.30), ("intercept", -2.0)):
         moved = fitf5.evaluate(cases, {k: v}, n_sims=20, lg=dict(LG))
@@ -191,10 +204,13 @@ def check_evaluate_pairs_only_complete_games():
     """A game total needs BOTH starters. One-sided games must not be scored
     as if the missing half allowed zero, which would drag every total
     downward and pull the fit toward a high-scoring model to compensate."""
-    cases = [_case(2, seed=1, game="A"), _case(3, seed=2, game="A"),
-             _case(1, seed=3, game="B")]
+    # Game A is complete; game B has only one side and must be dropped
+    # entirely — a half-game cannot be simulated by an engine that plays
+    # both halves, and scoring it as if the missing side allowed zero would
+    # drag every total downward.
+    cases = _pair(2, game="A") + [_case(1, seed=3, game="B")]
     res = fitf5.evaluate(cases, None, n_sims=10, lg=dict(LG))
-    assert res["n_sides"] == 3 and res["n_games"] == 1, res
+    assert res["n_games"] == 1 and res["n_sides"] == 2, res
 
 
 def check_paired_se_beats_combining_independent_ones():

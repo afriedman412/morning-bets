@@ -68,10 +68,12 @@ def check_starter_cannot_record_more_than_twenty_seven_outs():
     never = sim.Hook(intercept=-99.0, mid_intercept=-99.0,
                      hard_pitch_cap=100000)
     for _ in range(15):
-        r = game.simulate_game(_side(hook=never), _side(hook=never),
-                               dict(LG), rng)
-        assert r.away_sp.outs <= 27, r.away_sp.outs
-        assert r.home_sp.outs <= 27, r.home_sp.outs
+        a, h = _side(hook=never), _side(hook=never)
+        game.simulate_game(a, h, dict(LG), rng)
+        # Bounded by the innings actually PLAYED, not by 27 — extra innings
+        # exist now, and a never-pull hook rides one starter through them.
+        assert a.line.outs <= 3 * a.line.innings_completed, a.line.outs
+        assert h.line.outs <= 3 * h.line.innings_completed, h.line.outs
 
 
 def check_the_bullpen_actually_pitches():

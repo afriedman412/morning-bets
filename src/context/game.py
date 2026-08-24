@@ -57,6 +57,10 @@ class Side:
     hook: sim.Hook = field(default_factory=sim.Hook)
     #: Runs this side has ALLOWED. The other team's score.
     runs: int = 0
+    #: What the other pitching side has allowed — i.e. THIS team's score.
+    #: Set by the driver each half-inning so a walk-off can be detected
+    #: without passing the whole game state around.
+    opposing_runs: int = 0
     idx: int = 0                            # batting-order pointer
     pen_i: int = 0
     starter_out: bool = False
@@ -88,7 +92,8 @@ class Side:
 
 
 def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
-                 margin: int, park: dict | None) -> None:
+                 margin: int, park: dict | None,
+                 walk_off: bool = False) -> None:
     """One half-inning. `margin` is this pitching side's lead, in runs.
 
     Runs are counted from the CHANGE in the current pitcher's line rather
@@ -113,6 +118,11 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
         side.runs += side.cur_line.runs - before
         if fr.outs >= 3:
             break
+        # A walk-off ends the game mid-inning. `walk_off` is only ever set
+        # for the bottom of the ninth or later, and `side` here is the
+        # PITCHING side, so its runs allowed ARE the home team's score.
+        if walk_off and side.runs > side.opposing_runs:
+            return
 
         # Mid-inning removal, starter only. A reliever who has just come in
         # to face this rally is not pulled again in the same breath, which
@@ -181,7 +191,9 @@ class GameResult:
 def simulate_game(away: Side, home: Side, lg: dict,
                   rng: random.Random | None = None, innings: int = 9,
                   park: dict | None = None,
-                  track: tuple = ()) -> GameResult:
+                  track: tuple = (),
+                  regulation: int = 9,
+                  max_extra: int = 9) -> GameResult:
     """One full game, both sides advancing half-inning by half-inning.
 
     `away` and `home` are PITCHING sides. The away side's runs allowed are
@@ -190,13 +202,32 @@ def simulate_game(away: Side, home: Side, lg: dict,
     """
     rng = rng or random.Random()
     prefix: dict = {}
-    for inning in range(1, innings + 1):
+    inning = 0
+    while True:
+        inning += 1
+        # EXTRA INNINGS. Stopping at nine omitted them entirely, which
+        # cancelled against playing a bottom half that should not happen —
+        # two errors that nearly agreed on the total and were both wrong.
+        # About 8-9% of games go past nine.
+        if inning > innings:
+            if away.runs == home.runs and inning <= innings + max_extra:
+                pass                      # still tied, keep playing
+            else:
+                break
         # Top: away pitches. Its margin is what its own offence has put up
         # (= runs the home side has allowed) minus what it has given back.
         _half_inning(away, lg, rng, inning, home.runs - away.runs, park)
         _end_of_inning(away, rng, inning, home.runs - away.runs)
 
-        _half_inning(home, lg, rng, inning, away.runs - home.runs, park)
+        # THE BOTTOM HALF IS NOT ALWAYS PLAYED. A home team ahead after the
+        # top of the ninth does not bat, and playing it anyway invents a
+        # half-inning of scoring in roughly 40% of games — straight onto the
+        # full-game total. Extras follow the same rule.
+        if inning >= regulation and away.runs > home.runs:
+            break
+        home.opposing_runs = home.runs      # this team's own score
+        _half_inning(home, lg, rng, inning, away.runs - home.runs, park,
+                     walk_off=inning >= regulation)
         _end_of_inning(home, rng, inning, away.runs - home.runs)
 
         if inning == 5:
@@ -204,6 +235,9 @@ def simulate_game(away: Side, home: Side, lg: dict,
         if inning in track:
             # Runs ALLOWED by both sides is runs SCORED in the game.
             prefix[inning] = away.runs + home.runs
+        # After regulation, a decided game is over.
+        if inning >= innings and away.runs != home.runs:
+            break
 
     return GameResult(
         # Runs ALLOWED by one side are runs SCORED by the other.
