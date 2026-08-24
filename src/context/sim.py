@@ -633,12 +633,30 @@ def _load(path: str) -> dict:
         return {}
 
 
+#: Apply the on-disk club-patience and pitcher-leash offsets.
+#:
+#: OFF. They were fitted 2026-08-23 as RESIDUALS against the model's own
+#: error, and that model no longer exists — since then: fielding errors,
+#: out-dependent advancement, PITCH_COST fitted on real counts, WP_PB_RATE
+#: cut 45%, pitch_center 92 -> 80, and league baselines recomputed on a
+#: doubled database. A residual correcting an error that has been fixed
+#: does not merely go stale, it pushes the wrong way.
+#:
+#: `fitf5` already ran without them by design, and the notes' own argument
+#: is that they reach an F5 number through one channel that opens about a
+#: quarter of the time. Refit them or delete them; until then they must not
+#: quietly contaminate a market measurement.
+USE_OFFSETS = False
+
+
 def patience(team: str | None) -> float:
     """Fitted log-odds offset for a club's manager. 0.0 when unknown.
 
     Unknown resolves to the league hook rather than to a guess, the same
     rule the rest of this codebase follows for a missing group value.
     """
+    if not USE_OFFSETS:
+        return 0.0
     global _PATIENCE
     if _PATIENCE is None:
         _PATIENCE = _load(_PATIENCE_PATH)
@@ -652,6 +670,8 @@ def leash(pitcher_name: str | None) -> float:
     starts contributes a fraction of his apparent residual and one with none
     on record contributes nothing.
     """
+    if not USE_OFFSETS:
+        return 0.0
     global _LEASH
     if _LEASH is None:
         _LEASH = _load(_LEASH_PATH)

@@ -270,7 +270,14 @@ def check_team_offset_lengthens_or_shortens_outings():
 
 
 def check_for_start_adds_club_and_pitcher_offsets():
+    """Club first, pitcher against the remainder, and they ADD.
+
+    Guarded even though USE_OFFSETS ships False: the arithmetic is what a
+    refit would rely on, and it is the place a double-counted manager would
+    hide. Toggled on for the duration rather than deleted.
+    """
     base = sim.Hook()
+    sim.USE_OFFSETS = True
     sim._PATIENCE = {"XXX": 0.5}
     sim._LEASH = {"Somebody": -0.2}
     try:
@@ -278,17 +285,20 @@ def check_for_start_adds_club_and_pitcher_offsets():
         assert abs(h.team_offset - 0.3) < 1e-9, h.team_offset
         assert sim.for_start(base, "NOPE", "Nobody").team_offset == 0.0
     finally:
+        sim.USE_OFFSETS = False
         sim._PATIENCE = sim._LEASH = None
 
 
 def check_unknown_club_falls_back_to_the_league_hook():
     """Missing resolves to neutral, never to a guess — the same rule the
     rest of the context layer follows for absent group values."""
+    sim.USE_OFFSETS = True
     sim._PATIENCE, sim._LEASH = {}, {}
     try:
         assert sim.patience("ZZZ") == 0.0
         assert sim.leash("Nobody At All") == 0.0
     finally:
+        sim.USE_OFFSETS = False
         sim._PATIENCE = sim._LEASH = None
 
 
@@ -1262,3 +1272,20 @@ def check_errors_raise_the_run_level():
         finally:
             sim.ROE_PER_OUT = old
     assert runs(0.018) > runs(0.0) * 1.02, (runs(0.0), runs(0.018))
+
+
+def check_stale_hook_offsets_are_switched_off():
+    """The on-disk patience and leash offsets must not apply by default.
+
+    They were fitted as RESIDUALS against the model's own error on
+    2026-08-23, and that model is gone — errors, out-dependent advancement,
+    a refitted PITCH_COST, WP_PB_RATE cut 45%, pitch_center 92 -> 80, and
+    league baselines recomputed on a doubled database. A residual that
+    corrects an error which has since been FIXED does not go quietly stale;
+    it pushes the wrong way, in eight modules that all call `for_start`.
+    """
+    assert sim.USE_OFFSETS is False
+    assert sim.patience("SD") == 0.0
+    assert sim.leash("Dylan Cease") == 0.0
+    base = sim.Hook()
+    assert sim.for_start(base, "SD", "Dylan Cease") is base
