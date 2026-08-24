@@ -342,8 +342,47 @@ def settled_markets(series: str) -> list[dict]:
     return out
 
 
+#: Trade histories are cached to disk, keyed by ticker.
+#:
+#: A SETTLED market's trades are immutable — the game is over and nothing
+#: further will print — so re-fetching them is pure waste. A 54-date CLV
+#: run makes ~2,700 of these calls at ~0.12s each, which is five minutes of
+#: network on data that cannot change. Every re-run pays it again, and this
+#: project re-runs these tests constantly.
+#:
+#: Only markets whose ticker date is strictly in the past are cached. A
+#: market that is still trading must NOT be, or a stale path would silently
+#: become the answer — and the whole point of `price_path` is that the
+#: cutoff is exact.
+_TRADES_DIR = _HERE + "/../.cache/kalshi_trades" if "_HERE" in dir() else \
+    ".cache/kalshi_trades"
+
+
+def _trades_cache_path(ticker: str) -> str:
+    import os
+    os.makedirs(_TRADES_DIR, exist_ok=True)
+    safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in ticker)
+    return f"{_TRADES_DIR}/{safe}.json"
+
+
+def _settled_in_the_past(ticker: str) -> bool:
+    from datetime import date
+    d = ticker_date(ticker)
+    return bool(d and d < date.today().isoformat())
+
+
 def trades(ticker: str, limit: int = 1000) -> list[dict]:
-    """Every recorded trade for a market, oldest first."""
+    """Every recorded trade for a market, oldest first. Cached when settled."""
+    import json
+    import os
+    cacheable = _settled_in_the_past(ticker)
+    path = _trades_cache_path(ticker) if cacheable else None
+    if path and os.path.exists(path):
+        try:
+            with open(path) as f:
+                return json.load(f)
+        except (OSError, ValueError):
+            pass
     out, cursor = [], None
     while True:
         q = f"/markets/trades?ticker={ticker}&limit={min(limit, 1000)}"
@@ -357,7 +396,17 @@ def trades(ticker: str, limit: int = 1000) -> list[dict]:
         cursor = d.get("cursor")
         if not cursor or not d.get("trades") or len(out) >= limit:
             break
-    return sorted(out, key=lambda t: t.get("created_time", ""))
+    out = sorted(out, key=lambda t: t.get("created_time", ""))
+    # Only write once there is something to write. An empty result from a
+    # transient failure must not be cached as fact — that would turn one bad
+    # request into a permanent hole in every future run.
+    if path and out:
+        try:
+            with open(path, "w") as f:
+                json.dump(out, f)
+        except OSError:
+            pass
+    return out
 
 
 def find_settled(
