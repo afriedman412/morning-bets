@@ -6,6 +6,41 @@ measured, what is guessed, and what would waste a day if re-investigated.
 
 ---
 
+## MEASURE F5 TOTALS PAIRED, ON EVERY GAME (correction, 2026-08-24)
+
+A mistake I made repeatedly on 08-24 and should not be repeated. I quoted F5
+total differences of -0.14, +0.04, -0.08 and +0.10 across four model changes
+as if they were signal. **Every one sits inside one standard error.** Game
+totals have sd 3.28, so a 350-game mean carries se 0.175 and I was reading
+noise as progress — including in a commit message claiming "3% light to
+exact".
+
+Two fixes, both cheap:
+
+  * **Use every game, and PAIR the comparison.** Simulated and actual totals
+    for the same game share all the game-to-game variance, so the paired
+    standard error over 1,098 games is 0.095 against the 0.175 I was
+    quoting. That is the difference between measuring and guessing.
+  * **Do not subsample by dict order.** The first 350 games had a real mean
+    F5 total of 4.71 against 4.958 over all 1,098 — the slice was not
+    representative, so even the sign was unreliable.
+
+Properly measured, the model sits at **-0.130 +/- 0.095 on F5 totals, 1.4
+sigma light.** Within noise of correct.
+
+**The trustworthy diagnostic is RUNS PER BASERUNNER**, not the total. It is a
+ratio over ~17,500 simulated starts, so its error bar is tiny, and it moved
+monotonically with each mechanism fix: -4.2% flat, -2.6% with hits made
+out-dependent, -3.6% with an indexing bug, -0.2% once corrected. Prefer a
+high-n ratio over a low-n aggregate whenever both are available.
+
+**A leakage path found while doing this.** `sim.league()` computes baselines
+over ALL cached games, including the test window. Train-window starters walk
+0.0823 per batter faced against the full-season 0.0812, so a "train-only" fit
+is anchored to numbers that have seen the test data. Small, and real.
+
+---
+
 ## WHAT THIS PROJECT IS MODELLING (settled 2026-08-23 — read this first)
 
 **We are modelling F5 TEAM TOTALS, and to a lesser extent full team totals.
