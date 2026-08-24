@@ -39,6 +39,74 @@ both.
 
 ---
 
+## BUILD THE BULLPEN MODEL — this is the main opportunity
+
+I initially concluded the opposite ("back-half mechanism, no back-half
+edge") and Andy pushed back correctly. **The conclusion was wrong.**
+
+The edge decays as bullpen share rises, and there were two readings: (A) our
+relief model is bad and injecting error, or (B) bullpens are unpredictable
+for everyone. I treated those as opposed. They are not — WE ARE PART OF
+EVERYONE, so if bullpens are hard for the market too, being less bad at them
+IS the edge. Both readings say build it.
+
+**And the data says (A) anyway.** Team-total direction accuracy, split by how
+deep the opposing starter actually went:
+
+    <= 15 outs   n=479   49.9%
+    16-18 outs   n=446   52.7%
+    19+ outs     n=163   57.1%
+
+Monotone. In games the bullpen barely touched, our team-total edge is nearly
+F5-sized. The relief innings are what destroy it — which means the ~40%
+bullpen markets (team totals 4,943 contracts, game totals 4,222) are
+recoverable rather than hopeless.
+
+### What is wrong with the current model
+
+`game.build_side` samples eight arms weighted by season appearances, then
+uses them **in sample order, one inning each, regardless of game state.** So
+the closer can pitch the 6th of a blowout and the mop-up man the 9th of a
+one-run game. Two measured defects:
+
+* **Only 52.6% of real relief outings are one clean inning.** 21.7% are
+  fewer than three outs (mid-inning entries), 25.7% are more. Mean 3.51
+  outs, not 3.00.
+* **Deployment is independent of the score**, which destroys a real
+  correlation: good arms pitch close games, mop-up arms pitch blowouts. That
+  correlation is what shapes the run distribution's tails, and `game.py`
+  already tracks the live margin — the trigger is sitting there unused.
+
+### The data is a 4-minute scrape, NOT a big lift
+
+I over-stated this twice before correcting it. Raw play-by-play is 553 KB a
+game (~1.1 GB), but we only need PITCHER CHANGE events: pitcher, inning,
+half-inning, and score at entry. That is **1,694 bytes a game, ~3.2 MB
+total, ~4 minutes with 8 workers** — the same shape as the pitch-count
+backfill already done.
+
+`statsapi /game/{pk}/playByPlay`, walk `allPlays`, emit a row whenever
+`matchup.pitcher` changes, reading `about.inning`, `about.halfInning` and
+`result.awayScore/homeScore`. Track the two sides SEPARATELY — a naive
+version emits a spurious change every half-inning.
+
+Boxscores already give appearance ORDER, `inheritedRunners`, `saves`,
+`holds` and `gamesFinished`, so roles are partly identifiable without the
+scrape at all.
+
+### Order
+
+1. Scrape pitcher changes; MEASURE the deployment pattern before modelling
+   it (which arm, which inning, at what margin).
+2. Deploy by role rather than at random; condition entry on the live margin.
+3. Allow multi-inning and mid-inning relief outings.
+4. Re-run team totals and game totals. Those are the targets this unlocks.
+
+Do NOT fit team-specific bullpen offsets — that is the patience/leash
+mistake waiting to happen.
+
+---
+
 ## DO THIS FIRST (highest value, roughly in order)
 
 1. **`quote.py` may have a live line-matching bug.** DraftKings' 7.0 can
@@ -67,9 +135,6 @@ both.
 
 ## DO NOT DO THESE (measured, recorded, do not re-run)
 
-* **Reliever deployment modelling.** Back-half mechanism, no back-half edge.
-  The defect is real — only 52.6% of relief outings are one clean inning,
-  mean 3.51 outs not 3.00 — and fixing it improves a number nobody pays for.
 * **Home run props**, despite being the largest market at 29,128 contracts.
   A BATTER outcome where the model holds one `hr_pct` with no batted-ball
   data. A ~12% base rate needs far more contracts to resolve an edge than a
