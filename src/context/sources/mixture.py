@@ -172,6 +172,95 @@ def matchup_k(batter: str, pitcher: str, data: dict, lg_by_pitch: dict,
     return max(1e-6, min(0.95, mixed * (p_overall / ref)))
 
 
+def league_usage(lg_by_pitch: dict) -> dict:
+    """League-wide share of pitches by type — the neutral arsenal."""
+    tot = sum(v["pitches"] for v in lg_by_pitch.values()) or 1.0
+    return {pt: v["pitches"] / tot for pt, v in lg_by_pitch.items()}
+
+
+def batter_woba(name: str, data: dict, lg_usage: dict) -> float | None:
+    """This batter's overall wOBA, weighted by the LEAGUE arsenal.
+
+    The shrinkage base for his per-pitch cells. Using the league's wOBA
+    instead would pull a thin cell toward a stranger; this pulls it toward
+    what we already believe about him, which is the rule the rest of the
+    codebase follows for a missing group value.
+    """
+    bat = data["batters"].get(name)
+    if not bat:
+        return None
+    num = den = 0.0
+    for pt, u in lg_usage.items():
+        w = _f(bat.get(pt, {}), "woba")
+        if w is None:
+            continue
+        num += u * w
+        den += u
+    return (num / den) if den >= 0.5 else None
+
+
+def matchup_contact(batter: str, pitcher: str, data: dict, lg_by_pitch: dict,
+                    b_overall: float | None = None,
+                    lg_usage: dict | None = None) -> float | None:
+    """Contact-quality multiplier for one matchup, or None if unusable.
+
+    THE CHANNEL THE STRIKEOUT VERSION DID NOT TEST. Whiffs move outs, and
+    outs are the half of this model measured to carry no edge. Runs come
+    from what happens when the ball is put in play, so if an arsenal matters
+    for a TEAM TOTAL it should matter here.
+
+    THE DENOMINATOR IS THIS SAME BATTER AGAINST A LEAGUE-AVERAGE ARSENAL,
+    not his overall rate. That distinction is the whole construction: with
+    his own rate as the reference the multiplier came out at mean 1.0354
+    rather than 1.0, which is a 3.5% level shift on every matchup — the test
+    would then measure "more runs" rather than "this mix against this
+    hitter". Against a neutral mix the numerator and denominator are the
+    same sum, so it returns exactly 1.0 and only the DIFFERENCE in mix
+    survives.
+    """
+    ars = data["pitchers"].get(pitcher)
+    if not ars:
+        return None
+    lg_usage = lg_usage or league_usage(lg_by_pitch)
+    bat = data["batters"].get(batter) or {}
+
+    def cell(pt):
+        """This batter's wOBA on pitch type `pt`, shrunk toward his own."""
+        lgp = lg_by_pitch.get(pt)
+        if not lgp or not lgp.get("woba"):
+            return None
+        base = b_overall if b_overall else lgp["woba"]
+        w = _f(bat.get(pt, {}), "woba")
+        if w is None:
+            return base
+        pa = _f(bat.get(pt, {}), "pa") or 0.0
+        k = pa / (pa + CELL_SHRINK_PA)
+        return k * w + (1.0 - k) * base
+
+    here = ref = cov = 0.0
+    for pt, row in ars.items():
+        usage = (_f(row, "pitch_usage") or 0.0) / 100.0
+        c = cell(pt)
+        if not usage or c is None:
+            continue
+        here += usage * c
+        cov += usage
+    if cov < MIN_COVERAGE:
+        return None
+    # Same batter, league-average mix. Restricted to the families the
+    # pitcher actually throws would bias it; this is the true neutral.
+    rcov = 0.0
+    for pt, u in lg_usage.items():
+        c = cell(pt)
+        if c is None:
+            continue
+        ref += u * c
+        rcov += u
+    if rcov <= 0 or ref <= 0:
+        return None
+    return max(0.70, min(1.35, (here / cov) / (ref / rcov)))
+
+
 def _reference(ars: dict, lg_by_pitch: dict, lg_overall: float,
                log5) -> float | None:
     """What the mixture says for a LEAGUE-AVERAGE batter against this mix.

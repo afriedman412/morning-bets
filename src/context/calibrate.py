@@ -31,6 +31,7 @@ from collections import Counter
 
 from src import db, roster
 from src.context import sim
+from src.context.sources import mixture
 from src.context.sources import rates as rate_src
 
 # Real starters where the boxscore has been consulted, the most-outs
@@ -147,6 +148,10 @@ def _with(fn):
 
 _CASES: dict[tuple, list] = {}
 
+#: Loaded once — the Savant exports are ~4MB and the fit reads them per
+#: candidate otherwise.
+_MIX: list = [None, None, None]
+
 
 #: Use derived vs-LHP/vs-RHP batter rates instead of overall rates.
 #:
@@ -197,6 +202,25 @@ USE_PARK = False
 #: get manufactured — so if this is revisited, re-run at n_sims >= 400 and
 #: decide on the high-K lines BEFORE looking.
 USE_ARSENAL = False
+
+#: Resolve the strikeout matchup PER PITCH TYPE and average by usage, rather
+#: than multiplying the aggregate rate by a scalar. See
+#: `sources/mixture.py` for why the scalar version was structurally weak,
+#: and `PREREG-arsenal.md` for the decision rule fixed before this was run.
+#:
+#: OFF until the pre-registered test says otherwise.
+USE_MIXTURE = False
+
+#: The CONTACT channel of the same mixture — wOBA per pitch type, applied
+#: through `BatterRates.arsenal_mult`, which scales home runs AND BABIP by
+#: the same factor.
+#:
+#: A DIFFERENT MECHANISM, not a subset of the strikeout null. That channel
+#: was tested and is dead — +0.6 sigma the wrong way, and flat in every
+#: quartile of mixture deviation including lineups it moved 7.5-16%. Whiffs
+#: move OUTS, the half measured to carry no edge; runs come from balls in
+#: play. See PREREG-arsenal-contact.md. OFF until measured.
+USE_CONTACT_MIXTURE = False
 
 #: Divide each player's rates by the park they were accumulated in before
 #: applying tonight's. Without this a park multiplier double-counts the
@@ -300,7 +324,8 @@ def build_cases(season=None, before=None, max_starts=None, since=None,
     """
     handed = USE_HANDEDNESS if handed is None else handed
     key = (season, before, max_starts, since, rates_before, handed,
-           NEUTRALISE_PARK, USE_ARSENAL)
+           NEUTRALISE_PARK, USE_ARSENAL, USE_MIXTURE,
+           USE_CONTACT_MIXTURE)
     if key in _CASES:
         return _CASES[key]
 
@@ -325,6 +350,12 @@ def build_cases(season=None, before=None, max_starts=None, since=None,
     league_bats = sim.BatterRates(name="league", k_pct=lg["k_pct"],
                                   bb_pct=lg["bb_pct"], hr_pct=lg["hr_pct"],
                                   babip=lg["babip"])
+
+    if (USE_MIXTURE or USE_CONTACT_MIXTURE) and _MIX[0] is None:
+        d = mixture.load()
+        _MIX[0] = d
+        _MIX[1] = mixture.league_by_pitch(d) if d else {}
+        _MIX[2] = mixture.league_usage(_MIX[1]) if _MIX[1] else {}
 
     arsenals = {}
     if USE_ARSENAL:
@@ -359,6 +390,32 @@ def build_cases(season=None, before=None, max_starts=None, since=None,
                 sim.BatterRates(name=nm, k_pct=use["k_pct"],
                                 bb_pct=use["bb_pct"], hr_pct=use["hr_pct"],
                                 babip=use["babip"], pa=b["pa"]))
+        if (USE_MIXTURE or USE_CONTACT_MIXTURE) and _MIX[0]:
+            data, lgp, lgu = _MIX
+            if USE_CONTACT_MIXTURE:
+                for x in lineup:
+                    cm = mixture.matchup_contact(
+                        x.name, p["name"], data, lgp,
+                        b_overall=mixture.batter_woba(x.name, data, lgu),
+                        lg_usage=lgu)
+                    if cm is not None:
+                        x.arsenal_mult = cm
+        if USE_MIXTURE and _MIX[0]:
+            data, lgp, lgu = _MIX
+            for x in lineup:
+                m = mixture.matchup_k(
+                    x.name, p["name"], data, lgp,
+                    b_overall=x.k_pct, p_overall=p["k_pct"],
+                    lg_overall=lg["k_pct"], log5=sim.log5)
+                if m is None:
+                    continue
+                agg = sim.log5(x.k_pct, p["k_pct"], lg["k_pct"])
+                # Enters through the multiplier slot that already feeds
+                # `pa_outcome`, so nothing downstream changes shape. A
+                # neutral arsenal against a batter with no per-pitch
+                # tendencies gives m == agg and a multiplier of exactly 1.
+                if agg > 0:
+                    x.arsenal_k_mult = m / agg
         if arsenals:
             mix = arsenals.get((s["player_name"] or "").lower().strip())
             mm = rate_src.arsenal_mults(

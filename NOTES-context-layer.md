@@ -71,6 +71,31 @@ Recorded because the corrections are more useful than the claims were.
    with the sample bar, which is small-n bias. The permutation settled it.
 3. **The recency hypothesis died at 3-5 sigma.** See below.
 
+### ARSENAL IS DEAD, THREE CONSTRUCTIONS DEEP
+
+Two PRE-REGISTERED tests on 2026-08-24, held-out window, rules fixed before
+either was run (`PREREG-arsenal.md`, `PREREG-arsenal-contact.md`):
+
+    channel                    primary CRPS      verdict
+    strikeouts (mixture)     +0.00210 (+0.6 sd)  do not ship
+    contact quality          +0.00239 (+0.7 sd)  do not ship
+
+Both the wrong way, nearly identically. Earlier, the scalar-multiplier
+version measured 9.79% against 9.79%. Three constructions, one dataset, no
+signal.
+
+**And no subset rescues it.** Asked whether any slice improved, the
+strikeout mixture was scored on the TRAINING window by quartile of how much
+it moved each lineup: -0.2 sigma in all four buckets, INCLUDING the top one
+where it shifts K rates 7.5-16%. Where the mixture says the most, it still
+says nothing. That is a cleaner negative than the headline test.
+
+**Pre-registration earned its place here.** The first arsenal attempt left a
+tempting sub-threshold hint ("every high-K line improved"), and choosing
+those lines after the fact is how a null becomes a finding. Fixing the
+endpoint and the 2-sigma bar in advance meant there was nothing to
+renegotiate.
+
 ### RECENCY IS DEAD — seven for seven on imported baseball knowledge
 
 The Ashcraft quote made a sharp case: season rates said 0.542 on his over-5.5
