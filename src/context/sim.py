@@ -44,7 +44,7 @@ from src import db
 # exactly the kind of invented number this project keeps finding in its own
 # code, and these cost one query.
 
-_LEAGUE_CACHE: dict[int | None, dict] = {}
+_LEAGUE_CACHE: dict[tuple, dict] = {}
 
 _PITCHING_Q = """
 select sum(outs_recorded) o, sum(h) h, sum(bb) bb, sum(k) k, sum(hr) hr,
@@ -65,7 +65,7 @@ _SP_Q = """
 select sum(p.outs_recorded) o, sum(p.h) h, sum(p.bb) bb, sum(p.k) k,
        sum(p.hr) hr
 from mlb_pitching p join games g on g.game_id = p.game_id
-where g.sport = 'mlb' and g.status = 'Final' and p.is_starter = 1
+where g.sport = 'mlb' and g.status = 'Final' and p.is_starter = 1 {where}
   and p.player_name in (
       select player_name from mlb_pitching where is_starter is not null
       group by player_name
@@ -73,14 +73,16 @@ where g.sport = 'mlb' and g.status = 'Final' and p.is_starter = 1
 """
 
 
-def _starter_league(conn=None) -> dict | None:
+def _starter_league(conn=None, before: str | None = None) -> dict | None:
     """Rate baselines from ROTATION STARTERS, per batter faced.
 
     The population the simulator simulates. Openers are excluded on the
     same 5-start bar `calibrate.ROTATION_MIN_GS` uses.
     """
+    where = f"and g.date < '{before}'" if before else ""
+
     def _run(c):
-        return c.execute(_SP_Q).fetchone()
+        return c.execute(_SP_Q.format(where=where)).fetchone()
     if conn is not None:
         r = _run(conn)
     else:
@@ -98,7 +100,8 @@ def _starter_league(conn=None) -> dict | None:
     }
 
 
-def league(season: int | None = None, conn=None) -> dict:
+def league(season: int | None = None, conn=None,
+           before: str | None = None) -> dict:
     """Season-to-date league rates for the simulator.
 
     The batting-side figures are computed first, per AB + BB, and are then
@@ -116,10 +119,20 @@ def league(season: int | None = None, conn=None) -> dict:
     it describes all pitchers — it describes rotation starters, which is the
     only population this module ever simulates.
     """
-    if season in _LEAGUE_CACHE:
-        return _LEAGUE_CACHE[season]
+    # KEYED ON `before` TOO. Keying on season alone meant the first caller
+    # decided the baselines for the whole process, so a train-only fit that
+    # ran after any full-season call silently got full-season numbers.
+    key = (season, before)
+    if key in _LEAGUE_CACHE:
+        return _LEAGUE_CACHE[key]
 
     where = f"and g.date like '{season}%'" if season else ""
+    if before:
+        # Strictly before, so a train-window fit is anchored to numbers that
+        # have not seen the test window. Train starters walk 0.0823 per
+        # batter faced against a full-season 0.0812 — small, and exactly the
+        # kind of leak that makes an out-of-sample test quietly in-sample.
+        where += f" and g.date < '{before}'"
 
     def _run(c):
         p = c.execute(_PITCHING_Q.format(where=where)).fetchone()
@@ -174,7 +187,7 @@ def league(season: int | None = None, conn=None) -> dict:
     # Scaling the pitchers instead was tried and made walks worse: the
     # pitcher rates were already on the right denominator, it was the
     # reference that was wrong.
-    sp = _starter_league(conn)
+    sp = _starter_league(conn, before=before)
     if sp:
         out["batter_scale"] = {
             k: (sp[k] / out[k]) if out.get(k) else 1.0
@@ -185,7 +198,7 @@ def league(season: int | None = None, conn=None) -> dict:
     else:
         out["batter_scale"] = {k: 1.0 for k in
                                ("k_pct", "bb_pct", "hr_pct", "babip")}
-    _LEAGUE_CACHE[season] = out
+    _LEAGUE_CACHE[key] = out
     return out
 
 

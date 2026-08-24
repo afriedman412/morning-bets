@@ -308,7 +308,11 @@ def build_cases(season=None, before=None, max_starts=None, since=None,
     # on one window and score starts in another. Tying them together is what
     # makes an "out-of-sample" test quietly in-sample.
     rb = rates_before if rates_before is not None else before
-    lg = sim.league(season)
+    # The LEAGUE BASELINE is training data too. log5 returns the league value
+    # when both sides are average, so it anchors every simulated rate — and
+    # computing it over every cached game let the test window into a
+    # "train-only" fit. Same cutoff as the player rates.
+    lg = sim.league(season, before=rb)
     pr = rate_src.pitcher_rates(lg, season, rb)
     br = rate_src.batter_rates(lg, season, rb)
     split = rate_src.batter_rates_by_hand(lg, season, rb) if handed else {}

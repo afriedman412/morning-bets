@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import random
 
+from src.context import calibrate as cal
 from src.context import f5, fitf5, sim
 from tests.test_sim import LG, _lineup, _pitcher
 
@@ -495,3 +496,37 @@ def check_check_grids_actually_catches_a_missing_incumbent():
     finally:
         fitf5.GRID["GIDP_RATE"] = real
     raise AssertionError("a grid missing its incumbent was accepted")
+
+
+def check_league_baselines_respect_the_cutoff():
+    """The league baseline is training data and must honour `before`.
+
+    log5 returns the league value whenever both sides are average, so this
+    anchors every simulated rate. Computing it over all cached games let the
+    test window into a fit labelled train-only — quiet leakage, because the
+    obvious knob (player rates) was set correctly.
+    """
+    full = sim.league()
+    early = sim.league(before="2026-06-01")
+    assert full["bb_pct"] != early["bb_pct"], (full["bb_pct"],
+                                               early["bb_pct"])
+    assert full["k_pct"] != early["k_pct"]
+
+
+def check_league_cache_is_keyed_on_the_cutoff():
+    """Keyed on season alone, the FIRST caller fixed the baselines for the
+    whole process — so a train-only fit running after any full-season call
+    silently got full-season numbers, with no error and no clue."""
+    a = sim.league(before="2026-06-01")
+    b = sim.league()
+    c = sim.league(before="2026-06-01")
+    assert a["bb_pct"] == c["bb_pct"], "cutoff result was clobbered"
+    assert a["bb_pct"] != b["bb_pct"], "cutoff had no effect"
+
+
+def check_build_cases_passes_the_cutoff_to_the_league():
+    """Guards the wiring. The league can honour `before` and still never be
+    told about it, which looks identical from the outside."""
+    import inspect
+    src = inspect.getsource(cal.build_cases)
+    assert "sim.league(season, before=rb)" in src, src[:200]
