@@ -133,6 +133,54 @@ def check_reaching_on_an_error_is_a_plate_appearance():
     assert c["dp_pa/0"] == 1
 
 
+def check_the_batting_team_owns_the_baserunners():
+    """Top of the inning is the AWAY club batting. Backwards, the whole
+    per-club table measures each club's OPPONENTS and still looks fine."""
+    assert advance.batting_team(("NYY", "BOS"), True) == "NYY"
+    assert advance.batting_team(("NYY", "BOS"), False) == "BOS"
+    assert advance.batting_team(None, True) is None
+
+
+def _team_counter(rates, halves=(0, 1), n=200):
+    """{club: (first-half rate, second-half rate)} -> a tally-shaped dict."""
+    c = {}
+    for club, (a, b) in rates.items():
+        for h, rate in zip(halves, (a, b)):
+            c[f"{club}.{h}|first_on_1b/0"] = n
+            c[f"{club}.{h}|first_to_third/0"] = round(rate * n)
+    return c
+
+
+def check_team_stability_finds_a_club_effect_when_there_is_one():
+    c = _team_counter({"AAA": (0.20, 0.21), "BBB": (0.30, 0.29),
+                       "CCC": (0.40, 0.41), "DDD": (0.25, 0.24),
+                       "EEE": (0.35, 0.36), "FFF": (0.45, 0.44)})
+    r, n = advance.team_stability(c, "first_to_third", "first_on_1b",
+                                  keys=(0,))
+    assert n == 6, n
+    assert r > 0.95, r
+
+
+def check_team_stability_is_near_zero_when_halves_are_unrelated():
+    """The failure this gate exists to catch: clubs differ in the observed
+    table, but a club's first half says nothing about its second, so the
+    spread is a season of sampling noise and the league number is the
+    honest one."""
+    c = _team_counter({"AAA": (0.20, 0.44), "BBB": (0.44, 0.21),
+                       "CCC": (0.32, 0.33), "DDD": (0.21, 0.43),
+                       "EEE": (0.43, 0.20), "FFF": (0.33, 0.32)})
+    r, _ = advance.team_stability(c, "first_to_third", "first_on_1b",
+                                  keys=(0,))
+    assert r is not None and r < 0.0, r
+
+
+def check_team_stability_drops_thin_halves():
+    c = _team_counter({"AAA": (0.2, 0.2), "BBB": (0.3, 0.3)}, n=10)
+    r, n = advance.team_stability(c, "first_to_third", "first_on_1b",
+                                  keys=(0,), min_n=60)
+    assert n == 0 and r is None, (r, n)
+
+
 def check_advance_means_forward_only():
     assert advance._adv("score", "1B")
     assert advance._adv("3B", "1B")

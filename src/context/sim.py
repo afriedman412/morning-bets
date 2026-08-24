@@ -336,7 +336,34 @@ SB_RATE = 0.0557
 #: Share of ball-in-play outs that become double plays when there is a
 #: runner on first and fewer than two out. Matters for outs props directly:
 #: a double play is two of them from one batter.
-GIDP_RATE = 0.11
+#:
+#: THIS VALUE IS ATTACHED TO THE WRONG DENOMINATOR AND ALWAYS WAS. 0.11 is
+#: `GIDP%` as normally published, which is double plays per OPPORTUNITY —
+#: every plate appearance with a man on first and under two out. Measured
+#: here it is .089/.095 by out count, right next to 0.11, so the number
+#: itself was fine. But the roll below only happens once a ball in play has
+#: ALREADY become an out, which is about half as many chances, and the rate
+#: in THAT denominator measures .209/.224. The simulator has been turning
+#: roughly half the double plays it should.
+#:
+#: Left as the shipped default under a switch rather than simply corrected,
+#: because the F5 fit picked 0.11 in the model's own denominator over a grid
+#: that reached 0.19. Something is compensating and doubling it blind would
+#: break whatever that is. The scoring run decides.
+#: MEASURED IN THE MODEL'S OWN DENOMINATOR. This keeps the name `GIDP_RATE`
+#: because `fitf5` searches it and `sim.rules` overrides it by name — the
+#: first version of this change introduced `GIDP_ON_OUT` alongside and left
+#: `GIDP_RATE` wired to nothing, so the fit would have explored a parameter
+#: that no longer reached the model. `check_evaluate_applies_its_parameters`
+#: caught it, which is the entire reason that check exists.
+GIDP_RATE = {0: 0.209, 1: 0.224, 2: 0.0}
+USE_MEASURED_GIDP = True
+#: The published per-opportunity number, on the wrong denominator.
+LEGACY_GIDP_RATE = 0.11
+
+
+def gidp_rate(outs: int) -> float:
+    return _rate(GIDP_RATE if USE_MEASURED_GIDP else LEGACY_GIDP_RATE, outs)
 
 # ── the runs the model could not produce ───────────────────────────────
 #
@@ -747,12 +774,35 @@ def for_pitcher(base: Hook, avg_pitches: float | None,
 #: over-converting the nobody-out case, which is why the fit kept straining
 #: at the edge instead of settling.
 #:
-#: Values are published league references per out state, NOT fitted. The
-#: whole point is to stop these absorbing other defects; fitting them again
-#: against runs would repeat the mistake this exists to correct.
-FIRST_TO_THIRD_ON_1B = {0: 0.24, 1: 0.28, 2: 0.34}
-SECOND_SCORES_ON_1B = {0: 0.42, 1: 0.62, 2: 0.84}
-FIRST_SCORES_ON_2B = {0: 0.33, 1: 0.45, 2: 0.63}
+#: MEASURED ON THIS LEAGUE, over 152,153 plays of play-by-play, replacing
+#: the published references these started as. Measuring is not fitting:
+#: there is no loss function behind these, the conditioning matches the code
+#: paths below exactly (see `src/context/advance.py`), and they were adopted
+#: as a SET without checking what each did to the score. Fitting them
+#: against runs would repeat the mistake the out-count split exists to
+#: correct; counting them does not.
+#:
+#: The published numbers were wrong in BOTH DIRECTIONS AT ONCE, which is why
+#: they had to move together. First-to-third was six to seven points light,
+#: so too many runners were stranded at second; the two scoring rates were
+#: four to ten points heavy, so too many of the ones who did get there came
+#: home. Runs per baserunner sat at -0.2% while every component was off by
+#: three to six sigma — the aggregate was right for cancelling reasons.
+#:
+#:     was .24 .28 .34   ->   .307 .295 .408
+#:     was .42 .62 .84   ->   .411 .542 .796
+#:     was .33 .45 .63   ->   .274 .346 .565
+FIRST_TO_THIRD_ON_1B = {0: 0.307, 1: 0.295, 2: 0.408}
+SECOND_SCORES_ON_1B = {0: 0.411, 1: 0.542, 2: 0.796}
+FIRST_SCORES_ON_2B = {0: 0.274, 1: 0.346, 2: 0.565}
+
+#: A runner SCORING FROM FIRST on a single. The model could not do it at
+#: all — its single sent him to third at best — so this is a missing
+#: mechanism rather than a mistuned rate, and folding it into
+#: first-to-third would have hidden that. Rare, and rising sharply with the
+#: out count for the same reason everything else here does: with two down he
+#: is running on contact.
+FIRST_SCORES_ON_1B = {0: 0.022, 1: 0.043, 2: 0.068}
 
 
 def _rate(table, outs: int) -> float:
@@ -785,9 +835,51 @@ def _rate(table, outs: int) -> float:
 #: enough. The two-out entry is never reached: the guard in `apply_pa` only
 #: advances while the inning is still alive, and with two down the ball in
 #: play IS the third out.
+#: MIX AND MATCH. Every mechanism change here is discrete and has to stay
+#: separately scoreable — the combination that wins is not necessarily the
+#: newest state, and a change that loses on F5 may still be right on team
+#: totals. Switching this off restores the exact pre-measurement model:
+#: published tables, one pooled coin flip on an out, and no way to score
+#: from first on a single. Same shape as `USE_PARK` and `USE_HOME_ROAD`.
+#:
+#: The PUBLISHED values live in `LEGACY_ADVANCEMENT` rather than in the
+#: constants themselves so that turning the switch off does not require
+#: remembering which six globals to put back.
+USE_MEASURED_ADVANCEMENT = True
+
+LEGACY_ADVANCEMENT = {
+    "FIRST_TO_THIRD_ON_1B": {0: 0.24, 1: 0.28, 2: 0.34},
+    "SECOND_SCORES_ON_1B": {0: 0.42, 1: 0.62, 2: 0.84},
+    "FIRST_SCORES_ON_2B": {0: 0.33, 1: 0.45, 2: 0.63},
+}
+
+#: SUPERSEDED by the three per-base tables, and kept because the legacy
+#: path still reads it — one pooled constant, every runner moving together.
 RUNNER_ADVANCES_ON_OUT = {0: 0.30, 1: 0.45, 2: 0.0}
 #: (indexed by outs BEFORE the play; the 2 entry is unreachable because
 #: with two down the ball in play is itself the third out)
+
+#: PER BASE, because that is the shape reality has and one constant cannot
+#: hold it. Measured, the runner on second goes roughly twice as often as
+#: the runner on first — .49 against .22 with nobody out — so a pooled rate
+#: is wrong for both of them no matter what value it takes. The old
+#: mechanism moved EVERY runner together on one coin flip, which is a
+#: different play from the one that happens.
+#:
+#: CONDITIONED ON THE BASE AHEAD BEING FREE, which is a different quantity
+#: from the marginal and is the one a simulator needs. Nobody can pass
+#: anybody, so `_advance` rolls the lead runner first and only offers the
+#: roll to a trailing runner once the base ahead has actually been vacated.
+#: Handing it marginal rates instead would count the blocking twice — once
+#: in the rate and once in the occupancy check. The gap is small and it
+#: runs in OPPOSITE directions for the two bases (.235 -> .221 on first,
+#: .477 -> .490 on second), which is exactly what double-counted blocking
+#: looks like.
+#:
+#: The runner on third is unconditional: home plate is never occupied.
+ADVANCE_1B_ON_OUT = {0: 0.221, 1: 0.239, 2: 0.0}
+ADVANCE_2B_ON_OUT = {0: 0.490, 1: 0.439, 2: 0.0}
+ADVANCE_3B_ON_OUT = {0: 0.331, 1: 0.420, 2: 0.0}
 
 #: Runners a departing starter leaves on who go on to score. They are
 #: CHARGED TO HIM as earned runs, so `r.runs` has to include them or the
@@ -825,7 +917,9 @@ WP_PB_RATE = 0.0155
 #: The hook is NOT in here. It is a dataclass already and travels per start,
 #: which is what lets one club have a quicker one than another.
 FITTABLE = ("FIRST_TO_THIRD_ON_1B", "SECOND_SCORES_ON_1B",
-            "FIRST_SCORES_ON_2B", "RUNNER_ADVANCES_ON_OUT",
+            "FIRST_SCORES_ON_2B", "FIRST_SCORES_ON_1B",
+            "RUNNER_ADVANCES_ON_OUT", "ADVANCE_1B_ON_OUT",
+            "ADVANCE_2B_ON_OUT", "ADVANCE_3B_ON_OUT",
             "INHERITED_SCORE_RATE", "WP_PB_RATE", "GIDP_RATE",
             "ROE_PER_OUT")
 
@@ -891,23 +985,41 @@ def _advance(bases: list[bool], outcome: str, rng: random.Random,
     elif outcome == B2:
         runs = sum(bases[1:])                       # 2nd and 3rd both score
         from_first_scores = bases[0] and rng.random() < _rate(
-            FIRST_SCORES_ON_2B, outs)
+            FIRST_SCORES_ON_2B if USE_MEASURED_ADVANCEMENT
+            else LEGACY_ADVANCEMENT["FIRST_SCORES_ON_2B"], outs)
         runs += 1 if from_first_scores else 0
         bases[:] = [False, True, bool(bases[0]) and not from_first_scores]
     elif outcome == B1:
+        second_scores = (SECOND_SCORES_ON_1B if USE_MEASURED_ADVANCEMENT
+                         else LEGACY_ADVANCEMENT["SECOND_SCORES_ON_1B"])
+        to_third = (FIRST_TO_THIRD_ON_1B if USE_MEASURED_ADVANCEMENT
+                    else LEGACY_ADVANCEMENT["FIRST_TO_THIRD_ON_1B"])
         runs = 1 if bases[2] else 0                 # third always scores
         third = False
         if bases[1]:
-            if rng.random() < _rate(SECOND_SCORES_ON_1B, outs):
+            if rng.random() < _rate(second_scores, outs):
                 runs += 1
             else:
                 third = True
-        if bases[0] and not third and rng.random() < _rate(
-                FIRST_TO_THIRD_ON_1B, outs):
-            third = True
-            bases[:] = [True, False, third]
-        else:
-            bases[:] = [True, bool(bases[0]), third]
+        on_first = bool(bases[0])
+        if on_first and not third:
+            # ONE DRAW, CUMULATIVE THRESHOLDS. Scoring from first and
+            # stopping at third are disjoint outcomes in the data they were
+            # measured from, so they have to be disjoint here too — two
+            # independent rolls would let him do both.
+            r = rng.random()
+            # Scoring from first did not exist before the measurement, so
+            # the legacy path gets zero mass and the cumulative threshold
+            # collapses back to a single first-to-third roll.
+            score_p = (_rate(FIRST_SCORES_ON_1B, outs)
+                       if USE_MEASURED_ADVANCEMENT else 0.0)
+            if r < score_p:
+                runs += 1
+                on_first = False
+            elif r < score_p + _rate(to_third, outs):
+                third = True
+                on_first = False
+        bases[:] = [True, on_first, third]
     elif outcome == BB:
         if bases[0] and bases[1] and bases[2]:
             runs = 1
@@ -917,11 +1029,27 @@ def _advance(bases: list[bool], outcome: str, rng: random.Random,
             bases[1] = True
         else:
             bases[0] = True
-    elif outcome == OUT:
+    elif outcome == OUT and not USE_MEASURED_ADVANCEMENT:
+        # LEGACY: one coin flip, everybody moves together.
         if rng.random() < _rate(RUNNER_ADVANCES_ON_OUT, outs):
             if bases[2]:
                 runs += 1                           # sacrifice fly
             bases[:] = [False, bases[0], bases[1]]
+    elif outcome == OUT:
+        # LEAD RUNNER FIRST. Each base gets its own roll, and a trailing
+        # runner is only offered one once the base ahead of him has actually
+        # been vacated — which is what the measured rates were conditioned
+        # on. The old mechanism moved everybody on a single coin flip, which
+        # is a different play from the one that happens.
+        if bases[2] and rng.random() < _rate(ADVANCE_3B_ON_OUT, outs):
+            runs += 1                               # sacrifice fly
+            bases[2] = False
+        if (bases[1] and not bases[2]
+                and rng.random() < _rate(ADVANCE_2B_ON_OUT, outs)):
+            bases[1], bases[2] = False, True
+        if (bases[0] and not bases[1]
+                and rng.random() < _rate(ADVANCE_1B_ON_OUT, outs)):
+            bases[0], bases[1] = False, True
     return runs
 
 
@@ -1057,7 +1185,7 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random) -> None:
     elif o == OUT:
         # Double play only with a runner on first and a base open for the
         # force, and it ends the inning if it is the second and third out.
-        if bases[0] and fr.outs < 2 and rng.random() < GIDP_RATE:
+        if bases[0] and fr.outs < 2 and rng.random() < gidp_rate(fr.outs):
             bases[0] = False
             fr.outs += 2
             r.outs += 2

@@ -1181,16 +1181,40 @@ def check_advancement_rises_with_the_out_count():
     flat -- or worse, backwards -- the model would be back to splitting the
     difference between two situations that are nothing alike, which is what
     left runs-per-baserunner 4.2% short of reality.
+
+    IT IS TWO-OUT AGAINST NOBODY-OUT, not a rising ladder. This check used
+    to assert v[0] < v[1] < v[2] and that is a property of the PUBLISHED
+    references, not of the league. Measured over 152,153 plays,
+    first-to-third goes .307 .295 .408: the middle entry sits 0.8 sigma
+    BELOW the first, which is to say the two are the same number, while the
+    two-out jump is enormous and real. Asserting the ladder would be
+    asserting a decimal place the data does not have.
     """
     for table in (sim.FIRST_TO_THIRD_ON_1B, sim.SECOND_SCORES_ON_1B,
-                  sim.FIRST_SCORES_ON_2B):
+                  sim.FIRST_SCORES_ON_2B, sim.FIRST_SCORES_ON_1B):
         v = [sim._rate(table, o) for o in (0, 1, 2)]
-        assert v[0] < v[1] < v[2], v
+        assert v[2] > v[0], v
+        assert v[1] >= v[0] * 0.9, v          # no collapse in the middle
     # The productive out is the exception: its two-out entry is unreachable,
     # because with two down the ball in play is itself the third out.
-    adv = sim.RUNNER_ADVANCES_ON_OUT
-    assert sim._rate(adv, 0) < sim._rate(adv, 1), adv
-    assert sim._rate(adv, 2) == 0.0, adv
+    for adv in (sim.ADVANCE_1B_ON_OUT, sim.ADVANCE_2B_ON_OUT,
+                sim.ADVANCE_3B_ON_OUT, sim.RUNNER_ADVANCES_ON_OUT):
+        assert sim._rate(adv, 2) == 0.0, adv
+
+
+def check_advancing_on_an_out_is_shaped_by_which_base():
+    """Why one pooled constant was replaced by three.
+
+    A runner on second advances on a ball in play about twice as often as a
+    runner on first -- .49 against .22 with nobody out -- so no single value
+    can be right for both, whatever it is set to. That gap is the whole
+    justification for the per-base tables, and if it ever closed they should
+    go back to being one number.
+    """
+    for outs in (0, 1):
+        one = sim._rate(sim.ADVANCE_1B_ON_OUT, outs)
+        two = sim._rate(sim.ADVANCE_2B_ON_OUT, outs)
+        assert two > one * 1.5, (outs, one, two)
 
 
 def check_rate_accepts_a_bare_float():

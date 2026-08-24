@@ -98,7 +98,7 @@ HOOK_KEYS = ("intercept", "per_inning", "per_run", "pitch_center",
 #: over the base-out state and they score for real reasons. The fit drove it
 #: to its grid ceiling on the stub and the holdout rejected the move at 2.6
 #: sigma — a constant straining on a path the product does not use.
-RULE_KEYS = ("WP_PB_RATE", "GIDP_RATE")
+RULE_KEYS = ("WP_PB_RATE",)
 
 PARAMS = RULE_KEYS
 
@@ -343,7 +343,18 @@ GRID = {
     "WP_PB_RATE": [0.010, 0.0155, 0.022, 0.030],
     # A double play ends a rally outright, so this is a run-production
     # mechanism and not the outs term it looks like.
-    "GIDP_RATE": [0.07, 0.11, 0.15, 0.19],
+    #
+    # NOW A MEASURED TABLE keyed by out count (.209/.224 in the model's own
+    # denominator), so it is out of the grid for the same reason the three
+    # advancement tables are: counting it is not fitting it, and handing it
+    # back to a search is how a measured quantity goes back to absorbing
+    # other defects. `sim.rules(GIDP_RATE=x)` still overrides it with a flat
+    # value, which is what `check_evaluate_applies_its_parameters` uses and
+    # what a deliberate one-off scan would use.
+    #
+    # The old grid was [0.07, 0.11, 0.15, 0.19] around a shipped 0.11 —
+    # every value in it BELOW the measured rate, which is worth knowing: the
+    # search could not have found the right answer no matter how it went.
 }
 
 

@@ -195,7 +195,12 @@ def check_evaluate_applies_its_parameters():
     cases = (_pair(2, game="A") + _pair(3, game="B", seed=9)
              + _pair(1, game="C", seed=21))
     base = fitf5.evaluate(cases, None, n_sims=20, lg=dict(LG))
-    for k, v in (("GIDP_RATE", 0.30), ("intercept", -2.0)):
+    # WP_PB_RATE rather than GIDP_RATE: the double-play rate became a
+    # MEASURED table keyed by out count and left the search, so it is no
+    # longer routed through `sim.rules` and would make this check vacuous.
+    # It failed for exactly that reason when the measurement landed, which
+    # is what it is for.
+    for k, v in (("WP_PB_RATE", 0.20), ("intercept", -2.0)):
         moved = fitf5.evaluate(cases, {k: v}, n_sims=20, lg=dict(LG))
         assert moved["loss"] != base["loss"], k
 
@@ -503,14 +508,14 @@ def check_every_grid_contains_its_own_shipped_value():
 
 def check_check_grids_actually_catches_a_missing_incumbent():
     """The guard has to fire, not just exist."""
-    real = fitf5.GRID["GIDP_RATE"]
-    fitf5.GRID["GIDP_RATE"] = [0.99, 0.98]
+    real = fitf5.GRID["WP_PB_RATE"]
+    fitf5.GRID["WP_PB_RATE"] = [0.99, 0.98]
     try:
         fitf5.check_grids()
     except ValueError:
         return
     finally:
-        fitf5.GRID["GIDP_RATE"] = real
+        fitf5.GRID["WP_PB_RATE"] = real
     raise AssertionError("a grid missing its incumbent was accepted")
 
 

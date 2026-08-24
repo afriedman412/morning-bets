@@ -1,283 +1,268 @@
-# Resume here — state as of 2026-08-24
+# Resume here — state as of 2026-08-24 (end of day four)
 
-Written at the end of day three, for the next session. `NOTES-context-layer.md`
-has the full record; this is what you need to act.
+`NOTES-context-layer.md` has the long record; this is what you need to act.
+Read it before touching anything, then read `CLAUDE.md`.
 
 ---
 
 ## The one-paragraph version
 
-The simulator is calibrated and the market work is done. **F5 totals and K
-props carry a real edge; team totals, game totals, outs and NRFI carry
-none.** The edge tracks how little BULLPEN is in the settlement, not whether
-a starter drives it. Nine feature ideas have been measured and all nine were
-null. The model is no longer the constraint — execution near the open is.
+Play-by-play is scraped and it changed what we know. The advancement
+constants the run model rests on were **published guesses that were wrong in
+both directions and cancelled**, and they are now measured on this league.
+The bullpen work has passed its gate — role is real and projects from prior
+games — and per-club baserunning has FAILED its gate, so the league number
+stays. The model is calibrated; the binding constraint is execution near the
+open, and the biggest remaining mechanism is the bullpen.
 
 ---
 
-## Where the edge is
+## What is new since day three
 
-| target | contracts | bullpen share | direction | blend | cents |
-|---|---|---|---|---|---|
-| K props | 12,181 | ~0% | **73.2%** | +32.9% | +3.7c |
-| **F5 totals** | **2,676** | **~10%** | **59.6%** | **+23.4%** | **+3.4c** |
-| team totals | 4,943 | ~40% | 50.7% | +9.4% | +1.4c |
-| game totals | 4,222 | ~40% | 52.0% | +4.1% | +1.2c |
-| outs / NRFI | — | ~0% | — | ~0% | — |
+**205 MB of whole-game play-by-play, all 2,006 games** (`sources/pbp.py`,
+`.cache/pbp/`, ~2 min over 8 workers). Fetched whole and stored whole —
+extracting a subset to save disk is a false economy, the API call is
+identical either way and re-scraping for a discarded field is the expensive
+mistake. `pbp.plays()` reconstructs base-out-score state BEFORE every play;
+`pbp.stints()` turns that into one row per pitcher per game.
 
-Nothing has ever beaten a settled CLOSING price. The edge is being EARLY —
-beat the open, lose to the close — so realising it means betting near the
-open where books are thinnest. **Execution is the binding constraint.**
+**`context.db` is new and `morning_bets.db` is now READ-ONLY to this
+layer.** Derived tables (`mlb_stints`, 17,260 rows) live in the new file;
+the pipeline DB attaches through a `mode=ro` URI as the `bets` schema, so
+joins read `bets.games` exactly as before and a stray INSERT raises. The
+pipeline DB is not version controlled and holds a season of boxscores that
+cannot be regenerated — that is the whole reason.
 
-A prediction of mine that was WRONG, and the useful part: team totals should
-have carried the F5 edge, since one team's runs are what the opposing starter
-allows. They do not. It is not "starter-driven" that matters, it is bullpen
-share — but outs and NRFI have no bullpen and no edge either, so the rule is
-not monotone. It needs a starter-dominated settlement AND enough plate
-appearances for skill to beat variance. F5 is the only measured quantity with
-both.
+**Independent validation of the extraction:** PBP-derived outs agree exactly
+with the boxscore on **99.68%** of 16,653 pitcher-games, and reconstructed
+base state agrees with statsapi's own `menOnBase` on 62/62 non-inning-ending
+plays of the first game checked.
 
 ---
 
-## BUILD THE BULLPEN MODEL — this is the main opportunity
+## Where the edge is (n_sims CORRECTED — the old table understated it)
 
-I initially concluded the opposite ("back-half mechanism, no back-half
-edge") and Andy pushed back correctly. **The conclusion was wrong.**
+Every recorded CLV number was measured at `n_sims=250`, which carries ~3.2
+cents of Monte Carlo error against a 3.7-cent median disagreement. That
+ATTENUATES. Re-run at 1500 on the same 2,676 F5 contracts:
 
-The edge decays as bullpen share rises, and there were two readings: (A) our
-relief model is bad and injecting error, or (B) bullpens are unpredictable
-for everyone. I treated those as opposed. They are not — WE ARE PART OF
-EVERYONE, so if bullpens are hard for the market too, being less bad at them
-IS the edge. Both readings say build it.
+| | 250 sims | 1500 sims |
+|---|---|---|
+| CLV corr | +0.456 | **+0.496** |
+| z | +36.2 | **+39.5** |
+| blend vs open | +20.7% | **+24.9%** |
+| 5c+ direction | 56.3% | **63.2%** |
+| cents our way | +2.9c | **+3.7c** |
+| n disagreements | 932 | **787** |
 
-**And the data says (A) anyway.** Team-total direction accuracy, split by how
-deep the opposing starter actually went:
+145 of the "five-cent disagreements" at 250 sims were simulation noise
+rather than opinions, and +3.7c now matches the K prop exactly. **K props,
+team totals and game totals have NOT been re-run and are all understated by
+an unknown amount.** That is cheap and it is high on the list, because it
+may change which markets look worth pursuing.
 
-    <= 15 outs   n=479   49.9%
-    16-18 outs   n=446   52.7%
-    19+ outs     n=163   57.1%
+Nothing has ever beaten a settled CLOSING price. The edge is being EARLY.
 
-Monotone. In games the bullpen barely touched, our team-total edge is nearly
-F5-sized. The relief innings are what destroy it — which means the ~40%
-bullpen markets (team totals 4,943 contracts, game totals 4,222) are
+---
+
+## The advancement tables are measured now, and they were cancelling
+
+152,153 plays (`src/context/advance.py`). The published references were
+wrong in BOTH directions at once, which is why nothing showed up in the
+aggregate:
+
+    first -> third on a single   .307 .295 .408   was .240 .280 .340
+    second scores on a single    .411 .542 .796   was .420 .620 .840
+    first scores on a double     .274 .346 .565   was .330 .450 .630
+    anyone advances on an out    .326 .354        was .300 .450
+
+Too many runners stranded at second, then too many of the ones who got
+there scored. Runs per baserunner sat at **-0.2%** while every component was
+off by 3-6 sigma. **The aggregate was right for cancelling reasons**, which
+is the exact failure the notes warn about, and it means the model breaks
+wherever the compensation does.
+
+Two mechanisms were wrong in SHAPE, not level, and both are now fixed:
+
+* **Advance-on-out is per base.** One pooled constant moved every runner
+  together on one coin flip. Measured, the man on second goes ~twice as
+  often as the man on first (.49 vs .22 with nobody out), so no single value
+  is right for both. Now three tables, rolled LEAD RUNNER FIRST, and
+  conditioned on the base ahead being free — which is a different quantity
+  from the marginal, and using the marginal would double-count the blocking.
+* **Scoring from first on a single did not exist.** Measured .022 / .043 /
+  .068 by out count. Added as its own table with a cumulative threshold
+  against first-to-third, so the two stay disjoint.
+
+**`sim.USE_MEASURED_ADVANCEMENT` and `sim.USE_MEASURED_GIDP` switch each
+change independently** (`LEGACY_ADVANCEMENT` holds the old values). Every
+mechanism here is discrete and must stay separately scoreable — the winning
+combination is not necessarily the newest state.
+
+**A test changed meaning and you should know.**
+`check_advancement_rises_with_the_out_count` asserted a strict 0<1<2 ladder.
+That is a property of the published references, not the league: first-to-
+third goes .307 .295 .408, so the middle entry is 0.8 sigma BELOW the first.
+The invariant was weakened to what the data supports (two-out >> nobody-out)
+rather than making the data fit the test.
+
+**THE PAIRED F5 SCORING RUN WAS IN FLIGHT WHEN THIS WAS WRITTEN.** Four
+states — advancement published/measured x GIDP published/measured — on the
+same sides, outcomes and salts, train before 2026-07-01 and test after.
+Re-run it: `scratchpad/score_adv.py`. Whatever it says, the measured values
+STAY: a guess that happens to score well is still a guess, and if measured
+values score worse that locates the compensation rather than refuting them.
+Do NOT reverse-engineer which constant to un-measure to win the score back.
+
+### The GIDP constant is on the wrong denominator
+
+`GIDP%` as published is double plays per OPPORTUNITY — every PA with a man
+on first and under two out — and measures .089/.095 here, right next to the
+shipped 0.11. But the simulator rolls it only once a ball in play has
+ALREADY become an out, about half as many chances, where the real rate is
+**.209/.224**. So it turns roughly half the double plays it should.
+
+Not simply corrected, because the F5 fit chose 0.11 in the model's own
+denominator over a grid reaching 0.19. Something compensates. Behind
+`USE_MEASURED_GIDP`; the scoring run adjudicates.
+
+---
+
+## Per-club baserunning: MEASURED, and it does not pass the gate
+
+The hypothesis was that league-wide generalisation costs accuracy. Mostly
+no. Split-half per club, first half of each club's own season against its
+second (`advance.py --by-team`):
+
+    grounds into a double play      r +0.384   n=30
+    first -> third on a single      r +0.289   n=30
+    advances on a ball-in-play out  r +0.119   n=30
+    second scores on a single       r +0.111   n=12
+
+Compare the bullpen role gate at r +0.55 to +0.78. The observed club spread
+looks large — first-to-third runs .265 (TEX) to .493 (DET), sd .051 — but
+with a split-half r of .289 most of that is a season of sampling noise, not
+a persistent club property. **Do not wire per-club advancement tables.**
+
+GIDP is the one with any case (r +0.384, and it makes sense as a batter
+trait — ground-ball rate and speed), and even that needs heavy shrinkage.
+
+---
+
+## BUILD THE BULLPEN MODEL — the gate has passed
+
+The question was never "is random deployment wrong". It is whether ROLE IS
+PREDICTABLE FROM PRIOR GAMES, because otherwise role-based deployment is a
+more expensive way to draw from the same distribution. Split-half over 319
+relievers, chronological (`src/context/deploy.py`):
+
+    outs recorded        r +0.780
+    entry inning         r +0.627
+    high-leverage share  r +0.551
+    entry margin         r +0.393
+
+**Role is real and it projects.** Build it.
+
+The score does select the arm, but modestly: K-BB% .154 leading 1-3 against
+.127 down 4+, and close (<=2) .147 against blowout (>=5) .134 — a gap of
+0.36 SD of the reliever pool. The model draws at random, so it prices every
+late inning as the AVERAGE arm: too good in a blowout, too bad in a one-run
+game, wrong in both tails at once.
+
+**The bigger errors are structural, not selection.** 13,248 relief outings
+average **3.47 outs** against the model's flat 3.00, only 52.2% are one
+clean inning, 25.4% are longer, and **30.4% are mid-inning entries the model
+cannot produce at all.** That changes how many arms a game uses, which is a
+variance question, and variance is what a total settles on.
+
+Supporting: team-total direction accuracy by how deep the opposing starter
+went — 49.9% (<=15 outs), 52.7% (16-18), 57.1% (19+). Monotone. The relief
+innings are what destroy the edge, so the ~40%-bullpen markets are
 recoverable rather than hopeless.
-
-### What is wrong with the current model
-
-`game.build_side` samples eight arms weighted by season appearances, then
-uses them **in sample order, one inning each, regardless of game state.** So
-the closer can pitch the 6th of a blowout and the mop-up man the 9th of a
-one-run game. Two measured defects:
-
-* **Only 52.6% of real relief outings are one clean inning.** 21.7% are
-  fewer than three outs (mid-inning entries), 25.7% are more. Mean 3.51
-  outs, not 3.00.
-* **Deployment is independent of the score**, which destroys a real
-  correlation: good arms pitch close games, mop-up arms pitch blowouts. That
-  correlation is what shapes the run distribution's tails, and `game.py`
-  already tracks the live margin — the trigger is sitting there unused.
-
-### The data is a 4-minute scrape, NOT a big lift
-
-I over-stated this twice before correcting it. Raw play-by-play is 553 KB a
-game (~1.1 GB), but we only need PITCHER CHANGE events: pitcher, inning,
-half-inning, and score at entry. That is **1,694 bytes a game, ~3.2 MB
-total, ~4 minutes with 8 workers** — the same shape as the pitch-count
-backfill already done.
-
-`statsapi /game/{pk}/playByPlay`, walk `allPlays`, emit a row whenever
-`matchup.pitcher` changes, reading `about.inning`, `about.halfInning` and
-`result.awayScore/homeScore`. Track the two sides SEPARATELY — a naive
-version emits a spurious change every half-inning.
-
-Boxscores already give appearance ORDER, `inheritedRunners`, `saves`,
-`holds` and `gamesFinished`, so roles are partly identifiable without the
-scrape at all.
-
-### Order
-
-1. Scrape pitcher changes; MEASURE the deployment pattern before modelling
-   it (which arm, which inning, at what margin).
-2. Deploy by role rather than at random; condition entry on the live margin.
-3. Allow multi-inning and mid-inning relief outings.
-4. Re-run team totals and game totals. Those are the targets this unlocks.
-
-Do NOT fit team-specific bullpen offsets — that is the patience/leash
-mistake waiting to happen.
-
----
-
-## SCRAPE PLAY-BY-PLAY, THEN BUILD THE BULLPEN MODEL
-
-This is the main opportunity and I got it wrong twice before Andy corrected
-me. Both corrections are worth reading.
-
-### Correction 1: the bullpen IS worth modelling
-
-I concluded "do not model reliever deployment — back-half mechanism, no
-back-half edge." Wrong. Edge decays as bullpen share rises, which admits two
-readings: (A) our relief model injects error, or (B) bullpens are
-unpredictable for everyone. I treated those as opposed and picked (B).
-
-**They are not opposed. We are part of EVERYONE** — if bullpens are hard for
-the market too, being less bad at them IS the edge. Both readings say build
-it.
-
-And (A) is what the data says. Team-total direction accuracy, split by how
-deep the opposing starter actually went:
-
-    <= 15 outs   n=479   49.9%
-    16-18 outs   n=446   52.7%
-    19+ outs     n=163   57.1%
-
-Monotone. In games the bullpen barely touched, the team-total edge is nearly
-F5-sized. The relief innings destroy it — so the ~40%-bullpen markets (team
-totals 4,943 contracts, game totals 4,222) are RECOVERABLE, not hopeless.
-
-### Correction 2: scrape the WHOLE GAME, not just pitcher changes
-
-I proposed extracting only pitcher-change events to save space. False
-economy on both axes — the API calls are identical either way, and storage
-is nothing:
-
-    raw JSON     624 KB/game  ->  1.19 GB
-    gzipped      102 KB/game  ->   201 MB   (6.1x)
-    2,006 games, 8 workers    ->  ~1 minute
-
-**Fetch once, store gzipped, extract whatever later.** Re-scraping to get a
-field we discarded is the expensive mistake, not disk.
-
-### What whole-game play-by-play unlocks
-
-* **State AT REMOVAL** — pitch count, bases, outs and score when the hook
-  fired. `sim.py` says outright that the boxscore "cannot give the state at
-  removal, only the totals," and calls this "the specific thing play-by-play
-  would buy later." It is the hook's documented blind spot, and the hook is
-  the model's largest remaining defect (real starts are LEFT-SKEWED, mean 84
-  pitches against median 89, and a single logistic cannot be bimodal).
-* **Advancement rates MEASURED on this league** instead of published
-  references. That mechanism just moved runs-per-baserunner from -4.2% to
-  -0.2%; measuring rather than importing it is the obvious next gain.
-* **Reliever deployment conditioned on game state** — entry inning, entry
-  score, base-out state at entry. That is the bullpen model.
-* Times through the order, real batting positions faced, inherited-runner
-  outcomes, productive-out rates by base-out state.
-
-### What is wrong with the bullpen model today
-
-`game.build_side` samples eight arms weighted by season appearances, then
-uses them **in sample order, one inning each, regardless of game state.** The
-closer can pitch the 6th of a blowout and the mop-up man the 9th of a
-one-run game. Two measured defects:
-
-* **Only 52.6% of real relief outings are one clean inning.** 21.7% are
-  fewer than three outs (mid-inning entries), 25.7% more. Mean 3.51 outs.
-* **Deployment is independent of the score**, destroying a real correlation:
-  good arms pitch close games, mop-up arms pitch blowouts. That correlation
-  shapes the run distribution's tails, and `game.py` ALREADY tracks the live
-  margin — the trigger is sitting there unused.
-
-Boxscores already carry appearance ORDER, `inheritedRunners`, `saves`,
-`holds` and `gamesFinished`, so roles are partly identifiable even before
-the scrape.
-
-### Order of work
-
-1. Scrape whole-game PBP, store gzipped, one row per game.
-2. MEASURE deployment before modelling it — which arm, which inning, at what
-   margin, with what base-out state.
-3. Deploy by role rather than at random; condition entry on the live margin.
-4. Allow multi-inning and mid-inning relief outings.
-5. Re-measure advancement rates from PBP against the published tables.
-6. Re-run team totals and game totals — the targets this unlocks.
 
 Do NOT fit team-specific bullpen offsets. That is the patience/leash mistake
 waiting to happen.
 
 ---
 
-## DO THIS FIRST (highest value, roughly in order)
+## The order of work from here
 
-1. **`quote.py` may have a live line-matching bug.** DraftKings' 7.0 can
-   PUSH — over-7.0 needs a total of 8 — while Kalshi's threshold-7 contract
-   is over-6.5 and wins at exactly 7. Different bets. I hit this in analysis
-   code and have NOT checked whether `quote.py` shares it. This is the only
-   open item that could mis-price a real bet.
-
-2. **Re-run the CLV tests at higher `n_sims`.** They ran at 250, giving ~3.2
-   cents of Monte Carlo error per contract against a 3.7-cent median
-   disagreement. That does not invalidate anything — it ATTENUATES, so
-   59.6% direction is a FLOOR. Trade histories now cache to disk (154x warm),
-   so a re-run is ~3 minutes of simulation.
-
-3. **Decide what to do about `hook_patience.json` / `hook_leash.json`.**
-   206 offsets fitted 2026-08-23 as residuals against a model that no longer
-   exists. `sim.USE_OFFSETS` is False so nothing applies them, but they are
-   still on disk and eight modules would use them if switched on. Refit on
-   the training window or delete.
-
-4. **`price.py` and `quote.py` are start-only** — they cannot price an F5 or
-   a game total, which is the stated product. `game.py` exists and does; they
-   were never wired to it.
-
----
-
-## DO NOT DO THESE (measured, recorded, do not re-run)
-
-* **Home run props**, despite being the largest market at 29,128 contracts.
-  A BATTER outcome where the model holds one `hr_pct` with no batted-ball
-  data. A ~12% base rate needs far more contracts to resolve an edge than a
-  ~55% one.
-* **NRFI.** P(NRFI) calibrates at 0.522 against 0.510 and carries Brier
-  skill of **-2.9%**. Three batters is signal-free variance.
-* **Nine dead features:** handedness, park on raw rates, day/night, bullpen
-  availability, arsenal (scalar multiplier), input-uncertainty propagation,
-  recency weighting (3-5 sigma WRONG way), arsenal mixture on strikeouts,
-  arsenal mixture on contact. Both arsenal mixtures were PRE-REGISTERED.
-* **Pitcher archetypes by pitch mix.** Real for relievers (permutation null
-  p=0.003) and absent for starters, but too small to wire in.
-* **Cross-book arbitrage on game totals.** Kalshi agrees with DraftKings
-  within ~1 cent on matched half-point lines. They are the same consensus.
+1. **Re-read the paired F5 scoring result** (`scratchpad/score_adv.py`),
+   record it, move on either way.
+2. **Re-run every CLV test at n_sims >= 1500** — K props, team totals, game
+   totals. Cheap, and it may reorder the priorities.
+3. **Bullpen: role score from prior games**, deploy by role and live margin
+   instead of sample order. `game.py` already tracks the margin.
+4. **Bullpen: multi-inning and mid-inning outings.**
+5. **Bullpen: inherited-runner rates from PBP by base-out state**, replacing
+   `f5`'s flat `INHERITED_SCORE_RATE = 0.33`. `game.py` already plays them
+   out; this closes the f5 path.
+6. **Re-run team totals and game totals** — the targets this unlocks.
+7. **Times through the order** — the biggest absent mechanism. The sim wraps
+   the lineup and charges nothing for it. PBP has real TTO per PA. Fit as a
+   RESIDUAL.
+8. **Handedness, re-run as a residual and PRE-REGISTERED.** Dead as an
+   imported scalar; PBP carries `batSide`/`pitchHand` per plate appearance.
+9. **Rest/availability, re-opened** — same reasoning.
+10. `price.py` / `quote.py` are start-only and cannot price an F5 or a team
+    total, which is the stated product. `game.py` exists and does.
+11. Stale `hook_patience.json` / `hook_leash.json` — 206 offsets fitted
+    against a model that no longer exists. `USE_OFFSETS` is False. Refit on
+    the training window or delete.
 
 ---
 
-## The two rules that actually earned their place
+## Rules that have earned their place
 
-**A fitted parameter sitting at the EDGE of its grid is a MISSING
-MECHANISM, not a tuning problem.** Four for four: the absent hit-by-pitch,
-absent fielding errors, and out-dependent runner advancement (twice). Every
-time the fit was right and I was slow to read it. Treat a grid-edge result as
-a mechanism hypothesis on FIRST sight.
+**A fitted parameter at the EDGE of its grid is a MISSING MECHANISM.** Four
+for four: absent hit-by-pitch, absent fielding errors, out-dependent
+advancement twice.
 
-**Prefer a high-n ratio to a low-n aggregate.** Runs per baserenner (~17,500
-simulated starts) tracked every real fix monotonically, -4.2% -> -0.2%. The
-mean F5 total over a few hundred games gave four consecutive "improvements"
-that were all inside one standard error, and I put one in a commit message
-before catching it. Compare PAIRED and on every game.
+**Prefer a high-n ratio to a low-n aggregate.** Runs per baserunner over
+~17,500 simulated starts tracked every real fix; the mean F5 total over a
+few hundred games gave four consecutive "improvements" inside one standard
+error.
+
+**MEASURING IS NOT FITTING.** Replacing a published constant with the same
+quantity counted on this league is not tuning against the settlement value,
+provided the conditioning matches the code path exactly. There is no loss
+function behind the advancement tables and there must not be one.
+
+**THE DEAD LIST RECORDS HOW A THING WAS TRIED, NOT THAT IT IS UNKNOWABLE.**
+Six of the nine dead features were imported scalar multipliers, scored
+against a model that has since changed, on half the data. Re-opening one is
+legitimate when the APPROACH changes (residual fit rather than import) or
+the DATA does (play-by-play). Pre-register it, so it is a test and not a
+fishing trip.
+
+**Verify every new check by mutation.** THREE tests in this project have
+turned out to guard nothing, and only the mutation run revealed it. The most
+recent: a split-half check that passed just as happily when the outings were
+sorted, because sorting turns every pitcher into a promotion and made the
+correlation MORE negative, not less. It was the assertion that could not
+tell them apart, not the mutation that was subtle.
 
 ---
 
-## Model state (believed settled)
+## Do not re-run these (measured, recorded)
 
-* runs per baserunner **-0.2%**, F5 totals **-0.130 +/- 0.095** (1.4 sigma
-  light), game totals 8.69 vs 8.94 (2.8% light)
-* inning-prefix ladder: F1, F5, F7 all within a third of a standard error,
-  so each mechanism is individually right rather than two errors cancelling
-* advancement is keyed BY OUT COUNT from published references, NOT fitted —
-  do not hand those back to a search
-* `PITCH_COST` fitted on 3,880 real starts; `WP_PB_RATE` was 1.8x too high;
-  `ROE_PER_OUT` anchored to the measured unearned share
-* the F5 stub is retired — `fitf5` scores on `game.py` like everything else
-* bottom-of-9th and extra innings are modelled
+* **Home run props** despite being the largest market (29,128 contracts) — a
+  BATTER outcome, and we hold one `hr_pct` with no batted-ball data.
+* **NRFI** — Brier skill -2.9%. Three batters is signal-free variance.
+* **Cross-book arbitrage on game totals** — Kalshi agrees with DraftKings
+  within ~1 cent on matched half-point lines. Same consensus.
+* **Nine features** measured null: handedness, park on raw rates, day/night,
+  bullpen availability, arsenal scalar, input-uncertainty propagation,
+  recency weighting (3-5 sigma the WRONG way), arsenal mixture on
+  strikeouts, arsenal mixture on contact. The last two were pre-registered.
+  See the dead-list rule above before assuming any of these is closed.
+* **Pitcher archetypes by pitch mix** — real for relievers (permutation null
+  p=0.003), absent for starters, too small to wire in.
 
-## Data state
+## State
 
-2,006 final games (2026-03-20 to 08-24), F5 scores on 2,009, per-inning
-lines on all of them, real pitch counts on 16,624 pitching rows. numpy and
-scikit-learn are dependencies now.
-
-## Test state
-
-**201 checks, `make test`, ~60s, no network.** Every new check this session
-was verified by mutation. Two turned out to guard nothing and only the
-mutation run revealed it — keep doing that.
+* 257 checks, `make test`, ~60s, no network, no pytest.
+* 2,006 final games, F5 scores on 2,009, real pitch counts on 16,624
+  pitching rows, 17,260 stints, 205 MB of play-by-play.
+* `.claude/settings.json` sets bypass permissions for this repo, denying
+  `git push`, `make publish`, `rm -rf` and reading `.env`.
