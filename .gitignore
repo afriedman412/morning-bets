@@ -4,6 +4,11 @@
 
 # Local data — never publish
 morning_bets.db
+# Derived from the play-by-play cache; rebuilds in ~30s. Never the
+# authority on anything, which is why it is a separate file.
+context.db
+context.db-wal
+context.db-shm
 # WAL mode puts the hot pages in a sibling file; the exact-name rule above
 # does not cover them.
 morning_bets.db-wal

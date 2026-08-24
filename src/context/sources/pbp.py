@@ -43,6 +43,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 from src import db
+from src.context import store
 from src.grading import USER_AGENT
 
 CACHE = pathlib.Path(".cache/pbp")
@@ -295,38 +296,28 @@ def stints(game_id: str, data: dict | None = None) -> list[Stint]:
     return out
 
 
-_DDL = """
-create table if not exists mlb_stints (
-  game_id text, date text, team text, side text,
-  pitcher_id integer, player_name text, appearance_order integer,
-  entry_inning integer, entry_outs integer,
-  on_1b integer, on_2b integer, on_3b integer, entry_margin integer,
-  batters integer, outs_recorded integer, runs integer, last_inning integer,
-  primary key (game_id, side, appearance_order)
-)
-"""
-
-
 def sync(verbose: bool = True) -> int:
-    """Flatten every cached game into `mlb_stints`.
+    """Flatten every cached game into `mlb_stints`, in `context.db`.
 
     The extraction is 12ms a game, which is nothing once and a great deal
     when every deployment measurement re-reads 2,000 gzipped payloads. The
-    table is derived and can be dropped and rebuilt at any time.
+    table is DERIVED — rebuildable from the gzip cache in about thirty
+    seconds — which is exactly why it lives in the context layer's own
+    database rather than in the pipeline's un-versioned one.
     """
-    with db.connect() as c:
-        c.execute(_DDL)
+    store.init()
+    with store.connect() as c:
         teams = {r["game_id"]: (r["date"], r["away_team_abbr"],
                                 r["home_team_abbr"])
                  for r in c.execute(
                      "select game_id, date, away_team_abbr, home_team_abbr "
-                     "from games where sport = 'mlb'")}
+                     f"from {store.BETS}.games where sport = 'mlb'")}
         have = {r[0] for r in c.execute("select distinct game_id "
                                         "from mlb_stints")}
     todo = [f"mlb-{f.name.split('.')[0]}" for f in CACHE.glob("*.json.gz")]
     todo = [g for g in todo if g not in have and g in teams]
     n = 0
-    with db.connect() as c:
+    with store.connect(attach=False) as c:
         for i, gid in enumerate(todo):
             date, away, home = teams[gid]
             for s in stints(gid):
