@@ -47,6 +47,9 @@ both are enforced in `fitf5.py`: do not score against the lines a book
 offers (score the full support of the run distribution, where the same
 arithmetic is the discrete CRPS), and do not fit the hook.
 
+**START WITH `RESUME.md`** — where the edge is, what to do next, and the
+long list of things already measured and dead so nobody re-runs them.
+
 **Before touching the context layer, read `NOTES-context-layer.md`.** It
 opens with "DAY THREE", which carries the current state, then the measured
 negatives — SEVEN features that cost real time and returned nothing,
