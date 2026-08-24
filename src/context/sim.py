@@ -503,6 +503,16 @@ class Hook:
     #: correcting the costs without moving this sent starters to 17.3 outs
     #: against a real 15.9.
     #:
+    #: 84 -> 80 on the full season, ANCHORED to the measured pitch count
+    #: (train-window mean 82.9) rather than fitted to outs. Fitting it to
+    #: outs instead drives it to 74, which reproduces the out total by
+    #: pretending starters throw 8 fewer pitches than they do.
+    #:
+    #: THE RESIDUAL THIS EXPOSES. At the pitch count that matches reality
+    #: the simulator records ~16.0 outs against a real 15.11 — it gets about
+    #: 6% more outs per pitch than real starters. No value of this constant
+    #: fixes that, because it is the same left-skew defect below.
+    #:
     #: KNOWN UNFIXABLE AT THIS FORM, and worth reading before tuning it
     #: again. Real starts are LEFT-SKEWED — mean 84.0, median 89 — because
     #: managers either let a starter cruise to ~95 or knock him out early,
@@ -512,7 +522,7 @@ class Hook:
     #: closest lands P(outs>=18) at 46.9% against a real 41.1%. That is the
     #: "no parameter reaches the target, so the mechanism is missing"
     #: signature: what is absent is a disaster mode, not a better constant.
-    pitch_center: float = 84.0
+    pitch_center: float = 80.0
     #: How sharply the pitch-count term turns on. Larger is a softer curve.
     pitch_scale: float = 15.0
     #: Added to the removal log-odds per run allowed so far.
@@ -748,7 +758,8 @@ WP_PB_RATE = 0.0155
 #: which is what lets one club have a quicker one than another.
 FITTABLE = ("FIRST_TO_THIRD_ON_1B", "SECOND_SCORES_ON_1B",
             "FIRST_SCORES_ON_2B", "RUNNER_ADVANCES_ON_OUT",
-            "INHERITED_SCORE_RATE", "WP_PB_RATE", "GIDP_RATE")
+            "INHERITED_SCORE_RATE", "WP_PB_RATE", "GIDP_RATE",
+            "ROE_PER_OUT")
 
 
 @contextlib.contextmanager
