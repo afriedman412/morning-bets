@@ -146,8 +146,36 @@ This also explains the fit's behaviour: it kept shoving
 `FIRST_TO_THIRD_ON_1B` to the EDGE of its grid because that was the only
 channel it had for manufacturing the missing 7.6%. **Third time the
 "no parameter can reach the target, so the mechanism is missing" diagnostic
-has paid out here**, after the absent hit-by-pitch. Do not fit around this —
-add reached-on-error and unearned runs.
+has paid out here**, after the absent hit-by-pitch.
+
+#### FIXED, and it closes the level gap (`ROE_PER_OUT = 0.018`)
+
+A reached-on-error is a would-be OUT that becomes a baserunner: no hit, no
+out, batter on first. That is what it IS, and it is why an error costs twice
+— the runner it gives and the out it does not.
+
+| | sim | actual |
+|---|---|---|
+| game total | 8.71 | 8.67 |
+| sd | 4.33 | 4.32 |
+| unearned share | 6.6% | 7.6% |
+
+Calibrated against the LOCAL unearned share, not a published constant,
+because this database has the number.
+
+**Two costs, both real.** `StartResult.earned` is an approximation: every
+run after an error in an inning is charged unearned, where official scoring
+reconstructs the inning as it would have gone. It OVER-counts, so the `er`
+diagnostic now carries a known bias and `runs` is the trustworthy figure —
+which is fine, because a team total settles on total runs.
+
+And the extra baserunners trip the hook sooner: early exits went from 28.8%
+to **31.2% against a real 25.6%**. Adding errors made the removal timing
+WORSE. That is the next job, and it is now the largest remaining defect.
+
+Half-inning state lives in `sim.Frame` so the error flag travels with the
+bases and outs. That refactor immediately caught a live bug: `_leave`
+credited inherited runners straight to `r.runs`, bypassing the earned split.
 
 ### What is built (`src/context/fitf5.py`, 22 checks)
 
