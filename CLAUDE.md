@@ -48,9 +48,21 @@ offers (score the full support of the run distribution, where the same
 arithmetic is the discrete CRPS), and do not fit the hook.
 
 **Before touching the context layer, read `NOTES-context-layer.md`.** It
-opens with what the project is modelling and the first F5 fit's result —
-which found nothing, correctly — then the measured negatives: six features
-that cost real time and returned nothing, recorded so nobody re-runs them.
+opens with "DAY THREE", which carries the current state, then the measured
+negatives — SEVEN features that cost real time and returned nothing,
+recorded so nobody re-runs them.
+
+**The single most useful diagnostic in this project, now four for four: a
+fitted parameter sitting at the EDGE of its grid is a missing mechanism, not
+a tuning problem.** It found the absent hit-by-pitch, absent fielding
+errors, and out-dependent runner advancement (twice). Treat a grid-edge
+result as a mechanism hypothesis immediately, not after three sweeps.
+
+**And prefer a high-n ratio to a low-n aggregate.** Runs per baserunner
+(~17,500 simulated starts) told the truth every time; the mean F5 total over
+a few hundred games told me whatever the subsample felt like — four
+"improvements" in a row that were all inside one standard error. Compare
+totals PAIRED and on every game.
 
 ## Commands
 
@@ -64,6 +76,28 @@ Run everything through the Makefile's Python virtualenv (`venv/bin/python`).
 - `make web` — start the local Flask viewer at http://127.0.0.1:5050.
 - `make publish` — build static site into `site/`, git add + commit + push. Netlify serves from `site/` on push.
 - `make install` — first-time setup: create `venv/` and install `requirements.txt`.
+
+### Full-game simulation and the season backfill (added 2026-08-23/24)
+
+- `venv/bin/python -m src.context.game` — a WHOLE game: both sides
+  interleaved half-inning by half-inning so a live score exists, a bullpen
+  SAMPLED from the club's real arms, inherited runners actually played out.
+  Before this nothing simulated past the starter's exit, so a full team
+  total could not be produced at all.
+- `... -m src.context.sources.season --backfill` — pull missing dates to
+  opening day, then the starter/pitch-count/venue backfills that depend on
+  boxscores being present. The database held half a season and it was the
+  binding constraint on nearly every measurement.
+- `... -m src.context.sources.pitches --backfill` — REAL pitch counts, plus
+  hit-by-pitch and wild pitches, from fields `grading.mlb_boxscore` was
+  already downloading and discarding.
+- `... -m src.context.total_market` — full-game totals against Kalshi. The
+  stated product. HAS NEVER COMPLETED A RUN.
+- `... -m src.context.recency` — recency-weighted rates vs the market. Dead
+  at 3-5 sigma; kept as the record.
+- `... -m src.context.sources.archetype` — unsupervised pitcher typing by
+  pitch mix. Real for relievers (p=0.003), absent for starters, too small to
+  wire in.
 
 ### Context-layer entrypoints (all offline-cacheable, no API key)
 

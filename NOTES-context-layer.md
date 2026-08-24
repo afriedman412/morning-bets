@@ -6,6 +6,111 @@ measured, what is guessed, and what would waste a day if re-investigated.
 
 ---
 
+## DAY THREE (2026-08-24) — read this section first
+
+**The database was half a season and that was the binding constraint.** It
+started 2026-05-28; backfilled to opening day it holds 2,006 final games
+(was 1,101), 16,656 pitching rows (was 8,823), and F5 scores went 512 ->
+2,009 once it emerged that `cache_mlb_f5` had never run for months already
+cached — June had none at all. Almost every inconclusive result from day two
+was underpowered rather than negative. `sources/season.py` does the pull.
+
+### The simulator is now materially more correct
+
+Four mechanism fixes, none of them fitted against the objective they are
+scored on:
+
+| | |
+|---|---|
+| runs per baserunner | **-4.2% -> -0.2%** |
+| PITCH_COST | fitted on 3,880 real starts, was invented |
+| WP_PB_RATE | 0.028 -> 0.0155 — it was **1.8x too high** |
+| HBP_RATE | 0.011 -> 0.0098, counted not published |
+| advancement | now keyed BY OUT COUNT |
+| F5 total (paired, 1,098 games) | **-0.130 +/- 0.095, 1.4 sigma light** |
+
+**Pitch counts were in the boxscore all along.** `grading.mlb_boxscore`
+downloads the full statsapi pitching blob and kept eight fields;
+`numberOfPitches`, `strikes`, `hitByPitch` and `wildPitches` went on the
+floor. `sources/pitches.py` backfills them. No new source, no play-by-play.
+
+**WP_PB_RATE was a published rate on the wrong denominator** — the same class
+of error that cost 6-8% on walks. Real wild pitches are 0.0057 per batter
+faced; passed balls add ~20% and never appear in pitching stats at all,
+being charged to the catcher.
+
+### THE DIAGNOSTIC THAT DID ALL THE WORK — now four for four
+
+**A parameter pinned at its grid ceiling is a MISSING MECHANISM, not a
+tuning problem.** It found the absent hit-by-pitch, the absent fielding
+errors, out-dependence on the three hit constants, and then out-dependence
+on the fourth. Every time the fit was right and I was slow to read it. Treat
+a grid-edge result as a mechanism hypothesis on FIRST sight.
+
+The last one is the clearest. A flat advancement rate applies the same
+number with nobody out and with two, and those are not the same play — with
+two down the runner leaves on contact. Raising the flat rate cannot fix it,
+because buying the two-out case over-converts the nobody-out case. That is
+exactly why the search kept straining instead of settling.
+
+### THREE OF MY OWN CLAIMS DIED TODAY
+
+Recorded because the corrections are more useful than the claims were.
+
+1. **"F5 totals 3% light to exact" was noise.** Every difference I quoted
+   across four changes (-0.14, +0.04, -0.08, +0.10) sits inside one standard
+   error — see the section below. Prefer a HIGH-N RATIO (runs per
+   baserunner, ~17,500 starts) to a LOW-N AGGREGATE (a mean over a few
+   hundred games) whenever both exist.
+2. **"Arsenal typing is too small to use" was wrong for relievers.** R2 with
+   four free parameters is upward-biased; the question was never "is 5%
+   small" but "is it bigger than what this procedure invents from nothing".
+   A permutation null separates relievers (p=0.003 at every sample bar) from
+   starters (p=0.17-0.56). Disattenuating for sampling noise looked like the
+   right correction and was NOT sufficient — corrected values still climbed
+   with the sample bar, which is small-n bias. The permutation settled it.
+3. **The recency hypothesis died at 3-5 sigma.** See below.
+
+### RECENCY IS DEAD — seven for seven on imported baseball knowledge
+
+The Ashcraft quote made a sharp case: season rates said 0.542 on his over-5.5
+strikeouts against Kalshi's 0.405, and a 14-day half-life closed the gap to
+0.4 cents. Over 510 settled markets, paired against season-flat:
+
+    21-day half-life   closeness to close +0.0081 (+3.8 sd)
+                       Brier vs outcome   +0.0066 (+3.0 sd)
+    14-day half-life   closeness to close +0.0135 (+5.4 sd)
+                       Brier vs outcome   +0.0079 (+3.0 sd)
+
+FURTHER from the market and WORSE against outcomes, both half-lives, same
+sign. A single case chosen after looking is usually a coincidence. The
+founding observation explains the direction: a season-to-date rate IS the
+consensus construction, so shading away from it loses on both endpoints at
+once. `src/context/recency.py` holds the measurement.
+
+### Leakage closed: the LEAGUE BASELINE is training data
+
+`sim.league()` computed baselines over every cached game including the test
+window. log5 returns the league value whenever both sides are average, so it
+anchors every simulated rate. The obvious knob (player rates) was already
+correct, which is what made it quiet. `before=` now reaches
+`_starter_league` — the path that actually sets the baselines — and the
+cache is keyed on `(season, before)`, because keyed on season alone the
+FIRST caller fixed the baselines for the whole process.
+
+### Where it stands / what is queued
+
+Model believed settled. **Nothing has been measured against a market since
+the fixes.** In order: F5 parameter refit (3 parameters left; the four
+advancement constants are published out-state tables and out of the search),
+then the PRE-REGISTERED arsenal mixture (`PREREG-arsenal.md`, 2-sigma bar,
+`sources/mixture.py` built and tested but NOT yet wired into `pa_outcome`),
+then totals-vs-Kalshi — which has still never completed a run.
+
+numpy and scikit-learn are now dependencies.
+
+---
+
 ## MEASURE F5 TOTALS PAIRED, ON EVERY GAME (correction, 2026-08-24)
 
 A mistake I made repeatedly on 08-24 and should not be repeated. I quoted F5

@@ -20,7 +20,7 @@ import traceback
 
 MODULES = ["tests.test_pure", "tests.test_regressions",
            "tests.test_sim", "tests.test_fitf5",
-           "tests.test_game"]
+           "tests.test_game", "tests.test_sources"]
 
 
 def main(argv: list[str]) -> int:
