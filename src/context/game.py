@@ -163,6 +163,11 @@ class GameResult:
     #: The two starters' lines, for props.
     away_sp: sim.StartResult = field(default_factory=sim.StartResult)
     home_sp: sim.StartResult = field(default_factory=sim.StartResult)
+    #: {inning: combined runs scored through it}, for the prefix ladder.
+    #: Read off ONE simulated game rather than re-simulating per prefix, so
+    #: F3 is genuinely the first three innings of the game F7 came from —
+    #: nested prefixes are the whole basis of diagnosing by prefix.
+    prefix: dict = field(default_factory=dict)
 
     @property
     def total(self) -> int:
@@ -175,7 +180,8 @@ class GameResult:
 
 def simulate_game(away: Side, home: Side, lg: dict,
                   rng: random.Random | None = None, innings: int = 9,
-                  park: dict | None = None) -> GameResult:
+                  park: dict | None = None,
+                  track: tuple = ()) -> GameResult:
     """One full game, both sides advancing half-inning by half-inning.
 
     `away` and `home` are PITCHING sides. The away side's runs allowed are
@@ -183,6 +189,7 @@ def simulate_game(away: Side, home: Side, lg: dict,
     exactly backwards.
     """
     rng = rng or random.Random()
+    prefix: dict = {}
     for inning in range(1, innings + 1):
         # Top: away pitches. Its margin is what its own offence has put up
         # (= runs the home side has allowed) minus what it has given back.
@@ -194,12 +201,15 @@ def simulate_game(away: Side, home: Side, lg: dict,
 
         if inning == 5:
             away.runs_f5, home.runs_f5 = away.runs, home.runs
+        if inning in track:
+            # Runs ALLOWED by both sides is runs SCORED in the game.
+            prefix[inning] = away.runs + home.runs
 
     return GameResult(
         # Runs ALLOWED by one side are runs SCORED by the other.
         away=home.runs, home=away.runs,
         away_f5=home.runs_f5, home_f5=away.runs_f5,
-        away_sp=away.line, home_sp=home.line)
+        away_sp=away.line, home_sp=home.line, prefix=prefix)
 
 
 def build_side(starter: sim.PitcherRates, pen_pool: list[dict],

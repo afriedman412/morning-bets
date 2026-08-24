@@ -187,3 +187,25 @@ def check_side_runs_match_the_pitchers_charged():
     game.simulate_game(away, home, dict(LG), rng)
     assert away.runs >= away.line.runs, (away.runs, away.line.runs)
     assert home.runs >= home.line.runs, (home.runs, home.line.runs)
+
+
+def check_prefix_totals_are_nested_and_cumulative():
+    """F3 must be the first three innings of the SAME game F7 came from.
+
+    Nested prefixes are the entire basis of diagnosing by prefix: if each
+    were simulated separately they would be different games, and comparing
+    them would say nothing about which inning the error entered.
+    """
+    r = game.simulate_game(_side(), _side(), dict(LG), random.Random(1),
+                           track=(1, 3, 5, 7))
+    assert set(r.prefix) == {1, 3, 5, 7}, r.prefix
+    v = [r.prefix[p] for p in (1, 3, 5, 7)]
+    assert v == sorted(v), v                       # runs cannot un-score
+    assert r.prefix[7] <= r.total, (r.prefix[7], r.total)
+    assert r.prefix[5] == r.away_f5 + r.home_f5, (r.prefix[5], r.total_f5)
+
+
+def check_prefix_is_empty_unless_tracked():
+    """Costs nothing when unused — every other caller passes no `track`."""
+    r = game.simulate_game(_side(), _side(), dict(LG), random.Random(1))
+    assert r.prefix == {}, r.prefix
