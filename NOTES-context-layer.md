@@ -6,7 +6,103 @@ measured, what is guessed, and what would waste a day if re-investigated.
 
 ---
 
-## DAY THREE (2026-08-24) — read this section first
+## THE MARKET RESULTS (2026-08-24) — read this first
+
+Everything below is how the model got here. This is what it is worth.
+
+### Where the edge is, and is not
+
+Measured on the CORRECTED model — leakage closed, `sim.USE_OFFSETS` off,
+errors and out-dependent advancement in, the F5 stub retired:
+
+| target | contracts | bullpen share | direction | blend | cents | verdict |
+|---|---|---|---|---|---|---|
+| K props | 12,181 | ~0% | 73.2% | +32.9% | +3.7c | EDGE |
+| **F5 totals** | **2,676** | **~10%** | **59.6%** | **+23.4%** | **+3.4c** | **EDGE** |
+| team totals | 4,943 | ~40% | 50.7% | +9.4% | +1.4c | nothing |
+| game totals | 4,222 | ~40% | 52.0% | +4.1% | +1.2c | nothing |
+| outs | — | ~0% | — | +3.8% | — | nothing |
+| NRFI | — | ~0% | — | — | — | nothing (-2.9% skill) |
+
+**THE EDGE TRACKS BULLPEN SHARE, NOT "STARTER-DRIVEN".** I predicted team
+totals would carry the F5 edge because one team's runs are what the OPPOSING
+STARTER allows — the exact quantity this simulator is built around, on twice
+the contracts. It does not: 50.7% direction on 2,185 disagreements is a coin
+flip. The prediction was wrong and the refutation is the useful part.
+
+What separates the two is not whether a starter drives it but HOW MUCH
+BULLPEN is in the settlement. A team total is ~40% relief; first five is
+~10%, because the starter covers all five innings 73% of the time. Outs and
+NRFI have no bullpen at all and no edge either, so it is not a monotone rule
+— the requirement is a starter-dominated settlement AND enough plate
+appearances for skill to separate from variance. F5 is the only quantity
+measured that has both.
+
+**The F5 edge SURVIVED a substantially rebuilt model.** CLV z went 30.2 ->
+38.7, corr 0.452 -> 0.485. An edge that survives fielding errors,
+out-dependent advancement, a refitted PITCH_COST, a real bullpen, the
+retired stub AND the removal of leaked offsets is not a parameterisation
+artifact. That is much stronger evidence than the original measurement.
+
+Two things moved the other way and are not spin: we now LOSE to the open on
+outcome Brier (0.1980 against 0.1966, ~0.1970 after correcting for sim
+noise), and direction fell 65.1% -> 59.6%. Since every earlier F5 CLV number
+had hook/patience/leash fitted on the scored dates, "the edge is smaller than
+we thought" and "the old number was inflated" are the same statement.
+
+### EVERY EDGE IS A STARTER EFFECT. That is the organising fact.
+
+K props and F5 both hinge on one starter with ~600 batters faced against a
+specific nine. Game totals, outs and NRFI do not, and none of them carry
+anything. This decides several open questions at once:
+
+* **Do NOT model reliever deployment.** It is a back-half mechanism and the
+  back half is exactly where there is no edge. Real defect (only 52.6% of
+  relief outings are one clean inning; mean 3.51 outs, not 3.00) improving a
+  number nobody pays for.
+* **Do NOT chase home run props** despite 29,128 contracts, the largest
+  market. A home run is a BATTER outcome and the batter side carries one
+  `hr_pct` with no batted-ball data. A ~12% base rate also needs far more
+  contracts to resolve an edge than a ~55% one.
+* **NRFI is dead and was cheap to kill.** P(NRFI) calibrates almost exactly
+  (0.522 against 0.510) and carries NO information: Brier skill -2.9%. Three
+  or four batters is all signal-free variance. The averaging that kills
+  handedness across nine hitters is what CREATES the signal — remove it and
+  nothing is left. Same shape as outs: perfectly calibrated, zero edge.
+
+### KALSHI IS THE MARKET, at least on game totals
+
+Spot-checked against DraftKings via ESPN on 2026-08-24. On correctly matched
+HALF-POINT lines the two agree within ~1 cent (+0.1, +0.6, +1.0, +1.4).
+
+**And a trap worth recording.** Integer lines looked wildly off (-4 to -7
+cents) and that was entirely a matching bug of mine: DraftKings' 7.0 can
+PUSH, so over-7.0 needs a total of 8, while Kalshi's threshold-7 contract is
+over-6.5 and wins at exactly 7. Different bets. Check `quote.py` for the
+same integer/half-point confusion — that would be a live bug on real quotes.
+
+So DK and Kalshi are not independent opinions on game totals; they are the
+same consensus, and arbitrating between them finds nothing. PROPS may
+differ — the Ashcraft strikeout quote showed a 4.5-cent book-vs-Kalshi gap
+against ~1 cent on game totals.
+
+### Measurement hygiene learned the hard way today
+
+* **n_sims=250 in the CLV runs gives ~3.2 cents of Monte Carlo error per
+  contract, against a median disagreement of 3.7 cents.** That does not
+  invalidate anything — it ATTENUATES. Noise adds ~0.001 to Brier and
+  dilutes direction accuracy, so 59.6% is a floor rather than a ceiling.
+  Re-run at higher sims before quoting these as final.
+* **Trade histories now cache to disk** (154x on a warm run). A settled
+  market's trades are immutable; only past-dated markets are cached, or a
+  still-trading path would defeat the before-first-pitch cutoff.
+* Kalshi publishes a LADDER — 7 lines per team-game, 12.2 per game total —
+  so it implies a whole DISTRIBUTION. We score one rung at a time and throw
+  the shape away. Unexplored.
+
+---
+
+## DAY THREE (2026-08-24) — the model work behind those numbers
 
 **The database was half a season and that was the binding constraint.** It
 started 2026-05-28; backfilled to opening day it holds 2,006 final games
