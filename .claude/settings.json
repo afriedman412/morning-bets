@@ -2,7 +2,6 @@
   "permissions": {
     "defaultMode": "bypassPermissions",
     "deny": [
-      "Bash(git push:*)",
       "Bash(make publish:*)",
       "Bash(rm -rf:*)",
       "Read(.env)"

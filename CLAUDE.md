@@ -80,6 +80,24 @@ Run everything through the Makefile's Python virtualenv (`venv/bin/python`).
 - `make publish` — build static site into `site/`, git add + commit + push. Netlify serves from `site/` on push.
 - `make install` — first-time setup: create `venv/` and install `requirements.txt`.
 
+### Play-by-play, and what it unlocked (added 2026-08-24)
+
+- `venv/bin/python -m src.context.sources.pbp --backfill --sync` — WHOLE
+  games, 2,006 of them, 205 MB gzipped, ~2 min over 8 workers. Fetched
+  whole and stored whole: extracting a subset to save disk is a false
+  economy, the API call is identical either way. `plays()` reconstructs
+  base-out-score state BEFORE every play; `stints()` gives one row per
+  pitcher per game with the state he walked into.
+- `... -m src.context.advance` — advancement rates COUNTED on this league.
+  `--by-team` runs the per-club stability gate (it fails; league number
+  stays). This found that the published tables were wrong in both
+  directions and cancelling.
+- `... -m src.context.deploy` — how bullpens are actually used. Role is
+  stable and projects (split-half r +0.55 to +0.78 over 319 relievers), so
+  role-based deployment is worth building.
+- `... -m src.context.store` — creates `context.db` and reports whether the
+  pipeline DB is correctly read-only.
+
 ### Full-game simulation and the season backfill (added 2026-08-23/24)
 
 - `venv/bin/python -m src.context.game` — a WHOLE game: both sides
@@ -121,7 +139,7 @@ Run everything through the Makefile's Python virtualenv (`venv/bin/python`).
 - `... calibrate --patience` / `--leash` — fit club and pitcher removal offsets as RESIDUALS. Order matters: club first, pitcher against the remainder, or the manager gets counted twice.
 - `... calibrate --holdout YYYY-MM-DD` — refit on the training window only, score on unseen starts.
 - `venv/bin/python -m src.context.sources.starters --backfill` — ground truth for who started. `grading.py` sets this going forward; the backfill is for history.
-- `make test` / `make test ARGS=sim` — 140 offline checks, ~60s.
+- `make test` / `make test ARGS=sim` — 245 offline checks, ~60s.
 
 Tests ship with the module, not afterwards. `tests/run.py` collects every
 `check_*` — no pytest, no network. **Verify a new check by mutation:**
@@ -211,8 +229,20 @@ src/context/
   movement.py      per-bet: is the capper's quoted number still on the board
   gamestate.py     has this game started (guards every live-price fetch)
   scan.py          scans every offered line for robust disagreement
+  store.py         context.db; morning_bets.db attaches READ-ONLY as `bets`
+  advance.py       what runners actually do, counted on this league
+  deploy.py        how bullpens are actually used, before modelling them
+  sources/pbp.py   whole-game play-by-play, gzipped; base-out-score state
   sources/         one module per data source, all offline-cacheable
 ```
+
+**Two databases now.** `context.db` holds DERIVED tables (`mlb_stints`,
+17,260 rows, rebuilt from the play-by-play cache in ~30s). `morning_bets.db`
+attaches through a `mode=ro` URI as the `bets` schema, so joins read
+`bets.games` as before and a stray INSERT raises. The pipeline DB is not
+version controlled and holds a season of boxscores that cannot be
+regenerated — that is the whole reason. Use `store.connect()`, not
+`db.connect()`, from the context layer.
 
 ### The simulator supersedes the estimator (`sim.py`, `calibrate.py`)
 
@@ -274,6 +304,17 @@ market, 0/4 started ones did.
   `movement`, `fill_missing_prop_lines`, and `assign_stakes`. Unknown state
   resolves to *not* pregame: a stale number costs little, pricing a live game
   writes fiction nothing downstream can detect.
+- **Measuring is not fitting.** Replacing a published constant with the
+  same quantity COUNTED on this league is legitimate and is not tuning
+  against the settlement value — provided the conditioning matches the code
+  path exactly. There is no loss function behind `advance.py` and there must
+  not be one. What is forbidden is handing a measured quantity back to a
+  search, where it goes back to absorbing other defects.
+- **The dead list records HOW a thing was tried, not that it is
+  unknowable.** Six of the nine dead features were imported scalar
+  multipliers scored against a model that has since changed, on half the
+  data. Re-opening one is legitimate when the APPROACH changes (residual fit
+  rather than import) or the DATA does (play-by-play). Pre-register it.
 - **Shrink toward a prior, and keep the underlying value.** Where a group
   number stands in for an individual, both travel and one is marked as the
   lead — `catcher_framing` (exact / unrated / estimated),
@@ -290,7 +331,7 @@ market, 0/4 started ones did.
 
 ### Test suite
 
-`make test` (42 checks, ~1s, no network, no pytest). `tests/run.py` collects
+`make test` (245 checks, ~60s, no network, no pytest). `tests/run.py` collects
 every `check_*`. `tests/test_regressions.py` is one check per bug that
 actually shipped, verified by mutation — reintroducing a fix fails exactly
 the check that covers it.
