@@ -1124,9 +1124,50 @@ def check_advancement_was_fitted_after_the_counts_were_right():
     many baserunners buries one error inside another — the first attempt
     picked 0.44/0.76 doing exactly that. These were refitted only once
     hits, walks and batters faced each landed inside 2%."""
-    assert sim.FIRST_TO_THIRD_ON_1B < 0.45, sim.FIRST_TO_THIRD_ON_1B
-    assert sim.SECOND_SCORES_ON_1B < 0.80, sim.SECOND_SCORES_ON_1B
-    assert sim.FIRST_SCORES_ON_2B <= 0.65, sim.FIRST_SCORES_ON_2B
+    # Now keyed BY OUT COUNT, which was the missing mechanism: a flat rate
+    # applies the same number with nobody out and with two, and the runner
+    # leaves on contact with two. Bounds are per out state.
+    for outs in (0, 1, 2):
+        assert sim._rate(sim.FIRST_TO_THIRD_ON_1B, outs) < 0.45
+        assert sim._rate(sim.SECOND_SCORES_ON_1B, outs) < 0.90
+        assert sim._rate(sim.FIRST_SCORES_ON_2B, outs) <= 0.70
+
+
+def check_advancement_rises_with_the_out_count():
+    """A runner goes on contact with two down and is held with none.
+
+    The invariant that makes the out-count table worth having. If it were
+    flat -- or worse, backwards -- the model would be back to splitting the
+    difference between two situations that are nothing alike, which is what
+    left runs-per-baserunner 4.2% short of reality.
+    """
+    for table in (sim.FIRST_TO_THIRD_ON_1B, sim.SECOND_SCORES_ON_1B,
+                  sim.FIRST_SCORES_ON_2B):
+        v = [sim._rate(table, o) for o in (0, 1, 2)]
+        assert v[0] < v[1] < v[2], v
+
+
+def check_rate_accepts_a_bare_float():
+    """A scalar must still work, so the old flat model stays expressible and
+    the two can be compared directly rather than argued about."""
+    assert sim._rate(0.37, 0) == 0.37
+    assert sim._rate(0.37, 2) == 0.37
+
+
+def check_advance_actually_uses_the_out_count():
+    """Guards the wiring, not the model. The tables are useless if `_advance`
+    never receives the out count -- and it would silently keep using the
+    nobody-out row for everything, which is the flat model with worse
+    numbers."""
+    import random
+    scored = {}
+    for outs in (0, 2):
+        n = 0
+        for seed in range(600):
+            bases = [False, True, False]      # runner on second
+            n += sim._advance(bases, sim.B1, random.Random(seed), outs)
+        scored[outs] = n / 600
+    assert scored[2] > scored[0] + 0.20, scored
 
 
 # ── reached on error ───────────────────────────────────────────────────

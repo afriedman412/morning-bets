@@ -698,24 +698,42 @@ def for_pitcher(base: Hook, avg_pitches: float | None,
 # nine matches the league's actual 4.63 — which is a real test, not a
 # reassurance, because nothing here was tuned to hit it.
 
-#: Extra-base advancement, at the PUBLISHED league references — deliberately
-#: unfitted right now.
+#: Extra-base advancement, BY OUT COUNT.
 #:
-#: They were briefly fitted up to 0.38/0.72/0.60/0.30 to close a run gap, and
-#: that inflation turned out to be standing in for two absent mechanisms:
-#: runners a departing starter strands (58% of the gap) and wild
-#: pitches/passed balls. Both now exist, so the crutch is not needed — and
-#: with them in place even these published values run about 4% HOT on runs
-#: per baserunner, which says the additions slightly overshoot (WP+PB comes
-#: out at 0.273 a start against a published ~0.24).
+#: The out count was the missing mechanism, not the rate. A single flat
+#: probability applies the same number with nobody out and with two, and
+#: those are not remotely the same play: with two outs the runner leaves on
+#: contact, with none he is held. Measured against the training window the
+#: simulator put 2.3% MORE men on base than reality and scored 4.2% FEWER of
+#: them — a conversion defect, not a traffic one — and the F5 fit responded
+#: by driving these constants to the ceiling of their grids, which is the
+#: same signature that turned up the absent hit-by-pitch and the absent
+#: fielding errors.
 #:
-#: Left at the references rather than re-fitted because the whole fitting
-#: objective is being rebuilt around F5 outcomes. Fitting them one more time
-#: against runs-per-baserunner — an upstream proxy — would be repeating the
-#: mistake the rebuild exists to correct. See NOTES.
-FIRST_TO_THIRD_ON_1B = 0.28
-SECOND_SCORES_ON_1B = 0.60
-FIRST_SCORES_ON_2B = 0.45
+#: Raising the flat rate cannot fix it. It would buy the two-out case by
+#: over-converting the nobody-out case, which is why the fit kept straining
+#: at the edge instead of settling.
+#:
+#: Values are published league references per out state, NOT fitted. The
+#: whole point is to stop these absorbing other defects; fitting them again
+#: against runs would repeat the mistake this exists to correct.
+FIRST_TO_THIRD_ON_1B = {0: 0.24, 1: 0.28, 2: 0.34}
+SECOND_SCORES_ON_1B = {0: 0.42, 1: 0.62, 2: 0.84}
+FIRST_SCORES_ON_2B = {0: 0.33, 1: 0.45, 2: 0.63}
+
+
+def _rate(table, outs: int) -> float:
+    """Look up an advancement rate for the current out count.
+
+    Accepts a bare float so a caller (or a fit) can still pin one value
+    across all out states — that is what the old model was, and keeping it
+    expressible makes the two directly comparable.
+    """
+    if isinstance(table, (int, float)):
+        return float(table)
+    return table[min(max(outs, 0), 2)]
+
+
 #: A ball-in-play out that is not a double play still moves runners some of
 #: the time — the ground out to the right side, the sacrifice fly. Leaving
 #: this at zero strands runners the model should have scored.
@@ -805,7 +823,8 @@ def _leave(r: "StartResult", fr: "Frame", rng: random.Random) -> "StartResult":
     return r
 
 
-def _advance(bases: list[bool], outcome: str, rng: random.Random) -> int:
+def _advance(bases: list[bool], outcome: str, rng: random.Random,
+             outs: int = 0) -> int:
     """Mutate `bases` for a hit, walk or productive out. Returns runs.
 
     Lead runner first, so a runner held at third does not collide with one
@@ -821,18 +840,20 @@ def _advance(bases: list[bool], outcome: str, rng: random.Random) -> int:
         bases[:] = [False, False, True]
     elif outcome == B2:
         runs = sum(bases[1:])                       # 2nd and 3rd both score
-        from_first_scores = bases[0] and rng.random() < FIRST_SCORES_ON_2B
+        from_first_scores = bases[0] and rng.random() < _rate(
+            FIRST_SCORES_ON_2B, outs)
         runs += 1 if from_first_scores else 0
         bases[:] = [False, True, bool(bases[0]) and not from_first_scores]
     elif outcome == B1:
         runs = 1 if bases[2] else 0                 # third always scores
         third = False
         if bases[1]:
-            if rng.random() < SECOND_SCORES_ON_1B:
+            if rng.random() < _rate(SECOND_SCORES_ON_1B, outs):
                 runs += 1
             else:
                 third = True
-        if bases[0] and rng.random() < FIRST_TO_THIRD_ON_1B and not third:
+        if bases[0] and not third and rng.random() < _rate(
+                FIRST_TO_THIRD_ON_1B, outs):
             third = True
             bases[:] = [True, False, third]
         else:
@@ -963,7 +984,7 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random) -> None:
             bases[:] = [False, bases[0], bases[1]]
     elif o == HBP:
         r.hbp += 1
-        _score(r, fr, _advance(bases, BB, rng))  # forces like a walk
+        _score(r, fr, _advance(bases, BB, rng, fr.outs))  # forces
     elif o == ROE:
         # No hit, no out, batter on first — and every run after this in the
         # inning is unearned. The out that did not happen is the reason an
@@ -971,7 +992,7 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random) -> None:
         # occupied.
         r.roe += 1
         fr.errored = True
-        _score(r, fr, _advance(bases, B1, rng))
+        _score(r, fr, _advance(bases, B1, rng, fr.outs))
     elif o == K:
         r.k += 1
         fr.outs += 1
@@ -991,7 +1012,7 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random) -> None:
             # crediting it would inflate runs in exactly the innings that
             # ended badly.
             if fr.outs < 3:
-                _score(r, fr, _advance(bases, OUT, rng))
+                _score(r, fr, _advance(bases, OUT, rng, fr.outs))
     else:
         if o == BB:
             r.bb += 1
@@ -999,7 +1020,7 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random) -> None:
             r.h += 1
             if o == HR:
                 r.hr += 1
-        _score(r, fr, _advance(bases, o, rng))
+        _score(r, fr, _advance(bases, o, rng, fr.outs))
 
 
 def baserunning(r: StartResult, fr: Frame, rng: random.Random) -> None:
