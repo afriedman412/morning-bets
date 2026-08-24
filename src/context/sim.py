@@ -1266,6 +1266,21 @@ def prob_over(results: list[StartResult], stat: str, line: float) -> float:
     return sum(1 for v in vals if v > line) / len(vals) if vals else 0.0
 
 
+def prob_push(results: list[StartResult], stat: str, line: float) -> float:
+    """P(stat == line), which is P(the book pushes) on an integer line.
+
+    Zero by construction on a half-point line. It is not zero on an integer
+    one, and that difference is a real bet: a book's over-9.0 refunds at
+    exactly 9, while the Kalshi contract that looks like it — threshold 10 —
+    settles NO at 9 and pays nothing back. Comparing the two prices without
+    this term compares two different bets.
+    """
+    if line != int(line):
+        return 0.0
+    vals = [getattr(r, stat) for r in results]
+    return sum(1 for v in vals if v == line) / len(vals) if vals else 0.0
+
+
 def distribution(results: list[StartResult], stat: str) -> dict:
     """Summary of one stat across the simulated starts."""
     vals = sorted(getattr(r, stat) for r in results)

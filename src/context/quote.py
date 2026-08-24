@@ -71,15 +71,15 @@ def american_to_prob(odds: str | int | float) -> float | None:
 
 
 def _sim_prob(name, stat, line, side, d):
-    """(prob, note). None when the model declines to answer."""
+    """(prob, push, note). `prob` is None when the model declines."""
     lg = sim.league()
     pr = rate_src.pitcher_rates(lg, before=d)
     p = pr.get(name)
     if not p:
-        return None, "no rates on record"
+        return None, None, "no rates on record"
     ok, why = price_mod.priceable(name, p["pa"], d)
     if not ok:
-        return None, why
+        return None, None, why
 
     for g in price_mod.slate(d):
         for s_key, o_key in (("away", "home"), ("home", "away")):
@@ -88,10 +88,11 @@ def _sim_prob(name, stat, line, side, d):
             s, o = g[s_key], g[o_key]
             if g["status"] not in ("Scheduled", "Pre-Game", "Warmup",
                                    "Delayed Start", "Preview"):
-                return None, f"game is {g['status']} — never price a live one"
+                return (None, None,
+                        f"game is {g['status']} — never price a live one")
             names = o["lineup"] or price_mod.projected_lineup(o["abbr"], d)
             if len(names) < 9:
-                return None, "could not build an opposing lineup"
+                return None, None, "could not build an opposing lineup"
             br = rate_src.batter_rates(lg, before=d)
             league_bats = sim.BatterRates(
                 name="league", k_pct=lg["k_pct"], bb_pct=lg["bb_pct"],
@@ -105,10 +106,14 @@ def _sim_prob(name, stat, line, side, d):
                 nine, lg, n=20000, hook=hook, seed=0)
             attr = "k" if stat == "k" else "outs"
             over = sim.prob_over(res, attr, line)
+            push = sim.prob_push(res, attr, line)
             note = (f"{p['pa']} BF, vs {o['abbr']}, "
                     f"{'confirmed' if o['lineup'] else 'PROJECTED'} lineup")
-            return (over if side == "over" else 1 - over), note
-    return None, "not a listed probable starter today"
+            # Both sides are P(strictly past the line), so on an integer
+            # line they sum to 1 - push rather than to 1.
+            under = 1.0 - over - push
+            return (over if side == "over" else under), push, note
+    return None, None, "not a listed probable starter today"
 
 
 def _history(name, stat, line, d, conn=None):
@@ -139,14 +144,34 @@ def quote(name: str, stat: str, side: str, line: float,
 
     k = kalshi.price_prop(name, stat, line, side)
     out["kalshi"] = k
-    ours, note = _sim_prob(name, stat, line, side, d)
+    ours, push, note = _sim_prob(name, stat, line, side, d)
     out["sim"] = ours
+    out["sim_push"] = push
     out["sim_note"] = note
+
+    # A BOOK'S INTEGER LINE AND KALSHI'S THRESHOLD ARE DIFFERENT BETS.
+    # DraftKings' over-9.0 refunds at exactly 9; the contract that looks
+    # like it, threshold 10, settles NO at 9 and pays nothing back. So the
+    # book's break-even is not comparable to Kalshi's price until the push
+    # mass is taken out of it. Breaking even needs
+    #     P(win) * b = P(lose) = 1 - P(win) - P(push)
+    # so the required win probability is the usual implied number scaled by
+    # (1 - P(push)). Half-point lines have push = 0 and nothing changes.
+    book_win = book_p
+    if book_p is not None and push:
+        book_win = book_p * (1.0 - push)
+    out["offered_win_prob"] = book_win
 
     print(f"\n  {name} — {side} {line:g} {stat}"
           + (f"  at {offered}" if offered else ""))
     if book_p:
         print(f"    your book implies      {book_p:.3f}")
+        if push:
+            print(f"      minus a {push:.1%} push at exactly {line:g}, it "
+                  f"only needs to WIN {book_win:.3f}")
+        elif line == int(line):
+            print(f"      NOTE: {line:g} can push at your book and cannot on "
+                  f"Kalshi, and the model would not size the push")
 
     if k and k.get("mid_prob") is not None:
         b, a = kalshi.book(k["ticker"])
@@ -157,8 +182,8 @@ def quote(name: str, stat: str, side: str, line: float,
               f"{kalshi.american(ask)}   spread {k['spread']:.2f}"
               + ("" if k["usable"] else "   <- TOO WIDE to trade off"))
         out["kalshi_ask"] = ask
-        if book_p is not None and k["usable"]:
-            markup = book_p - ask
+        if book_win is not None and k["usable"]:
+            markup = book_win - ask
             print(f"    -> your book is {markup * 100:+.1f} cents "
                   f"{'worse' if markup > 0 else 'BETTER'} than the exchange")
             if markup > NOTABLE_MARKUP:
@@ -173,10 +198,10 @@ def quote(name: str, stat: str, side: str, line: float,
         if k and k.get("mid_prob") is not None:
             print(f"       advisory only — our disagreements measured "
                   f"zero information (t = -0.15)")
-        elif book_p is not None:
+        elif book_win is not None:
             # No exchange price, so the simulator is all there is. Speak
             # only above the bar its own measured error justifies.
-            d_ = book_p - ours
+            d_ = book_win - ours
             if abs(d_) < SIM_ONLY_BAR:
                 print(f"       within {SIM_ONLY_BAR * 100:.0f} cents of our"
                       f" number ({d_ * 100:+.1f}) — that is inside our own"
@@ -191,11 +216,13 @@ def quote(name: str, stat: str, side: str, line: float,
     hist = _history(name, stat, line, d)
     if hist:
         vals = [h["v"] for h in hist]
+        pushes = sum(1 for v in vals if v == line)
         hit = sum(1 for v in vals
-                  if (v > line) == (side == "over"))
+                  if v != line and (v > line) == (side == "over"))
         print(f"    his last {len(vals)} starts        {vals[::-1]}")
-        print(f"       this side hit {hit}/{len(vals)}"
-              f"  (small sample; not a probability)")
+        print(f"       this side hit {hit}/{len(vals) - pushes}"
+              + (f", {pushes} push" if pushes else "")
+              + "  (small sample; not a probability)")
     return out
 
 

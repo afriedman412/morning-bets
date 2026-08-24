@@ -1057,6 +1057,37 @@ def check_american_odds_convert_both_signs():
     assert quote.american_to_prob("junk") is None
 
 
+def check_push_mass_is_zero_on_a_half_point_line():
+    r = [sim.StartResult(k=n) for n in (5, 6, 7)]
+    assert sim.prob_push(r, "k", 5.5) == 0.0
+    assert sim.prob_push(r, "k", 6.0) == 1 / 3
+
+
+def check_an_integer_line_and_a_kalshi_threshold_are_different_bets():
+    """The live mis-pricing this guards.
+
+    A book's over-9.0 refunds at exactly 9; Kalshi's threshold-10 contract,
+    which is the one `threshold_for(9.0)` returns, settles NO at 9 and pays
+    nothing back. Breaking even on the book bet needs
+
+        P(win) * b = P(lose) = 1 - P(win) - P(push)
+
+    so the win probability it actually requires is the implied number scaled
+    by (1 - P(push)) — and THAT is what compares to the exchange. Comparing
+    the raw implied number instead overstates what the book demands by the
+    whole push mass, which at a 10% push on a -110 line is 5.2 cents, past
+    the 2-cent bar that decides whether we tell someone to bet it.
+    """
+    from src.context import quote
+    implied = quote.american_to_prob(-110)
+    push = 0.10
+    needed = implied * (1 - push)
+    assert abs(needed - 0.4714) < 1e-3, needed
+    assert implied - needed > quote.NOTABLE_MARKUP, implied - needed
+    # and a half-point line must be left exactly alone
+    assert implied * (1 - sim.prob_push([sim.StartResult(k=5)], "k", 5.5)) == implied
+
+
 # ── open vs close ──────────────────────────────────────────────────────
 def check_clv_controls_are_kept_in_the_harness():
     """`sim - open` and `close - open` share a -open term, which can
