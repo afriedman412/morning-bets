@@ -1145,6 +1145,11 @@ def check_advancement_rises_with_the_out_count():
                   sim.FIRST_SCORES_ON_2B):
         v = [sim._rate(table, o) for o in (0, 1, 2)]
         assert v[0] < v[1] < v[2], v
+    # The productive out is the exception: its two-out entry is unreachable,
+    # because with two down the ball in play is itself the third out.
+    adv = sim.RUNNER_ADVANCES_ON_OUT
+    assert sim._rate(adv, 0) < sim._rate(adv, 1), adv
+    assert sim._rate(adv, 2) == 0.0, adv
 
 
 def check_rate_accepts_a_bare_float():

@@ -90,8 +90,7 @@ HOOK_KEYS = ("intercept", "per_inning", "per_run", "pitch_center",
 #: is a rule about how a runner gets from where he is to home plate, which
 #: is the part of the simulation that has to be right for the innings to
 #: come out like real innings.
-RULE_KEYS = ("RUNNER_ADVANCES_ON_OUT", "INHERITED_SCORE_RATE",
-             "WP_PB_RATE", "GIDP_RATE")
+RULE_KEYS = ("INHERITED_SCORE_RATE", "WP_PB_RATE", "GIDP_RATE")
 
 PARAMS = RULE_KEYS
 
@@ -295,7 +294,6 @@ GRID = {
     # fitted — see sim.py. They are scanned as a single multiplier on the
     # whole table instead, so the SHAPE stays published and only the level
     # can move.
-    "RUNNER_ADVANCES_ON_OUT": [0.15, 0.25, 0.35, 0.45],
     "INHERITED_SCORE_RATE": [0.25, 0.33, 0.42, 0.50],
     "WP_PB_RATE": [0.010, 0.0155, 0.022, 0.030],
     # A double play ends a rally outright, so this is a run-production

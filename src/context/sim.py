@@ -735,9 +735,26 @@ def _rate(table, outs: int) -> float:
 
 
 #: A ball-in-play out that is not a double play still moves runners some of
-#: the time — the ground out to the right side, the sacrifice fly. Leaving
-#: this at zero strands runners the model should have scored.
-RUNNER_ADVANCES_ON_OUT = 0.25
+#: the time — the ground out to the right side, the sacrifice fly.
+#:
+#: BY OUT COUNT, for the same reason as the three above, and it was the last
+#: one left flat. The F5 fit found it immediately: with the others made
+#: out-dependent, this became the only knob able to absorb the remaining
+#: conversion deficit and the search drove it straight to the ceiling of its
+#: grid at 2.3 sigma. Fourth instance in one session of a parameter pinned
+#: at a grid edge turning out to be a missing mechanism rather than a
+#: mistuned constant.
+#:
+#: The two states are different plays, not the same play at different
+#: frequencies. With nobody out a productive out is incidental — a grounder
+#: to the right side that happens to move a runner up. With one out the
+#: sacrifice fly is deliberate and a runner on third scores on any ball deep
+#: enough. The two-out entry is never reached: the guard in `apply_pa` only
+#: advances while the inning is still alive, and with two down the ball in
+#: play IS the third out.
+RUNNER_ADVANCES_ON_OUT = {0: 0.30, 1: 0.45, 2: 0.0}
+#: (indexed by outs BEFORE the play; the 2 entry is unreachable because
+#: with two down the ball in play is itself the third out)
 
 #: Runners a departing starter leaves on who go on to score. They are
 #: CHARGED TO HIM as earned runs, so `r.runs` has to include them or the
@@ -868,7 +885,7 @@ def _advance(bases: list[bool], outcome: str, rng: random.Random,
         else:
             bases[0] = True
     elif outcome == OUT:
-        if rng.random() < RUNNER_ADVANCES_ON_OUT:
+        if rng.random() < _rate(RUNNER_ADVANCES_ON_OUT, outs):
             if bases[2]:
                 runs += 1                           # sacrifice fly
             bases[:] = [False, bases[0], bases[1]]
@@ -968,6 +985,13 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random) -> None:
     one of them.
     """
     bases = fr.bases
+    # The out count AS THE BALL IS STRUCK, captured before anything is
+    # recorded. Advancement depends on the situation the runners were
+    # running in, not on the situation the play left behind — and for an
+    # OUT those differ by one. Passing the post-play count zeroed the
+    # sacrifice fly (one out before, two after) and drove runs per
+    # baserunner from -2.6% to -3.6%.
+    outs_before = fr.outs
     r.batters += 1
     r.pitches += int(round(PITCH_COST[o]))
     fr.damage += DAMAGE[o]
@@ -984,7 +1008,7 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random) -> None:
             bases[:] = [False, bases[0], bases[1]]
     elif o == HBP:
         r.hbp += 1
-        _score(r, fr, _advance(bases, BB, rng, fr.outs))  # forces
+        _score(r, fr, _advance(bases, BB, rng, outs_before))  # forces
     elif o == ROE:
         # No hit, no out, batter on first — and every run after this in the
         # inning is unearned. The out that did not happen is the reason an
@@ -992,7 +1016,7 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random) -> None:
         # occupied.
         r.roe += 1
         fr.errored = True
-        _score(r, fr, _advance(bases, B1, rng, fr.outs))
+        _score(r, fr, _advance(bases, B1, rng, outs_before))
     elif o == K:
         r.k += 1
         fr.outs += 1
@@ -1012,7 +1036,7 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random) -> None:
             # crediting it would inflate runs in exactly the innings that
             # ended badly.
             if fr.outs < 3:
-                _score(r, fr, _advance(bases, OUT, rng, fr.outs))
+                _score(r, fr, _advance(bases, OUT, rng, outs_before))
     else:
         if o == BB:
             r.bb += 1
@@ -1020,7 +1044,7 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random) -> None:
             r.h += 1
             if o == HR:
                 r.hr += 1
-        _score(r, fr, _advance(bases, o, rng, fr.outs))
+        _score(r, fr, _advance(bases, o, rng, outs_before))
 
 
 def baserunning(r: StartResult, fr: Frame, rng: random.Random) -> None:
