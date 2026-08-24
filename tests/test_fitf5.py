@@ -181,7 +181,7 @@ def check_evaluate_applies_its_parameters():
     """
     cases = [_case(2, seed=i) for i in range(8)]
     base = fitf5.evaluate(cases, None, n_sims=20, lg=dict(LG))
-    for k, v in (("FIRST_SCORES_ON_2B", 0.95), ("intercept", -2.0)):
+    for k, v in (("GIDP_RATE", 0.30), ("intercept", -2.0)):
         moved = fitf5.evaluate(cases, {k: v}, n_sims=20, lg=dict(LG))
         assert moved["loss"] != base["loss"], k
 
@@ -470,3 +470,28 @@ def check_recency_ages_from_the_window_not_from_today():
     # Two games two days apart in 2020: neither is stale RELATIVE TO THE
     # OTHER, so the effective sample must be close to the raw one.
     assert got["eff_pa"] > got["pa"] * 0.9, (got["eff_pa"], got["pa"])
+
+
+def check_every_grid_contains_its_own_shipped_value():
+    """A grid missing its incumbent freezes that parameter silently.
+
+    `scan` finds the incumbent by exact value; if it is absent, `cur` is None
+    and `take` can never fire. The parameter burns a full scan every sweep
+    and reports "no move", which is indistinguishable in the output from a
+    real null. WP_PB_RATE did exactly this for two runs after its value was
+    corrected to 0.0155 and its grid was not.
+    """
+    fitf5.check_grids()          # raises if any grid omits its incumbent
+
+
+def check_check_grids_actually_catches_a_missing_incumbent():
+    """The guard has to fire, not just exist."""
+    real = fitf5.GRID["GIDP_RATE"]
+    fitf5.GRID["GIDP_RATE"] = [0.99, 0.98]
+    try:
+        fitf5.check_grids()
+    except ValueError:
+        return
+    finally:
+        fitf5.GRID["GIDP_RATE"] = real
+    raise AssertionError("a grid missing its incumbent was accepted")

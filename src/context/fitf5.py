@@ -90,9 +90,8 @@ HOOK_KEYS = ("intercept", "per_inning", "per_run", "pitch_center",
 #: is a rule about how a runner gets from where he is to home plate, which
 #: is the part of the simulation that has to be right for the innings to
 #: come out like real innings.
-RULE_KEYS = ("FIRST_TO_THIRD_ON_1B", "SECOND_SCORES_ON_1B",
-             "FIRST_SCORES_ON_2B", "RUNNER_ADVANCES_ON_OUT",
-             "INHERITED_SCORE_RATE", "WP_PB_RATE", "GIDP_RATE")
+RULE_KEYS = ("RUNNER_ADVANCES_ON_OUT", "INHERITED_SCORE_RATE",
+             "WP_PB_RATE", "GIDP_RATE")
 
 PARAMS = RULE_KEYS
 
@@ -291,12 +290,14 @@ GRID = {
     "pitch_center": [86.0, 92.0, 98.0],
     "mid_intercept": [-5.6, -5.0, -4.4],
     "mid_per_runner": [0.35, 0.55, 0.80],
-    "FIRST_TO_THIRD_ON_1B": [0.22, 0.28, 0.34, 0.40],
-    "SECOND_SCORES_ON_1B": [0.52, 0.60, 0.68, 0.76],
-    "FIRST_SCORES_ON_2B": [0.35, 0.45, 0.55, 0.65],
+    # The three advancement constants are now TABLES keyed by out count and
+    # are set from published references per out state, deliberately not
+    # fitted — see sim.py. They are scanned as a single multiplier on the
+    # whole table instead, so the SHAPE stays published and only the level
+    # can move.
     "RUNNER_ADVANCES_ON_OUT": [0.15, 0.25, 0.35, 0.45],
     "INHERITED_SCORE_RATE": [0.25, 0.33, 0.42, 0.50],
-    "WP_PB_RATE": [0.014, 0.021, 0.028, 0.038],
+    "WP_PB_RATE": [0.010, 0.0155, 0.022, 0.030],
     # A double play ends a rally outright, so this is a run-production
     # mechanism and not the outs term it looks like.
     "GIDP_RATE": [0.07, 0.11, 0.15, 0.19],
@@ -360,6 +361,25 @@ def score(cases, params, n_sims, lg, salts=SALTS) -> tuple[float, float]:
     return _mean_se(losses(cases, params, n_sims, lg, salts))
 
 
+def check_grids() -> None:
+    """Every searched parameter's grid must contain its own shipped value.
+
+    A grid that omits its incumbent is not merely wasteful — `scan` looks the
+    incumbent up by exact value, finds nothing, and `take` can never fire. The
+    parameter is then scanned at full cost on every sweep and silently frozen,
+    which reads in the output as a genuine "no move" rather than as a bug.
+    That happened to WP_PB_RATE for two full runs after its shipped value was
+    corrected to 0.0155 and the grid was left alone.
+    """
+    d = defaults()
+    bad = [k for k in PARAMS
+           if not any(abs(v - d[k]) < 1e-12 for v in GRID[k])]
+    if bad:
+        raise ValueError(
+            f"grid does not contain the shipped value for {bad} — "
+            f"these would be scanned at full cost and never move")
+
+
 def scan(cases, param, values=None, n_sims=50, lg=None, base=None,
          salts=SALTS) -> list[tuple]:
     """Loss across one parameter's grid, everything else held.
@@ -403,6 +423,7 @@ def tune(cases, n_sims=50, sweeps=2, start=None, verbose=True,
     sweeps and an out-of-sample window are what adjudicate the result, and a
     stricter bar here mostly means the fit never leaves its starting point.
     """
+    check_grids()
     lg = sim.league()
     best = dict(start or defaults())
     for sweep in range(sweeps):
