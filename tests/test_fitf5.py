@@ -368,3 +368,105 @@ def check_f5_relief_is_scaled_to_the_outs_it_covers():
     # Five innings of league-average pitching is ~2.4 runs; a starter yanked
     # after one plus four of relief cannot plausibly average double that.
     assert 0.5 < tot / 60 < 6.0, tot / 60
+
+
+# ── recency weighting ──────────────────────────────────────────────────
+class _Rows(list):
+    """A fake cursor. `pitcher_rates` calls `.fetchall()` on the result of
+    `.execute()`, while the weighted path iterates it directly — so the stub
+    has to be both a list and a cursor."""
+
+    def fetchall(self):
+        return list(self)
+
+
+def check_recency_off_reproduces_the_flat_aggregate():
+    """`half_life=None` must fall through EXACTLY, not approximately.
+
+    The switch is the safety property: recency ships off because every
+    imported baseball effect this project measured came back zero, and a
+    default path that quietly differed would make that default a change
+    nobody chose.
+    """
+    from src.context.sources import rates as R
+    lg = {"k_pct": 0.22, "bb_pct": 0.078, "hr_pct": 0.033, "babip": 0.29}
+    rows = [
+        {"name": "A", "date": "2026-08-01", "o": 18, "h": 5, "bb": 2,
+         "k": 6, "hr": 1, "apps": 1},
+        {"name": "A", "date": "2026-06-01", "o": 15, "h": 8, "bb": 3,
+         "k": 3, "hr": 2, "apps": 1},
+    ]
+
+    class _C:
+        def execute(self, *_):
+            return _Rows(rows)
+    flat = R.pitcher_rates(lg, conn=_C())
+    same = R.pitcher_rates_recent(lg, half_life=None, conn=_C())
+    assert same == flat, (same, flat)
+
+
+def check_recency_moves_rates_toward_the_recent_games():
+    """A pitcher who changed must read closer to what he is doing now.
+
+    Built so the two halves disagree sharply: recent starts are all
+    strikeouts, older ones almost none. Weighted, the rate has to sit above
+    the flat pool.
+    """
+    from src.context.sources import rates as R
+    lg = {"k_pct": 0.22, "bb_pct": 0.078, "hr_pct": 0.033, "babip": 0.29}
+    rows = ([{"name": "A", "date": "2026-08-20", "o": 18, "h": 3, "bb": 1,
+              "k": 12, "hr": 0, "apps": 1}] * 5
+            + [{"name": "A", "date": "2026-05-01", "o": 18, "h": 6, "bb": 3,
+                "k": 1, "hr": 1, "apps": 1}] * 5)
+
+    class _C:
+        def execute(self, *_):
+            return _Rows(rows)
+    flat = R.pitcher_rates(lg, conn=_C())["A"]["k_pct"]
+    rec = R.pitcher_rates_recent(lg, half_life=14, conn=_C())["A"]["k_pct"]
+    assert rec > flat + 0.02, (flat, rec)
+
+
+def check_recency_shrinks_on_the_effective_sample():
+    """Discounting the evidence must also discount the confidence.
+
+    Weighting the numerator while shrinking on the RAW batters faced would
+    keep full-season confidence behind a fraction of the data, which turns a
+    recency filter into an overreaction to one bad outing. The effective
+    sample must be smaller than the raw one whenever any game is discounted.
+    """
+    from src.context.sources import rates as R
+    lg = {"k_pct": 0.22, "bb_pct": 0.078, "hr_pct": 0.033, "babip": 0.29}
+    rows = [{"name": "A", "date": "2026-08-20", "o": 18, "h": 4, "bb": 2,
+             "k": 8, "hr": 1, "apps": 1},
+            {"name": "A", "date": "2026-05-01", "o": 18, "h": 4, "bb": 2,
+             "k": 8, "hr": 1, "apps": 1}]
+
+    class _C:
+        def execute(self, *_):
+            return _Rows(rows)
+    got = R.pitcher_rates_recent(lg, half_life=14, conn=_C())["A"]
+    assert got["eff_pa"] < got["pa"], (got["eff_pa"], got["pa"])
+
+
+def check_recency_ages_from_the_window_not_from_today():
+    """Scoring a July date must not discount July as stale.
+
+    Measuring age from the wall clock would make every backtest weaker than
+    production, and the further back the window the worse it gets — the kind
+    of bug that shows up as "the model used to be better".
+    """
+    from src.context.sources import rates as R
+    lg = {"k_pct": 0.22, "bb_pct": 0.078, "hr_pct": 0.033, "babip": 0.29}
+    old = [{"name": "A", "date": "2020-04-10", "o": 18, "h": 3, "bb": 1,
+            "k": 12, "hr": 0, "apps": 1},
+           {"name": "A", "date": "2020-04-08", "o": 18, "h": 3, "bb": 1,
+            "k": 12, "hr": 0, "apps": 1}]
+
+    class _C:
+        def execute(self, *_):
+            return _Rows(old)
+    got = R.pitcher_rates_recent(lg, half_life=14, conn=_C())["A"]
+    # Two games two days apart in 2020: neither is stale RELATIVE TO THE
+    # OTHER, so the effective sample must be close to the raw one.
+    assert got["eff_pa"] > got["pa"] * 0.9, (got["eff_pa"], got["pa"])

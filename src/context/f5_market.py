@@ -24,7 +24,8 @@ from collections import defaultdict
 
 from src import db, kalshi
 from src.context import calibrate as cal
-from src.context import f5, sim
+from src.context import f5, game, sim
+from src.context.sources import rates as rate_src
 
 MIN_TRADES = 5
 _TEAMS = re.compile(r"^\d{2}[A-Z]{3}\d{6}([A-Z]{2,3})([A-Z]{2,3})$")
@@ -58,9 +59,50 @@ def _match(seg: str, games: dict):
     return None
 
 
-def collect(dates, n_sims=400, seed=0, verbose=True) -> list[dict]:
+def _f5_totals(pair, home_abbr, lg, pens, n_sims, seed, engine):
+    """`n_sims` simulated F5 totals for one game. -> [int]
+
+    `engine="game"` runs the full two-sided simulator: a sampled bullpen, a
+    live score, errors, and inherited runners actually played out.
+    `engine="stub"` is the original — one league-average reliever and a flat
+    0.33 for stranded runners — kept so the two can be compared on the same
+    contracts rather than argued about.
+    """
+    home = next((x for x in pair if x[0]["team"] == home_abbr), None)
+    away = next((x for x in pair if x[0]["team"] != home_abbr), None)
+    if not home or not away:
+        return None
+    # HOME/ROAD, which this module never applied. The rest of the pipeline
+    # centres the opposing lineup on the season mean and `f5_market` did not,
+    # so every previous number here was measured on a different model from
+    # the one being priced.
+    a_nine = cal.adjust_lineup(away[2], False)
+    h_nine = cal.adjust_lineup(home[2], True)
+    a_hook = sim.for_start(sim.Hook(), away[0]["team"], away[1].name)
+    h_hook = sim.for_start(sim.Hook(), home[0]["team"], home[1].name)
+
+    if engine == "stub":
+        res = f5.simulate_f5(away[1], a_nine, home[1], h_nine, lg,
+                             away_hook=a_hook, home_hook=h_hook,
+                             n=n_sims, seed=seed)
+        return [r.total for r in res]
+
+    rng = random.Random(seed)
+    out = []
+    for _ in range(n_sims):
+        A = game.build_side(away[1], pens.get((away[0]["team"] or "").upper(),
+                                              []), h_nine, a_hook, rng)
+        H = game.build_side(home[1], pens.get((home[0]["team"] or "").upper(),
+                                              []), a_nine, h_hook, rng)
+        out.append(game.simulate_game(A, H, lg, rng).total_f5)
+    return out
+
+
+def collect(dates, n_sims=400, seed=0, verbose=True,
+            engine="game") -> list[dict]:
     """One row per settled F5-total contract: our number, theirs, the result."""
     lg = sim.league()
+    pens = rate_src.bullpens(lg) if engine == "game" else {}
     out = []
     for d in dates:
         games = _games(d)
@@ -99,18 +141,11 @@ def collect(dates, n_sims=400, seed=0, verbose=True) -> list[dict]:
                 continue
 
             if g["game_id"] not in cache:
-                home = next((x for x in pair if x[0]["team"] == g["h"]), None)
-                away = next((x for x in pair if x[0]["team"] != g["h"]), None)
-                if not home or not away:
+                vals = _f5_totals(pair, g["h"], lg, pens, n_sims, seed,
+                                  engine)
+                if vals is None:
                     continue
-                res = f5.simulate_f5(
-                    away[1], away[2], home[1], home[2], lg,
-                    away_hook=sim.for_start(sim.Hook(), away[0]["team"],
-                                            away[1].name),
-                    home_hook=sim.for_start(sim.Hook(), home[0]["team"],
-                                            home[1].name),
-                    n=n_sims, seed=seed)
-                cache[g["game_id"]] = [r.total for r in res]
+                cache[g["game_id"]] = vals
             vals = cache[g["game_id"]]
             ours = sum(1 for v in vals if v > line) / len(vals)
             actual = (g["af5"] or 0) + (g["hf5"] or 0)
@@ -127,7 +162,6 @@ def collect(dates, n_sims=400, seed=0, verbose=True) -> list[dict]:
 
 
 def report(rows: list[dict]) -> None:
-    import math
     import statistics as st
     rows = [r for r in rows if r.get("open") is not None]
     n = len(rows)
@@ -186,4 +220,6 @@ if __name__ == "__main__":
     import sys
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
     dates = args or [f"2026-08-{d:02d}" for d in range(14, 22)]
-    report(collect(dates))
+    engine = "stub" if "--stub" in sys.argv else "game"
+    print(f"engine: {engine}")
+    report(collect(dates, engine=engine))

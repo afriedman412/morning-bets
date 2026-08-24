@@ -524,3 +524,105 @@ def bullpens(lg: dict, season: int | None = None, before: str | None = None,
     for arms in out.values():
         arms.sort(key=lambda a: -a["apps"])
     return out
+
+
+# ── recency ────────────────────────────────────────────────────────────
+#
+# A season aggregate treats April and August as the same evidence, and a
+# pitcher is not the same pitcher across them: stuff comes and goes, arms
+# tire, a change of grip or a new pitch shows up mid-year. Pooling flat
+# means the model is always describing a player who no longer exists.
+#
+# This is a WEIGHTED version of the same shrinkage. Each appearance is
+# discounted by age with a half-life, so a start six weeks ago counts half
+# what last night's does, and the shrinkage denominator uses the EFFECTIVE
+# sample — the sum of weights — rather than the raw batters faced. That
+# second part matters: weighting without shrinking the denominator would
+# keep the model's confidence at full-season levels while the evidence
+# behind it shrank, which is how a recency filter turns into an overreaction
+# to one bad outing.
+#
+# OFF BY DEFAULT (`HALF_LIFE_DAYS = None`). Every imported baseball effect
+# this project has tried measured zero, and the ones that worked were fitted
+# as residuals against the model's own error. Recency is plausible enough to
+# build and has NOT yet been measured, so it ships switched off until it is.
+
+_PITCHER_GAMES_Q = """
+select p.player_name name, g.date date,
+       p.outs_recorded o, p.h h, p.bb bb, p.k k, p.hr hr
+from mlb_pitching p join games g on g.game_id = p.game_id
+where g.sport = 'mlb' and g.status = 'Final' {where}
+"""
+
+#: Days after which an appearance counts half. None disables weighting and
+#: reproduces the flat season aggregate exactly.
+HALF_LIFE_DAYS: float | None = None
+
+
+def _days(a: str, b: str) -> int:
+    from datetime import date as _d
+    ya, ma, da = (int(x) for x in a[:10].split("-"))
+    yb, mb, db = (int(x) for x in b[:10].split("-"))
+    return (_d(ya, ma, da) - _d(yb, mb, db)).days
+
+
+def pitcher_rates_recent(lg: dict, season=None, before=None,
+                         half_life: float | None = None,
+                         conn=None) -> dict[str, dict]:
+    """`pitcher_rates`, with appearances discounted by age.
+
+    `half_life=None` falls straight through to the unweighted version, so
+    this is safe to call unconditionally.
+    """
+    hl = HALF_LIFE_DAYS if half_life is None else half_life
+    if not hl:
+        return pitcher_rates(lg, season, before, conn)
+
+    def _run(c):
+        return c.execute(
+            _PITCHER_GAMES_Q.format(where=_where(season, before))).fetchall()
+
+    rows = _run(conn) if conn is not None else _with(_run)
+    if not rows:
+        return {}
+    # Age is measured from the most recent game in the WINDOW, not from
+    # today. Scoring a July date must not discount July as if it were old
+    # news — that would make a backtest quietly weaker than production.
+    latest = max(r["date"] for r in rows)
+
+    agg: dict[str, dict] = {}
+    for r in rows:
+        w = 0.5 ** (_days(latest, r["date"]) / hl)
+        bf = (r["o"] or 0) + (r["h"] or 0) + (r["bb"] or 0)
+        if bf < 1:
+            continue
+        a = agg.setdefault(r["name"], {"bf": 0.0, "k": 0.0, "bb": 0.0,
+                                       "hr": 0.0, "h": 0.0, "raw": 0,
+                                       "apps": 0})
+        a["bf"] += w * bf
+        a["k"] += w * (r["k"] or 0)
+        a["bb"] += w * (r["bb"] or 0)
+        a["hr"] += w * (r["hr"] or 0)
+        a["h"] += w * (r["h"] or 0)
+        a["raw"] += bf
+        a["apps"] += 1
+
+    out = {}
+    for name, a in agg.items():
+        bf = a["bf"]
+        if bf < 1:
+            continue
+        bip = bf - a["k"] - a["bb"] - a["hr"]
+        # Shrink on the EFFECTIVE sample, not the raw one. Discounting the
+        # evidence but not the confidence is how this becomes an
+        # overreaction to a recent bad start.
+        out[name] = {
+            "name": name, "pa": a["raw"], "apps": a["apps"],
+            "eff_pa": bf,
+            "k_pct": _shrink(a["k"] / bf, lg["k_pct"], bf, "k_pct"),
+            "bb_pct": _shrink(a["bb"] / bf, lg["bb_pct"], bf, "bb_pct"),
+            "hr_pct": _shrink(a["hr"] / bf, lg["hr_pct"], bf, "hr_pct"),
+            "babip": _shrink(((a["h"] - a["hr"]) / bip) if bip > 0 else None,
+                             lg["babip"], bip, "babip"),
+        }
+    return out

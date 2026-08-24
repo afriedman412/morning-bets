@@ -227,13 +227,29 @@ def _sigmoid(z: float) -> float:
     except OverflowError:
         return 0.0 if z < 0 else 1.0
 
-#: Pitches thrown, by how the plate appearance ended. League average is
-#: about 3.9; strikeouts and walks cost more because they run deep counts by
-#: construction. TUNED, NOT FITTED — the boxscore cache has no pitch counts,
-#: so these were set to reproduce the observed distribution of starter pitch
-#: counts and are the least trustworthy numbers in this module.
-PITCH_COST = {K: 4.8, BB: 5.5, HR: 3.9, B1: 3.4, B2: 3.6, B3: 3.6,
-              OUT: 3.5, SAC: 3.0, HBP: 3.2, ROE: 3.5}
+#: Pitches thrown, by how the plate appearance ended.
+#:
+#: FITTED, at last, against 2,070 starts of real counts. `numberOfPitches`
+#: was in the statsapi boxscore all along and `grading.py` was discarding
+#: it; `sources/pitches.py` backfills it. Least squares with no intercept,
+#: mean absolute error 6.9 pitches on an 83.6-pitch start.
+#:
+#: The docstring this replaces claimed these "reproduce the observed
+#: distribution of starter pitch counts" while also stating the cache had no
+#: pitch counts. Both could not be true. They came from published averages,
+#: and they were close — but biased in one direction: CONTACT outcomes cost
+#: fewer pitches than assumed (hits -0.39, balls in play -0.25) and
+#: strikeouts slightly more. Net, the model billed 3.94 pitches per plate
+#: appearance against a real 3.839, over-counting by 2.6% and pushing every
+#: starter toward the hook's threshold early. That is a mechanical
+#: contributor to the measured early-exit gap (31.2% against a real 25.6%).
+#:
+#: Doubles and triples are not separately identified — the boxscore gives
+#: hits, not hit types, to a pitcher — so they inherit the non-homer hit
+#: coefficient. SAC and ROE are likewise unidentified and keep sensible
+#: neighbours.
+PITCH_COST = {K: 4.97, BB: 5.48, HR: 3.76, B1: 3.01, B2: 3.01, B3: 3.01,
+              OUT: 3.25, SAC: 3.0, HBP: 3.67, ROE: 3.25}
 
 #: How much trouble each outcome represents, for the hook. NOT run value —
 #: this is "how alarmed is the dugout", which is a different quantity. Runs
@@ -284,7 +300,10 @@ SAC_RATE = 0.010
 #: construction — which is why no advancement rate could close it.
 #:
 #: Tracked separately from walks so `bb` still matches the boxscore.
-HBP_RATE = 0.011
+#:
+#: MEASURED, not published: 0.0098 per batter faced over 2,070 starts, from
+#: the `hitByPitch` field the boxscore was already returning.
+HBP_RATE = 0.0098
 #: Chance a runner on first is caught stealing, per plate appearance he is
 #: aboard for. Removes the runner AND records an out.
 CS_RATE = 0.0148
@@ -478,7 +497,22 @@ class Hook:
     """
     #: Pitch count at which removal becomes even money at an inning end.
     #: Individual leashes override this — see `for_pitcher`.
-    pitch_center: float = 92.0
+    #:
+    #: Lowered 92 -> 84 once REAL pitch counts existed. The old value was
+    #: fitted in inflated pitch units (PITCH_COST over-billed 2.6%), so
+    #: correcting the costs without moving this sent starters to 17.3 outs
+    #: against a real 15.9.
+    #:
+    #: KNOWN UNFIXABLE AT THIS FORM, and worth reading before tuning it
+    #: again. Real starts are LEFT-SKEWED — mean 84.0, median 89 — because
+    #: managers either let a starter cruise to ~95 or knock him out early,
+    #: and only 12.2% ever reach 100. A single smooth logistic cannot be
+    #: bimodal: scanned over centre 84-92, scale 6-15 and cap 105-112, no
+    #: combination reaches mean 84 AND median 89 AND 12.2% over 100. The
+    #: closest lands P(outs>=18) at 46.9% against a real 41.1%. That is the
+    #: "no parameter reaches the target, so the mechanism is missing"
+    #: signature: what is absent is a disaster mode, not a better constant.
+    pitch_center: float = 84.0
     #: How sharply the pitch-count term turns on. Larger is a softer curve.
     pitch_scale: float = 15.0
     #: Added to the removal log-odds per run allowed so far.
@@ -506,8 +540,9 @@ class Hook:
     #: three walks look the same to a runner count and do not feel the same
     #: from the dugout.
     mid_per_damage: float = 0.25
-    #: Nobody is left in past this regardless of the arithmetic.
-    hard_pitch_cap: int = 115
+    #: Nobody is left in past this regardless of the arithmetic. Measured:
+    #: 0.7% of real starts reach 110 and the season maximum is 120.
+    hard_pitch_cap: int = 110
 
     #: Per baserunner allowed across the whole outing, applied between
     #: innings alongside runs. Two starters with three runs each are not the
@@ -685,11 +720,20 @@ RUNNER_ADVANCES_ON_OUT = 0.25
 INHERITED_SCORE_RATE = 0.33
 
 #: Wild pitches and passed balls, per plate appearance with a runner
-#: aboard. Published rates are ~0.35 WP and ~0.08 PB per team-game over ~38
-#: plate appearances, and they only matter with someone on. They move every
-#: runner up a base with no hit and no out, which is one of the mechanisms
-#: the advancement rates have been standing in for.
-WP_PB_RATE = 0.028
+#: aboard. They move every runner up a base with no hit and no out.
+#:
+#: MEASURED AND IT WAS 1.8x TOO HIGH. Real wild pitches are 0.0057 per
+#: batter faced across 2,070 starts; passed balls add roughly 20% and never
+#: appear in pitching stats at all, being charged to the catcher. Dividing
+#: by the 0.441 of plate appearances that actually have a runner aboard
+#: gives 0.0155, against the 0.028 guessed from published per-team-game
+#: rates.
+#:
+#: The old value was inflating runs through a channel nothing else checked —
+#: free bases with no batter involved. Worth remembering as a case where a
+#: published league rate was translated onto the wrong denominator, which is
+#: the same class of error that cost 6-8% on walks.
+WP_PB_RATE = 0.0155
 
 
 #: The base-running constants a fit is allowed to move, by name.
