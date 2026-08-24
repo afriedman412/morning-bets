@@ -12,7 +12,7 @@ one and cannot manufacture a finding. It only reorganises the INPUT space.
 What it buys is a better PRIOR, which is the one thing this codebase has
 repeatedly found does work.
 
-MEASURED 2026-08-24, AND IT IS TOO SMALL TO USE. Read before rebuilding.
+MEASURED 2026-08-24. REAL FOR RELIEVERS, ABSENT FOR STARTERS.
 
   * Arsenals DO NOT CLUSTER. Silhouette peaks at 0.121 at k=3 and decays
     toward zero as k rises; under ~0.25 means no real structure. Pitch mixes
@@ -29,10 +29,25 @@ MEASURED 2026-08-24, AND IT IS TOO SMALL TO USE. Read before rebuilding.
     rotation arm needs four pitches to face a lineup three times, so
     starters' mixes converge, while bullpens carry one-pitch specialists.
     Testing starters alone hides the whole effect.
-  * It is still too small. 5.2% is the best cell and it is unstable (2.1% at
-    a lower sample bar), which is the signature of the noise floor. The
-    prior would move a thin-sample reliever's K% by ~1.5 points against a
-    between-reliever spread of 6.6.
+  * AND A FIRST READING CALLED IT NOISE WHEN IT IS NOT. R2 with four free
+    parameters is upward-biased, so the question is not "is 5% small" but
+    "is it bigger than what this procedure invents from nothing". A
+    permutation null — shuffle which pitcher has which arsenal, refit,
+    repeat 400 times — settles it on the full season:
+
+        pop  minBF    n     R2   null mean   p
+        SP     200  186   2.7%        1.7%   0.168
+        RP     100  252   4.0%        1.2%   0.015
+        RP     150  171   7.6%        1.7%   0.003
+        RP     200   96  13.4%        3.0%   0.003
+
+    Relievers clear the null at every sample bar; starters never do. Net of
+    the null the effect is roughly 3-10% of K% variance. Modest, real, and
+    concentrated exactly where one-pitch specialists live.
+
+  * SO THE STARTER PRIOR IS DEAD AND THE RELIEVER PRIOR IS NOT. Relievers
+    throw ~40% of a full game and `game.build_side` currently shrinks thin
+    arms toward the league mean, which is the case this improves.
 
 Kept rather than deleted, on the same principle as the USE_HANDEDNESS and
 USE_ARSENAL flags in `calibrate.py` — the next person with this instinct
