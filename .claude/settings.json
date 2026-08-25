@@ -1,6 +1,14 @@
 {
   "permissions": {
     "defaultMode": "bypassPermissions",
+    "allow": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep"
+    ],
     "deny": [
       "Bash(make publish:*)",
       "Bash(rm -rf:*)",

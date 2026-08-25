@@ -56,10 +56,22 @@ def simulate_prefixes(cases_by_game, pens, lg, n_sims=40, seed=7,
     the work for a worse answer — the prefixes would stop being nested, and
     a model can only be diagnosed by prefix if F3 is genuinely the first
     three innings of the same game F7 came from.
+
+    SEEDED PER DRAW, and that is not cosmetic. A single generator shared
+    across the loop means a change anywhere downstream shifts the stream for
+    everything after it, so comparing two model states contaminates every
+    later game and every later draw with the difference from the first one.
+    It shows up as a bullpen flag moving F1 — an inning in which no reliever
+    can exist — by a large fraction of the effect being measured, and the
+    ladder then charges relief error to the rate model, which is exactly the
+    inference it exists to support.
+
+    Per-GAME seeding is not enough: the draws within a game share a stream
+    too, so draw 1's relief behaviour still perturbs draws 2..n. Only a seed
+    per (game, draw) makes F1 bit-identical across states.
     """
-    rng = random.Random(seed)
     out: dict[str, dict[int, float]] = {}
-    for gid, v in cases_by_game.items():
+    for i, (gid, v) in enumerate(cases_by_game.items()):
         home = next((x for x in v if x[0]["is_home"]), None)
         away = next((x for x in v if not x[0]["is_home"]), None)
         if not home or not away:
@@ -67,7 +79,8 @@ def simulate_prefixes(cases_by_game, pens, lg, n_sims=40, seed=7,
         an = cal.adjust_lineup(away[2], False)
         hn = cal.adjust_lineup(home[2], True)
         acc = {p: 0.0 for p in prefixes}
-        for _ in range(n_sims):
+        for draw in range(n_sims):
+            rng = random.Random(seed + i * 100003 + draw)
             A = game.build_side(
                 away[1], pens.get((away[0]["team"] or "").upper(), []),
                 hn, None, rng)

@@ -211,3 +211,182 @@ def check_prefix_is_empty_unless_tracked():
     """Costs nothing when unused — every other caller passes no `track`."""
     r = game.simulate_game(_side(), _side(), dict(LG), random.Random(1))
     assert r.prefix == {}, r.prefix
+
+
+def check_a_reliever_can_work_more_than_one_inning():
+    """Before the measured length, `_end_of_inning` gave way unconditionally.
+
+    Forcing the continuation hazard to 1.0 has to leave ONE arm on for the
+    rest of the game. If the give-way is still unconditional the pen walks
+    forward an arm an inning no matter what the hazard says.
+    """
+    from src.context import relief
+    orig = game.USE_MEASURED_RELIEF_LENGTH
+    game.USE_MEASURED_RELIEF_LENGTH = True
+    # Isolate the end-of-inning decision: the mid-inning hook would pull
+    # him for an unrelated reason and the check would read as a failure
+    # of the continuation hazard.
+    hook_orig = game.USE_MEASURED_RELIEF_HOOK
+    game.USE_MEASURED_RELIEF_HOOK = False
+    keep = relief.continues
+    relief.continues = lambda entry_outs, extra: 1.0
+    try:
+        away = _side(starter=_pitcher(k_pct=0.01, bb_pct=0.30, hr_pct=0.10))
+        home = _side()
+        game.simulate_game(away, home, dict(LG), random.Random(11))
+        assert away.starter_out, "the starter was never pulled"
+        assert away.pen_i == 0, f"walked to arm {away.pen_i} despite p=1.0"
+    finally:
+        relief.continues = keep
+        game.USE_MEASURED_RELIEF_LENGTH = orig
+        game.USE_MEASURED_RELIEF_HOOK = hook_orig
+
+
+def check_relief_length_flag_off_restores_one_inning_each():
+    """Every mechanism stays separately scoreable, so off must be the old
+    engine exactly — a fresh arm every inning regardless of the hazard."""
+    from src.context import relief
+    orig = game.USE_MEASURED_RELIEF_LENGTH
+    game.USE_MEASURED_RELIEF_LENGTH = False
+    hook_orig = game.USE_MEASURED_RELIEF_HOOK
+    game.USE_MEASURED_RELIEF_HOOK = False
+    keep = relief.continues
+    relief.continues = lambda entry_outs, extra: 1.0
+    try:
+        away = _side(starter=_pitcher(k_pct=0.01, bb_pct=0.30, hr_pct=0.10))
+        home = _side()
+        game.simulate_game(away, home, dict(LG), random.Random(11))
+        assert away.pen_i > 0, "flag off still held one arm on"
+    finally:
+        relief.continues = keep
+        game.USE_MEASURED_RELIEF_LENGTH = orig
+        game.USE_MEASURED_RELIEF_HOOK = hook_orig
+
+
+def check_a_mid_inning_hook_hands_over_the_out_count():
+    """The incoming arm inherits the OUT COUNT, not just the runners.
+
+    `entry_outs` is the strongest predictor of how long he stays, so a
+    mid-inning change that calls `next_arm()` bare — the old signature —
+    silently prices every inherited-rally arm as a clean-inning arm.
+    """
+    seen = []
+    orig_next = game.Side.next_arm
+    # Record ONLY the starter's own handover. Relief handovers also pass a
+    # non-zero out count, so an unfiltered spy is satisfied by those and the
+    # starter's regression hides behind them — which is exactly what this
+    # check missed once the relief hook landed.
+    hook_orig = game.USE_MEASURED_RELIEF_HOOK
+    game.USE_MEASURED_RELIEF_HOOK = False
+
+    def spy(self, entry_outs=0):
+        if not self.starter_out:
+            seen.append(entry_outs)
+        orig_next(self, entry_outs)
+
+    game.Side.next_arm = spy
+    try:
+        for s in range(25):
+            # A cap of zero pulls the starter at the first mid-inning check,
+            # whatever the out count happens to be at that moment.
+            away = _side(starter=_pitcher(k_pct=0.01, bb_pct=0.30),
+                         hook=sim.Hook(hard_pitch_cap=0))
+            home = _side()
+            game.simulate_game(away, home, dict(LG), random.Random(s))
+    finally:
+        game.Side.next_arm = orig_next
+        game.USE_MEASURED_RELIEF_HOOK = hook_orig
+    assert any(v > 0 for v in seen), \
+        "every handover reported a clean inning; the out count is not passed"
+
+
+def check_the_continuation_hazard_advances_with_each_extra_inning():
+    """A reliever's second inning is asked about with extra=1, not extra=0.
+
+    If the counter never advances the hazard stays at the ENTRY rate for
+    ever, and a two-out entry (63% per inning) compounds into an arm that
+    effectively never leaves. The bug is invisible in the mean because the
+    entry and extra rates are not far apart.
+    """
+    from src.context import relief
+    seen = []
+    orig = game.USE_MEASURED_RELIEF_LENGTH
+    game.USE_MEASURED_RELIEF_LENGTH = True
+    # Isolate the end-of-inning decision: the mid-inning hook would pull
+    # him for an unrelated reason and the check would read as a failure
+    # of the continuation hazard.
+    hook_orig = game.USE_MEASURED_RELIEF_HOOK
+    game.USE_MEASURED_RELIEF_HOOK = False
+    keep = relief.continues
+
+    def spy(entry_outs, extra):
+        seen.append(extra)
+        return 1.0 if extra < 2 else 0.0
+
+    relief.continues = spy
+    try:
+        away = _side(starter=_pitcher(k_pct=0.01, bb_pct=0.30, hr_pct=0.10))
+        home = _side()
+        game.simulate_game(away, home, dict(LG), random.Random(11))
+    finally:
+        relief.continues = keep
+        game.USE_MEASURED_RELIEF_LENGTH = orig
+        game.USE_MEASURED_RELIEF_HOOK = hook_orig
+    assert any(v >= 1 for v in seen), \
+        f"the hazard was never asked past the entry inning: {sorted(set(seen))}"
+
+
+def check_a_reliever_can_be_pulled_mid_inning():
+    """58.2% of real mid-inning handovers are reliever-to-reliever.
+
+    Before this the engine could only produce one off a starter's hook, so
+    it could reach at most 41.8% of them however the pen was drawn.
+    """
+    from src.context import relief
+    orig = game.USE_MEASURED_RELIEF_HOOK
+    keep = relief.mid_removal
+    game.USE_MEASURED_RELIEF_HOOK = True
+    relief.mid_removal = lambda runs, batters: 1.0
+    seen = []
+    orig_next = game.Side.next_arm
+
+    def spy(self, entry_outs=0):
+        seen.append((self.starter_out, entry_outs))
+        orig_next(self, entry_outs)
+
+    game.Side.next_arm = spy
+    try:
+        away = _side(starter=_pitcher(k_pct=0.01, bb_pct=0.30, hr_pct=0.10))
+        game.simulate_game(away, _side(), dict(LG), random.Random(4))
+    finally:
+        game.Side.next_arm = orig_next
+        relief.mid_removal = keep
+        game.USE_MEASURED_RELIEF_HOOK = orig
+    # A handover with the starter ALREADY out and outs on the board is a
+    # reliever-to-reliever mid-inning change, which used to be impossible.
+    assert any(was_out and outs > 0 for was_out, outs in seen), seen
+
+
+def check_the_relief_hook_flag_off_leaves_relievers_alone():
+    """Off must be the pre-measurement engine exactly."""
+    from src.context import relief
+    orig = game.USE_MEASURED_RELIEF_HOOK
+    keep = relief.mid_removal
+    game.USE_MEASURED_RELIEF_HOOK = False
+    relief.mid_removal = lambda runs, batters: 1.0
+    seen = []
+    orig_next = game.Side.next_arm
+
+    def spy(self, entry_outs=0):
+        seen.append((self.starter_out, entry_outs))
+        orig_next(self, entry_outs)
+
+    game.Side.next_arm = spy
+    try:
+        away = _side(starter=_pitcher(k_pct=0.01, bb_pct=0.30, hr_pct=0.10))
+        game.simulate_game(away, _side(), dict(LG), random.Random(4))
+    finally:
+        game.Side.next_arm = orig_next
+        relief.mid_removal = keep
+        game.USE_MEASURED_RELIEF_HOOK = orig
+    assert not any(was_out and outs > 0 for was_out, outs in seen), seen

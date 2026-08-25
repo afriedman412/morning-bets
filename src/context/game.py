@@ -40,12 +40,26 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field
 
-from src.context import sim
+from src.context import relief, sim
 
 #: How many relief arms a club is assumed to have available. Real bullpens
 #: carry 8, and a nine-inning game essentially never needs more than four
 #: after a starter, so this only bites in a disaster.
 PEN_DEPTH = 8
+
+#: Relief outings run to their MEASURED length instead of a flat one inning
+#: each. Off restores the pre-measurement engine exactly, because every
+#: mechanism here has to stay separately scoreable — the winning combination
+#: is not necessarily the newest state. Same shape as
+#: `sim.USE_MEASURED_ADVANCEMENT`.
+USE_MEASURED_RELIEF_LENGTH = True
+
+#: Relievers can be pulled MID-INNING, the way 58.2% of real mid-inning
+#: handovers happen. Off, only a starter's hook can produce one, which caps
+#: the model at 41.8% of them. Separate from `USE_MEASURED_RELIEF_LENGTH`
+#: because the two pull in opposite directions on how many arms a game uses
+#: and have to stay independently scoreable.
+USE_MEASURED_RELIEF_HOOK = True
 
 
 @dataclass
@@ -64,6 +78,12 @@ class Side:
     idx: int = 0                            # batting-order pointer
     pen_i: int = 0
     starter_out: bool = False
+    #: How many outs were already recorded when the CURRENT reliever came in
+    #: (0 for a clean inning), and how many full innings he has thrown since.
+    #: Together these are what `relief.continues` conditions on, so they must
+    #: be maintained wherever `next_arm` is called.
+    cur_entry_outs: int = 0
+    cur_extra_innings: int = 0
     #: The starter's own line, so props and F5 still read off one pitcher.
     line: sim.StartResult = field(default_factory=sim.StartResult)
     #: Whoever is on now, and his line (the starter's IS `line`).
@@ -82,13 +102,21 @@ class Side:
             return self.starter
         return self.pen[min(self.pen_i, len(self.pen) - 1)]
 
-    def next_arm(self) -> None:
-        """Go to the pen, or to the next arm in it."""
+    def next_arm(self, entry_outs: int = 0) -> None:
+        """Go to the pen, or to the next arm in it.
+
+        `entry_outs` is the base-out state the incoming arm walks into, and
+        it is the strongest predictor of how long he stays — 20% of arms
+        handed a clean inning come back out, against 63% of those brought in
+        with two down.
+        """
         if not self.starter_out:
             self.starter_out = True
         else:
             self.pen_i += 1
         self.cur_line = sim.StartResult()
+        self.cur_entry_outs = entry_outs
+        self.cur_extra_innings = 0
 
 
 def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
@@ -124,11 +152,19 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
         if walk_off and side.runs > side.opposing_runs:
             return
 
-        # Mid-inning removal, starter only. A reliever who has just come in
-        # to face this rally is not pulled again in the same breath, which
-        # is both realistic and what keeps the pen from being burned in one
-        # inning.
-        if not side.starter_out:
+        # Mid-inning removal. The comment that used to sit here said a
+        # reliever is never pulled in the same breath he arrived, which is
+        # true of his first two batters and false after that: of 4,026
+        # mid-inning handovers only 41.8% come from a starter, and the other
+        # 58.2% are one reliever giving way to another. The measured hazard
+        # carries the "just arrived" protection itself — 1.5% for his first
+        # two batters against a 14.1% peak once he has faced the men he came
+        # in for — so it does not need to be hard-coded here.
+        if side.starter_out and USE_MEASURED_RELIEF_HOOK:
+            rl = side.cur_line
+            if rng.random() < relief.mid_removal(rl.runs, rl.batters):
+                side.next_arm(fr.outs)
+        elif not side.starter_out:
             ln = side.line
             if (rng.random() < side.hook.mid_removal_p(
                     ln.pitches, ln.runs, fr.on_base, fr.damage, margin)
@@ -140,7 +176,10 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
                 # The reliever inherits the bases and the outs exactly as
                 # they stand. Those runners now score, or do not, for the
                 # reasons they actually would — no INHERITED_SCORE_RATE.
-                side.next_arm()
+                # He also inherits the OUT COUNT, which is what decides how
+                # long he stays: an arm handed two down finishes the inning
+                # and comes back out 63% of the time.
+                side.next_arm(fr.outs)
 
 
 def _end_of_inning(side: Side, rng: random.Random, inning: int,
@@ -148,8 +187,15 @@ def _end_of_inning(side: Side, rng: random.Random, inning: int,
     """The between-innings decision, starter only."""
     ln = side.line
     if side.starter_out:
-        # A reliever gets the inning he entered and then gives way, which is
-        # how a modern bullpen is actually used.
+        # Does he come back out? Measured on 13,248 relief outings and
+        # conditioned on the state he entered in — a flat give-way puts the
+        # mean relief outing at 3.000 outs against a real 3.473, and burns
+        # more arms per game than the league does.
+        if USE_MEASURED_RELIEF_LENGTH:
+            p = relief.continues(side.cur_entry_outs, side.cur_extra_innings)
+            if rng.random() < p:
+                side.cur_extra_innings += 1
+                return
         side.next_arm()
         return
     ln.innings_completed = inning

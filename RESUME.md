@@ -1,4 +1,188 @@
-# Resume here — state as of 2026-08-24 (end of day four)
+# Resume here — state as of 2026-08-24 (day five)
+
+## DAY FIVE
+
+**Read "What the benchmark IS" below before anything else.** The
+objective is the game simulation being right, measured on ACTUAL
+OUTCOMES through `fitf5`. Everything else — props, totals, prices — is
+expected to follow from that. The CLV work below is a downstream sanity
+check and day five briefly mistook it for the scoreboard.
+
+### The headline CLV numbers in this file are ONE MONTH
+
+Read this before believing any CLV figure in this file. The K-prop record
+(corr +0.586, blend +32.9%, direction 73.2%, +3.7c) was measured on eight
+dates in mid-August. Re-measured at n_sims=1500 on the whole backfilled
+season it does not hold up, and the reason is not sample size or Monte
+Carlo error — it is that August is genuinely unlike June and July:
+
+    window            n     corr    blend    dir     cents
+    June           1,464  +0.416   +13.1%   59.1%   +1.8c
+    July           3,134  +0.299    +7.7%   59.6%   +1.7c
+    August (21d)   3,164  +0.575   +30.4%   69.0%   +3.3c
+    SEASON (82d)   7,762  +0.451   +17.5%   63.4%   +2.4c
+
+August reproduces the record almost exactly. June and July run at half the
+edge, and July — the largest single month before August — is the worst.
+
+**SIX explanations have now been tested and eliminated**, each on data:
+Monte Carlo error; the measured advancement/GIDP tables; population
+composition (restrict to the 101 arms priced in all three months and the
+gap survives: +1.7c / +1.9c / +3.2c); liquidity composition (August holds
+FEWER thin markets and still wins in every trade bucket); a directional
+drift the model happened to match (centring each month's drift out GROWS
+the August edge — the model leans under, so the drift was suppressing
+measured accuracy everywhere); and a staler open (first-trade lead time is
+12.9 / 13.8 / 14.4 hours — flat).
+
+The liquidity result reverses across levels, which is the strongest clue:
+WITHIN a month more trades means less edge, ACROSS months more trades comes
+with more edge (37.7 -> 64.2 per market). Whatever changed is not liquidity.
+
+See `NOTES-context-layer.md` for the full table of each test. What is left
+to check is all about the market and the feed rather than the simulator:
+whether Kalshi changed how it opens these markets, whether our own lineup
+and roster completeness improved, and whether the mix of listed games
+changed. Rows are cached at `scratchpad/august_rows.json` — do NOT
+re-simulate to ask a market question.
+
+**Plan against the June/July number (~+1.8c), not +3.7c and not the
+pooled +2.4c** — the pooled figure is dragged up by the one month nobody
+can explain, so it is not a number to size bets against. And note the
+pooled season correlation
+sits above both June and July, which is what pooling windows with different
+levels does — quote the cents, not the corr.
+
+**n_sims saturates at 1500.** On the same 1,222 August contracts: 250 gives
+corr +0.490, 1500 gives +0.515, 2000 gives +0.516. Real attenuation (34 of
+627 five-cent disagreements at 250 were noise) but small, and there is no
+reason to pay for 2000 anywhere.
+
+**z is not an effect size.** It rose from +41.4 to +67.1 purely because n
+grew 6x. It measures confidence that an edge exists, not how big it is.
+
+### The measured advancement/GIDP tables are NEUTRAL on K props
+
+Four states at n_sims=1500 on the same 1,222 contracts, corr +0.513 to
++0.515 and blend +23.4% to +24.0%. Flat. Whatever the F5 scoring run says,
+the measured tables cost nothing on this market.
+
+### Three mechanisms shipped, all measured, all separately scoreable
+
+* **Relief outings run to their measured length** (`src/context/relief.py`,
+  `game.USE_MEASURED_RELIEF_LENGTH`). The continuation hazard is
+  conditioned on the state the reliever ENTERED in — 20.1% of arms handed a
+  clean inning come back out against 62.7% of those brought in with two
+  down, over 13,248 outings. Effect on the engine: arms per side 5.05 ->
+  4.07, mean total unchanged at 8.16 -> 8.19, **sd 3.91 -> 4.08**. Level
+  held, spread up, which is the variance mechanism and the right direction
+  against the known under-dispersion.
+* **Inherited runners score by BASE and OUTS** (`src/context/inherit.py`,
+  `sim.USE_MEASURED_INHERITED`). Counted on 5,507 inherited runners across
+  2,006 games. THE ADVANCEMENT MISTAKE AGAIN, and it fails the same way —
+  pooled it lands at 0.312 against the shipped flat 0.330, near enough to
+  look right, while the cells run 0.127 to 0.771:
+
+        0 out   1 out   2 out
+    1B  0.396   0.267   0.127
+    2B  0.628   0.428   0.215
+    3B  0.771   0.633   0.229
+
+  Two-out handovers are the most common state (2,624 of 5,507) and the flat
+  rate over-credits every one, inflating a departing starter's earned runs.
+  Start-level runs/start 2.5693 -> 2.5497.
+
+* **Relievers can be pulled MID-INNING** (`game.USE_MEASURED_RELIEF_HOOK`),
+  from a per-PA hazard over 50,023 in-inning relief plate appearances. Of
+  4,026 real mid-inning handovers only 41.8% come from a starter; the other
+  58.2% are reliever-to-reliever and the engine could not make them at all.
+
+        0-2 bat     3-5     6-8      9+
+    0r    0.015   0.099   0.073   0.070
+    1r    0.045   0.130   0.097   0.060
+    2r    0.033   0.141   0.122   0.087
+    3r+   0.061   0.109   0.116   0.080
+
+  NOT monotone in batters faced: the first two are nearly immune, then it
+  peaks, then falls. `game.py` used to hard-code that protection as a flat
+  rule, which is exactly why it could never pull a reliever.
+
+  **SURVIVORSHIP TRAP, recorded because it is easy to fall into.**
+  Conditioning on a stint's TOTAL runs gives 19.1% rising to 40.5% and reads
+  perfectly plausibly — it is inflated by the arms that stayed in and kept
+  being scored on, because for a pitcher who was not pulled the total keeps
+  accumulating past the decision point.
+
+**Pitchers used per side: league 4.30.** Model 5.05 with none of this, 4.07
+length-only, 5.66 hook-only, **4.53 with both**. Length-only is equally close
+in absolute terms and gets there BY CANCELLATION — no mid-inning relief
+changes at all, offset by outings that run too long. That is the pattern
+these notes keep warning about, so prefer the state with both mechanisms.
+
+**Not yet measured: whether any of this improves a PRICE.** Run
+`scratchpad/relief_value.py` — team totals, four flag states, paired on the
+same contracts. Whatever it says the measured values stay; a worse score
+locates compensation rather than licensing a revert.
+
+## What the benchmark IS, because day five briefly forgot
+
+**The objective is the game simulation being right. Prices are downstream.**
+CLV is a sanity check on a model that is already correct on outcomes; it is
+not the thing being optimised, and reading it as the scoreboard is how a
+session ends up chasing a market anomaly instead of a mechanism.
+
+The F5 TEAM TOTAL benchmark is `fitf5`, scored on ACTUAL OUTCOMES:
+`side_cases` gives one row per pitching side where `runs` is what that side
+really allowed through five (the opposing team's F5 score), and `_rps`
+scores the simulated distribution across `SIDE_LINES` = 0.5..8.5, the full
+support. The comment there is explicit about why it is not a book's lines:
+doing that "would tune the model to the shape of somebody's board".
+
+**Kalshi does not list an F5 team total at all.** Cached series are
+`KXMLBKS` (10,525), `KXMLBTEAMTOTAL` (7,084, FULL-game team runs),
+`KXMLBF5TOTAL` (3,521, the COMBINED first-five total) and `KXMLBTOTAL` (25).
+So there is no market test for the primary target and there does not need to
+be one. `scratchpad/score_relief.py` scores the three day-five relief
+mechanisms through `fitf5`, which is the correct payoff test; the Kalshi
+team-total run below is a downstream check on the SECONDARY target.
+
+### Downstream check: full-game team totals vs Kalshi
+
+August 2026, 21 dates, 2,335 settled contracts, day-five mechanisms ON:
+
+    n_sims=250    corr +0.208  blend  +8.3%  dir 58.6%  +1.3c
+    n_sims=1500   corr +0.236  blend +10.3%  dir 58.7%  +1.3c
+
+Same n_sims shape as everywhere — 60 of 1,234 five-cent disagreements at 250
+were noise, cents unchanged — so 1500 stays the operating point.
+
+Brier skill ours +18.4% against the market's +20.7%: still behind a settled
+close, as everywhere. This is the FULL-GAME team market, not F5, and it is
+the secondary target. Do not read it as "the product is weak" — that was a
+day-five misreading that cost an hour.
+
+**Market data starts in July.** `KXMLBF5TOTAL` and `KXMLBTEAMTOTAL` have NO
+June contracts, so the recorded F5 "+3.7c" pools July and August — the worst
+and best K months. Splitting it by month is worth doing, and it doubles as a
+test of whether the August anomaly is market-wide or specific to K props.
+
+### The mutation harness itself was lying — read this before using it
+
+Rewriting a source file twice inside the same mtime second means a
+SIZE-PRESERVING mutation (`+= 1` -> `+= 0`) reuses stale `.pyc` and never
+takes effect, reporting a genuinely-guarded behaviour as unguarded. Both
+`scratchpad/mutate_*.py` now clear `__pycache__` and run with
+`PYTHONDONTWRITEBYTECODE=1`. Anyone doing mutation work here hits this.
+
+It also caught two real defects in checks written the same hour: one whose
+fixture returned the same count under both the right and wrong definition,
+and two that were behaviourally vacuous because the guards they targeted
+were defensive rather than load-bearing. **Write the mutation before
+believing the check.**
+
+---
+
+# Below: state as of end of day four
 
 `NOTES-context-layer.md` has the long record; this is what you need to act.
 Read it before touching anything, then read `CLAUDE.md`.
@@ -187,16 +371,26 @@ waiting to happen.
 
 ## The order of work from here
 
-1. **Re-read the paired F5 scoring result** (`scratchpad/score_adv.py`),
-   record it, move on either way.
-2. **Re-run every CLV test at n_sims >= 1500** — K props, team totals, game
-   totals. Cheap, and it may reorder the priorities.
+0. **WHY IS AUGUST DIFFERENT?** The single most valuable open question —
+   the whole recorded edge lives in one month and nobody knows why. Not a
+   maturation curve (July is worse than June). Check Kalshi liquidity and
+   trade counts by month, lineup-data completeness, and whether the
+   `MIN_TRADES = 5` filter admits different populations across the season.
+1. ~~Re-read the paired F5 scoring result~~ — RUNNING, ~43 min per state,
+   four states, so ~3h. First state landed: adv=published gidp=published,
+   train 1.59699 / test 1.63980. Resume from `scratchpad/score_adv.out`.
+2. ~~Re-run every CLV test at n_sims >= 1500~~ — K props DONE (see day
+   five). Team totals and game totals still pending; use
+   `scratchpad/clv_nsims.py`, which takes `team`/`total`/`f5`/`k`/`outs`.
+   Do them month by month, not pooled — pooling is what hid this.
 3. **Bullpen: role score from prior games**, deploy by role and live margin
    instead of sample order. `game.py` already tracks the margin.
-4. **Bullpen: multi-inning and mid-inning outings.**
-5. **Bullpen: inherited-runner rates from PBP by base-out state**, replacing
-   `f5`'s flat `INHERITED_SCORE_RATE = 0.33`. `game.py` already plays them
-   out; this closes the f5 path.
+4. ~~Bullpen: multi-inning outings~~ DONE. **Mid-inning reliever-to-reliever
+   changes are NOT** — still the biggest missing piece of the 30.4%.
+5. ~~Bullpen: inherited-runner rates from PBP by base-out state~~ DONE for
+   the start-level path (`sim.USE_MEASURED_INHERITED`). `game.py` never
+   used the constant. `f5.py` does not reference it either — day four's
+   note that it did was wrong; the constant lives in `sim.py` alone.
 6. **Re-run team totals and game totals** — the targets this unlocks.
 7. **Times through the order** — the biggest absent mechanism. The sim wraps
    the lineup and charges nothing for it. PBP has real TTO per PA. Fit as a
@@ -261,7 +455,10 @@ tell them apart, not the mutation that was subtle.
 
 ## State
 
-* 257 checks, `make test`, ~60s, no network, no pytest.
+* 267 checks, `make test`, ~60s, no network, no pytest. (Day four's "257"
+  was wrong — the baseline was 245, matching CLAUDE.md. Day five added 22:
+  7 in `test_relief`, 8 in `test_inherit`, 4 in `test_game`, 3 in
+  `test_sim`.)
 * 2,006 final games, F5 scores on 2,009, real pitch counts on 16,624
   pitching rows, 17,260 stints, 205 MB of play-by-play.
 * `.claude/settings.json` sets bypass permissions for this repo, denying

@@ -13,12 +13,38 @@ toward the league by a stabilisation constant: the approximate sample size
 at which that statistic starts to describe the player rather than the
 season.
 
-The constants are approximations from the public literature, not fitted
-here. They are in the right order of magnitude and the right ORDER —
-strikeout rate stabilises fastest, home-run rate slowest, which is why a
-half-season HR rate should be trusted far less than a half-season K rate.
-Refitting them against this database is a real piece of work and is
-deliberately not pretended at.
+The constants WERE approximations from the public literature. They have now
+been MEASURED on this league by `src.context.stabilise` — split-half over
+odd/even games, Spearman-Brown corrected — and the imported values were
+wrong in both directions at once:
+
+                 measured   imported
+    batter  k        32         70
+    batter  bb       80        170
+    batter  hr      160        350
+    batter  babip   184        500
+    pitcher k        57         70
+    pitcher bb      138        170
+    pitcher hr      934        350
+
+Two findings. Batter rates were over-shrunk by roughly 2.2x across the
+board, which matters because a leverage screen puts LINEUP QUALITY as the
+largest single source of separation between clubs (~0.47 runs) — the model
+was averaging away half of the only thing generating separation. And a
+pitcher's home-run rate was UNDER-shrunk by 2.7x, manufacturing separation
+that is not there.
+
+ONE TABLE FOR TWO POPULATIONS WAS THE BIGGEST ERROR. `_shrink` keyed only on
+the stat name, so a batter's HR rate and a pitcher's HR rate shared 350.
+Measured, they are 160 and 934 — a factor of six apart.
+
+CAVEAT ON THE MEASUREMENT. Odd and even games share park, role and
+teammates, so the split-half correlation carries persistent CONTEXT as well
+as talent. These are therefore lower bounds on true-talent stabilisation
+(batter BABIP measures 184 against ~800 in the literature). For this use
+that is defensible — the model predicts a player in his context, not his
+context-free talent — but it is the reason `USE_MEASURED_STABILISE` exists
+rather than the constants simply being replaced.
 """
 from __future__ import annotations
 
@@ -26,6 +52,8 @@ from src import db
 
 #: Plate appearances at which each rate is worth half its own weight
 #: against the league. Higher means slower to trust.
+#:
+#: IMPORTED, and kept as the legacy path. See the module docstring.
 STABILISE = {
     "k_pct": 70,
     "bb_pct": 170,
@@ -33,12 +61,33 @@ STABILISE = {
     "babip": 500,
 }
 
+#: MEASURED on this league by `src.context.stabilise`, split by population
+#: because batters and pitchers are not the same problem.
+STABILISE_MEASURED = {
+    "bat": {"k_pct": 32, "bb_pct": 80, "hr_pct": 160, "babip": 184},
+    "pit": {"k_pct": 57, "bb_pct": 138, "hr_pct": 934, "babip": 500},
+}
 
-def _shrink(observed: float | None, lg: float, n: float, stat: str) -> float:
-    """Weighted average of the player's rate and the league's."""
+#: Off restores the imported constants exactly, for both populations. Every
+#: mechanism in this project stays separately scoreable.
+USE_MEASURED_STABILISE = True
+
+
+def _shrink(observed: float | None, lg: float, n: float, stat: str,
+            who: str = "bat") -> float:
+    """Weighted average of the player's rate and the league's.
+
+    `who` selects the population — "bat" or "pit". It has a default because
+    the batter path is the larger caller, but passing the wrong one is a
+    silent six-fold error on home runs, so every call site names it.
+    """
     if observed is None or n <= 0:
         return lg
-    k = STABILISE.get(stat, 200)
+    if USE_MEASURED_STABILISE:
+        k = STABILISE_MEASURED.get(who, {}).get(stat) \
+            or STABILISE.get(stat, 200)
+    else:
+        k = STABILISE.get(stat, 200)
     w = n / (n + k)
     return w * observed + (1 - w) * lg
 
@@ -102,14 +151,15 @@ def pitcher_rates(
             "name": r["name"],
             "pa": bf,
             "apps": r["apps"],
-            "k_pct": _shrink((r["k"] or 0) / bf, lg["k_pct"], bf, "k_pct"),
+            "k_pct": _shrink((r["k"] or 0) / bf, lg["k_pct"], bf,
+                             "k_pct", who="pit"),
             "bb_pct": _shrink((r["bb"] or 0) / bf, lg["bb_pct"], bf,
-                              "bb_pct"),
+                              "bb_pct", who="pit"),
             "hr_pct": _shrink((r["hr"] or 0) / bf, lg["hr_pct"], bf,
-                              "hr_pct"),
+                              "hr_pct", who="pit"),
             "babip": _shrink(
                 (((r["h"] or 0) - (r["hr"] or 0)) / bip) if bip > 0 else None,
-                lg["babip"], max(bip, 0), "babip"),
+                lg["babip"], max(bip, 0), "babip", who="pit"),
             "raw_k_pct": (r["k"] or 0) / bf,
         }
     return out
@@ -140,15 +190,15 @@ def batter_rates(
             "pa": pa,
             "games": r["games"],
             "k_pct": _shrink((r["so"] or 0) / pa * bs.get("k_pct", 1.0),
-                             lg["k_pct"], pa, "k_pct"),
+                             lg["k_pct"], pa, "k_pct", who="bat"),
             "bb_pct": _shrink((r["bb"] or 0) / pa * bs.get("bb_pct", 1.0),
-                              lg["bb_pct"], pa, "bb_pct"),
+                              lg["bb_pct"], pa, "bb_pct", who="bat"),
             "hr_pct": _shrink((r["hr"] or 0) / pa * bs.get("hr_pct", 1.0),
-                              lg["hr_pct"], pa, "hr_pct"),
+                              lg["hr_pct"], pa, "hr_pct", who="bat"),
             "babip": _shrink(
                 ((((r["h"] or 0) - (r["hr"] or 0)) / bip)
                  * bs.get("babip", 1.0)) if bip > 0 else None,
-                lg["babip"], max(bip, 0), "babip"),
+                lg["babip"], max(bip, 0), "babip", who="bat"),
         }
     return out
 
@@ -513,13 +563,15 @@ def bullpens(lg: dict, season: int | None = None, before: str | None = None,
             "name": r["name"],
             "pa": bf,
             "apps": r["apps"],
-            "k_pct": _shrink((r["k"] or 0) / bf, lg["k_pct"], bf, "k_pct"),
+            "k_pct": _shrink((r["k"] or 0) / bf, lg["k_pct"], bf,
+                             "k_pct", who="pit"),
             "bb_pct": _shrink((r["bb"] or 0) / bf, lg["bb_pct"], bf,
-                              "bb_pct"),
+                              "bb_pct", who="pit"),
             "hr_pct": _shrink((r["hr"] or 0) / bf, lg["hr_pct"], bf,
-                              "hr_pct"),
+                              "hr_pct", who="pit"),
             "babip": _shrink((((r["h"] or 0) - (r["hr"] or 0)) / bip)
-                             if bip > 0 else None, lg["babip"], bip, "babip"),
+                             if bip > 0 else None,
+                             lg["babip"], bip, "babip", who="pit"),
         })
     for arms in out.values():
         arms.sort(key=lambda a: -a["apps"])
@@ -619,10 +671,10 @@ def pitcher_rates_recent(lg: dict, season=None, before=None,
         out[name] = {
             "name": name, "pa": a["raw"], "apps": a["apps"],
             "eff_pa": bf,
-            "k_pct": _shrink(a["k"] / bf, lg["k_pct"], bf, "k_pct"),
-            "bb_pct": _shrink(a["bb"] / bf, lg["bb_pct"], bf, "bb_pct"),
-            "hr_pct": _shrink(a["hr"] / bf, lg["hr_pct"], bf, "hr_pct"),
+            "k_pct": _shrink(a["k"] / bf, lg["k_pct"], bf, "k_pct", who="pit"),
+            "bb_pct": _shrink(a["bb"] / bf, lg["bb_pct"], bf, "bb_pct", who="pit"),
+            "hr_pct": _shrink(a["hr"] / bf, lg["hr_pct"], bf, "hr_pct", who="pit"),
             "babip": _shrink(((a["h"] - a["hr"]) / bip) if bip > 0 else None,
-                             lg["babip"], bip, "babip"),
+                             lg["babip"], bip, "babip", who="pit"),
         }
     return out

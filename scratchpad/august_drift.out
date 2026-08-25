@@ -1,0 +1,25 @@
+June: 1464 contracts
+July: 3134 contracts
+August: 3164 contracts
+cached to scratchpad/august_rows.json
+
+== the drift, and which way we lean ==
+    month       drift(c-o)       sd  we say over  mkt closed over open
+    June           +0.0043   0.0417        34.8%                 46.7%
+    July           +0.0005   0.0514        35.5%                 43.7%
+    August         +0.0090   0.0619        41.8%                 45.4%
+
+== AS MEASURED (movement uncentred) ==
+    June       n=1464  corr +0.416  blend +13.1%  dir 59.1%   +1.8c
+    July       n=3134  corr +0.299  blend  +7.7%  dir 59.6%   +1.7c
+    August     n=3164  corr +0.575  blend +30.4%  dir 69.0%   +3.3c
+
+== CENTRED: each month's own mean drift removed from the target ==
+    June       n=1464  corr +0.416  blend +15.7%  dir 66.6%   +2.0c
+    July       n=3134  corr +0.299  blend  +7.9%  dir 67.5%   +1.8c
+    August     n=3164  corr +0.575  blend +32.7%  dir 75.2%   +3.5c
+
+== and with OUR lean centred too (pure disagreement vs pure move) ==
+    June       n=1464  corr +0.416  blend +17.2%  dir 65.8%   +2.0c
+    July       n=3134  corr +0.299  blend  +8.9%  dir 67.0%   +1.9c
+    August     n=3164  corr +0.575  blend +33.0%  dir 74.3%   +3.5c

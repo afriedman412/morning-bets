@@ -1344,3 +1344,55 @@ def check_stale_hook_offsets_are_switched_off():
     assert sim.leash("Dylan Cease") == 0.0
     base = sim.Hook()
     assert sim.for_start(base, "SD", "Dylan Cease") is base
+
+
+def check_inherited_runners_score_by_base_not_by_count():
+    """A man on third with none out is not a man on first with two down.
+
+    The flat rate pools them at 0.33 and lands at a plausible 0.312 overall
+    while the real cells run 0.127 to 0.771, which is the advancement
+    mistake repeated — right in the aggregate for cancelling reasons.
+    """
+    orig, sim.USE_MEASURED_INHERITED = sim.USE_MEASURED_INHERITED, True
+    try:
+        def strand(bases, outs, n=4000):
+            total = 0
+            for s in range(n):
+                r = sim.StartResult()
+                fr = sim.Frame(bases=list(bases), outs=outs)
+                sim._leave(r, fr, random.Random(s))
+                total += r.runs
+            return total / n
+
+        third_none = strand([False, False, True], 0)
+        first_two = strand([True, False, False], 2)
+        assert third_none > first_two * 3, (third_none, first_two)
+    finally:
+        sim.USE_MEASURED_INHERITED = orig
+
+
+def check_the_inherited_flag_off_restores_the_flat_rate():
+    """Every mechanism stays separately scoreable, so off must be the old
+    behaviour exactly — base and out count stop mattering."""
+    orig, sim.USE_MEASURED_INHERITED = sim.USE_MEASURED_INHERITED, False
+    try:
+        def strand(bases, outs, n=4000):
+            total = 0
+            for s in range(n):
+                r = sim.StartResult()
+                fr = sim.Frame(bases=list(bases), outs=outs)
+                sim._leave(r, fr, random.Random(s))
+                total += r.runs
+            return total / n
+
+        third_none = strand([False, False, True], 0)
+        first_two = strand([True, False, False], 2)
+        assert abs(third_none - first_two) < 0.05, (third_none, first_two)
+    finally:
+        sim.USE_MEASURED_INHERITED = orig
+
+
+def check_the_measured_inherited_table_is_not_fittable():
+    """Measuring is not fitting. Handing a counted quantity back to a
+    coordinate descent is how it goes back to absorbing other defects."""
+    assert "INHERITED_SCORE_BY_STATE" not in sim.FITTABLE

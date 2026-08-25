@@ -95,6 +95,13 @@ Run everything through the Makefile's Python virtualenv (`venv/bin/python`).
 - `... -m src.context.deploy` — how bullpens are actually used. Role is
   stable and projects (split-half r +0.55 to +0.78 over 319 relievers), so
   role-based deployment is worth building.
+- `... -m src.context.relief` — relief-outing length, counted on 13,248
+  outings. The continuation hazard is conditioned on the state he ENTERED
+  in (20.1% / 44.8% / 62.7% by entry outs), and a per-PA removal hazard
+  covers the 58.2% of mid-inning handovers that are reliever-to-reliever.
+- `... -m src.context.inherit` — what inherited runners do, followed by
+  runner ID across 5,507 handovers. Pooled 0.312 against the shipped flat
+  0.330; the cells run 0.127 to 0.771.
 - `... -m src.context.store` — creates `context.db` and reports whether the
   pipeline DB is correctly read-only.
 
@@ -232,6 +239,8 @@ src/context/
   store.py         context.db; morning_bets.db attaches READ-ONLY as `bets`
   advance.py       what runners actually do, counted on this league
   deploy.py        how bullpens are actually used, before modelling them
+  relief.py        how long a relief outing lasts, and when he is pulled
+  inherit.py       what inherited runners do, by base and out count
   sources/pbp.py   whole-game play-by-play, gzipped; base-out-score state
   sources/         one module per data source, all offline-cacheable
 ```

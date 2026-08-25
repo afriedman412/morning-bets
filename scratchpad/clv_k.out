@@ -1,0 +1,13 @@
+k over 8 dates 2026-08-14..2026-08-21
+  n_sims=250   n=1222  corr +0.490  z +39.8  blend +22.3% (lam 0.3)  5c+ n=627 dir 68.4%  +3.0c
+  n_sims=1500  n=1222  corr +0.515  z +41.4  blend +24.0% (lam 0.3)  5c+ n=593 dir 70.2%  +3.2c
+  n_sims=2000  n=1222  corr +0.516  z +41.4  blend +23.7% (lam 0.3)  5c+ n=598 dir 69.9%  +3.2c
+
+  250 sims -> 2000 sims, paired on the same contracts:
+    CLV corr      +0.490 -> +0.516
+    z             +39.8 -> +41.4
+    blend vs open +22.3% -> +23.7%
+    5c+ direction 68.4% -> 69.9%
+    cents our way +3.0c -> +3.2c
+    n disagreements 627 -> 598
+    Brier skill vs base: ours +35.4% -> +35.5%   (market +37.2%)

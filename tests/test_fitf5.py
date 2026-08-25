@@ -191,9 +191,29 @@ def check_evaluate_applies_its_parameters():
     between a Hook and `sim.rules`, and a key routed to neither would leave
     the objective flat in that direction while the search happily explored
     it.
+
+    THE FIXTURE MUST SUPPLY A BULLPEN. `evaluate` looks arms up by team, and
+    these cases use fake team names, so `Side.pen` came back empty — and an
+    empty pen makes `Side.current` fall back to the starter for the whole
+    game. `intercept` then has no channel to run production whatsoever, and
+    the check only ever passed because changing it shifted the RNG stream.
+    That is a guards-nothing check: it broke the moment an unrelated change
+    consumed a draw per plate appearance and realigned the two streams.
     """
     cases = (_pair(2, game="A") + _pair(3, game="B", seed=9)
              + _pair(1, game="C", seed=21))
+    # A pen clearly worse than the starter, so WHO is pitching moves runs.
+    pen = [{"name": f"R{i}", "k_pct": 0.05, "bb_pct": 0.25, "hr_pct": 0.10,
+            "babip": 0.40, "apps": 40} for i in range(6)]
+    real_bullpens = fitf5.rate_src.bullpens
+    fitf5.rate_src.bullpens = lambda lg, **kw: {"HOM": pen, "AWY": pen}
+    try:
+        _check_parameters_move_the_loss(cases)
+    finally:
+        fitf5.rate_src.bullpens = real_bullpens
+
+
+def _check_parameters_move_the_loss(cases):
     base = fitf5.evaluate(cases, None, n_sims=20, lg=dict(LG))
     # WP_PB_RATE rather than GIDP_RATE: the double-play rate became a
     # MEASURED table keyed by out count and left the search, so it is no

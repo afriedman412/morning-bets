@@ -1291,3 +1291,288 @@ starter's average, outcome leakage in the first CLV pass (Kalshi settles at
 0/1, so the last trade is the box score), a `close` that was a settled
 contract, team-name matching, neutral sites. Treat a big flag as a defect
 report first and an opportunity second.
+
+---
+
+# DAY FIVE
+
+## The recorded K-prop edge is an August edge
+
+Re-measured at n_sims=1500 across the whole backfilled season, one window
+at a time. Every number in this project's CLV record came from eight dates
+in mid-August, and that window is not representative:
+
+    window            n     corr    blend    dir     cents
+    June           1,464  +0.416   +13.1%   59.1%   +1.8c
+    July           3,134  +0.299    +7.7%   59.6%   +1.7c
+    August (21d)   3,164  +0.575   +30.4%   69.0%   +3.3c
+    SEASON (82d)   7,762  +0.451   +17.5%   63.4%   +2.4c
+
+August reproduces the recorded +0.586 / +32.9% / 73.2% / +3.7c closely, so
+nothing was mismeasured. What was wrong is the generalisation. June and
+July run at roughly half the edge and July is the worst month of the three,
+which rules out "the rates had accumulated" — that story predicts a
+monotone curve and this is a V.
+
+Chased and eliminated as explanations: Monte Carlo error (n_sims saturates
+at 1500 — 250 gives +0.490, 1500 +0.515, 2000 +0.516 on the same
+contracts); the measured advancement/GIDP tables (all four states within
+0.002 corr of each other); stale hook offsets (`USE_OFFSETS` was already
+False and the JSON files are unused).
+
+**Quote cents, not correlation.** The pooled season corr (+0.451) sits
+ABOVE both June and July because pooling windows with different levels
+inflates it. And z is not an effect size — it went +41.4 -> +67.1 purely on
+n growing 6x.
+
+## Inherited runners: the advancement mistake, exactly repeated
+
+5,507 inherited runners across 2,006 games (`src/context/inherit.py`),
+followed by runner ID across each pitching change using the same
+`pbp.resolve` the base-state reconstruction uses.
+
+    overall 0.312   against the shipped flat 0.330
+
+                0 out   1 out   2 out
+        1B      0.396   0.267   0.127
+        2B      0.628   0.428   0.215
+        3B      0.771   0.633   0.229
+
+Pooled it is near enough to the shipped constant to look settled, and every
+cell is wrong — 0.127 to 0.771. Two-out handovers are the most common state
+(2,624 of 5,507), so the flat rate over-credits the majority case and
+inflates a departing starter's earned runs. That is the third time the
+"aggregate is right for cancelling reasons" pattern has appeared here.
+
+Behind `sim.USE_MEASURED_INHERITED`, deliberately NOT in `FITTABLE`.
+Start-level runs/start 2.5693 -> 2.5497. `game.py` never used the constant.
+
+## Relief outings run to their measured length
+
+13,248 outings (`src/context/relief.py`, `game.USE_MEASURED_RELIEF_LENGTH`).
+The continuation hazard is conditioned on the ENTRY state, and that is the
+finding:
+
+    entered with 0 out   continues 20.1%   n=9,734
+    entered with 1 out   continues 44.8%   n=1,572
+    entered with 2 out   continues 62.7%   n=1,942
+
+Same shape as advance-on-out: one pooled constant cannot serve a man
+brought in for one out and a man handed a clean inning. Engine effect —
+arms per side 5.05 -> 4.07, mean total 8.16 -> 8.19 (unchanged), sd
+3.91 -> 4.08. Level held, spread up, against the known under-dispersion.
+
+Mid-inning entries are still starter-hook-only, so the model cannot yet
+reach the real 30.4% (= entry_outs>0 OR runners on; the narrower
+entry_outs>0 alone is 26.5%, which is what day four's 30.4% figure meant).
+
+## The mutation harness was lying, and it cost an hour
+
+`.pyc` validity is (mtime, size). A harness that rewrites a source file
+twice inside the same second, with a mutation that PRESERVES SIZE
+(`+= 1` -> `+= 0`), reuses stale bytecode — the mutation never happens, and
+a genuinely-guarded behaviour is reported as unguarded. It also produced a
+baffling debug session where a counter visibly failed to increment.
+
+All `scratchpad/mutate_*.py` now clear `__pycache__` and run the suite with
+`PYTHONDONTWRITEBYTECODE=1`.
+
+The same harness caught three defects in checks written that hour:
+
+* a fixture where counting-by-innings and counting-by-outs both returned
+  1 of 3, so the assertion could not tell the definitions apart;
+* two checks aimed at guards that were defensive rather than load-bearing
+  (iterating an empty dict already does nothing), which passed trivially
+  and guarded nothing;
+* a vacate-then-place check that could not fail because `pending` is keyed
+  on runner id, so the stale duplicate was overwritten. It only bites when
+  a runner leaves a base nobody refills — scoring from first on a double.
+
+**Write the mutation before believing the check.** That is now four times
+this project has shipped a check that guarded nothing.
+
+## The August anomaly survives every test I could throw at it
+
+Five explanations, each eliminated on data rather than argued away:
+
+1. **Monte Carlo error.** n_sims saturates at 1500 (250 +0.490, 1500 +0.515,
+   2000 +0.516 on the same 1,222 contracts). Real but small, and it cannot
+   move +1.7c to +3.3c.
+2. **The measured advancement/GIDP tables.** All four states land within
+   0.002 corr and 0.6pp of blend. Flat.
+3. **Population composition.** `price.priceable` admits different arms as
+   the season goes on, so restrict to the 101 pitchers priced in ALL three
+   months: June +1.7c, July +1.9c, August +3.2c. Unchanged.
+4. **Liquidity composition.** Within every month the edge falls as trade
+   count rises, so a shift toward thin markets would explain it. August has
+   FEWER thin markets (8% against June's 22%) and still beats both months
+   in EVERY bucket — thin +4.1c vs +2.8c/+2.5c, and even 100+ trades
+   +2.1c vs +1.5c/+1.3c. The composition works AGAINST August.
+5. **A directional drift the model happened to match.** August opens 0.447
+   and closes 0.456, roughly +0.9c toward the over, where June and July are
+   near flat; `sim` is documented as running high, so a permanently
+   over-leaning model would score free direction points. Tested by removing
+   each month's own mean drift from the target. The edge does not shrink,
+   it GROWS (+3.3c -> +3.5c), and the ranking is unchanged.
+
+   The hypothesis was backwards. The model leans UNDER — it says over on
+   34.8% / 35.5% / 41.8% of contracts — so the upward drift was suppressing
+   measured direction accuracy in all three months (centring lifts June
+   59.1% -> 66.6%, July 59.6% -> 67.5%, August 69.0% -> 75.2%).
+
+What is left is a genuine regime difference. August markets move much more
+(sd of close-open 0.0417 -> 0.0619, +48%) AND our direction on which way
+they move is genuinely better (66.6% -> 75.2% centred). The second does not
+follow from the first, and neither follows from anything about our model,
+which did not change.
+
+**Untested, and where to look next:** whether Kalshi changed when or how it
+opens these markets late in the season; whether lineup/roster completeness
+in our own inputs improved; and whether the set of games listed changed.
+All three are about the market and the data feed rather than the simulator.
+
+**Until that is understood, plan against the June/July number (~+1.8c), not
+the August one.** Rows are cached at `scratchpad/august_rows.json`, so any
+follow-up analysis is free — do not re-simulate to ask a market question.
+
+## Relievers can now be pulled mid-inning
+
+Of 4,026 mid-inning handovers only 41.8% come from a starter; the other
+58.2% are reliever-to-reliever, which the engine could not produce at all.
+Behind `game.USE_MEASURED_RELIEF_HOOK`, from a per-PA hazard over 50,023
+in-inning relief plate appearances:
+
+                0-2 bat     3-5     6-8      9+
+        0 runs    0.015   0.099   0.073   0.070
+        1 runs    0.045   0.130   0.097   0.060
+        2 runs    0.033   0.141   0.122   0.087
+        3+ runs   0.061   0.109   0.116   0.080
+
+BEWARE THE SURVIVORSHIP TRAP that this replaced. Conditioning on a stint's
+TOTAL runs gives 19.1% at zero rising to 40.5% at three, which reads
+perfectly plausibly and is inflated by exactly the arms that stayed in and
+kept being scored on — for a pitcher who was NOT pulled the total keeps
+accumulating past the decision point. The per-PA hazard on state-before-the
+-decision is 3.5% at zero runs and ~10% once he has been scored on.
+
+The batter dimension is NOT monotone: the first two batters are nearly
+immune (he has just been brought in for this situation), the hazard peaks at
+3-5, then falls away. `game.py` used to hard-code that protection as a flat
+rule, which is why it could never pull a reliever at all. It now lives in
+the table.
+
+Pitchers used per side: league 4.30, model 5.05 with neither mechanism, 4.07
+length-only, 5.66 hook-only, **4.53 with both**. Length-only is equally
+close in absolute terms but gets there BY CANCELLATION — no mid-inning
+relief changes at all, offset by outings that run too long.
+
+## A fourth guards-nothing check, and this one was pre-existing
+
+`check_evaluate_applies_its_parameters` claimed to guard that a fitted
+constant moves the loss. Its fixture uses fake team names ("HOM"/"AWY"), so
+`rate_src.bullpens` returned nothing, `Side.pen` was empty, and
+`Side.current` falls back to the starter for the entire game — `intercept`
+had NO channel to run production whatsoever. It only ever passed because
+changing the value shifted the RNG stream, and it broke the moment an
+unrelated change consumed one draw per plate appearance and realigned the
+two streams. Fixed by injecting a pen that is clearly worse than the
+starter, so who is pitching actually moves runs; verified by mutation
+(emptying the pen reproduces the original failure).
+
+Related trap for anyone writing mutations here: `str.replace(old, new, 1)`
+hits the FIRST occurrence, and there are now two `next_arm(fr.outs)` call
+sites. A mutation meant for the starter's silently hit the reliever's and
+reported a miss. Anchor on surrounding context.
+
+### Sixth test: the open is not staler in August
+
+If Kalshi's markets got their first trade earlier relative to first pitch,
+the "open" would be a staler number and easier to beat. `price_path`
+already returns `first_at` and `first_pitch`; `versus_market.collect` just
+discards them. Sampled ~220 settled K markets per month:
+
+    month     sampled   mean lead hrs   median   mean trades
+    2026-06       206            12.9     13.4          37.7
+    2026-07       212            13.8     14.3          48.8
+    2026-08       219            14.4     14.5          64.2
+
+Flat. An 11% difference in lead time cannot double an edge.
+
+**And it deepens the puzzle rather than settling it.** Trades per market
+rose 70% across the same window. WITHIN each month more trades means LESS
+edge (the liquidity table above is monotone). ACROSS months more trades
+comes with MORE edge. That reversal is independent confirmation that the
+cross-month difference is not a liquidity story at all — it runs the wrong
+way for that.
+
+Six hypotheses down. The anomaly stands.
+
+## The bullpen work does NOT improve prediction, and an earlier claim in
+## this session was wrong
+
+Scored on the prefix ladder against ACTUAL runs (not prices), 250 games
+since 2026-07-01, paired per game on identical seeds:
+
+    + relief length     F7  |err| +0.0069 +/- 0.0185  (+0.4 sigma)
+    + mid-inning hook   F7  |err| -0.0242 +/- 0.0196  (-1.2 sigma)
+    + inherited         F7  identical to the hook row
+
+So the three mechanisms are measured correctly, make the engine
+demonstrably more realistic (pitchers per side 5.05 -> 4.53 against a league
+4.30; mid-inning relief changes exist at all), and have NO established
+effect on predictive accuracy. All three of those are compatible and the
+measured values stay — that is the standing rule, and a worse or flat score
+locates compensation rather than licensing a revert.
+
+**A NUMBER REPORTED EARLIER IN THIS SESSION WAS AN ARTEFACT.** An interim
+run showed F7 error falling from -0.134 to -0.035, a 74% cut, and it was
+reported as encouraging. It does not survive correct pairing. It came from
+an ad-hoc per-GAME seeding patch which still let draw 1 perturb draws 2..n
+inside the same game, so it was measuring dice. The real effect is ~0.02
+runs and sits inside the noise.
+
+### `ladder.simulate_prefixes` had a seeding defect
+
+One `random.Random(seed)` for the entire loop, so any downstream change
+shifted the stream for every later game AND every later draw. Comparing two
+model states therefore contaminated everything after the first difference.
+The symptom: a bullpen flag moved F1, an inning in which a reliever can
+barely appear.
+
+Fixed by seeding per (game, draw). PER-GAME SEEDING IS NOT ENOUGH and looks
+like a fix — the draws within a game still share a stream. Both are pinned
+by `check_the_first_inning_is_immune_to_a_bullpen_flag`, and both were
+mutation-verified; the per-game-only variant fails it.
+
+That check uses an EMPTY pen on purpose, so no reliever pitches and F1
+immunity is exact. On real pens F1 can move a few thousandths honestly — a
+starter knocked out in the first hands over inside F1 — and a check that
+tolerated that could not separate the two causes.
+
+### Pairing is worth more than sample size here
+
+The spread of prefix error ACROSS games is ~0.28 runs, which swamps a
+0.02-0.10 run effect. The same games on the same seeds make the per-game
+DIFFERENCE the statistic, and its standard error is ~0.02 — an order of
+magnitude tighter. Comparing two independently-reported means, which is what
+reading two `ladder.report` outputs side by side does, is the wrong test and
+will never resolve an effect this size.
+
+### `fitf5.evaluate` seeds per GAME, not per draw
+
+Same class as the ladder defect, milder. `rng = random.Random(away["seed"] +
+salt)` sits outside the `n_sims` loop, so the draws within a game share a
+stream and a model change in draw 1 perturbs draws 2..n.
+
+Games ARE properly paired across model states, and game-to-game variation is
+the dominant term, so `score_adv`-style results are valid. They are simply
+less sensitive than they could be: Monte Carlo noise that per-draw seeding
+would cancel is left in the paired standard error. When the effects being
+compared are ~0.02 runs, that is the difference between resolving one and
+not.
+
+NOT CHANGED, deliberately. Re-seeding the fitting harness would move every
+fitf5 number ever recorded and break comparability with the entire existing
+record, so it is a decision to take explicitly rather than a tidy-up. If it
+is taken, the whole recorded ladder of losses has to be re-run, and the
+expectation does not change — only the variance of the comparison drops.

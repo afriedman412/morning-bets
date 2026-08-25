@@ -105,3 +105,6 @@ docs/build/*
 # Assembled context briefs — local record, regenerable-ish but not source.
 # Immutable and accumulating; several hundred KB a day compressed.
 snapshots/
+
+.claude/settings.local.json
+scratchpad/august_rows.json

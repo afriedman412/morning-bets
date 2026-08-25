@@ -889,6 +889,29 @@ ADVANCE_3B_ON_OUT = {0: 0.331, 1: 0.420, 2: 0.0}
 #: refit was closing.
 INHERITED_SCORE_RATE = 0.33
 
+#: P(an inherited runner scores), COUNTED on 5,507 of them across 2,006
+#: games by `src.context.inherit`, keyed by the base he stands on and the
+#: outs at the handover — the state `_leave` already has in hand.
+#:
+#: The flat 0.33 above is the advancement mistake again, and it fails the
+#: same way: pooled it lands at 0.312, near enough to look right, while the
+#: cells run from 0.127 to 0.771. Two-out handovers are the most common
+#: state by some way (2,624 of 5,507) and the flat rate over-credits every
+#: one of them, which inflates a departing starter's earned runs.
+#:
+#: NOT FITTABLE, and deliberately absent from `FITTABLE`. Handing a measured
+#: quantity back to a search is how it goes back to absorbing other defects.
+INHERITED_SCORE_BY_STATE = {
+    0: {0: 0.396, 1: 0.267, 2: 0.127},      # 1B
+    1: {0: 0.628, 1: 0.428, 2: 0.215},      # 2B
+    2: {0: 0.771, 1: 0.633, 2: 0.229},      # 3B
+}
+
+#: Roll inherited runners per BASE instead of one pooled coin flip each.
+#: Off restores the flat 0.33 exactly; every mechanism stays separately
+#: scoreable. Same shape as `USE_MEASURED_ADVANCEMENT`.
+USE_MEASURED_INHERITED = True
+
 #: Wild pitches and passed balls, per plate appearance with a runner
 #: aboard. They move every runner up a base with no hit and no out.
 #:
@@ -960,8 +983,17 @@ def _leave(r: "StartResult", fr: "Frame", rng: random.Random) -> "StartResult":
     """
     r.pulled_mid_inning = True
     r.left_on_base, r.outs_when_pulled = fr.on_base, fr.outs
-    _score(r, fr, sum(1 for _ in range(r.left_on_base)
-                      if rng.random() < INHERITED_SCORE_RATE))
+    if USE_MEASURED_INHERITED:
+        # Per BASE, because a man on third with nobody out (0.771) and a man
+        # on first with two down (0.127) are not the same bet, and the frame
+        # already knows which is which.
+        out_i = min(max(fr.outs, 0), 2)
+        scored = sum(1 for i, on in enumerate(fr.bases) if on
+                     and rng.random() < INHERITED_SCORE_BY_STATE[i][out_i])
+    else:
+        scored = sum(1 for _ in range(r.left_on_base)
+                     if rng.random() < INHERITED_SCORE_RATE)
+    _score(r, fr, scored)
     if not r.covered_f5:
         r.runs_f5, r.outs_f5 = r.runs, r.outs
     return r

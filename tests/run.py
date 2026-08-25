@@ -22,7 +22,9 @@ MODULES = ["tests.test_pure", "tests.test_regressions",
            "tests.test_sim", "tests.test_fitf5",
            "tests.test_game", "tests.test_sources", "tests.test_pbp",
            "tests.test_advance",
-           "tests.test_deploy",
+           "tests.test_deploy", "tests.test_relief",
+           "tests.test_inherit", "tests.test_ladder",
+           "tests.test_stabilise",
            "tests.test_store"]
 
 
