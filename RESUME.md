@@ -1,3 +1,133 @@
+# Resume here — state as of 2026-08-25 (day seven)
+
+## START HERE
+
+**Read `CLAUDE.md`'s THE OBJECTIVE section and `AF_PLAN.md` first.** Judge
+every change on ACTUAL OUTCOMES. CLV is not the target — measured, our
+resolution is LOWER than the opening price's while we still "beat the open",
+so a CLV edge can rise while the model gets worse at baseball.
+
+**Then read the END of `NOTES-context-layer.md`.** It is appended
+chronologically; day seven is the last three sections and carries the
+measured negatives, which are the expensive thing to rediscover.
+
+## WHERE THE MODEL STANDS
+
+    3,248 real starts        outs CRPS   whole-inning   mean outs
+    day seven, morning          2.2199          9.5%       16.39
+    day seven, end              2.1505         66.3%       16.00
+    ACTUAL                                      65.7%       15.70
+
+`calibrate.loss` 0.20626 -> 0.04730. Outs SD 4.43 -> 3.95 against a real
+3.99. Boundary share 70.3% -> 66.0% against a real 65.7%.
+
+## WHAT LANDED ON DAY SEVEN
+
+**The learned hook is OFF and the two branches are back.** It was shipped on
+a premise written into `game.py` that was false: one roll per plate
+appearance does NOT span the inning boundary, because `_half_inning` breaks
+out of its loop on the third out before the roll happens. 72,426 instrumented
+hook calls, every one at outs 0/1/2, never at a boundary. It was validated on
+removal-decision AUC while silently discarding a fitted, verified boundary
+share (66.9% against a real 66.7%).
+
+**Each hook branch is now fitted on its OWN population, and that was the big
+one.** The pooled fit averaged 20,994 late decisions at a 6.29% pull rate
+with 26,693 early ones at 0.65%; the early rows dominate by count, so the
+late curve came out far too flat — 7.24% at 90+ pitches where reality is
+33.80%. Refitting late-only is what moved every number above.
+
+**Early-inning branches exist on BOTH hooks and ship OFF** (`early_innings`).
+They fix the disaster tail almost exactly (sub-two-inning starts 0.31% ->
+3.16% against a real 2.68%) but widen outs SD to 4.47 where reality is 3.99.
+The tail miss is left standing rather than bought with spread.
+
+**Kalshi prop lookups were matching the wrong player.** `price_prop` matched
+on ANY shared name token, so "Tyler Glasnow" priced off Tyler Phillips of
+Miami and reported fair at 0.920 against a true 0.595. `names_match` now
+requires the surname. `find_settled` is the CLV path, so recorded prop CLV
+numbers may carry some of this.
+
+**Recency persists and it is BB% and BABIP that move** — 136 pitchers, 1,952
+window-to-next-start pairs. Out rate persists at +0.2084 (9.4 sigma); K% at
++0.0624. A single half-life over all four rates averages a 5.6-sigma signal
+with a 2.2-sigma one and dilutes both, which is what `recency.py` did.
+
+**`tests/test_wiring.py`** — five shipped mechanisms had no guard at all. See
+the notes; the short version is that every measurement module was tested and
+none of the wiring was.
+
+## WHAT TO DO NEXT
+
+**1. The 12-14 out bucket.** 19.4% against a real 16.6%, the largest
+remaining misfit. That is 4.0-4.2 innings, which is where books hang outs
+lines. Untouched by everything above.
+
+**2. Collapse to ONE engine.** `sim.simulate_start` and
+`game.simulate_game` both exist; the start-level loop has no bullpen, no
+margin and cannot produce a team total. `quote`, `price`, `calibrate`, `f5`
+and `versus_market` all sit on it, and every calibration table in the notes
+was produced by it, so the migration invalidates recorded baselines in one
+commit. Note `USE_MEASURED_INHERITED` RETIRES with that loop rather than
+needing a port — `game.py` plays inherited runners out for real.
+
+**3. Score the blind re-simulation.** Three games from 2026-08-24 were
+re-simulated with rates cut off before the game date and published as a
+dashboard (`scratchpad/lastnight.py`, `scratchpad/dash.py`). NOTHING has been
+scored against what actually happened yet — that comparison is the point and
+it has not been made.
+
+**4. Within-start K% persistence, +6.4 sigma.** Whether he has the
+swing-and-miss tonight carries; contact outcomes do not. Unused, and it bears
+directly on strikeout props, which is what `quote` gets asked about most.
+
+**5. Refit the hook properly.** `calibrate.tune` is serial, samples 500 of
+3,248 starts, and fits `sim.simulate` — the engine being deleted.
+`scratchpad/tune_game.py` fixes all three and does a joint search, but its
+objective still omits SPREAD, so it compresses the distribution to buy the
+terms that are weighted.
+
+## TRAPS, MEASURED THE HARD WAY
+
+**A branch must carry an OFFSET from the shared intercept, never an absolute
+level.** Callers disable the hook by driving `mid_intercept` to -99 —
+`team_offset`, the patience fits and the never-pull tests all use that idiom.
+This bug was introduced, fixed, and reintroduced in a different branch hours
+later on the same day.
+
+**Residualising against a mean that CONTAINS both sides manufactures a
+negative correlation.** For n starts and a window of w the artifact is
+`(-1/n) / sqrt((1/w - 1/n)(1 - 1/n))`, which is -0.158 at n=21, w=7. A
+measured -0.112 was LESS negative than noise and concealed a true +0.21 — the
+sign was backwards. Leave-both-out, always.
+
+**Do not fit counted points.** A least-squares slope through five measured
+hazard values got the shape wrong: the real hazard is flat from nought to one
+run then climbs, and a line charges +0.724 where the truth is +0.296.
+
+**`calibrate.loss` does not weight SPREAD.** Any optimiser pointed at it
+compresses the outs distribution to buy the hazard curve and boundary share.
+Report SD alongside; do not add it to the objective while the hook is
+compensating for something else.
+
+**The prefix ladder cannot see anything that changes WHO throws.** Starters
+and relievers are equal in aggregate here (K-BB 0.1358 against 0.1333), so a
+hook change is invisible to it. The boundary fix measured |sigma| <= 1.1 on
+the ladder and +4.7 on outs CRPS — same change, same games.
+
+**A mutation harness must refuse to run on a dirty tree.** Backups belong
+outside the tree. A SIGKILL between mutate and restore left a shipped
+mechanism switched off, and the next run backed up the mutated file and
+restored that.
+
+---
+
+# ARCHIVE — day six and earlier
+
+Kept for the measured negatives. Anything about the hook here is
+SUPERSEDED: the learned model described below is switched off,
+for reasons in the day-seven section above.
+
 # Resume here — state as of 2026-08-25 (day six)
 
 ## START HERE

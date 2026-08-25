@@ -2060,3 +2060,62 @@ hours earlier. And the feature list omitted bases occupied entirely.
 
 A branch carrying its own ABSOLUTE intercept is the recurring one. Carry
 offsets from the shared intercept, always.
+
+### The suite tested every measurement and none of the wiring
+
+Sixteen mutations, one shipped constant each. Nine caught, seven survived,
+five of those real: measured advancement, measured inherited runners, the
+hard pitch cap, measured relief length and the mid-inning relief hook could
+each be switched off with all 307 checks green.
+
+`test_advance` has 16 checks, `test_relief` 10, `test_inherit` 8. They test
+that the COUNTING CODE COUNTS CORRECTLY. Nothing tested that the simulator
+uses the numbers — which is the gap both of the day's real bugs fell
+through, the boundary hook that was never called and the early branch fitted
+on baserunners allowed then wired to bases occupied.
+
+`tests/test_wiring.py` covers it, and it needs TWO KINDS OF CHECK that do
+not substitute for each other:
+
+  * flip the flag, assert the OUTPUT moves — catches wiring rotting behind
+    a flag that still reads True
+  * pin the shipped DEFAULT — catches the flag being flipped
+
+The first kind sets the flag itself in both directions, so a mutation of the
+default is invisible to it. All 313 stayed green against exactly that.
+
+### `USE_MEASURED_INHERITED` is dead in the full-game engine
+
+`_leave` is reached only from `simulate_start`. `game.py` hands the base-out
+state to the reliever and plays the runners out for real, which is strictly
+better. Measured, the flag changes `simulate_game` by exactly nothing —
+8.56 against 8.56. IT RETIRES WITH THE START-LEVEL LOOP; no port needed.
+
+Its pooled effect is nil by construction anyway: 0.312 measured against a
+flat 0.330, so cells differing sixfold cancel in the mean (1.975 runs
+against 1.978 over 800 starts). Any check on it has to go at the CELL —
+third base nobody out, 0.771 against 0.330 — not the aggregate.
+
+### The mutation harness corrupted the source, and how
+
+A two-minute timeout SIGKILLed it between mutating and restoring, leaving
+USE_MEASURED_INHERITED false in `sim.py`. The next run then copied the
+ALREADY-MUTATED file as its backup and faithfully restored that, cementing
+it. Backups now live outside the tree, the tree must be clean before a sweep
+starts, and restoration is registered with atexit and the terminating
+signals — the clean-tree precondition being the real guard, since SIGKILL
+cannot be caught. Blast radius was nil, but by luck rather than design.
+
+### Where the model stands at the end of day seven
+
+    3,248 real starts        outs CRPS   whole-inning   mean outs
+    morning                     2.2199          9.5%       16.39
+    after the boundary fix      2.1608         34.5%       15.44
+    end of day                  2.1505         66.3%       16.00
+    ACTUAL                                      65.7%       15.70
+
+`calibrate.loss` 0.20626 -> 0.04730. Outs SD 4.43 -> 3.95 against a real
+3.99. Boundary share 70.3% -> 66.0% against a real 65.7%.
+
+LARGEST REMAINING MISFIT: starts of 12-14 outs, 19.4% against a real 16.6%.
+That is 4.0-4.2 innings, which is where books hang outs lines. Untouched.

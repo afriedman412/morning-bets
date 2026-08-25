@@ -145,9 +145,15 @@ Run everything through the Makefile's Python virtualenv (`venv/bin/python`).
   runner ID across 5,507 handovers. Pooled 0.312 against the shipped flat
   0.330; the cells run 0.127 to 0.771.
 - `... -m src.context.removal` — extract every starter removal decision from
-  play-by-play and print the marginals. `removal.train_and_save()` refits
-  and persists `removal_model.json`. AUC 0.912 against sim.Hook's 0.876; it
-  is a WORKLOAD rule — pitch count alone reaches 0.901.
+  play-by-play and print the marginals. AUC 0.912 against sim.Hook's 0.876,
+  and **switched OFF since day seven** — it was validated on removal-decision
+  AUC while discarding a fitted boundary share, and the premise written into
+  `game.USE_LEARNED_HOOK` (that one roll per plate appearance spans the
+  inning boundary) is false.
+- `... -m src.context.boundary` — a mid-inning hook and a boundary hook are
+  DIFFERENT DECISIONS, counted. 63.2% / 36.8%, and pitch count does not
+  distinguish them at all (83.3 against 82.6). Each branch is now fitted on
+  its own population; pooling them made the late curve far too flat.
 - `... -m src.context.tto` — times through the order. K% falls 19% from the
   first pass to the third. `--` no args runs all 2,006 games.
 - `... -m src.context.stabilise` — the four shrinkage constants, measured.
@@ -200,7 +206,11 @@ Run everything through the Makefile's Python virtualenv (`venv/bin/python`).
 - `... calibrate --patience` / `--leash` — fit club and pitcher removal offsets as RESIDUALS. Order matters: club first, pitcher against the remainder, or the manager gets counted twice.
 - `... calibrate --holdout YYYY-MM-DD` — refit on the training window only, score on unseen starts.
 - `venv/bin/python -m src.context.sources.starters --backfill` — ground truth for who started. `grading.py` sets this going forward; the backfill is for history.
-- `make test` / `make test ARGS=sim` — 245 offline checks, ~60s.
+- `make test` / `make test ARGS=sim` — 314 offline checks, ~70s.
+- `venv/bin/python -m scratchpad.mutate` — MUTATION SWEEP. Flips one shipped
+  constant at a time and reports which are unguarded. It found five: every
+  measurement module was tested and none of the WIRING was. Refuses to run
+  on a dirty tree, for a reason recorded in the notes.
 
 Tests ship with the module, not afterwards. `tests/run.py` collects every
 `check_*` — no pytest, no network. **Verify a new check by mutation:**
