@@ -74,11 +74,57 @@ def run_suite():
     return fails, time.time() - t
 
 
+def _guard():
+    """Refuse to run against a dirty tree, and restore on ANY exit.
+
+    THIS HARNESS CORRUPTED THE SOURCE ONCE. A two-minute timeout SIGKILLed
+    it between mutating and restoring, leaving USE_MEASURED_INHERITED=False
+    in sim.py — and the NEXT run then copied the already-mutated file as its
+    backup and faithfully restored that, cementing the change. A sweep that
+    silently switches off a shipped mechanism is worse than no sweep.
+
+    Three fixes. Backups live OUTSIDE the tree, so a stray one cannot be
+    mistaken for source. The tree must be clean before starting, so a
+    previous corruption cannot be baked in. And restoration is registered
+    with atexit and the terminating signals rather than relying on `finally`,
+    which SIGKILL does not run — SIGKILL still cannot be caught, which is
+    why the clean-tree precondition is the real guard.
+    """
+    import atexit
+    import signal
+    import subprocess as sp
+    dirty = sp.run(["git", "diff", "--name-only", "--", "src/"], cwd=ROOT,
+                   capture_output=True, text=True).stdout.split()
+    if dirty:
+        raise SystemExit(
+            "refusing to run: uncommitted changes under src/ — a mutation "
+            "sweep cannot tell your edits from its own.\n  " +
+            "\n  ".join(dirty))
+    live = {}
+
+    def restore(*_a):
+        for f, b in list(live.items()):
+            if pathlib.Path(b).exists():
+                shutil.move(b, f)
+            live.pop(f, None)
+
+    atexit.register(restore)
+    for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+        signal.signal(sig, lambda *a: (restore(), sys.exit(1)))
+    return live
+
+
 def main():
+    import tempfile
+    live = _guard()
     lines = []
     for path, pat, rep, label in MUTATIONS:
         f = ROOT / path
-        backup = shutil.copy(f, str(f) + ".mutbak")
+        fd, backup = tempfile.mkstemp(suffix=".mutbak")
+        import os as _os
+        _os.close(fd)
+        shutil.copy(f, backup)
+        live[str(f)] = backup
         try:
             s = f.read_text()
             new, n = re.subn(pat, rep, s, count=1, flags=re.M)
@@ -98,6 +144,7 @@ def main():
                              f"-- nothing guards this")
         finally:
             shutil.move(backup, f)
+            live.pop(str(f), None)
         for p in ROOT.rglob("__pycache__"):
             shutil.rmtree(p, ignore_errors=True)
         REPORT.write_text("\n".join(lines) + "\n")

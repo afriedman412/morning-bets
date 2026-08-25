@@ -350,6 +350,12 @@ class GameResult:
     #: F3 is genuinely the first three innings of the game F7 came from —
     #: nested prefixes are the whole basis of diagnosing by prefix.
     prefix: dict = field(default_factory=dict)
+    #: {inning: (away team score, home team score)} through that inning.
+    #: The combined `prefix` above is what the ladder needs; TEAM totals are
+    #: the stated product in AF_PLAN and cannot be recovered from a sum.
+    #: Note the crossing: a Side's `runs` are runs ALLOWED, so the away
+    #: TEAM's score is what the HOME side gave up.
+    prefix_side: dict = field(default_factory=dict)
 
     @property
     def total(self) -> int:
@@ -374,6 +380,7 @@ def simulate_game(away: Side, home: Side, lg: dict,
     """
     rng = rng or random.Random()
     prefix: dict = {}
+    prefix_side: dict = {}
     inning = 0
     while True:
         inning += 1
@@ -407,6 +414,7 @@ def simulate_game(away: Side, home: Side, lg: dict,
         if inning in track:
             # Runs ALLOWED by both sides is runs SCORED in the game.
             prefix[inning] = away.runs + home.runs
+            prefix_side[inning] = (home.runs, away.runs)
         # After regulation, a decided game is over.
         if inning >= innings and away.runs != home.runs:
             break
@@ -415,7 +423,8 @@ def simulate_game(away: Side, home: Side, lg: dict,
         # Runs ALLOWED by one side are runs SCORED by the other.
         away=home.runs, home=away.runs,
         away_f5=home.runs_f5, home_f5=away.runs_f5,
-        away_sp=away.line, home_sp=home.line, prefix=prefix)
+        away_sp=away.line, home_sp=home.line, prefix=prefix,
+        prefix_side=prefix_side)
 
 
 def build_side(starter: sim.PitcherRates, pen_pool: list[dict],

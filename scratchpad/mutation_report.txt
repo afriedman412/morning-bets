@@ -1,18 +1,29 @@
+CAUGHT (1)  errors never happen
            pa_outcomes_are_all_known_constants
+CAUGHT (1)  times through the order does nothing
            the_pass_is_clamped_beyond_the_measured_range
 *** SURVIVED ***  advancement reverts to imported  -- nothing guards this
 *** SURVIVED ***  inherited runners revert to flat  -- nothing guards this
+CAUGHT (1)  late hook ignores pitch count
            both_hook_branches_respond_to_their_inputs
+CAUGHT (2)  late hook ignores bases occupied
+           mid_inning_removal_responds_to_traffic_and_damage
            both_hook_branches_respond_to_their_inputs
+CAUGHT (2)  late hook ignores traffic allowed
+           mid_inning_removal_responds_to_traffic_and_damage
            both_hook_branches_respond_to_their_inputs
+CAUGHT (1)  boundary hook ignores baserunners
+           removal_probability_is_monotone_in_every_term
+CAUGHT (2)  boundary hook ignores the inning
            removal_probability_is_monotone_in_every_term
            both_hook_branches_respond_to_their_inputs
+CAUGHT (2)  boundary hook ignores runs
+           removal_probability_is_monotone_in_every_term
            per_side_prefix_totals_are_not_crossed
 *** SURVIVED ***  no hard pitch cap  -- nothing guards this
 *** SURVIVED ***  current-inning runs offset flattened  -- nothing guards this
 *** SURVIVED ***  relief outings are one inning  -- nothing guards this
 *** SURVIVED ***  relievers are never pulled mid-inning  -- nothing guards this
+CAUGHT (1)  learned hook switched back on
            the_shipped_hook_is_the_two_branch_one
 *** SURVIVED ***  early branches switched on  -- nothing guards this
-
-=== done ===

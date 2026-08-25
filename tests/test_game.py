@@ -446,3 +446,30 @@ def check_the_learned_hook_reads_cumulative_damage_not_inning_local():
         fr = sim.Frame()               # new inning
         sim.apply_pa(sim.B2, r, fr, random.Random(1))
     assert r.damage > fr.damage, (r.damage, fr.damage)
+
+
+def check_per_side_prefix_totals_are_not_crossed():
+    """A Side's `runs` are runs ALLOWED, so the AWAY team's score is what the
+    HOME side gave up. Crossing them is the obvious way to build this exactly
+    backwards, and the sum would still come out right — so `prefix` cannot
+    catch it and this check has to.
+
+    Also pins that the per-side totals sum to the combined ones, and that
+    both are nested."""
+    import random
+
+    from src.context import game, sim
+
+    rng = random.Random(19)
+    a, h = _side(), _side()
+    r = game.simulate_game(a, h, dict(LG), rng, track=(1, 3, 5, 7))
+    assert set(r.prefix_side) == set(r.prefix), (r.prefix_side, r.prefix)
+    for n, (aw, hm) in r.prefix_side.items():
+        assert aw + hm == r.prefix[n], (n, aw, hm, r.prefix[n])
+    vals = [r.prefix_side[n] for n in sorted(r.prefix_side)]
+    for i in range(1, len(vals)):
+        assert vals[i][0] >= vals[i - 1][0], vals
+        assert vals[i][1] >= vals[i - 1][1], vals
+    # The final per-side totals must agree with the headline score.
+    last = r.prefix_side[max(r.prefix_side)]
+    assert last[0] <= r.away and last[1] <= r.home, (last, r.away, r.home)
