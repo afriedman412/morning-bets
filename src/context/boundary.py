@@ -221,3 +221,130 @@ def report(rows: list[dict] | None = None) -> None:
 if __name__ == "__main__":
     lim = int(sys.argv[1]) if len(sys.argv) > 1 else None
     report(collect(limit=lim))
+
+
+# ---------------------------------------------------------------------------
+# THE TWO FITS.
+#
+# The row sets are DISJOINT by construction, which is what makes fitting
+# them separately legitimate. Every plate appearance a starter faces either
+# ended his half-inning or did not:
+#
+#   * it did not  -> a MID-INNING decision. Stay, or be rescued now.
+#   * it did      -> a BOUNDARY decision. Come back out, or be done.
+#
+# So no decision is counted twice and there is no ordering to get wrong.
+# Pooling them is what the shipped model does, and it is why pitch count —
+# identical at 83.3 vs 82.6 between the two — dominates a coefficient
+# vector that is supposed to explain both.
+#
+# LEASH IS COMPUTED FROM PRIOR STARTS ONLY. A season-long average includes
+# the start being predicted, and a manager's patience is not a function of
+# what is about to happen. Two versions travel so the recency question is
+# answerable rather than assumed: an expanding mean over everything before
+# today, and a trailing window. deGrom is the case that motivates it — his
+# season mean is 15.6 outs and his last seven average 13.3, which moves him
+# a full tercile.
+# ---------------------------------------------------------------------------
+
+#: Batters a starter must have faced before his own leash means anything.
+LEASH_MIN_STARTS = 4
+RECENT_WINDOW = 5
+
+MID_FEATURES = ("inn_runs", "inn_br", "inn_dmg", "outs_before", "inning",
+                "tto", "pitches", "bf", "runs", "br", "margin", "abs_margin",
+                "leash", "kbb")
+BOUNDARY_FEATURES = ("pitches", "bf", "tto", "inning", "runs", "br",
+                     "damage", "inn_runs", "margin", "abs_margin",
+                     "leash", "kbb")
+
+
+def decisions(game_id: str, data: dict | None = None) -> list[dict]:
+    """Every starter plate appearance, tagged with WHICH decision follows.
+
+    `ends_inning` picks the row set. `removed` is the target in both.
+    """
+    data = data if data is not None else pbp.fetch(game_id)
+    if not data:
+        return []
+    plays = [p for p in (data.get("allPlays") or [])
+             if ((p.get("result") or {}).get("eventType") or "") not in SKIP]
+    starter: dict = {}
+    cum: dict = defaultdict(lambda: {"pitches": 0, "bf": 0, "runs": 0,
+                                     "br": 0, "dmg": 0.0})
+    inn: dict = defaultdict(lambda: {"runs": 0, "br": 0, "dmg": 0.0,
+                                     "inning": 0})
+    out: list[dict] = []
+    prev_score = 0
+    for i, play in enumerate(plays):
+        ab = play.get("about") or {}
+        mu = play.get("matchup") or {}
+        res = play.get("result") or {}
+        pid = (mu.get("pitcher") or {}).get("id")
+        if not pid:
+            continue
+        top = bool(ab.get("isTopInning"))
+        side = "home" if top else "away"
+        starter.setdefault(side, pid)
+        score = (res.get("awayScore", 0) or 0) + (res.get("homeScore", 0) or 0)
+        runs_now = max(score - prev_score, 0)
+        prev_score = score
+        if starter[side] != pid:
+            continue
+
+        c, v = cum[side], inn[side]
+        this_inn = ab.get("inning") or 1
+        if v["inning"] != this_inn:
+            v.update(runs=0, br=0, dmg=0.0, inning=this_inn)
+
+        nxt = next((p for p in plays[i + 1:]
+                    if bool((p.get("about") or {}).get("isTopInning")) == top),
+                   None)
+        if nxt is None:
+            break                        # game ended; no decision was made
+        nxt_pid = ((nxt.get("matchup") or {}).get("pitcher") or {}).get("id")
+        cnt = play.get("count") or {}
+        outs_before = cnt.get("outs", 0) or 0
+        margin = (res.get("homeScore", 0) or 0) - (res.get("awayScore", 0) or 0)
+        margin = margin if side == "home" else -margin
+        ev = res.get("eventType") or ""
+
+        # STATE BEFORE THE DECISION is the state the manager weighed, so the
+        # row is emitted from the running totals as they stand BEFORE this
+        # play is folded in — except the outcome of this play itself, which
+        # he obviously saw. Hence the update straddles the append.
+        c["bf"] += 1
+        c["runs"] += runs_now
+        c["br"] += 1 if ev in ONBASE else 0
+        c["dmg"] += DAMAGE.get(ev, 0.0)
+        c["pitches"] += sum(1 for e in (play.get("playEvents") or [])
+                            if e.get("isPitch"))
+        v["runs"] += runs_now
+        v["br"] += 1 if ev in ONBASE else 0
+        v["dmg"] += DAMAGE.get(ev, 0.0)
+
+        outs_after = outs_before + (1 if ev in OUT_EVENTS else 0)
+        out.append({
+            "game_id": game_id, "pitcher": pid, "side": side,
+            "inning": this_inn, "outs_before": outs_before,
+            "ends_inning": outs_after >= 3,
+            "pitches": c["pitches"], "bf": c["bf"],
+            "tto": min((c["bf"] - 1) // 9 + 1, 3),
+            "runs": c["runs"], "br": c["br"], "damage": c["dmg"],
+            "inn_runs": v["runs"], "inn_br": v["br"], "inn_dmg": v["dmg"],
+            "margin": margin, "abs_margin": abs(margin),
+            "removed": bool(nxt_pid and nxt_pid != pid),
+        })
+    return out
+
+
+#: Events that retire the batter. Double plays retire two, but the count
+#: that matters here is only whether the half-inning ended, and the next
+#: play's `outs` would disagree with a naive +1 — so the third out is read
+#: off the FOLLOWING play where possible. Kept simple deliberately: a
+#: mis-tagged inning end shows up immediately as a boundary row with
+#: outs_before 2 and no successor.
+OUT_EVENTS = {"strikeout", "strikeout_double_play", "field_out", "force_out",
+              "grounded_into_double_play", "double_play", "triple_play",
+              "sac_fly", "sac_bunt", "fielders_choice_out",
+              "sac_fly_double_play", "sac_bunt_double_play"}
