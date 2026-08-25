@@ -1780,3 +1780,124 @@ gone by the fourth — has different causes and is the case the model is least
 likely to price well. Chase Burns on 2026-08-24 went 3.2 innings; the sim
 put "pulled during the 4th" at 6.5%. Worth fitting separately, or at minimum
 checking calibration in that region, before trusting the tail.
+
+---
+
+## DAY SEVEN — two hooks, a bug that hid inside one of them, and deGrom
+
+### The starter was never offered a hook at an inning boundary
+
+Found by looking at a simulated starter-length distribution instead of its
+mean. `_half_inning` breaks out of its loop when the third out lands and the
+break sits BEFORE the removal block; `_end_of_inning` returns early whenever
+the learned hook is on, on the stated grounds that the per-PA roll already
+spans the boundary. It does not — the boundary plate appearance is the one
+the break skips. Instrumented: 72,426 hook calls across 2,000 games, all at
+outs 0/1/2, never at a boundary.
+
+Real appearances end on a completed inning 64.1% of the time (16,623
+pitcher-games). The simulator managed 7.6%. Means were right, which is
+exactly why it survived every aggregate check ever run against it — and why
+anything priced at a specific outs line was wrong, since books hang their
+lines at 15.5/17.5/18.5, right on the spikes the sim did not have.
+
+Fixed, 7.6% -> 34.6%. The gap that remains is the argument for two models.
+
+### A mid-inning hook and a boundary hook are different decisions
+
+3,995 starter removals over 2,006 games: BOUNDARY 63.2%, MID 36.8%.
+
+    state at removal   pitches  outs  cum runs  THIS inn runs  THIS inn br
+    boundary              83.3  16.6      2.15           0.48         1.33
+    mid-inning            82.6  14.3      2.72           0.84         2.20
+
+PITCH COUNT DOES NOT DISTINGUISH THEM — 83.3 against 82.6 — while it carries
+the largest coefficient in the shipped model. It is a pure "is he done"
+signal, which is the boundary decision only. What separates them is damage
+in the CURRENT inning, a quantity no feature in the shipped model carries.
+
+The interaction, and the clearest signal measured in this project:
+
+    P(mid | pulled)     0 runs   1 run  2 runs      3+
+      innings 1-3        33.0%   27.8%   38.8%   61.6%
+      innings 4-5        28.6%   37.6%   44.9%   46.4%
+      inning 6           32.7%   51.7%   58.7%   60.5%
+      inning 7+          33.6%   57.8%   72.7%       -
+
+Through a clean inning the inning number does not matter at all. Allow runs
+and it climbs steeply. Leash moderates it: long-leash starters take 43.1% on
+2+ runs against 56.9% for short-leash, monotone across terciles, same
+ordering by K-BB%.
+
+### What the split is and is NOT worth
+
+Refit like for like, same rows, same 2026-07-15 holdout:
+
+    shipped features                    AUC 0.9361   log loss 0.1028
+    + leash and K-BB%                   AUC 0.9409   log loss 0.1003
+    + current-inning traffic            AUC 0.9463   log loss 0.0972
+    split, combined                     AUC 0.9460   log loss 0.0986
+    pooled + full ends_inning interaction  AUC 0.9468   log loss 0.0966
+
+THE SPLIT BUYS NOTHING ON DISCRIMINATION. +0.0005 AUC. What buys the gain is
+the FEATURES — current-inning traffic and leash.
+
+The case for two models is therefore not AUC, it is the BASE RATES: boundary
+removals fire at 6.30% and mid-inning at 2.83%, a 2.2x gap that a single
+hazard function cannot express because it applies the same probability at
+both decision points. That is a claim about where distribution mass lands,
+testable on the outs distribution and not on AUC.
+
+Two cautions before building it. The boundary fit looks collinear — `bf`
++4.548 against `br` -1.336, largely cancelling. And 6.30/2.83 is pooled over
+all starters; `advance.py`'s per-club stability gate is the precedent for
+checking it holds up before conditioning on it.
+
+### The prefix ladder is the wrong instrument for this
+
+1,615 games, paired, common random numbers, |sigma| <= 1.1 at every prefix.
+Expected: the ladder scores TOTAL RUNS, and moving a hook from mid-inning to
+a boundary swaps a starter for a reliever who is his equal in aggregate
+(K-BB 0.1333 against 0.1358). It changes who throws, not how many score.
+The starter's own line is what changes and what has to be scored.
+
+### OPEN, and being tracked — JACOB deGROM
+
+He is not the pitcher he was in the first half and the model has no way to
+know it. His last 7 starts against his first 17:
+
+                  BF     K%    BB%   BABIP   outs/BF   p/out   under 16.5
+    first 17     382   .301   .052    .255      .751    5.31        5/17
+    last 7       141   .298   .085    .407      .660    6.38         6/7
+
+THE STUFF IS INTACT AND THE COMMAND IS NOT. K% is identical. Walks are up
+63% and BABIP has gone from .255 to .407, so every non-strikeout plate
+appearance turns into traffic, he burns 6.4 pitches per out instead of 5.3,
+and he runs out at 15 outs instead of 18. Season rates hide all of it.
+
+Re-simulated on last-7 rates: under 16.5 outs 0.412 -> 0.501, against his own
+7/14 and a market at 0.490.
+
+WHAT WAS TESTED AND WHAT WAS NOT. Recency in the LEASH — a trailing-5 mean
+of outs per start, in place of the season mean — is a wash (MID 0.9422 vs
+0.9418, BOUNDARY 0.9449 vs 0.9440). That does NOT address deGrom, whose case
+is about his RATES, not about how long his manager lets him go. Recency in
+the rates has only ever been scored against the MARKET (`recency.py`, dead at
+3-5 sigma), which is the wrong yardstick by THE OBJECTIVE. It has never been
+scored on the prefix ladder or on outs CRPS against actual outcomes.
+
+That is the pre-registered re-opening: recency-weighted rates, scored on
+outcomes, with the decomposition above as the hypothesis — the moving parts
+are BB% and BABIP, not K%, so a single half-life over all four rates is
+probably the wrong shape and per-rate half-lives are worth testing. Note
+`stabilise.py` already measured how fast each rate becomes trustworthy, and
+BABIP is the slowest of the four; .407 over ~90 balls in play regresses hard.
+
+### Also fixed: Kalshi prop lookups were matching the wrong player
+
+`price_prop` matched on ANY shared name token, so a pitcher Kalshi does not
+list at the requested strike fell through the whole series to the first
+market sharing a FIRST name. "Tyler Glasnow" under 6.5 K priced off Tyler
+Phillips of Miami and reported Kalshi fair at 0.920 against a true 0.595.
+`names_match` now requires the surname. `find_settled` is the CLV path, so
+recorded prop CLV numbers may carry some of this.

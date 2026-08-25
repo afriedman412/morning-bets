@@ -69,9 +69,14 @@ def main():
                 da[r.away_sp.outs] += 1
                 dh[r.home_sp.outs] += 1
             for act, d in ((away[0], da), (home[0], dh)):
-                if act.get("outs") is None:
+                # The actual column is `o`. It was `outs` here for one run,
+                # which silently skipped every start and printed an empty
+                # table after twelve minutes — hence the assert below.
+                if act.get("o") is None:
                     continue
-                rows.append({"actual": act["outs"], "dist": d})
+                rows.append({"actual": act["o"], "dist": d})
+        assert rows, ("no starts scored — the actual-outs key is wrong "
+                      "and every row was skipped")
         out[flag] = rows
 
     real = [r["actual"] for r in out[True]]
