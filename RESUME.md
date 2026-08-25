@@ -1,3 +1,151 @@
+# Resume here — state as of 2026-08-25 (day eight)
+
+## START HERE
+
+**Read `CLAUDE.md`'s THE OBJECTIVE section and `AF_PLAN.md` first.** Judge
+every change on ACTUAL OUTCOMES. CLV is not the target.
+
+**Then read the END of `NOTES-context-layer.md`** — day eight is the last
+section and carries the measured negatives, which are the expensive thing
+to rediscover.
+
+## WHAT LANDED ON DAY EIGHT
+
+**THE PER-PITCHER LEASH IS MEASURED AND SHIPPED** (`src/context/leash.py`,
+`sim.USE_LEASH`). Out of sample — rates before 2026-07-01, offsets built
+`--before 2026-07-01`, scored on the 1,125 starts after it:
+
+    outs                     OFF      ON
+    spread of our means     0.56    1.29
+    corr with actual       0.105   0.226     (model-free ceiling ~0.30)
+    of ceiling               33%     71%
+    sd(p) at 15.5 outs     0.060   0.127     <- Brier resolution, doubled
+    distinct medians           8      17
+
+Downstream too, which is the coherence argument for ONE simulator stated in
+numbers: k +0.389 -> +0.408, h +0.207 -> +0.235, er +0.044 -> +0.063.
+
+**IT BUYS RESOLUTION, NOT SHAPE, AND THAT IS THE HONEST SUMMARY.** Outs
+CRPS is FLAT (2.1761 -> 2.1747, +0.1 sigma) and the prefix ladder is flat
+(F7 +0.4 sigma). Both are expected: our within-start sd is 3.84, so moving
+a start's centre by an out barely shifts a distribution that wide, and a
+hook change cannot move a run total when starters and relievers are equal
+in aggregate. What changed is DISCRIMINATION BETWEEN STARTS, which is
+exactly the quantity day seven found we were short of.
+
+**MOST OF THE RAW GAIN IS OPENERS, so quote the rotation-only row.**
+`ROTATION_MIN_GS = 5` admits openers and bulk arms and they were being
+simulated with a starter's hook. Separated out on the holdout:
+
+    live starts            base corr   +leash   RMSE base   RMSE leash
+    all                        0.075    0.268       3.831        3.697
+    median outs >= 12          0.077    0.182       3.613        3.550
+    median outs >= 15          0.051    0.099       3.591        3.555
+
+On genuine rotation arms the correlation still more than doubles, and the
+true per-pitcher leash sd there is ~0.9-1.1 outs rather than 1.77.
+
+**A WIRING GAP THAT INVALIDATES SOME OLDER A/Bs.** `game.build_side` never
+called `sim.for_start` — every caller passes `hook=None`, which fell
+through to a bare league `Hook()`. So club and per-pitcher offsets reached
+`sim.simulate_start` and NEVER REACHED A FULL GAME, which is the engine
+that produces team totals. Fixed, and guarded in `tests/test_wiring.py`.
+
+**THE CLUB IS DEAD FOR THE SIXTH TIME**, and its split-half is a trap: r
++0.595 passes the bullpen-role gate while measuring which ARMS a club runs
+out. Fitted club-first, a club offset is +0.090 -> +0.122 alone and makes
+things WORSE on top of the pitcher (+0.234 -> +0.227). `USE_PATIENCE` False.
+
+**EVERY OTHER BETWEEN-GAME FEATURE MEASURED NULL ON THE OUTS RESIDUAL**,
+directly rather than inferred: is_home +0.005, night +0.019, park runs
+index -0.032, days rest +0.014, bullpen outs yesterday +0.037, month
++0.039. None worth 0.15 outs against 1.77 of real variation. **Run
+`scratchpad/between.py` FIRST on any future between-game candidate** — it
+is a residual correlation, not a build-and-re-simulate.
+
+## THE MEASUREMENT THAT SHOULD DRIVE THE NEXT SESSION
+
+Model-free one-way ANOVA on ACTUAL values by pitcher, `(MSB - MSW)/n0`, so
+sampling noise is removed. A LOWER bound on real between-start variation:
+
+    stat  actual sd  between  within  our within  our spread  share
+    outs       3.96     1.77    3.50        3.84        0.57    32%
+    k          2.44     1.10    2.17        2.03        1.02    93%
+    h          2.23     0.67    2.12        1.96        0.45    67%
+    bb         1.30     0.39    1.24        1.28        0.39   100%
+    er         1.99     0.41    1.94        1.78        0.29    71%
+
+Outs was the only quantity badly short and the leash is the answer to it.
+**Strikeouts are at 93% and essentially exhausted.** Do not spend a day on
+a between-game feature aimed at K props.
+
+**AND NOTE `our within` > the real within on outs (3.84 vs 3.50).** The
+simulator is OVER-DISPERSED per start. This is why the model-based ceiling
+estimator in `ceiling.py` returned an impossible "105% of ceiling" and had
+to be replaced by the ANOVA. It is also why CRPS cannot see the leash. It
+is the largest remaining defect in the starter model.
+
+## WHAT TO DO NEXT
+
+**1. THE OVER-DISPERSION ON OUTS — 3.84 against a real 3.50.** Newly
+identified and it now blocks two things at once: it broke the ceiling
+estimator, and it is why a correct centre buys no CRPS. Narrowing the
+within-start distribution is worth more than any remaining feature, because
+every start is currently too vague to price sharply.
+
+**2. THE RUN LEVEL — 5% light at every prefix.** Unmoved by everything for
+three days. Stated product, unambiguously wrong.
+
+**3. The 12-14 out bucket**, 19.4% against a real 16.6%. Where books hang
+outs lines.
+
+**4. Collapse to ONE engine.** Day eight found the cost of two: a mechanism
+wired into one and silently absent from the other for a full day.
+
+**5. Openers as a population.** They are in `actual_starts` with a
+starter's hook, and the leash is currently containing them by pinning them
+at the sweep boundary. That works but it is a clamp doing a filter's job.
+
+**6. Within-start K% persistence, +6.4 sigma**, still unused.
+
+## TRAPS ADDED ON DAY EIGHT
+
+**AN IDENTICAL-TO-FOUR-DECIMALS A/B IS A PLUMBING RESULT, NEVER A NULL.**
+The first paired ladder read EXACTLY +0.0000 at all four prefixes over
+1,615 games. Two model states that agree to four decimals on 1,615 games
+are the same model. Second time in two days a mechanism was not reaching
+the simulator.
+
+**A MODEL-BASED CEILING IS ONLY AS GOOD AS THE MODEL'S OWN SPREAD.**
+Subtracting our within-start variance from the actual variance reported an
+outs ceiling BELOW our own correlation. Cross-check with the ANOVA on
+actuals, which touches no model at all.
+
+**A SPLIT-HALF THAT PASSES CAN STILL BE THE WRONG QUANTITY.** The club
+residual passes the bullpen-role gate at +0.595 and is worthless once the
+pitcher offset is in. Split-half tests persistence, not incremental value;
+run the nested fit before believing it.
+
+**`hook_leash.json` AS COMMITTED IS BUILT ON THE FULL SEASON.** Correct for
+pricing tomorrow, WRONG for scoring this season — a pitcher's offset was
+measured partly on the starts an in-sample replay would score. Rebuild with
+`--before <cutoff>` and score after it.
+
+**A SEVENTH CHECK GUARDED NOTHING.** `check_the_offset_never_leaves_the_
+measured_sweep` asserted the clamp against the clamp constant itself and
+passed with it mutated to 99.0. Write the mutation before believing the
+check.
+
+## STATE
+
+* 325 checks, `make test`, no network, no pytest. `tests/test_leash.py` is
+  new (6), plus 3 in `test_sim` and 2 in `test_wiring`.
+* All six new checks mutation-verified.
+
+---
+
+# ARCHIVE — day seven and earlier
+
 # Resume here — state as of 2026-08-25 (day seven)
 
 ## START HERE

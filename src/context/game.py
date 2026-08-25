@@ -429,7 +429,8 @@ def simulate_game(away: Side, home: Side, lg: dict,
 
 def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
                lineup: list[sim.BatterRates], hook: sim.Hook | None,
-               rng: random.Random, depth: int = PEN_DEPTH) -> Side:
+               rng: random.Random, depth: int = PEN_DEPTH,
+               team: str | None = None, apply_leash: bool = True) -> Side:
     """Draw a bullpen for one club and assemble its pitching side.
 
     Arms are sampled WITHOUT replacement and weighted by appearances: a
@@ -438,6 +439,21 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
     pitchers. Sampling rather than taking the top eight is deliberate — the
     game-to-game variation in WHO is available is a real source of spread in
     run scoring, and it is the spread the model is missing.
+
+    THE PER-START HOOK IS APPLIED HERE, and until 2026-08-25 it was not
+    applied anywhere in this engine at all. Every caller passes `hook=None`,
+    which fell through to a bare league `Hook()`, so `sim.for_start` — the
+    club and per-pitcher offsets — reached `sim.simulate_start` and never
+    reached a full game. The symptom was a paired prefix ladder reading
+    EXACTLY +0.0000 at all four prefixes over 1,615 games: not "the ladder
+    cannot see a hook change", which is true and expected, but the flag not
+    arriving. An identical-to-four-decimals A/B is a plumbing result, never
+    a null.
+
+    `apply_leash=False` is for the tuners. `calibrate.run(flat=True)` fits
+    the global hook with everyone on the league curve for the same reason:
+    searching global parameters while per-pitcher offsets absorb the error
+    drives them somewhere meaningless.
     """
     pool = list(pen_pool)
     arms = []
@@ -448,5 +464,7 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
         arms.append(sim.PitcherRates(
             name=a["name"], k_pct=a["k_pct"], bb_pct=a["bb_pct"],
             hr_pct=a["hr_pct"], babip=a["babip"], pa=a.get("pa", 0)))
-    return Side(starter=starter, pen=arms, lineup=lineup,
-                hook=hook or sim.Hook())
+    h = hook or sim.Hook()
+    if apply_leash:
+        h = sim.for_start(h, team, starter.name)
+    return Side(starter=starter, pen=arms, lineup=lineup, hook=h)

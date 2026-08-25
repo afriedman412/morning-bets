@@ -154,6 +154,13 @@ Run everything through the Makefile's Python virtualenv (`venv/bin/python`).
   DIFFERENT DECISIONS, counted. 63.2% / 36.8%, and pitch count does not
   distinguish them at all (83.3 against 82.6). Each branch is now fitted on
   its own population; pooling them made the late curve far too flat.
+- `... -m src.context.leash --build [--before DATE]` — the PER-PITCHER
+  LEASH, measured. A pitcher's leave-one-out residual is +0.295 on OUTS and
+  noise on k/h/bb/er, so what is wrong is how long he is left in, not how
+  he pitches. Out of sample it takes the outs correlation +0.105 -> +0.226,
+  and it is FLAT on outs CRPS and on the run ladder by design — it buys
+  discrimination between starts, not a better-shaped start. Club patience
+  stays off; that is the sixth finding against it.
 - `... -m src.context.tto` — times through the order. K% falls 19% from the
   first pass to the third. `--` no args runs all 2,006 games.
 - `... -m src.context.stabilise` — the four shrinkage constants, measured.

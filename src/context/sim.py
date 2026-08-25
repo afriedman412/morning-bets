@@ -909,6 +909,30 @@ def _load(path: str) -> dict:
 #: quietly contaminate a market measurement.
 USE_OFFSETS = False
 
+#: THE PER-PITCHER LEASH, and the two flags are separate because the two
+#: mechanisms measured differently. See `src/context/leash.py` for the whole
+#: argument; the short version is that a pitcher's leave-one-out residual is
+#: +0.295 on OUTS and noise on strikeouts, hits, walks and earned runs, so
+#: what is wrong is how long he is left in and not how he pitches.
+#:
+#: Out of sample — rates before 2026-07-01, scored on the 1,125 starts after
+#: it, offsets from strictly prior starts — the correlation between our
+#: predicted outs and real outs goes +0.090 -> +0.234 and RMSE 3.906 ->
+#: 3.808. The model-free ceiling in that window is +0.294, so this is the
+#: difference between capturing a third of the available signal and three
+#: quarters of it.
+USE_LEASH = True
+
+#: THE CLUB, and it stays off: this is the SIXTH independent finding that
+#: team-specific hook effects do not pay. Fitted in the correct order (club
+#: first, pitcher against the remainder) a club offset moves the
+#: out-of-sample correlation +0.090 -> +0.122 alone, and ON TOP of the
+#: pitcher offset it makes things WORSE (+0.234 -> +0.227, MAE up). The
+#: club split-half looks strong (r +0.595, which passes the bullpen-role
+#: gate) and that is a trap: it is measuring which ARMS a club runs out,
+#: not how patient its manager is, and the pitcher offset already has that.
+USE_PATIENCE = False
+
 
 def patience(team: str | None) -> float:
     """Fitted log-odds offset for a club's manager. 0.0 when unknown.
@@ -916,7 +940,7 @@ def patience(team: str | None) -> float:
     Unknown resolves to the league hook rather than to a guess, the same
     rule the rest of this codebase follows for a missing group value.
     """
-    if not USE_OFFSETS:
+    if not (USE_OFFSETS or USE_PATIENCE):
         return 0.0
     global _PATIENCE
     if _PATIENCE is None:
@@ -925,18 +949,26 @@ def patience(team: str | None) -> float:
 
 
 def leash(pitcher_name: str | None) -> float:
-    """Fitted offset for one starter, ON TOP of his club's patience.
+    """Measured log-odds offset for one starter. 0.0 when unknown.
 
-    Shrunk toward zero by start count at fit time, so a pitcher with nine
-    starts contributes a fraction of his apparent residual and one with none
-    on record contributes nothing.
+    Built by `src.context.leash`, which shrinks each pitcher's trimmed mean
+    outs residual by a MEASURED constant (within_var / between_var off a
+    one-way ANOVA) and converts it through an interpolated table. A pitcher
+    with no record contributes nothing, which is the same missing-group rule
+    as everywhere else.
     """
-    if not USE_OFFSETS:
+    if not (USE_OFFSETS or USE_LEASH):
         return 0.0
     global _LEASH
     if _LEASH is None:
         _LEASH = _load(_LEASH_PATH)
     return float(_LEASH.get(pitcher_name or "", 0.0))
+
+
+def reload_offsets() -> None:
+    """Drop the cached files so a rebuild is picked up in-process."""
+    global _PATIENCE, _LEASH
+    _PATIENCE = _LEASH = None
 
 
 def for_start(base: Hook, team: str | None,
@@ -946,10 +978,15 @@ def for_start(base: Hook, team: str | None,
     The two offsets ADD because they were fitted that way — club first,
     pitcher against the remainder. Fitting both independently and adding
     them would double-count the manager.
+
+    ADDED to `base.team_offset` rather than replacing it, so a caller that
+    has already set one — `calibrate.HOME_HOOK` stacks on top of this, and
+    the bootstrap in `simulate_many` jitters it — composes instead of
+    silently losing whichever was applied first.
     """
     off = patience(team) + leash(pitcher_name)
-    return base if not off else Hook(**{**base.__dict__,
-                                        "team_offset": off})
+    return base if not off else Hook(
+        **{**base.__dict__, "team_offset": base.team_offset + off})
 
 
 def for_team(base: Hook, team: str | None) -> Hook:

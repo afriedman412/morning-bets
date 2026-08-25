@@ -187,3 +187,61 @@ def check_the_measured_mechanisms_are_switched_on_by_default():
     assert sim.Hook().mid_per_inning_run == 0.0
     # A start has to be bounded from above by something.
     assert 95 <= sim.Hook().hard_pitch_cap <= 130, sim.Hook().hard_pitch_cap
+
+
+def check_the_leash_reaches_a_full_game_and_not_only_a_start():
+    """THE GAP THIS FILE EXISTS FOR, found again on 2026-08-25.
+
+    Every `build_side` caller passes `hook=None`, and until this was fixed
+    that fell through to a bare league `Hook()` — so `sim.for_start`, and
+    with it the whole per-pitcher leash, reached `sim.simulate_start` and
+    never reached `game.simulate_game`. The start-level path is the one
+    `calibrate`, `quote`, `price` and `f5` use, so the mechanism measured
+    correctly there while the engine that produces TEAM TOTALS, which is the
+    stated product, ran without it.
+
+    It surfaced as a paired prefix ladder printing EXACTLY +0.0000 at F1,
+    F3, F5 and F7 over 1,615 games. Read that as a plumbing failure, never
+    as a null: two model states that agree to four decimals on 1,615 games
+    are the same model.
+    """
+    saved = sim._LEASH
+    sim._LEASH = {"p": -1.5}
+    try:
+        def mean_outs(apply_leash):
+            tot = 0
+            for i in range(120):
+                rng = random.Random(11 + i)
+                a = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                                    apply_leash=apply_leash)
+                h = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                                    apply_leash=apply_leash)
+                r = game.simulate_game(a, h, dict(LG), rng)
+                tot += r.away_sp.outs + r.home_sp.outs
+            return tot / 240
+        on, off = mean_outs(True), mean_outs(False)
+    finally:
+        sim._LEASH = saved
+    # -1.5 is worth about +2.3 outs on the measured sweep; a full game caps
+    # a starter at 27 outs so require a clear move rather than the exact one
+    assert on - off > 1.0, (on, off)
+
+
+def check_a_tuner_can_switch_the_leash_off_at_the_side():
+    """`calibrate.run(flat=True)` fits global hook parameters with everyone
+    on the league curve, because searching them while per-pitcher offsets
+    absorb the error drives them somewhere meaningless. The full-game
+    engine needs the same escape hatch or every tuner that moved to it
+    silently fits against a leashed model."""
+    saved = sim._LEASH
+    sim._LEASH = {"p": -2.0}
+    try:
+        rng = random.Random(1)
+        side = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                               apply_leash=False)
+        assert side.hook.team_offset == 0.0, side.hook.team_offset
+        rng = random.Random(1)
+        side = game.build_side(_pitcher(), _pen(), _nine(), None, rng)
+        assert side.hook.team_offset == -2.0, side.hook.team_offset
+    finally:
+        sim._LEASH = saved

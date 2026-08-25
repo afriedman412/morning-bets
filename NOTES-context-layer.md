@@ -2173,3 +2173,212 @@ And it argues for spending effort where the signal is. A starter's outs or
 strikeouts carry far more of their variance in the pitcher's own rates than
 a team's run total ever will. The stated product is team totals; the
 measurable edge may not be there.
+
+---
+
+# Day eight — between-game differences, and the per-pitcher leash
+
+The session question was the user's: the model over-generalises on the
+aggregate, so where does between-game variance come from and how do we
+measure it? Target chosen deliberately — STARTER OUTS, as the most stable
+and least flukey of the props.
+
+## The ceiling estimator failed first, and the failure was informative
+
+`scratchpad/ceiling.py` decomposes `var(actual) = var(true per-start mean)
++ E[within-start var]` and takes the within term from our own simulation.
+On 3,600 real starts it reported an outs ceiling of 0.250 with us at 105%
+of it. A correlation cannot exceed its own ceiling, so the estimator was
+broken, and the reason is written into the module's own docstring as the
+thing to distrust: our within-start spread on outs is 3.84 against a real
+3.50. THE SIMULATOR IS OVER-DISPERSED PER START, and subtracting a
+too-large within understates the between.
+
+The fix is to stop using the model at all. `scratchpad/between.py` runs a
+one-way ANOVA on the ACTUAL values grouped by pitcher, `(MSB - MSW)/n0` so
+sampling noise is removed rather than counted as talent. What sits BETWEEN
+pitchers is real start-to-start variation by construction, and it is a
+LOWER bound because opponent, park and rest all vary inside a pitcher's own
+season too:
+
+    stat  actual sd  between  within  our within  our spread  share
+    outs       3.96     1.77    3.50        3.84        0.57    32%
+    k          2.44     1.10    2.17        2.03        1.02    93%
+    h          2.23     0.67    2.12        1.96        0.45    67%
+    bb         1.30     0.39    1.24        1.28        0.39   100%
+    er         1.99     0.41    1.94        1.78        0.29    71%
+
+**OUTS IS THE OUTLIER AND IT IS NOT CLOSE.** Every other quantity produces
+67-100% of the differentiation that provably exists. Outs produces 32%.
+Strikeouts, the other thing books hang on a starter, are essentially
+exhausted at 93%.
+
+## The user's reframing, which is the better metric
+
+Mid-session: *"when we talk about bets we are talking about finding
+medians, so a way to conceive of how well we are capturing between-game
+difference is how much the median value moves compared to the aggregate."*
+
+That is right and it is sharper than the spread of predicted means, because
+a bet settles on a THRESHOLD. `ceiling.py --lines` now reports, per line,
+the sd of our P(over) across starts — which IS the Brier resolution term —
+against what the same simulator would produce if it differentiated starts
+as much as reality does. It made the problem far more legible: on outs our
+per-start median took only EIGHT distinct values and sd(p) at 15.5 was
+0.060, meaning essentially every start was priced at the base rate.
+
+## What is missing is a LEASH, and all five columns say so together
+
+Leave-one-out per-pitcher residual — the group mean recomputed EXCLUDING
+the target start, so no effect scores zero rather than the negative
+artifact that leave-nothing-out manufactures:
+
+    outs +0.295*   k +0.008   h +0.063*   bb -0.086*   er +0.012  (*|z|>3)
+
+The pitcher's rates are estimated over his own season, so his per-batter
+performance is right by construction — and the columns agree: no stable
+per-pitcher residual on strikeouts, walks, hits or earned runs. Only OUTS
+carries one. The single thing outs depends on that the other four do not is
+the manager. That is a leash, and it is the only reading consistent with
+the whole row rather than one cell of it.
+
+## EVERY OTHER BETWEEN-GAME FEATURE MEASURED NULL, directly
+
+On the outs residual, over 3,600 starts:
+
+    is_home +0.005   night game +0.019   park runs index -0.032
+    days rest +0.014   pen outs yesterday +0.037   pen outs last two +0.009
+    month +0.039
+
+None worth more than 0.15 outs against 1.77 of real between-start
+variation. So the answer to "do we have park effects" is: yes, `park.py`
+serves them, and on this target they are worth nothing — measured against
+the residual directly rather than inferred from a game-total null. This is
+a much cheaper test than building a feature and re-simulating, and it
+should be the first thing run on any future between-game candidate.
+
+`predicted outs` correlates +0.123 (z 7.4) with its OWN residual. That is a
+CONTROL firing and it says something specific: our predictions are
+COMPRESSED, not mis-directed. The fix is to differentiate more, not to add
+an input.
+
+## The club is dead for the SIXTH time, and its split-half is a trap
+
+The chronological split-half on the CLUB outs residual reads r +0.595,
+which passes the bullpen-role gate (+0.55..+0.78) that this project trusts.
+It is wrong. It measures which ARMS a club runs out, not how patient its
+manager is, and the pitcher offset already has that.
+
+Fitted in the correct order — club first, pitcher against the remainder,
+the rule `calibrate --patience` exists to enforce — a club offset is worth
++0.090 -> +0.122 out of sample ALONE, and ON TOP of the pitcher offset it
+makes things WORSE (+0.234 -> +0.227, MAE up). `sim.USE_PATIENCE` stays
+False. Note that fitting the two in the other order would have credited the
+manager with the whole thing.
+
+## It is NOT the blowups — the day-six claim, tested
+
+RESUME recorded that per-pitcher leash variation is "mostly blowups, not
+real". Rebuilt from a 20% TRIMMED mean of prior residuals the gain is
+IDENTICAL (+0.354 against +0.354 for the plain mean); from the prior
+MEDIAN, +0.336. A statistic that throws away his worst starts predicts just
+as well, so it is a central tendency and not a tail.
+
+## THE OPENERS, and the honest size of this
+
+The short-leash end of the built file is entirely relievers pinned at the
+sweep boundary — PJ Poulin, Lake Bachar, Wandy Peralta, Bryan Hudson.
+`ROTATION_MIN_GS = 5` admits openers and bulk arms, and they were being
+simulated with a starter's hook. Fixing that is real and worth having, but
+it is not the interesting claim, so it was separated out:
+
+    holdout, live starts     base corr   +leash   RMSE base   RMSE leash
+    all                          0.075    0.268       3.831        3.697
+    median outs >= 12            0.077    0.182       3.613        3.550
+    median outs >= 15            0.051    0.099       3.591        3.555
+
+**MOST OF THE HEADLINE GAIN IS OPENERS.** On genuine rotation arms the
+effect is smaller and still real — the correlation more than doubles and
+RMSE falls 0.063 — and the true per-pitcher leash sd among rotation arms is
+about 0.9-1.1 outs rather than the 1.77 that includes openers. Anyone
+quoting this number should quote the rotation-only row.
+
+## Out of sample, through the shipped code path
+
+Rates estimated before 2026-07-01, leash file built `--before 2026-07-01`,
+scored on the 1,125 starts after it:
+
+                     OFF      ON
+    outs spread     0.56    1.29
+    outs corr      0.105   0.226     (model-free ceiling 0.294-0.318)
+    of ceiling       33%     71%
+    sd(p) @ 15.5   0.060   0.127     <- the Brier resolution term, doubled
+    distinct medians   8      17
+
+Every downstream quantity improves as well — k +0.389 -> +0.408, h +0.207
+-> +0.235, er +0.044 -> +0.063. That is the coherence argument for ONE
+simulator, stated in numbers for the first time: a starter left in for the
+right length accumulates the right number of everything else.
+
+The prefix ladder is neutral, as designed: F7 d|err| +0.0015 at +0.4 sigma
+over 1,615 paired games. A hook change is invisible to a run total because
+starters and relievers are equal in aggregate here, so this was a
+no-regression test and it passed.
+
+## THE WIRING GAP — the most important find of the day
+
+The FIRST paired ladder printed EXACTLY +0.0000 at F1, F3, F5 and F7 over
+1,615 games. That is not "the ladder cannot see a hook change", which is
+true and expected and is written in RESUME. It was the flag not arriving.
+
+`game.build_side` never called `sim.for_start`. Every caller passes
+`hook=None`, which fell through to a bare league `Hook()` — so the club and
+per-pitcher offsets reached `sim.simulate_start` and NEVER REACHED A FULL
+GAME. The start-level path is what `calibrate`, `quote`, `price` and `f5`
+sit on; the engine that produces TEAM TOTALS, which is the stated product,
+ran without any per-start hook at all.
+
+**AN IDENTICAL-TO-FOUR-DECIMALS A/B IS A PLUMBING RESULT, NEVER A NULL.**
+Two model states that agree to four decimals over 1,615 games are the same
+model. This is the second time in two days that a mechanism turned out not
+to be reaching the simulator, and both times the tell was in the output.
+
+Guarded by `check_the_leash_reaches_a_full_game_and_not_only_a_start` in
+`tests/test_wiring.py`, mutation-verified: the mutated run reproduces the
+exact `(15.4125, 15.4125)` signature.
+
+## Measured, not tuned — the two constants that could have been searched
+
+Shrinkage K is `within_var / between_var` read off the ANOVA, which is the
+normal-normal posterior mean, and it is RECOMPUTED from whatever window
+`build()` is given rather than baked in. Handing it to a grid is what would
+turn this from a measurement into a fit, and a fitted shrinkage absorbs
+whatever else is wrong with the hook.
+
+The outs-to-log-odds conversion is INTERPOLATED through a measured sweep
+(`scratchpad/offset_map.py`, 900 starts x 60 draws at eleven offsets), not
+regressed onto a slope. The curve bends — -2.0 buys +3.00 outs where the
+local slope at zero promises +3.36 — and fitting a line through counted
+points is the mistake recorded against the advance-on-out hazard, where a
+least-squares slope charged +0.724 at one run against a counted +0.296.
+
+The sweep also confirms the knob moves a start's LEVEL without inflating
+its own spread: outs sd 4.10 at -0.6, 4.00 at 0.0, 3.83 at +1.0. A
+mechanism that bought differentiation by widening every start would show up
+here and would not be worth having.
+
+## A SEVENTH CHECK THAT GUARDED NOTHING
+
+`check_the_offset_never_leaves_the_measured_sweep` asserted the clamp
+against `OFFSET_CLAMP` itself and passed just as happily with the constant
+mutated to 99.0. Self-referential, and only a mutation run surfaces it.
+Rewritten to bound against the measured table's own endpoints.
+
+## A trap for the next session
+
+`hook_leash.json` as committed is built on the FULL season. That makes it
+correct for pricing tomorrow's games and WRONG for scoring this season's:
+a pitcher's offset was measured partly on the very starts any in-sample
+replay would score. `calibrate --reliability`, `ceiling.py` and
+`score_leash_outs` all become flattered. Rebuild with `--before <cutoff>`
+and score after it, which is what every number above did.

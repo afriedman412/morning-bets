@@ -83,10 +83,10 @@ def simulate_prefixes(cases_by_game, pens, lg, n_sims=40, seed=7,
             rng = random.Random(seed + i * 100003 + draw)
             A = game.build_side(
                 away[1], pens.get((away[0]["team"] or "").upper(), []),
-                hn, None, rng)
+                hn, None, rng, team=away[0]["team"])
             H = game.build_side(
                 home[1], pens.get((home[0]["team"] or "").upper(), []),
-                an, None, rng)
+                an, None, rng, team=home[0]["team"])
             res = game.simulate_game(A, H, lg, rng, innings=max(prefixes),
                                      track=prefixes)
             for p in prefixes:

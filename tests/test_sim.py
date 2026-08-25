@@ -1381,21 +1381,94 @@ def check_errors_raise_the_run_level():
     assert br[1] > br[0], br
 
 
-def check_stale_hook_offsets_are_switched_off():
-    """The on-disk patience and leash offsets must not apply by default.
+def check_the_club_patience_offsets_stay_switched_off():
+    """Patience was fitted as a RESIDUAL against a model that no longer
+    exists, and re-measuring it did not rescue it: fitted in the correct
+    order (club first, pitcher against the remainder) a club offset is worth
+    +0.090 -> +0.122 out of sample alone, and ON TOP of the pitcher offset
+    it makes things WORSE (+0.234 -> +0.227, MAE up). Sixth independent
+    finding that club hook effects do not pay.
 
-    They were fitted as RESIDUALS against the model's own error on
-    2026-08-23, and that model is gone — errors, out-dependent advancement,
-    a refitted PITCH_COST, WP_PB_RATE cut 45%, pitch_center 92 -> 80, and
-    league baselines recomputed on a doubled database. A residual that
-    corrects an error which has since been FIXED does not go quietly stale;
-    it pushes the wrong way, in eight modules that all call `for_start`.
+    The pitcher LEASH is a different file with a different provenance and it
+    ships ON — see `check_the_measured_leash_is_live_and_carries_provenance`.
     """
     assert sim.USE_OFFSETS is False
+    assert sim.USE_PATIENCE is False
     assert sim.patience("SD") == 0.0
-    assert sim.leash("Dylan Cease") == 0.0
-    base = sim.Hook()
-    assert sim.for_start(base, "SD", "Dylan Cease") is base
+
+
+def check_the_measured_leash_is_live_and_carries_provenance():
+    """`hook_leash.json` must be the MEASURED file, not the 2026-08-23 one.
+
+    The stale version was fitted as a residual against a model that has since
+    changed in six ways, and the only thing distinguishing it from the
+    rebuilt file is the `_meta` block `src.context.leash.build` writes. A
+    file with no provenance is the old one, so the absence of that block is
+    the failure — not a missing key.
+    """
+    import json
+
+    from src.context import leash as leash_mod
+    assert sim.USE_LEASH is True
+    with open(leash_mod.PATH) as f:
+        data = json.load(f)
+    meta = data.get("_meta")
+    assert meta, "hook_leash.json has no provenance: this is the stale file"
+    for key in ("before", "k", "between_sd", "within_sd", "starts"):
+        assert key in meta, key
+    # K is the MEASURED within/between ratio, not a tuned constant. Anything
+    # outside this band means the ANOVA collapsed and every offset is either
+    # unshrunk noise or shrunk to nothing.
+    assert 1.0 <= meta["k"] <= 40.0, meta["k"]
+    assert meta["starts"] > 500, meta["starts"]
+    offs = [v for k, v in data.items() if k != "_meta"]
+    assert len(offs) > 50, len(offs)
+    assert all(abs(v) <= leash_mod.OFFSET_CLAMP + 1e-9 for v in offs)
+
+
+def check_a_leash_offset_actually_lengthens_the_start():
+    """The wiring, not the measurement. A negative offset must buy outs
+    through `for_start`, which is the only path `quote`, `price`,
+    `calibrate`, `f5` and `game` reach it by."""
+    lg = sim.league()
+    p = sim.PitcherRates(name="X", k_pct=lg["k_pct"], bb_pct=lg["bb_pct"],
+                         hr_pct=lg["hr_pct"], babip=lg["babip"], pa=600)
+    nine = [sim.BatterRates(name=f"b{i}", k_pct=lg["k_pct"],
+                            bb_pct=lg["bb_pct"], hr_pct=lg["hr_pct"],
+                            babip=lg["babip"]) for i in range(9)]
+
+    def mean_outs(name):
+        rng = random.Random(4)
+        h = sim.for_start(sim.Hook(), "XXX", name)
+        return sum(sim.simulate_start(p, nine, lg, h, rng).outs
+                   for _ in range(400)) / 400
+
+    saved = sim._LEASH
+    sim._LEASH = {"Long": -1.0, "Short": 1.0}
+    try:
+        long_, none, short = (mean_outs("Long"), mean_outs("Nobody"),
+                              mean_outs("Short"))
+    finally:
+        sim._LEASH = saved
+    assert long_ > none > short, (long_, none, short)
+    # the measured sweep puts -1.0 at +1.60 outs and +1.0 at -1.66
+    assert 0.8 < long_ - none < 2.6, long_ - none
+
+
+def check_for_start_composes_with_an_existing_team_offset():
+    """`calibrate.HOME_HOOK` stacks on top of `for_start`, and the bootstrap
+    in `simulate_many` jitters the same field. Replacing rather than adding
+    silently discards whichever was applied first — and because the leash is
+    now live by default, that would be a real lost home-field term rather
+    than a dormant one."""
+    base = sim.Hook(**{**sim.Hook().__dict__, "team_offset": 0.4})
+    saved = sim._LEASH
+    sim._LEASH = {"Somebody": -0.3}
+    try:
+        h = sim.for_start(base, "XXX", "Somebody")
+        assert abs(h.team_offset - 0.1) < 1e-9, h.team_offset
+    finally:
+        sim._LEASH = saved
 
 
 def check_inherited_runners_score_by_base_not_by_count():
