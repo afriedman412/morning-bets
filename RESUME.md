@@ -133,19 +133,64 @@ The user's read from the dashboard is that the distributions are too WIDE
 around the likely numbers, which is the opposite claim about a different
 part of the distribution, and both can be true at once.
 
+## THE FINDING THAT SHOULD DRIVE THE NEXT SESSION
+
+**The run distributions are CALIBRATED but nearly UNRESOLVED, and the
+ceiling on game totals is tiny.**
+
+Widths are right — the probability integral transform over 500 games is
+uniform at every prefix (middle half 54.6 / 50.2 / 47.8% against 50%). What
+was wrong is RESOLUTION, which PIT cannot see: a model handing every game
+the same distribution, centred correctly, produces perfectly uniform PITs
+and is useless for choosing between games.
+
+    prefix   our spread   implied true   share   corr w/ actual   ceiling
+    F3          0.32          0.39        83%        0.160         0.165
+    F5          0.47          0.79        60%        0.205         0.251
+    F7          0.56          0.69        81%        0.166         0.188
+
+'our spread' is the sd of our per-game predicted means. 'implied true' is
+sqrt(var(actual) - mean within-game var). 'ceiling' is the correlation a
+PERFECT forecaster would achieve, which is between-sd over total-sd.
+
+WE ARE AT 82-97% OF THE CEILING, and the ceiling is 0.19. About 96% of the
+variance in a game total is within-game randomness no model can touch. The
+predictions look samey because games ARE samey in expectation — a perfect
+model ranges about 6.5 to 9.5 runs, not 3 to 15.
+
+**This reframes the whole "0-for-everything" imported-feature list.**
+Handedness, park, day/night and arsenal are exactly the features that
+DIFFERENTIATE games rather than shift the level, and the differentiable
+share of a game total is about 4% of its variance. An effect that size
+cannot register against this target however well implemented. That is not
+evidence they work — it means the nulls were UNINFORMATIVE, and re-testing
+them against a game total will stay uninformative.
+
+**So: test between-game features against a target that HAS between-game
+signal.** Starter outs and strikeouts carry far more of their variance in
+the pitcher's own rates than a team's run total ever will. Measure the
+ceiling FIRST for any target before spending a day on a feature.
+
 ## WHAT TO DO NEXT
 
-**1. THE RUN LEVEL — 5% light at every prefix.** The ladder has said this
+**1. BETWEEN-GAME DIFFERENCES.** We produce 60-83% of the real game-to-game
+variation. Start by computing the CEILING for each target — starter outs,
+K, team totals — so effort goes where signal exists. Then ask which inputs
+should differentiate games and are not: opposing lineup quality, park,
+bullpen strength. Note the run-total ceiling is 0.19 and we are at 88% of
+it, so that target is close to exhausted.
+
+**2. THE RUN LEVEL — 5% light at every prefix.** The ladder has said this
 all day and every day; nothing has moved it. It is the stated product and it
 is the one number that is unambiguously wrong. Note the ladder CAN see this
 (it is a level error, not a redistribution) even though it cannot see a hook
 change.
 
-**2. The 12-14 out bucket.** 19.4% against a real 16.6%, the largest
+**3. The 12-14 out bucket.** 19.4% against a real 16.6%, the largest
 remaining misfit in the STARTER-LENGTH distribution. That is 4.0-4.2 innings, which is where books hang outs
 lines. Untouched by everything above.
 
-**3. Collapse to ONE engine.** `sim.simulate_start` and
+**4. Collapse to ONE engine.** `sim.simulate_start` and
 `game.simulate_game` both exist; the start-level loop has no bullpen, no
 margin and cannot produce a team total. `quote`, `price`, `calibrate`, `f5`
 and `versus_market` all sit on it, and every calibration table in the notes
@@ -153,17 +198,19 @@ was produced by it, so the migration invalidates recorded baselines in one
 commit. Note `USE_MEASURED_INHERITED` RETIRES with that loop rather than
 needing a port — `game.py` plays inherited runners out for real.
 
-**4. Score the blind re-simulation.** Three games from 2026-08-24 were
-re-simulated with rates cut off before the game date and published as a
-dashboard (`scratchpad/lastnight.py`, `scratchpad/dash.py`). NOTHING has been
-scored against what actually happened yet — that comparison is the point and
-it has not been made.
+**5. The blind re-simulation is DONE and scored.** Six games from
+2026-08-24, rates cut off before the date, published as a dashboard with the
+actuals overlaid (`scratchpad/lastnight.py`, `scratchpad/dash.py`,
+`scratchpad/actuals.json`). Mean sim total 8.16 against an actual 8.00 — a
+gap of 0.1 standard errors. 78 quantities, mean percentile 0.461. It
+confirms nothing is grossly wrong and CANNOT resolve a 5% level bias: six
+games carry +/- 1.7 runs of resolution.
 
-**5. Within-start K% persistence, +6.4 sigma.** Whether he has the
+**6. Within-start K% persistence, +6.4 sigma.** Whether he has the
 swing-and-miss tonight carries; contact outcomes do not. Unused, and it bears
 directly on strikeout props, which is what `quote` gets asked about most.
 
-**6. Refit the hook properly.** `calibrate.tune` is serial, samples 500 of
+**7. Refit the hook properly.** `calibrate.tune` is serial, samples 500 of
 3,248 starts, and fits `sim.simulate` — the engine being deleted.
 `scratchpad/tune_game.py` fixes all three and does a joint search, but its
 objective still omits SPREAD, so it compresses the distribution to buy the
@@ -810,3 +857,17 @@ tell them apart, not the mutation that was subtle.
   pitching rows, 17,260 stints, 205 MB of play-by-play.
 * `.claude/settings.json` sets bypass permissions for this repo, denying
   `git push`, `make publish`, `rm -rf` and reading `.env`.
+
+
+## TRAP ADDED ON DAY SEVEN — DO NOT READ A LEVEL OFF A SMALL SAMPLE
+
+Three blind games put the mean percentile of actuals at 0.356 and it was
+reported as the model running hot. Six games put it at 0.461. The ladder,
+over 1,615 games, says the opposite — 5% LIGHT. Real game totals have an sd
+near 4.4, so the standard error of the mean gap is 2.5 runs at n=3, 1.8 at
+n=6 and 0.11 at n=1,615.
+
+TWENTY THOUSAND SIMULATIONS PER GAME DO NOT HELP. They sharpen the
+PREDICTION, not the EVALUATION: there is still exactly one real outcome per
+game. Simulating a million times leaves the right-hand side of the
+comparison at n=6.
