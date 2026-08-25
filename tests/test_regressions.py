@@ -358,3 +358,36 @@ def check_grading_records_who_started():
     assert '"is_starter"' in src, "boxscore parser dropped is_starter"
     assert "gamesStarted" in src, \
         "is_starter is no longer sourced from the API's own flag"
+
+
+def check_kalshi_matches_the_surname_not_just_any_shared_token():
+    """A prop quote must never come back as a different player.
+
+    `price_prop` matched on ANY shared name token, so a pitcher Kalshi does
+    not list at the requested strike fell through the whole series to the
+    first market sharing a FIRST name. Measured live on 2026-08-25: 'Tyler
+    Glasnow' under 6.5 K priced off Tyler Phillips of Miami and reported
+    Kalshi fair at 0.920 against a true 0.595 — a 32-cent error that the
+    returned dict gave the caller no way to notice. A missing price is
+    silence; a wrong one is a confident number.
+
+    Also guards the three call sites, because the matcher being correct is
+    worth nothing if one of them still does set intersection."""
+    import inspect
+
+    from src import kalshi
+    assert not kalshi.names_match("Tyler Glasnow", "Tyler Phillips"), \
+        "a shared FIRST name is matching again"
+    assert not kalshi.names_match("Michael King", "Michael Kopech")
+    assert kalshi.names_match("Tyler Glasnow", "Tyler Glasnow")
+    # Suffixes and initials differ across feeds and are not real differences.
+    assert kalshi.names_match("Luis Ortiz Jr.", "Luis Ortiz")
+    assert kalshi.names_match("J. Smith", "Jose Smith")
+    # But a prefix is NOT an initial: two different people.
+    assert not kalshi.names_match("Will Smith", "Willy Smith")
+    for fn in (kalshi.price_prop, kalshi.discover_prop,
+               kalshi.find_settled):
+        src = inspect.getsource(fn)
+        assert "names_match(" in src, f"{fn.__name__} bypasses the matcher"
+        assert "_name_key(" not in src, \
+            f"{fn.__name__} is back on token-intersection matching"

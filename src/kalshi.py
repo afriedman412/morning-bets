@@ -140,9 +140,42 @@ def _parse(m: dict) -> tuple[str, int] | None:
     return hit.group(1).strip(), int(hit.group(2))
 
 
-def _name_key(name: str) -> set[str]:
-    return {w.lower().strip(".") for w in re.findall(r"[A-Za-z']+", name or "")
-            if len(w) >= 3}
+#: Generational suffixes are not part of the name for matching purposes.
+#: 'Luis Ortiz Jr.' and 'Luis Ortiz' are the same man on two feeds.
+_SUFFIX = {"jr", "sr", "ii", "iii", "iv"}
+
+
+def _name_parts(name: str) -> list[str]:
+    toks = [w.lower().strip(".")
+            for w in re.findall(r"[A-Za-z']+", name or "")]
+    return [t for t in toks if t and t not in _SUFFIX]
+
+
+def names_match(a: str, b: str) -> bool:
+    """Are these two feeds naming the same player?
+
+    THE SURNAME MUST AGREE. The previous rule accepted ANY shared token, so
+    a player Kalshi does not list at the requested strike fell through to
+    the first market in the whole series sharing a FIRST name — 'Tyler
+    Glasnow' priced off Tyler Phillips of Miami, and the caller had no way
+    to see it because the returned dict looked ordinary. Wrong-player prices
+    are worse than missing ones: a missing price is silence, a wrong one is
+    a confident number.
+
+    Given the surname, first names agree when they are equal or when one is
+    an initial for the other. Deliberately NOT a prefix rule in general —
+    'Will Smith' and 'Willy Smith' are two people.
+    """
+    pa, pb = _name_parts(a), _name_parts(b)
+    if not pa or not pb or pa[-1] != pb[-1]:
+        return False
+    fa, fb = pa[:-1], pb[:-1]
+    if not fa or not fb:
+        return True          # surname only on one side; that is all there is
+    x, y = fa[0], fb[0]
+    return (x == y
+            or (len(x) == 1 and y.startswith(x))
+            or (len(y) == 1 and x.startswith(y)))
 
 
 # Kalshi books are laddered: hundreds of contracts resting at a penny and
@@ -213,14 +246,13 @@ def discover_prop(
     from src import parallel
 
     series = SERIES_BY_STAT.get((stat or "").lower())
-    key = _name_key(player)
-    if series is None or not key:
+    if series is None or not _name_parts(player):
         return None
 
     cands = []
     for m in markets(series):
         p = _parse(m)
-        if not p or not (key & _name_key(p[0])):
+        if not p or not names_match(player, p[0]):
             continue
         if date_str and ticker_date(m["ticker"]) not in (None, date_str):
             continue
@@ -269,8 +301,7 @@ def price_prop(player: str, stat: str, line: float, side: str) -> dict | None:
     if series is None or line is None:
         return None
     want = threshold_for(line)
-    key = _name_key(player)
-    if not key:
+    if not _name_parts(player):
         return None
 
     for m in markets(series):
@@ -278,7 +309,7 @@ def price_prop(player: str, stat: str, line: float, side: str) -> dict | None:
         if not p:
             continue
         name, n = p
-        if n != want or not (key & _name_key(name)):
+        if n != want or not names_match(player, name):
             continue
         yes_bid, yes_ask = book(m["ticker"])
         if yes_bid is None or yes_ask is None:
@@ -421,8 +452,7 @@ def find_settled(
     if series is None or line is None:
         return None
     want = threshold_for(line)
-    key = _name_key(player)
-    if not key:
+    if not _name_parts(player):
         return None
     # Search settled AND open: a market for a game still in progress has
     # not settled yet, so a today lookup would find nothing at all.
@@ -434,7 +464,7 @@ def find_settled(
         if not p:
             continue
         name, n = p
-        if n == want and (key & _name_key(name)):
+        if n == want and names_match(player, name):
             return m
     return None
 
