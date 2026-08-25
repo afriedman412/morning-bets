@@ -110,6 +110,12 @@ class Side:
     #: be maintained wherever `next_arm` is called.
     cur_entry_outs: int = 0
     cur_extra_innings: int = 0
+    #: Runs allowed in the half-inning that just finished. The between-
+    #: innings decision is made after the Frame is gone, and the early
+    #: boundary branch keys on how the last inning went — a starter who has
+    #: just been hit for four is a different decision from one who set them
+    #: down in order.
+    last_inning_runs: int = 0
     #: The starter's own line, so props and F5 still read off one pitcher.
     line: sim.StartResult = field(default_factory=sim.StartResult)
     #: Whoever is on now, and his line (the starter's IS `line`).
@@ -212,7 +218,9 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
         elif not side.starter_out:
             ln = side.line
             if (rng.random() < side.hook.mid_removal_p(
-                    ln.pitches, ln.runs, fr.on_base, fr.damage, margin)
+                    ln.pitches, ln.runs, fr.on_base, fr.damage, margin,
+                    inning_runs=fr.runs, inning=inning,
+                    inning_br=fr.br)
                     or ln.pitches >= side.hook.hard_pitch_cap):
                 ln.pulled_mid_inning = True
                 ln.left_on_base, ln.outs_when_pulled = fr.on_base, fr.outs
@@ -225,6 +233,11 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
                 # long he stays: an arm handed two down finishes the inning
                 # and comes back out 63% of the time.
                 side.next_arm(fr.outs)
+
+    # Every exit from the loop above is a `break`, so one assignment here
+    # covers them all. The walk-off `return` skips it and that is correct —
+    # the game is over and no between-innings decision follows.
+    side.last_inning_runs = fr.runs
 
 
 #: Off restores the defect this fixes, for A/B measurement.
@@ -314,7 +327,8 @@ def _end_of_inning(side: Side, rng: random.Random, inning: int,
         # decision twice.
         return
     if (rng.random() < side.hook.removal_p(
-            ln.pitches, ln.runs, inning, ln.h + ln.bb, margin)
+            ln.pitches, ln.runs, inning, ln.h + ln.bb, margin,
+            inning_runs=side.last_inning_runs)
             or ln.pitches >= side.hook.hard_pitch_cap):
         if not ln.covered_f5:
             ln.runs_f5, ln.outs_f5 = ln.runs, ln.outs

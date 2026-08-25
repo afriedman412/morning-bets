@@ -305,13 +305,17 @@ def check_both_hook_branches_respond_to_their_inputs():
     from src.context import sim
 
     h = sim.Hook()
-    on = [h.mid_removal_p(80, 2, n, 0.0) for n in (0, 1, 2, 3)]
+    on = [h.mid_removal_p(80, 2, n, 0.0, inning=6) for n in (0, 1, 2, 3)]
     assert on == sorted(on) and on[3] > on[0] * 2, \
         f"mid-inning hook ignores runners on base: {on}"
-    dmg = [h.mid_removal_p(80, 2, 1, d) for d in (0.0, 1.0, 2.0, 3.0)]
-    assert dmg == sorted(dmg) and dmg[3] > dmg[0], \
-        f"mid-inning hook ignores inning damage: {dmg}"
-    assert h.mid_removal_p(100, 2, 1, 1.0) > h.mid_removal_p(50, 2, 1, 1.0), \
+    # Traffic ALLOWED this inning, which replaced the invented `damage`
+    # weighting when the late branch was refit on its own population.
+    br = [h.mid_removal_p(80, 2, 1, 0.0, inning=6, inning_br=n)
+          for n in (0, 1, 2, 3)]
+    assert br == sorted(br) and br[3] > br[0], \
+        f"mid-inning hook ignores baserunners allowed this inning: {br}"
+    assert (h.mid_removal_p(100, 2, 1, 1.0, inning=6)
+            > h.mid_removal_p(50, 2, 1, 1.0, inning=6)), \
         "mid-inning hook ignores pitch count"
     # Innings held FIXED. Varying pitches and innings together let
     # `per_inning` carry the assertion on its own, so a boundary hook blind

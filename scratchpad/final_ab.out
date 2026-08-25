@@ -1,0 +1,16 @@
+1624 games
+
+  ACTUAL              mean 15.70  sd 3.99  <2inn 2.68%  <4inn 11.0%  var<4inn 49.6%  bnd 65.7%
+  early off           mean 16.00  sd 3.95  <2inn 0.31%  <4inn 10.8%  var<4inn 35.8%  bnd 66.0%
+  early on            mean 15.61  sd 4.47  <2inn 3.16%  <4inn 12.8%  var<4inn 47.3%  bnd 63.8%
+
+  left tail, share of starts
+     outs    ACTUAL       early off        early on
+      0-3     1.69%           0.12%           1.78%
+      4-6     2.00%           1.28%           2.85%
+      7-9     3.57%           5.52%           4.13%
+    10-11     3.69%           3.85%           4.08%
+    12-14    16.59%          19.37%          19.64%
+
+  calibrate.loss  early off           0.04730
+  calibrate.loss  early on            0.05239

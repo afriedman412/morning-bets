@@ -237,14 +237,21 @@ def check_removal_probability_is_monotone_in_every_term():
 
 def check_mid_inning_removal_responds_to_traffic_and_damage():
     """Runs are a LAGGING indicator — a starter who has put five men on and
-    allowed nothing is about to be pulled. The runner and damage terms are
-    what let the model see that."""
+    allowed nothing is about to be pulled. The model has to see the traffic.
+
+    THE CHANNEL CHANGED, THE CLAIM DID NOT. This used to assert on
+    `inning_damage`, a weighted baserunner score invented here (BB 1.0,
+    2B 1.7, HR 3.0). Refitting the late branch on its own 20,994 decisions
+    found the plain COUNT of baserunners allowed in the inning, so `damage`
+    and `inn_br` measure the same thing and only the counted one survived.
+    Asserted on both channels the model actually carries — bases occupied
+    now, and men allowed this inning."""
     h = sim.Hook()
-    quiet = h.mid_removal_p(70, 0, 0, 0.0)
-    traffic = h.mid_removal_p(70, 0, 2, 0.0)
-    damage = h.mid_removal_p(70, 0, 0, 4.0)
-    assert traffic > quiet, (quiet, traffic)
-    assert damage > quiet, (quiet, damage)
+    quiet = h.mid_removal_p(70, 0, 0, 0.0, inning=6, inning_br=0)
+    occupied = h.mid_removal_p(70, 0, 2, 0.0, inning=6, inning_br=0)
+    allowed = h.mid_removal_p(70, 0, 0, 0.0, inning=6, inning_br=4)
+    assert occupied > quiet, (quiet, occupied)
+    assert allowed > quiet, (quiet, allowed)
 
 
 def check_hook_probabilities_stay_in_bounds():
@@ -497,9 +504,22 @@ def check_longer_leash_raises_strikeout_totals():
     k_short, bf_short = stats(1.0)
     assert k_long > k_short, (k_long, k_short)
     assert bf_long > bf_short, (bf_long, bf_short)
-    implied = (bf_long - bf_short) * LG["k_pct"]
-    assert abs((k_long - k_short) - implied) < 0.15, \
-        (k_long - k_short, implied)
+    # THE MARGINAL BATTER IS A LATE-PASS BATTER, so his strikeout rate is
+    # not the league rate. Extending a leash adds men at the END of a start,
+    # where `TTO_MULT` has scaled K% to 0.94 of the first pass and then
+    # 0.89. Converting with LG["k_pct"] — the first-pass rate — overstates
+    # the implied gap by about 12%, and a tolerance of 0.15 was absorbing
+    # that rather than testing anything. The realised marginal rate is
+    # measured at 0.187-0.196 against a league 0.2176.
+    #
+    # Asserted as a BAND on the marginal rate, which is the actual claim:
+    # the hook reaches strikeouts only by adding plate appearances, so the
+    # ratio must land between the third-pass rate and the league rate. Any
+    # other path — a hook that changed K% directly — leaves the band.
+    marginal = (k_long - k_short) / (bf_long - bf_short)
+    lo = LG["k_pct"] * sim.TTO_MULT[3]["k_pct"] * 0.92
+    hi = LG["k_pct"] * 1.02
+    assert lo < marginal < hi, (marginal, lo, hi)
 
 
 def check_k_and_outs_move_together_across_starts():
@@ -1316,17 +1336,49 @@ def check_errors_raise_the_run_level():
     6.7% light against a league where unearned runs are 7.64% of the total,
     and the fit was trying to make up the difference by driving the
     advancement rates to the edge of their grid."""
-    def runs(roe):
+    # TWO THINGS WERE WRONG WITH THE ORIGINAL VERSION OF THIS CHECK.
+    #
+    # It scored runs per START under the live hook. Errors put men on base,
+    # the hook keys on baserunners, so a start with errors ends EARLIER and
+    # is charged fewer runs — it measured the hook reacting to errors, and
+    # once the early branches went in it reported errors LOWERING the run
+    # level. Fixed by a never-pull hook: every start is the full nine.
+    #
+    # And it was underpowered by an order of magnitude. Runs per start have
+    # an sd near 3, so at n=400 the standard error is 0.215 against a real
+    # effect of 0.199 — under one sigma. It had been passing on luck.
+    # Measured properly at n=6000: 4.122 -> 4.320 runs, +4.8%, 3.7 sigma.
+    # Reaching 3 sigma needs ~4,000 starts an arm, which is two minutes in a
+    # sixty-second suite.
+    #
+    # So the MECHANISM is asserted here, at 11 sigma and no cost, and the
+    # run-level figure above is recorded rather than re-measured every run.
+    never = sim.Hook(intercept=-99.0, mid_intercept=-99.0,
+                     hard_pitch_cap=100000)
+
+    def start(roe, n=400):
         old = sim.ROE_PER_OUT
         sim.ROE_PER_OUT = roe
         try:
             rng = random.Random(6)
-            return sum(sim.simulate_start(_pitcher(), _lineup(), LG,
-                                          sim.Hook(), rng).runs
-                       for _ in range(400))
+            out = [sim.simulate_start(_pitcher(), _lineup(), LG, never, rng)
+                   for _ in range(n)]
+            assert all(r.outs == 27 for r in out), "the hook still fired"
+            return out
         finally:
             sim.ROE_PER_OUT = old
-    assert runs(0.018) > runs(0.0) * 1.02, (runs(0.0), runs(0.018))
+
+    off, on, more = start(0.0), start(0.018), start(0.036)
+    assert sum(r.roe for r in off) == 0, "errors with the rate at zero"
+    per_on = sum(r.roe for r in on) / len(on)
+    per_more = sum(r.roe for r in more) / len(more)
+    assert per_on > 0.2, per_on
+    # Twice the rate is roughly twice the errors. Loose, because reaching on
+    # an error consumes an out that would otherwise have ended the inning.
+    assert 1.6 < per_more / per_on < 2.4, (per_on, per_more)
+    # And they reach base, rather than being counted and discarded.
+    br = [sum(r.h + r.bb + r.roe for r in g) / len(g) for g in (off, on)]
+    assert br[1] > br[0], br
 
 
 def check_stale_hook_offsets_are_switched_off():

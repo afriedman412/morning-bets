@@ -1,0 +1,16 @@
+1624 games
+
+  ACTUAL              mean 15.70  sd 3.99  <2inn 2.68%  <4inn 11.0%  var<4inn 49.6%  bnd 65.7%
+  OFF (old model)     mean 16.05  sd 4.43  <2inn 1.27%  <4inn 13.8%  var<4inn 41.6%  bnd 70.3%
+  ON (table)          mean 15.59  sd 4.86  <2inn 3.54%  <4inn 18.7%  var<4inn 49.5%  bnd 61.6%
+
+  left tail, share of starts
+     outs    ACTUAL    OFF (old mod      ON (table)
+      0-3     1.69%           0.42%           1.25%
+      4-6     2.00%           1.97%           3.27%
+      7-9     3.57%           6.18%           7.27%
+    10-11     3.69%           5.28%           6.91%
+    12-14    16.59%          17.22%          16.66%
+
+  calibrate.loss  OFF (old model)     0.20626
+  calibrate.loss  ON (table)          0.22110

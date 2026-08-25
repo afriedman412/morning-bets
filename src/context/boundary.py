@@ -30,6 +30,7 @@ import statistics as st
 import sys
 from collections import defaultdict
 
+from src.context import removal
 from src.context.sources import pbp
 
 SKIP = {"game_advisory", "pitching_substitution", "offensive_substitution",
@@ -332,6 +333,11 @@ def decisions(game_id: str, data: dict | None = None) -> list[dict]:
             "tto": min((c["bf"] - 1) // 9 + 1, 3),
             "runs": c["runs"], "br": c["br"], "damage": c["dmg"],
             "inn_runs": v["runs"], "inn_br": v["br"], "inn_dmg": v["dmg"],
+            # Bases OCCUPIED right now, as distinct from baserunners allowed
+            # this inning. Both are in the decision and they are different:
+            # bases loaded with nobody having scored is a hook, and so is a
+            # five-run inning that ended with the bases empty.
+            "onbase": removal._on_base(play),
             "margin": margin, "abs_margin": abs(margin),
             "removed": bool(nxt_pid and nxt_pid != pid),
         })

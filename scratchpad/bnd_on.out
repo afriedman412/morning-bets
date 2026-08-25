@@ -1,0 +1,28 @@
+early_innings=3
+counting real removals ...
+simulating ...
+
+  BOUNDARY SHARE by inning
+                actual       n       sim        n      gap
+    1            79.8%     129     26.3%      615   -53.5%
+    2            49.2%     126     29.4%      732   -19.8%
+    3            58.3%     163     17.8%    1,589   -40.5%
+    4            64.1%     446     55.2%    3,494    -8.9%
+    5            66.5%   1,075     67.4%    4,729    +0.8%
+    6            61.5%   1,412     78.6%    4,488   +17.1%
+    7            62.3%     546     82.4%    2,796   +20.1%
+    8            54.1%      98     90.6%      915   +36.5%
+
+  BOUNDARY SHARE by pitches
+                actual       n       sim        n      gap
+    15           63.4%     101     47.6%      357   -15.7%
+    30           57.4%     101     39.2%      549   -18.3%
+    45           55.4%     112     43.0%      942   -12.4%
+    60           58.0%     412     61.4%    3,750    +3.4%
+    75           62.1%   1,409     68.5%    7,298    +6.4%
+    90           65.5%   1,685     71.2%    5,045    +5.7%
+    105          63.0%     119     54.1%    1,275    -8.9%
+
+  A roughly CONSTANT gap down both tables means one shared
+  intercept is off. A gap that changes sign or size means the
+  structure is wrong in those cells.

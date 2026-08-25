@@ -673,10 +673,121 @@ class Hook:
     #: against observed removal timing rather than asserted.
     per_margin: float = 0.0
     mid_per_margin: float = 0.0
+    #: REFIT ON LATE-ONLY DECISIONS. The pooled fit averaged 20,994 late
+    #: rows at a 6.29% pull rate together with 26,693 early ones at 0.65%,
+    #: and the early population dominates by count — so the late curve came
+    #: out far too flat. At 90+ pitches the real per-batter mid-inning pull
+    #: rate is 33.80% and the pooled hook gave 7.24%, which is why nobody
+    #: got yanked mid-inning late and the boundary share reached 90% in the
+    #: eighth against a real 54%.
+    #:
+    #: Now that the early innings have their own branch, each is fitted on
+    #: its own population. `mid_per_runner` and `mid_per_damage` are left at
+    #: their old values but are largely subsumed by this term — baserunners
+    #: ALLOWED in the inning is what the fit found, not bases occupied.
+    #: THE LATE MID-INNING BRANCH CARRIES ITS OWN COEFFICIENTS rather than
+    #: reusing `pitch_center`/`pitch_scale`. Those are SHARED with the
+    #: boundary hook, so refitting them for one branch silently refits the
+    #: other — and layering `mid_per_runner` and `mid_per_damage` on top of
+    #: a fit that already contains the traffic double-counts it. Doing both
+    #: at once put the hook at 53% where the measurement says 34%.
+    #:
+    #: Fitted on the 20,994 late mid-inning decisions alone. Reproduces
+    #: 0.33/2.08/9.10/33.80% by pitch count against 0.26/1.96/9.84/32.17%.
+    #: An OFFSET from `mid_intercept`, never an absolute level. The same
+    #: mistake was made and fixed for the early branch earlier the same day:
+    #: callers disable the hook by driving `mid_intercept` to -99 —
+    #: team_offset, the patience fits and the never-pull tests all use that
+    #: idiom — and a branch carrying its own absolute intercept goes on
+    #: pulling people regardless.
+    late_mid_offset: float = -7.9718
+    late_mid_per_pitch: float = 0.11508
+    late_mid_per_inning_br: float = 0.4173
+    late_mid_per_run: float = 0.1366
+    #: Bases OCCUPIED, distinct from baserunners allowed this inning. Both
+    #: are in the decision — bases loaded having scored nobody is a hook,
+    #: and so is a five-run inning that ended with the bases empty. Dropping
+    #: it lost 2.71 -> 18.05% of real discrimination and broke two checks
+    #: that correctly guard the hook responding to traffic on the bases.
+    late_mid_per_onbase: float = 0.2895
+    #: Multiplies `MID_INNING_RUN_OFFSET`. DEFAULT OFF — the mechanism is
+    #: real and correctly measured, but switching it on makes
+    #: `calibrate.loss` worse (0.206 -> 0.221) because the model has a
+    #: SECOND defect this one amplifies. See the table's note.
+    mid_per_inning_run: float = 0.0
+    #: EARLY INNINGS ARE A DIFFERENT DECISION and the single mid-inning
+    #: hazard cannot hold both. Measured across 47,687 mid-inning decisions,
+    #: at nought runs in the current inning the real pull rate is 0.37% in
+    #: innings 1-3 and 4.58% from the fourth on — a 12x different baseline —
+    #: and the same pitch count means different things: 70 pitches in the
+    #: third is pulled 3.7x more often than 70 pitches in the fifth.
+    #:
+    #: Counted from the early marginals, not searched. The curve is much
+    #: SHALLOWER and sits far to the right (scale 18.8, centre 131 against
+    #: the late hook's ~11-15 and ~86-92), which says pitch count barely
+    #: matters before the fourth and what does is the disaster in progress.
+    #:
+    #: FITTED JOINTLY on the 26,693 early mid-inning decisions, over pitch
+    #: count, the measured run offset and baserunners allowed this inning.
+    #: Fitting the pitch marginal alone and layering the other terms on top
+    #: double-counts them, because the marginal already averages over every
+    #: run state — the first attempt did exactly that and produced a hook
+    #: that pulled nobody.
+    #:
+    #: Reproduces what it was fitted to: 0.37/0.58/1.57/2.83/8.42% by runs
+    #: in the inning against 0.32/0.84/1.73/3.03/7.71% modelled.
+    #:
+    #: DEFAULT OFF. Measured on 1,624 games: it fixes the disaster tail
+    #: almost exactly — sub-two-inning starts 0.31% -> 3.16% against a real
+    #: 2.68%, and the share of variance carried by sub-four-inning starts
+    #: 35.8% -> 47.3% against a real 49.6% — but widens the outs SD from
+    #: 3.95 to 4.47 where reality is 3.99, and costs 0.005 of loss.
+    #:
+    #: The tail miss is left standing rather than bought with spread. Set to
+    #: 3 to enable both early branches.
+    early_innings: int = 0
+    #: Carried as an OFFSET from `mid_intercept`, not as its own absolute
+    #: level. An absolute one silently broke every caller that disables the
+    #: hook by driving `mid_intercept` to -99 — team_offset, the patience
+    #: fits and the never-pull tests all use that idiom, and the early
+    #: branch went on pulling people regardless.
+    early_offset: float = -2.6506
+    early_per_pitch: float = 0.04556
+    early_per_run_offset: float = 0.0310
+    early_per_inning_br: float = 0.5254
+    #: THE BOUNDARY BRANCH NEEDED ONE TOO, and it is the one that matters.
+    #: Real removals in the first inning are 79.8% boundary; the simulator
+    #: produced 2.6%, because the boundary hook carries the same pitch-count
+    #: veto — at 30 pitches its term is deeply negative and it cannot fire.
+    #: With both hooks silent early, the only path out was mid-inning, so
+    #: every early removal came through the wrong branch.
+    #:
+    #: The gap it leaves behind is NOT uniform, which is why a shared
+    #: intercept shift was rejected: boundary share runs -77 points against
+    #: reality in the first inning and +36 in the eighth, and one knob moves
+    #: both ends together.
+    #:
+    #: Fitted on 22,227 early boundary decisions. Weak on its own (AUC
+    #: 0.626) because a between-innings call at 40 pitches is close to a
+    #: coin flip conditional on what the model can see — but the LEVEL is
+    #: what was missing, not the ranking.
+    early_bnd_offset: float = -0.6683
+    early_bnd_per_pitch: float = 0.01616
+    early_bnd_per_run_offset: float = 0.2278
+    early_bnd_per_run: float = 0.1859
 
     def removal_p(self, pitches: int, runs: int, innings: int,
-                  baserunners: int = 0, margin: int = 0) -> float:
+                  baserunners: int = 0, margin: int = 0,
+                  inning_runs: int = 0) -> float:
         """P(pulled) evaluated at the end of a completed inning."""
+        if self.early_innings and innings <= self.early_innings:
+            return _sigmoid(self.intercept + self.early_bnd_offset
+                            + self.team_offset
+                            + self.early_bnd_per_pitch * pitches
+                            + self.early_bnd_per_run_offset
+                            * inning_run_offset(inning_runs)
+                            + self.early_bnd_per_run * runs
+                            + self.per_margin * margin)
         return _sigmoid(self.intercept + self.team_offset
                         + (pitches - self.pitch_center) / self.pitch_scale
                         + self.per_run * runs
@@ -685,14 +796,86 @@ class Hook:
                         + self.per_inning * innings)
 
     def mid_removal_p(self, pitches: int, runs: int, on_base: int,
-                      inning_damage: float = 0.0, margin: int = 0) -> float:
-        """P(pulled) evaluated after a batter, inning still alive."""
-        return _sigmoid(self.mid_intercept + self.team_offset
-                        + (pitches - self.pitch_center) / self.pitch_scale
-                        + self.mid_per_run * runs
-                        + self.mid_per_runner * on_base
-                        + self.mid_per_damage * inning_damage
-                        + self.mid_per_margin * margin)
+                      inning_damage: float = 0.0, margin: int = 0,
+                      inning_runs: int = 0, inning: int = 0,
+                      inning_br: int = 0) -> float:
+        """P(pulled) evaluated after a batter, inning still alive.
+
+        `inning_runs` is what is going wrong RIGHT NOW; `runs` is the whole
+        start. Without the former the model cannot pull anybody early: a
+        five-run first inning is about 30 pitches, where the pitch term sits
+        at -3.3 log-odds (-6.3 under the tuned parameters) and no coefficient
+        in the fitted range climbs out of it. The consequence was a truncated
+        disaster tail — starts under two innings happen 1.6% of the time and
+        the simulator produced 0.1% — and since half the real variance in
+        starter length lives in that tail, the outs distribution came out too
+        narrow and the tuner compensated by steepening `pitch_scale` until it
+        pinned at its grid edge.
+        """
+        if inning and self.early_innings and inning <= self.early_innings:
+            # Workload is not why anybody comes out in the first three. The
+            # late branch's terms are deliberately NOT reused: these
+            # coefficients were fitted together, and adding `mid_per_runner`
+            # or `mid_per_damage` on top would count the same traffic twice.
+            return _sigmoid(self.mid_intercept + self.early_offset
+                            + self.team_offset
+                            + self.early_per_pitch * pitches
+                            + self.early_per_run_offset
+                            * inning_run_offset(inning_runs)
+                            + self.early_per_inning_br * inning_br
+                            + self.mid_per_margin * margin)
+        return _sigmoid(self.mid_intercept + self.late_mid_offset
+                        + self.team_offset
+                        + self.late_mid_per_pitch * pitches
+                        + self.late_mid_per_inning_br * inning_br
+                        + self.late_mid_per_run * runs
+                        + self.late_mid_per_onbase * on_base
+                        + self.mid_per_margin * margin
+                        + self.mid_per_inning_run
+                        * inning_run_offset(inning_runs))
+
+
+#: Log-odds ADDED to the mid-inning hook per run allowed in the CURRENT
+#: half-inning, relative to a clean one. COUNTED, not fitted: the real
+#: per-batter pull rate under 60 pitches, where workload is not the reason a
+#: manager moves — 0.32% through a clean inning, 5.59% once four are in.
+#:
+#: A LEAST-SQUARES SLOPE THROUGH THESE POINTS IS THE WRONG SHAPE and was
+#: tried first. The real hazard is FLAT from nought to one run (0.32% ->
+#: 0.43%) and then climbs steeply; a linear fit charges +0.724 at one run
+#: where the truth is +0.296. One-run innings are common — 4,150 of the
+#: measured decisions against 376 at four-plus — so overstating the common
+#: cell dominates. It produced starts of 7-11 outs at twice the real rate,
+#: pushed the outs SD from 4.43 to 4.94 against a real 3.99, and made
+#: `calibrate.loss` worse (0.206 -> 0.226) while correctly fixing the deep
+#: tail it was built for.
+#:
+#: Fitting five measured points is exactly the move this project forbids:
+#: hand a counted quantity to a search and it goes back to absorbing other
+#: defects.
+#:
+#: THE TABLE IS RIGHT AND IT IS STILL OFF BY DEFAULT. It does exactly what
+#: it was built for — starts of under two innings go 0.42% -> 1.25% against
+#: a real 1.69%, and the share of variance carried by sub-four-inning starts
+#: goes 41.6% -> 49.5% against a real 49.6%. But it exposes a defect that
+#: predates it: the model already produces far too many starts in the 7-11
+#: out range (6.18% and 5.28% against a real 3.57% and 3.69%), and this term
+#: roughly doubles the excess. Real starts are bimodal — bombed out early,
+#: or four innings and up — and the middle is genuinely rare. The simulator
+#: has a smooth left tail either way.
+#:
+#: So the honest state is a correct mechanism sitting on top of a wrong
+#: shape. Turning it on before the 7-11 range is understood buys the deep
+#: tail at the cost of the bulk, which is the trade `calibrate.loss` is
+#: reporting.
+MID_INNING_RUN_OFFSET = {0: 0.0, 1: 0.296, 2: 1.380, 3: 1.707, 4: 2.914}
+
+
+def inning_run_offset(runs: int) -> float:
+    """Log-odds for `runs` allowed in the current half-inning."""
+    if runs <= 0:
+        return 0.0
+    return MID_INNING_RUN_OFFSET.get(min(runs, 4), 2.914)
 
 
 _HERE = __file__.rsplit("/", 1)[0]
@@ -1205,6 +1388,20 @@ class Frame:
     bases: list = None
     outs: int = 0
     damage: float = 0.0
+    #: Runs scored in THIS half-inning. The hook's other run term is
+    #: CUMULATIVE over the start, and the two are different decisions: a
+    #: starter who gave up three in the first and settled looks identical to
+    #: one giving up three right now unless this is carried separately.
+    #: Measured under 60 pitches, where workload is not the reason, the real
+    #: per-batter pull rate runs 0.32% at nought through 5.59% at four —
+    #: a 17x ratio the model had no channel to express.
+    runs: int = 0
+    #: Baserunners ALLOWED in this half-inning. NOT `on_base`, which is how
+    #: many bases are occupied right now — after a five-run inning that can
+    #: be zero while six men have reached. The early hook keys on this, and
+    #: wiring it to `on_base` by mistake made a 26,693-decision fit describe
+    #: a quantity it was never measured on.
+    br: int = 0
     #: An error has occurred this inning, so runs from here on are charged
     #: as unearned.
     errored: bool = False
@@ -1219,8 +1416,14 @@ class Frame:
 
 
 def _score(r: StartResult, fr: Frame, runs: int) -> None:
-    """Credit runs, splitting earned from unearned by the frame's state."""
+    """Credit runs, splitting earned from unearned by the frame's state.
+
+    THE SINGLE PLACE RUNS ARE CREDITED, which is why the half-inning tally
+    belongs here — `apply_pa` and `baserunning` both route through it, and
+    incrementing at either call site alone would miss the other.
+    """
     r.runs += runs
+    fr.runs += runs
     if not fr.errored:
         r.earned += runs
 
@@ -1246,6 +1449,8 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random) -> None:
     r.pitches += int(round(PITCH_COST[o]))
     fr.damage += DAMAGE[o]
     r.damage += DAMAGE[o]
+    if o in (BB, HBP, B1, B2, B3, HR, ROE):
+        fr.br += 1
 
     if o == SAC:
         # An automatic out that ADVANCES runners — that is the whole point
@@ -1357,7 +1562,9 @@ def simulate_start(
             if fr.outs >= 3:
                 break
             if rng.random() < hook.mid_removal_p(
-                    r.pitches, r.runs, fr.on_base, fr.damage):
+                    r.pitches, r.runs, fr.on_base, fr.damage,
+                    inning_runs=fr.runs, inning=inning,
+                    inning_br=fr.br):
                 return _leave(r, fr, rng)
             if r.pitches >= hook.hard_pitch_cap:
                 # Same bookkeeping as any other mid-inning exit. This branch
@@ -1372,7 +1579,8 @@ def simulate_start(
         if inning >= max_innings:
             break
         if rng.random() < hook.removal_p(r.pitches, r.runs, inning,
-                                         r.h + r.bb):
+                                         r.h + r.bb,
+                                         inning_runs=fr.runs):
             if not r.covered_f5:
                 r.runs_f5, r.outs_f5 = r.runs, r.outs
             break
