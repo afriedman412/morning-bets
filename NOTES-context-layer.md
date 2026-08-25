@@ -1901,3 +1901,162 @@ market sharing a FIRST name. "Tyler Glasnow" under 6.5 K priced off Tyler
 Phillips of Miami and reported Kalshi fair at 0.920 against a true 0.595.
 `names_match` now requires the surname. `find_settled` is the CLV path, so
 recorded prop CLV numbers may carry some of this.
+
+---
+
+## DAY SEVEN, AFTERNOON — the pooled hook fit, and what it cost
+
+### The learned hook was replaced, and the note justifying it was false
+
+`USE_LEARNED_HOOK` swapped `sim.Hook`'s two branches for one roll per plate
+appearance. The comment in `game.py` said the model's target "spans the
+inning boundary, so one roll per plate appearance covers what
+`mid_removal_p` and `removal_p` did separately."
+
+It does not. `_half_inning` breaks out of its loop on the third out BEFORE
+the roll happens, so the inning-ending plate appearance never got a decision
+at all — 72,426 instrumented hook calls across 2,000 games, every one at
+outs 0/1/2. The premise was false when it was written and nothing caught it,
+because the model was validated on removal-decision AUC (0.9123 against
+0.8755) while what it silently discarded was a fitted, verified calibration:
+
+    ends on inning boundary    actual 66.7%    sim.Hook 66.9%
+
+`calibrate.loss` has always targeted the boundary share. The learned model
+was scored on a different quantity and the shape went with it — 7.6% of
+starts finishing on a completed inning against a league 64.1%.
+
+BOTH ARE NOW OFF. `USE_LEARNED_HOOK = False`, and `_boundary_roll` — the fix
+for the missing boundary decision — is dead code behind it. THE +4.7 SIGMA
+OUTS-CRPS RESULT RECORDED THIS MORNING APPLIES ONLY TO THE LEARNED-HOOK
+CONFIGURATION AND IS NOT A CLAIM ABOUT THE SHIPPED MODEL.
+
+### The pooled fit was wrong late, and that was the big one
+
+One mid-inning hazard fitted over all 47,687 decisions. 26,693 of those are
+innings 1-3 where the real pull rate is 0.65%, so they dominate by count and
+the late curve came out far too flat:
+
+    90+ pitches, mid-inning     real 33.80%     pooled hook 7.24%
+
+Nobody got yanked mid-inning late, everyone survived to the boundary, and
+the boundary share reached 90.7% in the eighth against a real 54.1%.
+
+Refit on the 20,994 late decisions alone, with its OWN coefficients rather
+than the pitch curve shared with the boundary hook:
+
+                     mean    sd   boundary     loss
+    ACTUAL          15.70  3.99      65.7%
+    before          16.05  4.43      70.3%  0.20626
+    after           16.00  3.95      66.0%  0.04730
+
+Loss falls 4.4x. Outs SD and boundary share both land — the two figures that
+had resisted every other change.
+
+### The boundary-share error was NOT uniform, and checking that mattered
+
+The aggregate gap was 4 points and the obvious fix was a shared intercept
+shift. Broken down it is not a level error at all:
+
+    inning     actual    sim      gap
+    1           79.8%    2.6%   -77.3%
+    5           66.5%   67.2%    +0.7%
+    8           54.1%   90.5%   +36.4%
+
+The 4-point aggregate is the average of a -77 and a +36. One knob moves both
+ends together and fixes neither. Two parameters against 3,995 counted
+removals is not overfitting in the usual sense — the risk was COMPENSATING
+ERROR, and splitting the cells is what tells them apart.
+
+### Early innings are a different decision, and it is the BOUNDARY branch
+
+Real removals in the first inning are 79.8% boundary. The simulator produced
+2.6%, because BOTH hooks carry a pitch-count veto — at 30 pitches the term
+is -3.3 log-odds (-6.3 under the tuned parameters) and nothing overcomes it.
+With both silent early, every early removal was forced through the mid-inning
+path, which is the branch reality barely uses.
+
+The isolated early hazard, measured under 60 pitches where workload is not
+the reason anybody moves:
+
+    runs this inning     0      1      2      3     4+
+    P(pulled)         0.32%  0.43%  1.26%  1.74%  5.59%
+
+A LEAST-SQUARES SLOPE THROUGH THOSE POINTS IS THE WRONG SHAPE. The hazard is
+flat from nought to one and then climbs; a line charges +0.724 log-odds at
+one run where the truth is +0.296, and one-run innings are 11x more common
+than four-run ones. Fitting five counted points is the move this project
+forbids and it was made anyway.
+
+Both branches now exist (`early_innings`) and SHIP SWITCHED OFF. They fix
+the tail almost exactly — sub-two-inning starts 0.31% -> 3.16% against a real
+2.68% — but widen the outs SD to 4.47 where reality is 3.99. The tail miss
+is left standing rather than bought with spread.
+
+### What the tail actually is
+
+Starts under four innings are 11.0% of the total and carry 49.6% of the
+variance in starter length. Excluding them, SD falls 3.96 -> 2.83. So the
+distribution is bimodal — bombed out early, or four innings and up — and the
+middle is genuinely rare. Two things follow that were each wrong on the first
+guess:
+
+  * IT IS NOT THE SCORING MODEL. The simulator produces 4+ run innings at
+    1.68% against a real 1.38% — slightly MORE. The disaster innings happen;
+    the manager does not react.
+  * IT IS NOT PER-PITCHER LEASH VARIATION. Between-pitcher spread in mean
+    pitch count is 5.1 with a 10th-90th of 82-94, and the apparent variation
+    in TIGHTNESS is blowups: within-pitcher pitch SD runs 4.6-21.3 over all
+    starts and 3.7-13.0 over five-inning ones. Kochanowicz 19.8 -> 6.9,
+    Lopez 19.4 -> 3.8. There is no meaningful no-wall population to model.
+
+### Pitch count does not mean the same thing in every inning
+
+    P(pulled)      inn 2    inn 3    inn 4    inn 5    inn 6
+    45-59 pitches   3.76%    0.83%    0.37%    0.17%    1.01%
+    60-74               -    6.01%    2.22%    1.62%    3.04%
+    75-89               -        -   12.30%    8.23%    8.95%
+
+70 pitches in the third is pulled 3.7x more often than 70 in the fifth. The
+model treats them identically. PITCHES PER INNING DOES NOT CAPTURE THIS —
+tried, and it is non-monotone (1.68% at under 13, peaking at 4.77% at 19-21,
+back to 3.14% at 26+) against a monotone 75x span for raw pitch count. High
+pitches-per-inning early means FEW total pitches, so it folds back on itself.
+
+What an inning costs in pitches, by how it went: 9.9 clean, 14.5 at one run,
+18.1 at two, 21.5 at three, 25.8 at four-plus. A blowup inning is worth about
+1.6 ordinary ones, so a bad second puts a starter roughly where he would
+otherwise be after the fourth.
+
+### FORM: within-start out rate does NOT persist
+
+3,268 (first pass -> rest of start) pairs, baseline from the pitcher's OTHER
+starts so nothing leaks:
+
+    1st-pass OUT RATE -> rest OUT RATE    +0.0019    0.1 sigma
+    1st-pass BB%      -> rest BB%         +0.0014    0.1
+    1st-pass K%       -> rest K%          +0.1114    6.4
+
+There is no "he is getting hit tonight" state carrying forward. Form as a
+source of clustered traffic is DEAD. Note this contradicts the parked
+`form.py`, which found damage predicting next-pass RUNS at 4.7 sigma —
+different target, and runs are the lagging indicator.
+
+STRIKEOUT RATE DOES PERSIST, at 6.4 sigma. Whether he has the swing-and-miss
+tonight carries; contact outcomes do not. That is the mirror image of the
+BETWEEN-start result, where K% is the weak one and BB%/BABIP are strong.
+Unused so far and it bears directly on strikeout props.
+
+### Four wiring mistakes in one change, all caught by the suite
+
+Recorded because the pattern is the point, not the individual errors.
+`pitch_center`/`pitch_scale` are shared between the two hooks, so refitting
+them for one silently refit the other. Layering `mid_per_runner` and
+`mid_per_damage` on top of a fit that already contained the traffic
+double-counted it — 53% where the measurement says 34%. `late_mid_intercept`
+was absolute, which breaks every caller that disables the hook by driving
+`mid_intercept` to -99, and that exact bug had been fixed in the early branch
+hours earlier. And the feature list omitted bases occupied entirely.
+
+A branch carrying its own ABSOLUTE intercept is the recurring one. Carry
+offsets from the shared intercept, always.

@@ -1,0 +1,11 @@
+1624 games, 3248 starts, 40 draws each
+  USE_BOUNDARY_HOOK=False ...
+  USE_BOUNDARY_HOOK=True ...
+
+  3,248 starts scored
+              mean outs  whole-inn     CRPS   d CRPS   sigma
+  ACTUAL          15.70      65.7%
+  shipped         16.00      66.3%   2.1505
+  boundary        16.00      66.3%   2.1505  +0.0000    +0.0
+
+  d CRPS > 0 means the boundary hook IMPROVED the distribution.
