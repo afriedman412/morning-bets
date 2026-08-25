@@ -2,7 +2,8 @@
 import json
 import statistics as st
 
-DATA = json.load(open("scratchpad/lastnight.json"))
+DATA = json.load(open("scratchpad/lastnight0.json"))
+ACT = json.load(open("scratchpad/actuals.json"))
 OUT = ("/private/tmp/claude-501/-Users-user-Documents-code-morning-bets/"
        "24fbc992-224a-46bb-9f62-f739fbeec48b/scratchpad/lastnight.html")
 
@@ -38,18 +39,32 @@ def over(vals, line):
     return sum(1 for v in vals if v > line) / len(vals)
 
 
-def bars(h, colour, label_every=1, fmt=lambda k: str(k)):
+def bars(h, colour, label_every=1, fmt=lambda k: str(k), actual=None,
+         binw=1):
+    """Histogram. `actual` draws a dashed marker in the bin it falls in."""
     peak = max(p for _, p in h) or 1
     cells = []
+    hit = None
     for i, (k, p) in enumerate(h):
         pct = p / peak * 100
         lab = fmt(k) if i % label_every == 0 else ""
+        on = actual is not None and k <= actual < k + binw
+        if on:
+            hit = i
         cells.append(
-            f'<div class="bar" style="--h:{pct:.1f}%;--c:{colour}" '
+            f'<div class="bar{" hit" if on else ""}" '
+            f'style="--h:{pct:.1f}%;--c:{colour}" '
             f'title="{fmt(k)} — {p * 100:.1f}%">'
             f'<span class="bv">{p * 100:.0f}</span>'
             f'<i></i><span class="bl">{lab}</span></div>')
-    return f'<div class="hist">{"".join(cells)}</div>'
+    mark = ""
+    if hit is not None:
+        left = (hit + 0.5) / len(h) * 100
+        mark = (f'<div class="act" style="left:{left:.2f}%">'
+                f'<span>{actual:g}</span></div>')
+    elif actual is not None:
+        mark = f'<div class="actout">actual {actual:g}</div>'
+    return f'<div class="hist">{"".join(cells)}{mark}</div>'
 
 
 def thresholds(vals, lines, fmt="{:.0%}"):
@@ -60,12 +75,23 @@ def thresholds(vals, lines, fmt="{:.0%}"):
     return f'<div class="ths">{"".join(out)}</div>'
 
 
-def statline(s):
+def pctile(vals, x):
+    n = len(vals)
+    below = sum(1 for v in vals if v < x)
+    at = sum(1 for v in vals if v == x)
+    return (below + at / 2) / n
+
+
+def statline(s, actual=None, vals=None):
+    act = ""
+    if actual is not None and vals is not None:
+        act = (f'<span class="ac"><b>{actual:g}</b> actual · '
+               f'{pctile(vals, actual):.0%} pctile</span>')
     return (f'<div class="sl">'
             f'<span><b>{s["mean"]:.2f}</b> mean</span>'
             f'<span><b>{s["med"]}</b> median</span>'
             f'<span><b>{s["p10"]}–{s["p90"]}</b> 10–90</span>'
-            f'<span><b>{s["sd"]:.2f}</b> sd</span></div>')
+            f'<span><b>{s["sd"]:.2f}</b> sd</span>{act}</div>')
 
 
 def card(title, sub, body):
@@ -76,6 +102,7 @@ def card(title, sub, body):
 def game_block(g):
     d = {k: expand(v) for k, v in g["dist"].items()}
     A, H = g["away"], g["home"]
+    a = ACT.get(f"{A}@{H}", {})
     ac, hc = "var(--away)", "var(--home)"
     out = [f'<article class="game">']
     out.append(
@@ -87,6 +114,9 @@ def game_block(g):
         f'<span><i class="dot a"></i>{g["away_sp"]}</span>'
         f'<span><i class="dot h"></i>{g["home_sp"]}</span></div>'
         f'<div class="gn">{g["n"]:,} simulations</div></div>')
+    if a.get("away_runs") is not None:
+        out.append(f'<div class="fin">Final <b>{A} {a["away_runs"]}</b>'
+                   f' — <b>{a["home_runs"]} {H}</b></div>')
 
     # Team totals through 3 / 5 / 7 / final — a real sequence, so ordered.
     out.append('<h3 class="rh">Team runs through</h3>')
@@ -98,10 +128,13 @@ def game_block(g):
             v = d[f"{side}_{key}"]
             s = stats(v)
             hi = 8 if key != "runs" else 12
+            av = a.get(f"{side}_{key}")
+            pc = ("" if av is None else
+                  f'<span class="pc">{pctile(v, av):.0%}</span>')
             inner.append(
                 f'<div class="series"><div class="sn">{club}'
-                f'<b>{s["mean"]:.2f}</b></div>'
-                f'{bars(hist(v, 0, hi), col)}</div>')
+                f'<span><b>{s["mean"]:.2f}</b>{pc}</span></div>'
+                f'{bars(hist(v, 0, hi), col, actual=av)}</div>')
         lines = [("o2.5", 2.5), ("o3.5", 3.5)] if key != "runs" else \
                 [("o3.5", 3.5), ("o4.5", 4.5)]
         th = "".join(
@@ -131,15 +164,19 @@ def game_block(g):
             f'<span><b>{sk["mean"]:.1f}</b> K</span>'
             f'<span><b>{sp["mean"]:.0f}</b> pitches</span></div>'
             f'<div class="sub">Outs recorded</div>'
-            f'{bars(hist(o, 0, 27), col, 3)}{statline(so)}'
+            f'{bars(hist(o, 0, 27), col, 3, actual=a.get(f"{side}_sp_outs"))}'
+            f'{statline(so, a.get(f"{side}_sp_outs"), o)}'
             + thresholds(o, [("o14.5", 14.5), ("o15.5", 15.5),
                              ("o17.5", 17.5), ("o18.5", 18.5)])
             + f'<div class="sub">Strikeouts</div>'
-            f'{bars(hist(k, 0, 14), col)}{statline(sk)}'
+            f'{bars(hist(k, 0, 14), col, actual=a.get(f"{side}_sp_k"))}'
+            f'{statline(sk, a.get(f"{side}_sp_k"), k)}'
             + thresholds(k, [("o4.5", 4.5), ("o5.5", 5.5),
                              ("o6.5", 6.5), ("o7.5", 7.5)])
             + f'<div class="sub">Pitch count</div>'
-            f'{bars(hist(pt, 20, 115, 5), col, 2)}{statline(sp)}'
+            + bars(hist(pt, 20, 115, 5), col, 2, binw=5,
+                   actual=a.get(f"{side}_sp_pitches"))
+            + statline(sp, a.get(f"{side}_sp_pitches"), pt)
             + thresholds(pt, [("≥80", 79.5), ("≥90", 89.5),
                               ("≥100", 99.5), ("≥110", 109.5)])
             + '</div>')
@@ -155,6 +192,7 @@ CSS = """
   --dim:#68727e; --dimmer:#98a2ad;
   --away:#b6642f; --home:#2c6f73;
   --awaySoft:#f0e2d6; --homeSoft:#dceceb;
+  --hit:#c0392b;
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
   --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,sans-serif;
 }
@@ -167,11 +205,11 @@ CSS = """
 :root[data-theme="dark"]{--ink:#e6e9ed; --paper:#0e1116; --card:#161a20;
   --line:#262c34; --line2:#1d222a; --dim:#98a2ad; --dimmer:#5d6672;
   --away:#e08b4e; --home:#4fa8a4;
-  --awaySoft:#2a1f16; --homeSoft:#14262a;}
+  --awaySoft:#2a1f16; --homeSoft:#14262a; --hit:#ff6b5e;}
 :root[data-theme="light"]{--ink:#12161b; --paper:#fbfbfc; --card:#ffffff;
   --line:#dfe3e8; --line2:#eef1f4; --dim:#68727e; --dimmer:#98a2ad;
   --away:#b6642f; --home:#2c6f73;
-  --awaySoft:#f0e2d6; --homeSoft:#dceceb;}
+  --awaySoft:#f0e2d6; --homeSoft:#dceceb; --hit:#c0392b;}
 
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);
@@ -250,12 +288,28 @@ h1{font-size:26px;letter-spacing:-.02em;margin:0 0 4px;font-weight:650}
 .sub{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;
   color:var(--dimmer);font-weight:600;margin:16px 0 0}
 .sub:first-of-type{margin-top:4px}
+.hist{position:relative}
+.act{position:absolute;top:0;bottom:14px;width:0;
+  border-left:2px dashed var(--hit);transform:translateX(-1px);
+  pointer-events:none;z-index:2}
+.act span{position:absolute;top:-13px;left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:9.5px;font-weight:700;color:var(--hit);
+  background:var(--card);padding:0 3px;white-space:nowrap;border-radius:2px}
+.bar.hit i{opacity:1;outline:1px solid var(--hit);outline-offset:-1px}
+.actout{position:absolute;top:-2px;right:0;font-family:var(--mono);
+  font-size:9px;color:var(--hit)}
+.ac{color:var(--hit) !important}
+.ac b{color:var(--hit) !important}
+.pc{font-family:var(--mono);font-size:10px;color:var(--hit);
+  margin-left:7px}
+.fin{margin:10px 0 0;font-family:var(--mono);font-size:13px;color:var(--dim)}
+.fin b{color:var(--ink);font-size:15px}
 """
 
 
 def main():
     body = [f'<div class="wrap">',
-            '<h1>Three games, re-simulated blind</h1>',
+            '<h1>Six games, re-simulated blind</h1>',
             '<p class="lede">Games played 24 August 2026, priced as if they '
             'had not been. Every rate is computed from data strictly before '
             'the game date, so no game can inform its own prediction, and '
@@ -263,18 +317,20 @@ def main():
             'line, not the starters’ actual outs. Batting orders only.</p>',
             '<div class="meta">'
             '<span><b>Simulations</b> 20,000 per game</span>'
+            '<span><b>Games</b> 6</span>'
             '<span><b>Rates cutoff</b> before 2026-08-24</span>'
             '<span><b>Engine</b> game.simulate_game</span>'
             '<span><b>Hook</b> two branches, refit per population</span>'
             '<span><b>Bullpen</b> sampled per draw from real arms</span>'
             '</div>',
-            '<div class="warn">Distributions only. No outcomes were read, so '
-            'nothing on this page is scored against what happened — that '
-            'comparison is yours to make.</div>']
+            '<div class="warn">The <b>dashed red line</b> is what actually happened. '
+            'It was added after the fact — the simulation never saw it. '
+            '“Pctile” is where the real result landed inside the predicted '
+            'distribution; 50% means dead centre.</div>']
     for g in DATA:
         body.append(game_block(g))
     body.append('</div>')
-    html = (f'<title>Three games, re-simulated blind</title>'
+    html = (f'<title>Six games, re-simulated blind</title>'
             f'<style>{CSS}</style>' + "".join(body))
     open(OUT, "w").write(html)
     print(f"wrote {OUT}  ({len(html):,} bytes)")

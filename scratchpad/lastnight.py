@@ -47,7 +47,15 @@ GAMES = [
     ("PHI", "SEA", "Zack Wheeler", "Logan Gilbert"),
     ("PIT", "SD", "Braxton Ashcraft", "Robbie Ray"),
     ("CIN", "SF", "Chase Burns", "Carson Whisenhunt"),
+    ("BOS", "MIA", "Ranger Suarez", "Sandy Alcantara"),
+    ("TB", "DET", "Drew Rasmussen", "Framber Valdez"),
+    ("COL", "WSH", "Ryan Feltner", "Cade Cavalli"),
 ]
+
+#: Starting nine only — the boxscore's `battingOrder` lists END-OF-GAME
+#: occupants, so a pinch hitter shows where the starter belongs. Slot codes
+#: ending "00" are the men who started.
+LINEUPS.update({'BOS': ['Nick Sogard', 'Ceddanne Rafaela', 'Wilyer Abreu', 'Willson Contreras', 'Adley Rutschman', 'Caleb Durbin', 'Jarren Duran', 'Mickey Gasper', 'Anthony Seigler'], 'MIA': ['Otto Lopez', 'Heriberto Hernández', 'Kyle Stowers', 'Agustín Ramírez', 'Xavier Edwards', 'Jakob Marsee', 'Javier Sanoja', 'Esteury Ruiz', 'Joe Mack'], 'TB': ['Yandy Díaz', 'Ryan Vilade', 'Junior Caminero', 'Jonny DeLuca', 'Jonathan Aranda', 'Jorge Mateo', 'Nick Fortes', 'Chandler Simpson', 'Taylor Walls'], 'DET': ['Colt Keith', 'Hao-Yu Lee', 'Kevin McGonigle', 'Dillon Dingler', 'Brett Callahan', 'Zach McKinstry', 'Spencer Torkelson', 'Max Clark', 'Javier Báez'], 'COL': ['Jake McCarthy', 'Mickey Moniak', 'Willi Castro', 'TJ Rumfield', 'Troy Johnston', 'Connor Norby', 'Brett Sullivan', 'Zac Veen', 'Ezequiel Tovar'], 'WSH': ['CJ Abrams', 'Abimelec Ortiz', 'Dylan Crews', 'Daylen Lile', 'Brady House', 'Keibert Ruiz', 'Jacob Young', 'Jorbit Vivas', 'Nasim Nuñez']})
 
 PREFIXES = (3, 5, 7)
 

@@ -1,0 +1,16 @@
+500 games x 120 draws
+  100
+  200
+  300
+  400
+  500
+
+          our spread  implied true    share  corr w/ actual
+  F3            0.32          0.39      83%           0.160
+  F5            0.47          0.79      60%           0.205
+  F7            0.56          0.69      81%           0.166
+
+  'our spread' is the sd of our per-game predicted means.
+  'implied true' is sqrt(var(actual) - mean within-game var):
+  how much game-to-game variation really exists.
+  share < 100% means we under-differentiate games.

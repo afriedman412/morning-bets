@@ -2119,3 +2119,57 @@ cannot be caught. Blast radius was nil, but by luck rather than design.
 
 LARGEST REMAINING MISFIT: starts of 12-14 outs, 19.4% against a real 16.6%.
 That is 4.0-4.2 innings, which is where books hang outs lines. Untouched.
+
+### The distributions are CALIBRATED but nearly UNRESOLVED — and the ceiling is tiny
+
+Prompted by an eye-test on six blind re-simulations: "our distributions are
+too wide, we aren't getting any resolution around the likely numbers."
+
+WIDTH IS RIGHT. Probability integral transform over 500 games — where the
+actual total lands inside the predicted distribution — comes out uniform:
+
+    prefix   middle half (uniform 50%)   outer tenths (uniform 20%)
+    F3               54.6%                       20.8%
+    F5               50.2%                       18.4%
+    F7               47.8%                       21.0%
+
+RESOLUTION IS THE REAL ISSUE, and PIT cannot see it. A model handing every
+game the same distribution, centred correctly, produces perfectly uniform
+PITs and is useless for choosing between games.
+
+    prefix   our spread   implied true   share   corr w/ actual
+    F3          0.32          0.39        83%        0.160
+    F5          0.47          0.79        60%        0.205
+    F7          0.56          0.69        81%        0.166
+
+'our spread' is the sd of our per-game predicted means; 'implied true' is
+sqrt(var(actual) - mean within-game var), i.e. how much game-to-game
+variation really exists.
+
+BUT THE CEILING IS ALMOST NOTHING. With between-game sd 0.69 against a total
+sd of 3.67, a PERFECT forecaster correlates 0.188 with actual game totals.
+About 96% of the variance in a game total is within-game randomness no model
+can touch.
+
+    prefix   our corr   theoretical max   share of the ceiling
+    F3         0.160         0.165                 97%
+    F5         0.205         0.251                 82%
+    F7         0.166         0.188                 88%
+
+So the simulator already captures 82-97% of what is capturable on game
+totals. The predictions look samey because GAMES ARE SAMEY IN EXPECTATION —
+a perfect model would range about 6.5 to 9.5 runs, not 3 to 15.
+
+TWO CONSEQUENCES.
+
+It reframes the "0-for-everything" list. Handedness, park, day/night and
+arsenal are exactly the features that DIFFERENTIATE games rather than shift
+the level, and the differentiable share of a game total is about 4% of its
+variance. A real effect of that size cannot show up against this target
+however well it is implemented. That is not proof they work — it is a reason
+the null was uninformative.
+
+And it argues for spending effort where the signal is. A starter's outs or
+strikeouts carry far more of their variance in the pitcher's own rates than
+a team's run total ever will. The stated product is team totals; the
+measurable edge may not be there.

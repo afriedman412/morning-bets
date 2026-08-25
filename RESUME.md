@@ -98,6 +98,41 @@ blind re-simulation made it look HOT (sim totals 7.6/8.1/8.4 against actual
 seven effectively independent, and it had the sign backwards. Trust the
 1,615-game ladder.
 
+## AN OPEN ARCHITECTURAL QUESTION (user, end of day seven)
+
+**"Maybe we need different models for different props. Maybe we are
+reaching too hard trying to recreate everything in one go."**
+
+The day's evidence supports this. Hook work moved the outs distribution a
+long way (CRPS 2.2199 -> 2.1505, whole-inning 9.5% -> 66.3%) and moved the
+run level NOT AT ALL (F7 6.57 before and after). Those quantities are
+separable in practice, and `calibrate.loss` targeting the outs distribution
+while runs sit 5% light is one model being pulled two ways — a fix for one
+quantity has to justify itself against a loss built for another.
+
+WHAT ONE SIMULATOR BUYS, and what separate models would give up, is
+COHERENCE: a team total and a starter's outs come out of the same simulated
+game, so they cannot contradict each other and the correlations are free.
+Separate models will happily price a starter for seven innings and a bullpen
+for five.
+
+THE MIDDLE PATH, and the recommendation: keep the simulator as the
+generative model and add a THIN PER-QUANTITY CALIBRATION LAYER on its
+output — a fitted map from predicted distribution to corrected distribution,
+one per prop. Standard technique, keeps coherence, and lets each quantity be
+right without the hook and the run model competing for the same parameters.
+
+Note this is a departure from `AF_PLAN.md`, which says props should FOLLOW
+from a game simulation that is actually right. Worth deciding deliberately
+rather than drifting into.
+
+**AND A CAUTION ON THE NOTES.** Much of `NOTES-context-layer.md` on the run
+distribution ("compressed — too many shutouts and too few crooked numbers")
+came out of chasing TAILS. It is evidence about tails, not about the bulk.
+The user's read from the dashboard is that the distributions are too WIDE
+around the likely numbers, which is the opposite claim about a different
+part of the distribution, and both can be true at once.
+
 ## WHAT TO DO NEXT
 
 **1. THE RUN LEVEL — 5% light at every prefix.** The ladder has said this
