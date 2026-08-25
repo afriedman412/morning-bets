@@ -449,12 +449,63 @@ def park_mults(factors: dict | None) -> dict:
     return {"hr": m("hr"), "k": m("so"), "bip": m("bacon", 100)}
 
 
+#: TIMES THROUGH THE ORDER. Multipliers on a starter's own rates by how
+#: many times he has already faced this lineup, COUNTED on 85,909 starter
+#: plate appearances by `src.context.tto`.
+#:
+#: The strikeout collapse is the whole effect: 1.105 on the first pass
+#: against 0.893 on the third, a 19% relative decline. Walks and home runs
+#: drift up by 3-4%; BABIP is flat.
+#:
+#: RE-CENTRED so the PA-weighted mean is 1.000, which is not optional. The
+#: model's input `k_pct` is a season rate ALREADY averaged over every pass a
+#: starter throws, so multipliers anchored at pass-1 = 1.0 would raise every
+#: pitcher's strikeout rate and shift the run level.
+#:
+#: Pass 4+ folds into pass 3: it is 0.4% of plate appearances and its raw
+#: numbers are erratic (a walk multiplier of 0.755 on 351 PAs).
+#:
+#: NOT FITTABLE, and deliberately absent from `FITTABLE`.
+TTO_MULT = {
+    1: {"k_pct": 1.1053, "bb_pct": 0.9955, "hr_pct": 0.9653,
+        "babip": 0.9845},
+    2: {"k_pct": 0.9420, "bb_pct": 0.9893, "hr_pct": 1.0137,
+        "babip": 1.0141},
+    3: {"k_pct": 0.8926, "bb_pct": 1.0352, "hr_pct": 1.0394,
+        "babip": 1.0029},
+}
+
+#: Off restores a starter who never tires and is never learned. That was the
+#: state in which three separate measurements found the removal rule to have
+#: nothing to give — with no degradation, pulling a pitcher costs nothing.
+USE_TTO = True
+
+
+def tto_mult(tto: int | None) -> dict | None:
+    """Multipliers for a given pass, or None when TTO does not apply.
+
+    `None` is passed by callers that do not track the pass — relievers have
+    no meaningful lineup pass — and must leave the rates untouched rather
+    than defaulting to the first pass, which would silently apply a 1.105
+    strikeout bonus to every arm out of the bullpen.
+    """
+    if not USE_TTO or not tto:
+        return None
+    return TTO_MULT.get(min(max(tto, 1), 3))
+
+
 def pa_outcome(
     b: BatterRates, p: PitcherRates, lg: dict, rng: random.Random,
-    hr_park: float = 1.0, park: dict | None = None,
+    hr_park: float = 1.0, park: dict | None = None, tto: int | None = None,
 ) -> str:
     """One plate appearance. Returns an outcome constant."""
     pk = park or NEUTRAL_PARK
+    m = tto_mult(tto)
+    if m is not None:
+        p = PitcherRates(
+            name=p.name, k_pct=p.k_pct * m["k_pct"],
+            bb_pct=p.bb_pct * m["bb_pct"], hr_pct=p.hr_pct * m["hr_pct"],
+            babip=p.babip * m["babip"], pa=p.pa)
     # Off the top: a sacrifice is a plate appearance that was never going to
     # be a strikeout or a walk, so it conditions everything below it.
     if rng.random() < SAC_RATE:
@@ -1110,6 +1161,12 @@ class StartResult:
     roe: int = 0
     pitches: int = 0
     batters: int = 0
+    #: Weighted trouble accumulated over the WHOLE START. `Frame.damage`
+    #: resets every inning, which makes a starter squared up for three
+    #: innings look clean whenever he is between rallies — fine for the
+    #: inning-local hook term, useless as a state the learned removal model
+    #: can read.
+    damage: float = 0.0
     innings_completed: int = 0
     pulled_mid_inning: bool = False
     #: Outs recorded without a hit attached. Tracked so the calibration
@@ -1188,6 +1245,7 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random) -> None:
     r.batters += 1
     r.pitches += int(round(PITCH_COST[o]))
     fr.damage += DAMAGE[o]
+    r.damage += DAMAGE[o]
 
     if o == SAC:
         # An automatic out that ADVANCES runners — that is the whole point
@@ -1287,7 +1345,10 @@ def simulate_start(
         while fr.outs < 3:
             b = lineup[idx % len(lineup)]
             idx += 1
-            o = pa_outcome(b, pitcher, lg, rng, hr_park, park)
+            # `r.batters` is the count BEFORE this plate appearance, so
+            # the tenth batter faced is the first of the second pass.
+            o = pa_outcome(b, pitcher, lg, rng, hr_park, park,
+                           tto=r.batters // 9 + 1)
             apply_pa(o, r, fr, rng)
 
             if fr.outs >= 3:

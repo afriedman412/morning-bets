@@ -14,7 +14,7 @@ from __future__ import annotations
 import random
 
 from src.context import calibrate as cal
-from src.context import f5, fitf5, sim
+from src.context import f5, fitf5, game, sim
 from tests.test_sim import LG, _lineup, _pitcher
 
 
@@ -207,10 +207,15 @@ def check_evaluate_applies_its_parameters():
             "babip": 0.40, "apps": 40} for i in range(6)]
     real_bullpens = fitf5.rate_src.bullpens
     fitf5.rate_src.bullpens = lambda lg, **kw: {"HOM": pen, "AWY": pen}
+    # `intercept` is a `sim.Hook` field, and the learned removal model
+    # bypasses the Hook entirely — with it on, no hook parameter can move
+    # any loss, which is a fact about the model rather than a broken fit.
+    hook_orig, game.USE_LEARNED_HOOK = game.USE_LEARNED_HOOK, False
     try:
         _check_parameters_move_the_loss(cases)
     finally:
         fitf5.rate_src.bullpens = real_bullpens
+        game.USE_LEARNED_HOOK = hook_orig
 
 
 def _check_parameters_move_the_loss(cases):
@@ -571,3 +576,47 @@ def check_build_cases_passes_the_cutoff_to_the_league():
     import inspect
     src = inspect.getsource(cal.build_cases)
     assert "sim.league(season, before=rb)" in src, src[:200]
+
+
+def check_worker_state_crosses_the_fork():
+    """A flag set in the parent must be honoured inside the salt workers.
+
+    `losses` fans its salts out to processes. Python defaults to SPAWN on
+    macOS, and a spawned child re-imports every module at its DEFAULT global
+    state — so `sim.USE_TTO` and every other switch would silently revert
+    inside the workers. The search would then score every candidate under
+    default rules and return a flat surface, which reads exactly like "this
+    parameter does not matter". `rules()` raises on unknown names to prevent
+    that same failure arriving through a typo; this prevents it arriving
+    through a process boundary.
+
+    Toggling a flag that genuinely changes the simulation MUST change the
+    loss vector. If it does not, the workers are not seeing the parent.
+    """
+    cases = _pair(2, game="A") + _pair(3, game="B", seed=9)
+    lg = dict(LG)
+    orig = sim.USE_TTO
+    try:
+        sim.USE_TTO = False
+        off = fitf5.losses(cases, None, 12, lg, salts=(0, 7919))
+        sim.USE_TTO = True
+        on = fitf5.losses(cases, None, 12, lg, salts=(0, 7919))
+    finally:
+        sim.USE_TTO = orig
+    assert off != on, (off, on)
+
+
+def check_the_salt_fan_out_agrees_with_running_it_serially():
+    """Parallel must be a pure speedup, not a different answer."""
+    cases = _pair(2, game="A") + _pair(1, game="C", seed=21)
+    lg = dict(LG)
+    salts = (0, 7919, 15013)
+    orig = fitf5.PARALLEL_WORKERS
+    try:
+        fitf5.PARALLEL_WORKERS = 1
+        serial = fitf5.losses(cases, None, 10, lg, salts=salts)
+        fitf5.PARALLEL_WORKERS = 3
+        par = fitf5.losses(cases, None, 10, lg, salts=salts)
+    finally:
+        fitf5.PARALLEL_WORKERS = orig
+    assert serial == par, (serial, par)

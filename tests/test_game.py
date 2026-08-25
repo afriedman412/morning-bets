@@ -64,6 +64,18 @@ def check_a_full_game_is_nine_innings_not_five():
 
 
 def check_starter_cannot_record_more_than_twenty_seven_outs():
+    """Legacy-hook path: `USE_LEARNED_HOOK` ignores `sim.Hook` entirely, so
+    a never-pull Hook cannot keep a starter in and the invariant this pins
+    (outs bounded by innings completed) stops holding the moment he is
+    hooked mid-inning."""
+    orig, game.USE_LEARNED_HOOK = game.USE_LEARNED_HOOK, False
+    try:
+        _never_pull_outs()
+    finally:
+        game.USE_LEARNED_HOOK = orig
+
+
+def _never_pull_outs():
     rng = random.Random(8)
     never = sim.Hook(intercept=-99.0, mid_intercept=-99.0,
                      hard_pitch_cap=100000)
@@ -120,7 +132,10 @@ def check_bullpen_sampling_favours_the_busy_arms():
 
 
 def check_margin_reaches_the_hook():
-    """The reason both sides are interleaved at all.
+    """Legacy-hook path. The learned removal model carries `margin` and
+    `abs_margin` as its own features, so this pins `sim.Hook`'s wiring.
+
+    The reason both sides are interleaved at all.
 
     A pitching side simulated alone cannot know whether it is winning, so
     `mid_per_margin` had nowhere to enter. With a big enough coefficient the
@@ -140,7 +155,11 @@ def check_margin_reaches_the_hook():
             tot += r.away_sp.outs + r.home_sp.outs
         return tot
 
-    assert outs(0.0) != outs(2.5), "margin never reaches the removal rule"
+    orig, game.USE_LEARNED_HOOK = game.USE_LEARNED_HOOK, False
+    try:
+        assert outs(0.0) != outs(2.5), "margin never reaches the removal rule"
+    finally:
+        game.USE_LEARNED_HOOK = orig
 
 
 def check_margin_defaults_to_no_effect():
@@ -390,3 +409,40 @@ def check_the_relief_hook_flag_off_leaves_relievers_alone():
         relief.mid_removal = keep
         game.USE_MEASURED_RELIEF_HOOK = orig
     assert not any(was_out and outs > 0 for was_out, outs in seen), seen
+
+
+def check_the_learned_hook_replaces_sim_hook_for_the_starter():
+    """With the learned model on, a never-pull `sim.Hook` must NOT keep the
+    starter in — the model is what decides now.
+
+    Guards the wiring. A `USE_LEARNED_HOOK` that never reached
+    `_half_inning` would leave every legacy-hook test passing and this one
+    is the only thing that would notice.
+    """
+    never = sim.Hook(intercept=-99.0, mid_intercept=-99.0,
+                     hard_pitch_cap=100000)
+    orig, game.USE_LEARNED_HOOK = game.USE_LEARNED_HOOK, True
+    try:
+        pulled = 0
+        for s in range(12):
+            a = _side(hook=never)
+            game.simulate_game(a, _side(hook=never), dict(LG),
+                               random.Random(s))
+            pulled += bool(a.starter_out)
+    finally:
+        game.USE_LEARNED_HOOK = orig
+    assert pulled >= 10, f"learned hook pulled only {pulled}/12 starters"
+
+
+def check_the_learned_hook_reads_cumulative_damage_not_inning_local():
+    """`Frame.damage` resets every inning; `StartResult.damage` must not.
+
+    The whole reason the state exists is that a starter squared up for three
+    innings should not read as clean because he is between rallies.
+    """
+    r = sim.StartResult()
+    fr = sim.Frame()
+    for _ in range(3):
+        fr = sim.Frame()               # new inning
+        sim.apply_pa(sim.B2, r, fr, random.Random(1))
+    assert r.damage > fr.damage, (r.damage, fr.damage)

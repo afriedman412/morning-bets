@@ -42,6 +42,8 @@ that is the ~8% unearned share being absorbed, and it belongs in there.
 """
 from __future__ import annotations
 
+import multiprocessing
+import os
 import random
 import sys
 import zlib
@@ -332,7 +334,13 @@ GRID = {
     "intercept": [-5.4, -5.0, -4.6, -4.2, -3.8],
     "per_inning": [0.25, 0.35, 0.45, 0.60, 0.80],
     "per_run": [0.30, 0.45, 0.60, 0.75],
-    "pitch_center": [86.0, 92.0, 98.0],
+    # RE-CENTRED on the shipped 80.0. The old [86, 92, 98] was built around
+    # a pre-real-pitch-count value of 92 and never moved when the constant
+    # went 92 -> 84 -> 80, so it bracketed nothing and `check_grids` refused
+    # to run the hook fit at all. That guard is the only reason this was
+    # visible; a grid that merely EXCLUDED the optimum would have searched
+    # happily and returned a worse value.
+    "pitch_center": [72.0, 80.0, 88.0, 96.0],
     "mid_intercept": [-5.6, -5.0, -4.4],
     "mid_per_runner": [0.35, 0.55, 0.80],
     # The three advancement constants are now TABLES keyed by out count and
@@ -365,6 +373,36 @@ GRID = {
 SALTS = (0, 7919, 15013, 22381, 31337, 40009)
 
 
+#: Worker processes for the salt fan-out. The search spends all its time in
+#: `losses`, which is `len(SALTS)` INDEPENDENT passes over the same cases —
+#: embarrassingly parallel, and it was running on one core of eight. A full
+#: hook fit is 336 such passes (28 grid points x 6 salts x 2 sweeps) at ~54
+#: seconds each, so 5.1 hours serial against ~50 minutes here. That matters
+#: for more than patience: at five hours a refit is a day's commitment and
+#: gets skipped, which is how the model ends up with measured tables and a
+#: fit that predates them.
+PARALLEL_WORKERS = max(1, (os.cpu_count() or 2) - 2)
+
+#: FORK, NOT SPAWN, AND THIS IS LOAD-BEARING. Python defaults to spawn on
+#: macOS, and a spawned child re-imports every module at its DEFAULT global
+#: state — so `sim.USE_TTO`, `game.USE_MEASURED_RELIEF_LENGTH`,
+#: `rates.USE_MEASURED_STABILISE` and every other switch would silently
+#: revert inside the workers. The search would then score every candidate
+#: under default rules and return a flat surface, which reads exactly like
+#: "this parameter does not matter". That is the same failure `rules()`
+#: raises on for unknown names, arriving by a different door.
+#:
+#: Fork inherits the parent's globals, and copy-on-write means the cases are
+#: not re-pickled per task either. `check_worker_state_crosses_the_fork`
+#: fails if this is ever changed back.
+_MP = "fork"
+
+
+def _one_salt(args):
+    cases, params, n_sims, lg, salt = args
+    return evaluate(cases, params, n_sims=n_sims, lg=lg, salt=salt)["loss"]
+
+
 def losses(cases, params, n_sims, lg, salts=SALTS) -> list[float]:
     """One loss per salt. Kept as a vector, not collapsed to a mean.
 
@@ -376,6 +414,12 @@ def losses(cases, params, n_sims, lg, salts=SALTS) -> list[float]:
     inflates the error bar 2.6x and the search then rejects every real move.
     Returning the vector is what lets `_paired_se` use it.
     """
+    if PARALLEL_WORKERS > 1 and len(salts) > 1:
+        ctx = multiprocessing.get_context(_MP)
+        with ctx.Pool(min(PARALLEL_WORKERS, len(salts))) as pool:
+            return pool.map(
+                _one_salt,
+                [(cases, params, n_sims, lg, s) for s in salts])
     return [evaluate(cases, params, n_sims=n_sims, lg=lg, salt=s)["loss"]
             for s in salts]
 

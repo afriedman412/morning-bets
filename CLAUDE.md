@@ -2,7 +2,43 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Read this first — two systems, one repo
+## THE OBJECTIVE — read this before anything else
+
+**`AF_PLAN.md` is the authority on what this project is for. Read it. It is
+47 lines.**
+
+Simulate baseball games as accurately as possible, **measured against what
+actually happened**, and infer everything else — props, totals, game script
+— from that simulation.
+
+**CLV IS NOT THE OBJECTIVE.** Closing-line value, cents-our-way,
+blend-against-the-open and "beating the market" must never be used to decide
+whether a mechanism helped. Measured 2026-08-24: our RESOLUTION — real
+discrimination on outcomes, from the Brier decomposition — is LOWER than the
+OPENING price's in July (0.0728 vs 0.0787) and August (0.0833 vs 0.0856),
+while we still "beat the open" on CLV. So the CLV edge is market
+ANTICIPATION, not baseball knowledge, and it can rise while the model gets
+worse at predicting games. It is also fragile: it depends on Kalshi's
+behaviour, not on baseball.
+
+Judge every change on ACTUAL OUTCOMES: the prefix ladder (`ladder.py`,
+F1/F3/F5/F7 against real runs), discrete CRPS and coverage for the
+distribution shape, and resolution against what happened.
+
+**Use the market only as a yardstick for how much is achievable.** We sit at
+91-98% of Kalshi's resolution and are BETTER CALIBRATED than it (August
+reliability 0.0005 against 0.0014), so the entire remaining prize is about
+2.5 Brier points. `versus_market`, `f5_market`, `team_market`,
+`total_market`, `price`, `quote` and the `scratchpad/clv_*` drivers are the
+BETTING LAYER, not the modelling loop.
+
+A corollary that causes as much drift as the above: **a MEASURED quantity
+replacing an imported guess does not have to prove itself on the score.** A
+flat result means the test could not resolve ~0.02 runs, not that the
+mechanism failed. Applying a fitting standard — "prove it improves the
+loss" — to measurement work makes every correct change read as a null.
+
+## Read this next — two systems, one repo
 
 **The original pipeline** turns YouTube capper videos into graded bets and
 then asks three LLM personas to build a card. It still runs on a schedule
@@ -18,24 +54,27 @@ buys nothing.
 
 What replaced it is a plate-appearance SIMULATOR (`sim.py`) that prices a
 start from the pitcher's rates, the specific nine he faces and a fitted
-removal hook. It is calibrated to within 2% on every per-start rate, and
-what it is worth has been measured against real Kalshi prices rather than
-argued about:
-
-  * Against the CLOSING price on strikeouts it adds NOTHING (t = -0.15).
-  * Against the OPENING price it adds a lot (+32.9%, 73.2% direction).
-  * On FIRST FIVE INNINGS totals it shows the same shape as strikeouts and
-    a comparable edge: beats the open (20.5% vs 19.3% Brier skill), loses
-    to the close, CLV z +31.4 with 67.1% direction accuracy and +3.9 cents
-    on five-cent disagreements over 2,149 settled contracts.
+removal hook. It is calibrated to within 2% on every per-start rate.
 
 The generalisation that came out of two days of measurement, and the single
-most useful line in these docs: **fit the settlement value, not the upstream
-proxy.** Every feature imported as known baseball (handedness, park,
-day/night, bullpen, arsenal) measured zero. Everything fitted as a residual
-against the model's own error helped. And the quantity you tune against
-decides what you get: `calibrate.loss()` targets the outs distribution,
-which nobody bets, and outs is exactly where the model earns nothing.
+most useful line in these docs: **fit the quantity that settles, not the
+upstream proxy.** The quantity you tune against decides what you get:
+`calibrate.loss()` targets the outs distribution rather than runs, and outs
+is exactly where the model has never earned anything. `fitf5` targets F5
+runs allowed by one side, scored across the FULL SUPPORT of the run
+distribution — which is the discrete CRPS — because scoring across a book's
+liquid lines instead would tune the model to the shape of somebody's board.
+
+Two things that are 0-for-everything and one that is not: every feature
+IMPORTED as known baseball has measured zero (handedness, park, day/night,
+bullpen availability, arsenal), while every constant MEASURED on this league
+has turned out to be wrong in the shipped version — advancement, the double
+play rate, inherited runners, and the four shrinkage constants. Count it,
+do not import it.
+
+**The historical CLV record has moved to `NOTES-context-layer.md`.** It was
+at the top of this file and it primed every session to treat market
+agreement as the objective. See THE OBJECTIVE above.
 
 The two systems are only loosely joined. **Snapshots are NOT wired into the
 personas**, so `make panel` / `make recommend` still use the old blob.
@@ -45,15 +84,18 @@ extent full team totals. Props are NOT the target** — they are expected to
 follow from a game simulation that is actually right. Two rules follow, and
 both are enforced in `fitf5.py`: do not score against the lines a book
 offers (score the full support of the run distribution, where the same
-arithmetic is the discrete CRPS), and do not fit the hook.
+arithmetic is the discrete CRPS), and do not fit the hook AGAINST THE
+SETTLEMENT VALUE. Fitting it to real removal DECISIONS is a different thing
+and is what `removal.py` does — the loss there is on what managers did, not
+on the quantity we price.
 
 **START WITH `RESUME.md`** — where the edge is, what to do next, and the
 long list of things already measured and dead so nobody re-runs them.
 
-**Before touching the context layer, read `NOTES-context-layer.md`.** It
-opens with "DAY THREE", which carries the current state, then the measured
-negatives — SEVEN features that cost real time and returned nothing,
-recorded so nobody re-runs them.
+**Before touching the context layer, read `NOTES-context-layer.md`.** The
+current state is at the END — it is appended chronologically, so read
+backwards from the last section. It carries the measured negatives, which
+are the expensive thing to rediscover.
 
 **The single most useful diagnostic in this project, now four for four: a
 fitted parameter sitting at the EDGE of its grid is a missing mechanism, not
@@ -102,6 +144,18 @@ Run everything through the Makefile's Python virtualenv (`venv/bin/python`).
 - `... -m src.context.inherit` — what inherited runners do, followed by
   runner ID across 5,507 handovers. Pooled 0.312 against the shipped flat
   0.330; the cells run 0.127 to 0.771.
+- `... -m src.context.removal` — extract every starter removal decision from
+  play-by-play and print the marginals. `removal.train_and_save()` refits
+  and persists `removal_model.json`. AUC 0.912 against sim.Hook's 0.876; it
+  is a WORKLOAD rule — pitch count alone reaches 0.901.
+- `... -m src.context.tto` — times through the order. K% falls 19% from the
+  first pass to the third. `--` no args runs all 2,006 games.
+- `... -m src.context.stabilise` — the four shrinkage constants, measured.
+  Batter rates were over-shrunk 2.2x, pitcher HR under-shrunk 2.7x.
+- `venv/bin/python -m scratchpad.leverage` — SCREEN A MECHANISM BEFORE
+  BUILDING IT. Swings each parameter across its reliability-adjusted club
+  spread and reports the runs of separation it could buy. Under ~0.05 runs
+  it cannot matter however real it is.
 - `... -m src.context.store` — creates `context.db` and reports whether the
   pipeline DB is correctly read-only.
 
@@ -241,6 +295,12 @@ src/context/
   deploy.py        how bullpens are actually used, before modelling them
   relief.py        how long a relief outing lasts, and when he is pulled
   inherit.py       what inherited runners do, by base and out count
+  removal.py       the LEARNED hook: when the starter comes out, fitted to
+                   86k real decisions. Replaces sim.Hook for starters.
+  tto.py           times through the order, measured
+  stabilise.py     how fast each rate becomes trustworthy, measured
+  form.py          PARKED - the latent "he does not have it tonight" state,
+                   measured three ways and not there
   sources/pbp.py   whole-game play-by-play, gzipped; base-out-score state
   sources/         one module per data source, all offline-cacheable
 ```

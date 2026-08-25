@@ -1576,3 +1576,207 @@ fitf5 number ever recorded and break comparability with the entire existing
 record, so it is a decision to take explicitly rather than a tidy-up. If it
 is taken, the whole recorded ladder of losses has to be re-run, and the
 expectation does not change — only the variance of the comparison drops.
+
+## THE YARDSTICK: we are at 91-98% of the market's discriminating power
+
+Everything in this file measures CALIBRATION — is the model right on
+average. That is not what a bet needs. The quantity that matters is
+RESOLUTION: how far predictions pull away from the base rate and stay
+right. Murphy's decomposition separates them:
+
+    Brier = reliability - resolution + uncertainty
+
+`uncertainty` is the base rate's own variance, identical for every
+forecaster, and it is the part nobody can beat. On K props, 7,762 cached
+contracts, no simulation required:
+
+              RESOLUTION                   reliability
+            market    ours     open      market     ours
+    June    0.0815   0.0797   0.0781     0.0027    0.0083
+    July    0.0798   0.0728   0.0787     0.0009    0.0013
+    August  0.0902   0.0833   0.0856     0.0014    0.0005
+
+**Our resolution is 97.8% / 91.2% / 92.3% of the market's.** The entire gap
+is ~0.007 Brier, about 2.5 points of skill. So the honest reading of a long
+run of "no measurable improvement" is not that the work was bad — it is
+that the room is small and largely already taken.
+
+TWO RESULTS WORTH KEEPING SEPARATE FROM THAT.
+
+**We are BETTER CALIBRATED than Kalshi.** August reliability 0.0005 against
+0.0014. Our probabilities are more honest; we simply separate games slightly
+less well. Anyone reading "we lose to the close on Brier" as "the model is
+worse" has it wrong — we lose on resolution and win on calibration.
+
+**We have LESS resolution than the OPENING price** in July (0.0728 vs
+0.0787) and August (0.0833 vs 0.0856). This matters more than the headline.
+It means the recorded CLV edge is NOT superior knowledge of the game: we
+anticipate where the price will MOVE without being more accurate about the
+OUTCOME. Those are different products, and AF_PLAN commits to the second
+one. A CLV edge built on the first is real money and a fragile thing to
+model against, because it depends on the market's behaviour rather than on
+baseball.
+
+CAVEAT: measured on K props, the only market with rows cached. Team totals
+show a similar ratio (ours +18.4% skill against the market's +20.7%, 0.89),
+so the picture probably holds, but the F5 and team-total versions should be
+run rather than assumed.
+
+WHAT THIS IMPLIES FOR WHAT TO BUILD. Chasing resolution inside the run
+engine competes for ~8% of an already-small quantity. The mechanisms worth
+building are the ones that DIFFER ACROSS GAMES, because only those can add
+resolution; a league-wide constant moves the level and cannot, by
+construction, separate anything.
+
+## The bullpen work shows nothing in THREE framings — and the F7
+## distribution was already right
+
+Day five kept re-testing the same mechanisms on new metrics, on the theory
+that the previous metric was blind to them. It was not.
+
+    framing                    verdict
+    mean prefix error          ~0.02 runs at 1.2 sigma
+    CLV against Kalshi         SLIGHTLY WORSE (+1.5c -> +1.3c)
+    distributional CRPS        every state within 0.6 sigma
+
+The variance argument was the last one standing and it is now dead too.
+Relief length was justified on spread (engine sd 3.91 -> 4.08 in a synthetic
+harness), so the natural defence of a flat mean was "it moves the
+distribution, and a total settles on the distribution". Scored properly on
+200 real games at F7:
+
+    state                 CRPS   coverage   sim sd   paired dCRPS
+    all off             2.0512     84.0%    3.610        +0.0000
+    + relief length     2.0440     82.0%    3.619        -0.0072
+    + mid-inning hook   2.0473     84.5%    3.623        -0.0039
+    + inherited         2.0473     84.5%    3.623        -0.0039
+    + TTO               2.0586     81.5%    3.599        +0.0074
+
+    actual sd 3.589, coverage target 80%
+
+**THE REASON IS IN THE SAME TABLE.** Simulated sd 3.61 against an actual
+3.589, coverage 84% against a target of 80%. There was no dispersion error
+at F7 to fix, and the model is if anything mildly OVER-dispersed — the
+opposite of the under-dispersion these notes have assumed since day one.
+That assumption should be treated as retired at this prefix.
+
+WHAT THIS SETTLES ABOUT THE HOOK MODEL. A full behavioural model of removal
+— fitted to real decisions from play-by-play, replacing the hand-specified
+logistic and the two stale offset files — is defensible as REALISM and as
+infrastructure for anything that depends on which arm is on the mound
+(reliever props, inherited runners, role effects). It must NOT be budgeted
+as a prediction improvement. Three framings say that branch has nothing to
+give, and a fourth is unlikely to differ.
+
+TTO IS THE EXCEPTION AND IS WORTH KEEPING. It is the only mechanism today
+that produced a resolved improvement on real outcomes: F1 signed error
++0.070 -> +0.005, a -1.8 sigma paired gain in absolute error, which is the
+largest anything moved. It slightly over-suppresses through F3 (+0.033 ->
+-0.082); that is a level effect for the refit to absorb, since the seven
+fitted parameters predate TTO entirely.
+
+## The CLV record, moved out of CLAUDE.md
+
+These numbers used to sit at the top of `CLAUDE.md`, which is loaded into
+every session. Their prominence there WAS the problem: the always-loaded
+brief described the project in market terms, so session after session began
+by treating agreement with Kalshi as the objective, and the plan that says
+otherwise (`AF_PLAN.md`) was not referenced from it at all. Kept here as the
+record.
+
+    Against the CLOSING price on strikeouts the model adds NOTHING
+      (t = -0.15).
+    Against the OPENING price it adds a lot (+32.9%, 73.2% direction).
+    On FIRST FIVE INNINGS totals, the same shape and a comparable edge:
+      beats the open (20.5% vs 19.3% Brier skill), loses to the close,
+      CLV z +31.4, 67.1% direction, +3.9 cents on five-cent disagreements
+      over 2,149 settled contracts.
+
+Read them alongside the two findings that reframe what they mean:
+
+**The edge is one month.** June +1.8c, July +1.7c, August +3.3c, season
++2.4c. August reproduces the record; the other months run at half of it, and
+six explanations for the difference were tested and eliminated.
+
+**And the edge is not baseball knowledge.** Our RESOLUTION is LOWER than the
+OPENING price's in July (0.0728 vs 0.0787) and August (0.0833 vs 0.0856)
+while we still beat the open on CLV. So the model anticipates where the
+price MOVES without being more accurate about the GAME. That is a different
+product from the one `AF_PLAN.md` commits to, and it is fragile — it depends
+on Kalshi's opening behaviour rather than on baseball, which is also the
+best remaining explanation for the August anomaly.
+
+## THE LEARNED REMOVAL MODEL — the hook, done properly at last
+
+`src/context/removal.py`. Per-decision logistic on 86k starter plate
+appearances from play-by-play, target = "replaced before the next batter
+this side faces". Beats the shipped hook by a wide margin on a DATE holdout
+(rows within a start are not independent, so a random split leaks):
+
+    model                            AUC    log loss
+    learned model                 0.9123     0.1168
+    shipped sim.Hook              0.8755     0.1592
+
+Wired in behind `game.USE_LEARNED_HOOK`. It subsumes BOTH hook branches —
+the target spans the inning boundary, so one roll per plate appearance
+replaces `mid_removal_p` and `removal_p` together. Relievers keep
+`relief.mid_removal`, measured on relief outings specifically.
+
+Coefficients are persisted to `removal_model.json` as plain numbers, so the
+simulator needs no sklearn at run time; prediction is a dot product.
+`numpy` and `scikit-learn` are now declared in `requirements.txt` — they
+were being imported undeclared by `sources/archetype.py`, which would have
+crashed a fresh install.
+
+### What it says the hook actually is
+
+    pitches   +1.974        pitches ALONE as a ranker:  AUC 0.9014
+    bf        +1.115        the full model:             AUC 0.9143
+    outs      +0.591
+    inning    -0.487
+    br        -0.329
+    onbase    +0.200
+    damage    +0.160
+    bb_pct    +0.160
+    tto       -0.126
+    quality   -0.081
+    runs      +0.075
+
+**IT IS A WORKLOAD RULE.** Pitch count alone reaches AUC 0.901; traffic,
+damage, runs, TTO, pitcher quality and all thirty clubs together add
++0.013. Managers pull starters on pitch count and batters faced, and the
+game situation is a rounding error on top.
+
+**RUNS RANK 11th OF 14.** Confirmed independently by the refit, which halved
+`per_run` 0.6 -> 0.3 and moved nothing else. Two methods, different data,
+same answer: the old hook over-weighted runs.
+
+**CLUB EFFECTS ARE WORTH +0.002 AUC.** 0.9143 with all thirty, 0.9123
+without; whole spread 0.21 in standardised log-odds, sd 0.053. Dropped from
+the shipped model. That is the FIFTH independent finding that team-specific
+hook effects do not pay, and the first from a per-decision test.
+
+### The negative `br` coefficient is arithmetic, not baseball
+
+Cumulative baserunners comes out NEGATIVE, which reads as "traffic protects
+you". It does not. `bf` is approximately outs recorded plus baserunners, so
+holding `bf` fixed, more baserunners means FEWER OUTS, which means less deep
+into the game, which means less likely to be pulled.
+
+    drop nothing        br -0.338   AUC 0.9123
+    drop pitches        br -0.331   AUC 0.9029
+    drop bf             br -0.030   AUC 0.9113
+    drop pitches + bf   br +0.424   AUC 0.8979
+
+And br vs pitches is POSITIVELY correlated (+0.78 across rows, +0.47 across
+whole starts) — both are cumulative counters. On its own `br` ranks at AUC
+0.853; it is a fine signal that is almost entirely redundant with workload.
+
+### OPEN: early hooks are a different event
+
+The model is fitted on all 86k decisions at a 4.6% base rate, so it is
+overwhelmingly fitting the ordinary case around 90 pitches. An early hook —
+gone by the fourth — has different causes and is the case the model is least
+likely to price well. Chase Burns on 2026-08-24 went 3.2 innings; the sim
+put "pulled during the 4th" at 6.5%. Worth fitting separately, or at minimum
+checking calibration in that region, before trusting the tail.

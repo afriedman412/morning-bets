@@ -1,4 +1,139 @@
-# Resume here — state as of 2026-08-24 (day five)
+# Resume here — state as of 2026-08-25 (day six)
+
+## START HERE
+
+**Read `CLAUDE.md`'s THE OBJECTIVE section and `AF_PLAN.md` first.** Judge
+every change on ACTUAL OUTCOMES. CLV is not the target — measured, our
+resolution is LOWER than the opening price's while we still "beat the open",
+so a CLV edge can rise while the model gets worse at baseball.
+
+## WHAT LANDED ON DAY SIX
+
+**A learned removal model replaces `sim.Hook` for starters**
+(`src/context/removal.py`, `game.USE_LEARNED_HOOK`). Per-decision logistic on
+86k plate appearances from play-by-play. AUC 0.9123 against the shipped
+hook's 0.8755, log loss 27% better, on a date holdout. Coefficients persisted
+to `removal_model.json` so the sim needs no sklearn at run time.
+
+    THE HOOK IS A WORKLOAD RULE. Pitch count alone ranks removals at AUC
+    0.901; the full model reaches 0.914. Traffic, damage, runs, TTO, pitcher
+    quality and all thirty clubs together are worth +0.013.
+
+    RUNS RANK 11th OF 14 FEATURES. Independently confirmed by the refit,
+    which halved `per_run` 0.6 -> 0.3 and moved nothing else.
+
+    CLUB EFFECTS ARE WORTH +0.002 AUC and are dropped. Fifth independent
+    finding that team-specific hook effects do not pay.
+
+**Times through the order** (`src/context/tto.py`, `sim.USE_TTO`). Measured
+on 85,909 starter plate appearances: strikeout rate falls 19% from the first
+pass to the third, walks +9.5%, homers +6%, BABIP flat. Multipliers are
+RE-CENTRED to a PA-weighted mean of 1.0 — anchoring them at pass 1 would
+raise every pitcher's strikeout rate. It fixed first-inning error +0.070 ->
++0.005 (-1.8 sigma), the largest outcome-based gain of either day.
+
+**Measured shrinkage constants** (`src/context/stabilise.py`,
+`rates.USE_MEASURED_STABILISE`). The four imported `STABILISE` values were
+wrong in both directions: batter rates over-shrunk ~2.2x, pitcher HR rate
+UNDER-shrunk 2.7x, and one table was serving two populations that differ
+six-fold on home runs. Now split by population.
+
+**Relief-outing length, mid-inning relief changes, inherited runners by
+base and out** — all measured, all shipped behind flags, and all with NO
+demonstrated effect on prediction across three framings (mean prefix error,
+CLV, distributional CRPS). Measured values stay; see the standing rule.
+
+## THE YARDSTICK, AND WHY MOST THINGS READ AS NULL
+
+We sit at **91-98% of the market's resolution** on outcomes and are BETTER
+CALIBRATED than it (August reliability 0.0005 against Kalshi's 0.0014). The
+entire remaining prize is about 2.5 Brier points. So a mechanism moving 0.02
+runs is exactly what the ceiling predicts, and demanding each one clear 2
+sigma alone guarantees everything reads as a failure.
+
+Use `scratchpad/leverage.py` BEFORE building: it swings each parameter across
+its reliability-adjusted club spread and reports the runs of separation it
+could buy. Under ~0.05 runs it cannot matter however real it is. It has
+already redirected a day of work.
+
+## WHAT IS ACTUALLY WRONG WITH THE MODEL
+
+Two durable defects, both from the refit diagnostics on unseen data:
+
+  * **The sim is 0.13 runs light per side** — 2.32 simulated against 2.45
+    actual. This survived measured advancement, measured inherited runners,
+    TTO and the new shrinkage. Most durable defect in the model.
+  * **It is short of crooked innings.** 15.2% of sides score 5+ against
+    17.7% actual, while shutouts are right (22.6% vs 22.0%). The upper tail
+    is too thin, and that is where totals are decided.
+
+## THE ORDER OF WORK
+
+0. **EARLY HOOKS.** The removal model is fitted at a 4.6% base rate and
+   overwhelmingly fits the ordinary case near 90 pitches. An early hook is a
+   different event. Chase Burns went 3.2 on 2026-08-24; the sim priced
+   "pulled in the 4th" at 6.5%. Fit it separately or at least check
+   calibration in that region.
+1. **Score the learned hook on OUTCOMES**, not just AUC. It is wired in and
+   its effect on the prefix ladder and on starter-length distribution has
+   NOT been measured yet.
+2. **Per-batter and per-pitcher HIT MIX.** Every ball in play that becomes a
+   hit is split single/double/triple by ONE LEAGUE CONSTANT, so a slugger
+   and a slap hitter with the same BABIP produce identical doubles. Leverage
+   screen puts it at 0.145 runs — the highest-scoring thing in the model
+   that does not exist yet, and it feeds the advancement tables.
+3. **Make `ladder` per-side.** AF_PLAN targets TEAM totals; the ladder sums
+   both sides, which hid a 5% dispersion error that per-side scoring found
+   immediately.
+4. Role-based bullpen deployment (passed its gate, unbuilt, but hook-adjacent
+   so expect the same story).
+
+## MEASURED AND DEAD — do not re-run without a NEW approach or NEW data
+
+* **The latent "he does not have it tonight" state.** Tested three ways:
+  outcome damage does not persist within a start (0.1 sigma), exit velocity
+  barely persists (1.8 sigma, and inflated by the constant lineup), and
+  NEITHER predicts later runs (0.1 and 0.4 sigma). Against the SAME NINE
+  HITTERS, 94.6% of the time. A rough first pass tells you nothing about the
+  next one.
+* **Team-specific hook effects.** Five findings now, including a
+  per-decision test worth +0.002 AUC.
+* **Per-club advancement** — split-half r +0.11 to +0.38, leverage <=0.032
+  runs.
+* The nine imported features from earlier days (handedness, park, day/night,
+  bullpen availability, arsenal, recency, ...).
+
+## TRAPS THAT COST REAL TIME
+
+* **Mutation harnesses lie if a mutation preserves file SIZE** — stale .pyc
+  is reused and the mutation never runs. All `scratchpad/mutate_*.py` now
+  clear `__pycache__` and set `PYTHONDONTWRITEBYTECODE=1`.
+* **`ladder.simulate_prefixes` needs per-(game, draw) seeding.** Per-GAME
+  looks like a fix and is not. Without it a bullpen flag moves F1, an inning
+  no reliever reaches. Pinned by
+  `check_the_first_inning_is_immune_to_a_bullpen_flag`.
+* **Fork, not spawn, for the fit workers.** A spawned child re-imports
+  modules at DEFAULT global state, so every flag silently reverts and the
+  search returns a flat surface that reads as "this parameter does not
+  matter". Pinned by `check_worker_state_crosses_the_fork`.
+* **Six checks have now been found to guard nothing**, one of them
+  pre-existing. Write the mutation before believing the check.
+* **Pairing beats sample size.** Prefix error varies ~0.28 runs across games
+  and swamps a 0.02-run effect; the paired per-game difference has an SE
+  near 0.02. Comparing two independently-reported means will never resolve
+  anything here.
+
+## STATE
+
+* 294 checks, `make test`, no network, no pytest.
+* `fitf5.losses` is parallel over salts (4.4x, fork-based). A full hook fit
+  is ~1.2h, not 5.1h.
+* `pitch_center`'s search grid was stale by two revisions and had silently
+  disabled `--with-hook`; re-centred on the shipped 80.0.
+
+---
+
+# Below: day five and earlier
 
 ## DAY FIVE
 

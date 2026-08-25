@@ -40,7 +40,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field
 
-from src.context import relief, sim
+from src.context import relief, removal, sim
 
 #: How many relief arms a club is assumed to have available. Real bullpens
 #: carry 8, and a nine-inning game essentially never needs more than four
@@ -60,6 +60,19 @@ USE_MEASURED_RELIEF_LENGTH = True
 #: because the two pull in opposite directions on how many arms a game uses
 #: and have to stay independently scoreable.
 USE_MEASURED_RELIEF_HOOK = True
+
+#: Replace `sim.Hook` for the STARTER with the learned removal model — a
+#: per-decision logistic fitted to 63,531 real hooks from play-by-play,
+#: AUC 0.912 against the shipped hook's 0.876 and 27% better log loss.
+#:
+#: It subsumes BOTH of the hook's branches. The model's target is "replaced
+#: before the next batter this side faces", which spans the inning boundary,
+#: so one roll per plate appearance covers what `mid_removal_p` and
+#: `removal_p` did separately.
+#:
+#: Relievers are untouched — they keep `relief.mid_removal`, which was
+#: measured on relief outings specifically.
+USE_LEARNED_HOOK = True
 
 
 @dataclass
@@ -133,7 +146,11 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
     while fr.outs < 3:
         b = side.lineup[side.idx % len(side.lineup)]
         side.idx += 1
-        o = sim.pa_outcome(b, side.current, lg, rng, 1.0, park)
+        # TTO applies to the STARTER only. A reliever has no meaningful
+        # lineup pass, and passing 1 for him would hand every arm out of the
+        # bullpen a 1.105 strikeout bonus.
+        tto = None if side.starter_out else side.line.batters // 9 + 1
+        o = sim.pa_outcome(b, side.current, lg, rng, 1.0, park, tto=tto)
 
         before = side.cur_line.runs
         sim.apply_pa(o, side.cur_line, fr, rng)
@@ -164,6 +181,15 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
             rl = side.cur_line
             if rng.random() < relief.mid_removal(rl.runs, rl.batters):
                 side.next_arm(fr.outs)
+        elif not side.starter_out and USE_LEARNED_HOOK:
+            if rng.random() < removal.predict(
+                    _state(side, fr, inning, margin)):
+                ln = side.line
+                ln.pulled_mid_inning = True
+                ln.left_on_base, ln.outs_when_pulled = fr.on_base, fr.outs
+                if not ln.covered_f5:
+                    ln.runs_f5, ln.outs_f5 = ln.runs, ln.outs
+                side.next_arm(fr.outs)
         elif not side.starter_out:
             ln = side.line
             if (rng.random() < side.hook.mid_removal_p(
@@ -180,6 +206,23 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
                 # long he stays: an arm handed two down finishes the inning
                 # and comes back out 63% of the time.
                 side.next_arm(fr.outs)
+
+
+def _state(side: "Side", fr, inning: int, margin: int) -> dict:
+    """What the manager can see, in the learned model's feature names."""
+    ln = side.line
+    p = side.starter
+    return {
+        "pitches": ln.pitches, "bf": ln.batters,
+        "tto": min(ln.batters // 9 + 1, 3),
+        "br": ln.h + ln.bb + ln.hbp + ln.roe,
+        "damage": ln.damage, "onbase": fr.on_base,
+        "inning": inning, "outs": fr.outs,
+        "margin": margin, "abs_margin": abs(margin),
+        "runs": ln.runs,
+        "k_pct": p.k_pct, "bb_pct": p.bb_pct,
+        "quality": p.k_pct - p.bb_pct,
+    }
 
 
 def _end_of_inning(side: Side, rng: random.Random, inning: int,
@@ -201,6 +244,11 @@ def _end_of_inning(side: Side, rng: random.Random, inning: int,
     ln.innings_completed = inning
     if inning == 5:
         ln.runs_f5, ln.outs_f5, ln.covered_f5 = ln.runs, ln.outs, True
+    if USE_LEARNED_HOOK:
+        # Already rolled once per plate appearance, and the model's target
+        # spans the inning boundary. Rolling again here would hook the same
+        # decision twice.
+        return
     if (rng.random() < side.hook.removal_p(
             ln.pitches, ln.runs, inning, ln.h + ln.bb, margin)
             or ln.pitches >= side.hook.hard_pitch_cap):
