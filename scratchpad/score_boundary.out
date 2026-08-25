@@ -1,0 +1,11 @@
+1615 games, paired with common random numbers
+  simulating USE_BOUNDARY_HOOK=False ...
+  simulating USE_BOUNDARY_HOOK=True ...
+
+           actual      OFF       ON   errOFF    errON  d(|err|)   sigma
+  F1         1.03     0.88     0.88   -0.146   -0.150   -0.0024    -0.5
+  F3         2.90     2.73     2.71   -0.172   -0.190   -0.0038    -0.4
+  F5         4.95     4.66     4.66   -0.292   -0.288   +0.0065    +0.5
+  F7         6.89     6.57     6.54   -0.313   -0.343   +0.0190    +1.1
+
+  d(|err|) > 0 means the boundary hook REDUCED absolute error.

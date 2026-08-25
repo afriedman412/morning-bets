@@ -146,6 +146,10 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
     while fr.outs < 3:
         b = side.lineup[side.idx % len(side.lineup)]
         side.idx += 1
+        # The learned model's `outs` feature is outs BEFORE the plate
+        # appearance — a PA never starts with three — so the inning-ending
+        # decision has to be rolled with this value, not with fr.outs after.
+        outs_before = fr.outs
         # TTO applies to the STARTER only. A reliever has no meaningful
         # lineup pass, and passing 1 for him would hand every arm out of the
         # bullpen a 1.105 strikeout bonus.
@@ -156,12 +160,14 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
         sim.apply_pa(o, side.cur_line, fr, rng)
         side.runs += side.cur_line.runs - before
         if fr.outs >= 3:
+            _boundary_roll(side, fr, inning, margin, rng, outs_before)
             break
 
         before = side.cur_line.runs
         sim.baserunning(side.cur_line, fr, rng)
         side.runs += side.cur_line.runs - before
         if fr.outs >= 3:
+            _boundary_roll(side, fr, inning, margin, rng, outs_before)
             break
         # A walk-off ends the game mid-inning. `walk_off` is only ever set
         # for the bottom of the ninth or later, and `side` here is the
@@ -206,6 +212,51 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
                 # long he stays: an arm handed two down finishes the inning
                 # and comes back out 63% of the time.
                 side.next_arm(fr.outs)
+
+
+#: Off restores the defect this fixes, for A/B measurement.
+USE_BOUNDARY_HOOK = True
+
+
+def _boundary_roll(side: Side, fr, inning: int, margin: int,
+                   rng: random.Random, outs_before: int) -> None:
+    """The decision made on the plate appearance that ENDS an inning.
+
+    THIS WAS NEVER BEING MADE. `_half_inning` breaks out of its loop the
+    moment the third out lands, which is before the removal block, and
+    `_end_of_inning` returns early whenever the learned hook is on. So the
+    starter could only ever leave mid-inning: 72,426 instrumented hook calls
+    across 2,000 games came back at outs 0, 1 and 2, and never once at an
+    inning boundary.
+
+    The learned model always knew about these decisions — `removal.py`
+    counts "did not come back out for the next half-inning" as a removal, so
+    boundary hooks are in its training target and its coefficients. They
+    simply had no code path to fire on.
+
+    The cost was the whole shape of the starter-length distribution. Real
+    appearances end on a completed inning 64.1% of the time and the
+    simulator managed about 5%, scattering the mass onto .1 and .2 exits
+    that managers rarely make. Means were unaffected, which is why every
+    aggregate check passed — and why anything priced at a specific outs line
+    was wrong.
+
+    Rolled with `outs_before` because that is the feature the model was fit
+    on: a plate appearance never begins with three out, so an outs=3 state
+    is one the coefficients have never seen.
+    """
+    if side.starter_out or not USE_BOUNDARY_HOOK or not USE_LEARNED_HOOK:
+        return
+    st = _state(side, fr, inning, margin)
+    st["outs"] = outs_before
+    if rng.random() >= removal.predict(st):
+        return
+    ln = side.line
+    # He finished the inning, so nothing is inherited and no runner is left
+    # behind — the distinction the mid-inning path exists to carry.
+    if not ln.covered_f5:
+        ln.runs_f5, ln.outs_f5 = ln.runs, ln.outs
+    side.next_arm(0)
 
 
 def _state(side: "Side", fr, inning: int, margin: int) -> dict:
