@@ -61,18 +61,31 @@ USE_MEASURED_RELIEF_LENGTH = True
 #: and have to stay independently scoreable.
 USE_MEASURED_RELIEF_HOOK = True
 
-#: Replace `sim.Hook` for the STARTER with the learned removal model — a
-#: per-decision logistic fitted to 63,531 real hooks from play-by-play,
-#: AUC 0.912 against the shipped hook's 0.876 and 27% better log loss.
+#: OFF. The learned removal model — a per-decision logistic on 63,531 real
+#: hooks, AUC 0.912 against `sim.Hook`'s 0.876 — replaces BOTH of the hook's
+#: branches with one roll per plate appearance.
 #:
-#: It subsumes BOTH of the hook's branches. The model's target is "replaced
-#: before the next batter this side faces", which spans the inning boundary,
-#: so one roll per plate appearance covers what `mid_removal_p` and
-#: `removal_p` did separately.
+#: IT WAS SHIPPED ON A FALSE PREMISE AND IT COSTS THE DISTRIBUTION. The
+#: premise, written here, was that the model's target spans the inning
+#: boundary so one roll covers what `mid_removal_p` and `removal_p` did
+#: separately. It does not: `_half_inning` breaks out of its loop on the
+#: third out BEFORE the roll happens, so the inning-ending plate appearance
+#: never got a decision at all. Instrumented, 72,426 hook calls across 2,000
+#: games came back at outs 0/1/2 and never once at a boundary.
 #:
-#: Relievers are untouched — they keep `relief.mid_removal`, which was
-#: measured on relief outings specifically.
-USE_LEARNED_HOOK = True
+#: Even with that fixed (`USE_BOUNDARY_HOOK`) one model gives ONE probability
+#: at two moments whose real rates differ 2.2x — 6.30% at a boundary against
+#: 2.83% mid-inning. Starts end on a completed inning 34.6% of the time with
+#: it and 71.3% without, against a real 63.2%.
+#:
+#: The two branches are the right shape and `calibrate.loss` already targets
+#: the boundary share, which is why they were within 0.2 points of it when
+#: last fitted. The learned model was validated on removal-decision AUC — an
+#: upstream proxy — and discarded a calibration nobody re-checked.
+#:
+#: Kept switchable rather than deleted: it is a candidate that has to earn
+#: its way back in on the outs DISTRIBUTION, not on AUC.
+USE_LEARNED_HOOK = False
 
 
 @dataclass

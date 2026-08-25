@@ -106,6 +106,22 @@ def check_both_sides_are_measured_separately():
     assert rows["away"]["pitches"] == 6, rows["away"]
 
 
+# The four checks below exercise the LEARNED hook's boundary path, which is
+# switched off by default — `sim.Hook`'s two branches are the shipped hook
+# now. They turn it on explicitly rather than depending on the default, so
+# the flag can move again without silently disarming them.
+class _learned:
+    def __enter__(self):
+        from src.context import game
+        self.prev = (game.USE_LEARNED_HOOK, game.USE_BOUNDARY_HOOK)
+        game.USE_LEARNED_HOOK = game.USE_BOUNDARY_HOOK = True
+        return game
+
+    def __exit__(self, *a):
+        from src.context import game
+        game.USE_LEARNED_HOOK, game.USE_BOUNDARY_HOOK = self.prev
+
+
 def check_every_starter_plate_appearance_gets_one_removal_decision():
     """The invariant the boundary bug violated.
 
@@ -141,11 +157,13 @@ def check_every_starter_plate_appearance_gets_one_removal_decision():
     for seed in (3, 7, 11):
         n = [0]
         try:
-            removal.predict = lambda st: (n.__setitem__(0, n[0] + 1), 0.0)[1]
-            rng = random.Random(seed)
-            a = game.build_side(p, [], nine, None, rng)
-            h = game.build_side(p, [], nine, None, rng)
-            game.simulate_game(a, h, lg, rng)
+            with _learned():
+                removal.predict = lambda st: (n.__setitem__(0, n[0] + 1),
+                                              0.0)[1]
+                rng = random.Random(seed)
+                a = game.build_side(p, [], nine, None, rng)
+                h = game.build_side(p, [], nine, None, rng)
+                game.simulate_game(a, h, lg, rng)
         finally:
             removal.predict = orig
         bf = a.line.batters + h.line.batters
@@ -185,7 +203,8 @@ def check_a_boundary_pull_inherits_nothing():
     orig = removal.predict
     try:
         removal.predict = lambda st: 1.0
-        game._boundary_roll(side, fr, 6, 0, random.Random(1), 2)
+        with _learned():
+            game._boundary_roll(side, fr, 6, 0, random.Random(1), 2)
     finally:
         removal.predict = orig
 
@@ -220,7 +239,8 @@ def check_the_boundary_roll_uses_the_pre_plate_appearance_out_count():
     orig = removal.predict
     try:
         removal.predict = lambda st: (seen.append(st["outs"]), 0.0)[1]
-        game._boundary_roll(side, fr, 6, 0, random.Random(1), 1)
+        with _learned():
+            game._boundary_roll(side, fr, 6, 0, random.Random(1), 1)
     finally:
         removal.predict = orig
     assert seen == [1], f"expected the pre-PA count, got {seen}"
@@ -240,9 +260,11 @@ def check_the_boundary_hook_respects_its_flag():
     side = game.Side(starter=p, pen=[p], lineup=nine)
     fr = sim.Frame()
     fr.outs = 3
-    orig, flag = removal.predict, game.USE_BOUNDARY_HOOK
+    orig = removal.predict
+    flag = (game.USE_BOUNDARY_HOOK, game.USE_LEARNED_HOOK)
     try:
         removal.predict = lambda st: 1.0
+        game.USE_LEARNED_HOOK = True
         game.USE_BOUNDARY_HOOK = False
         game._boundary_roll(side, fr, 6, 0, random.Random(1), 2)
         assert not side.starter_out, "the off switch did not gate the path"
@@ -250,4 +272,51 @@ def check_the_boundary_hook_respects_its_flag():
         game._boundary_roll(side, fr, 6, 0, random.Random(1), 2)
         assert side.starter_out, "the on switch did not reach the path"
     finally:
-        removal.predict, game.USE_BOUNDARY_HOOK = orig, flag
+        removal.predict = orig
+        game.USE_BOUNDARY_HOOK, game.USE_LEARNED_HOOK = flag
+
+
+def check_the_shipped_hook_is_the_two_branch_one():
+    """`sim.Hook`'s two branches are the starter's hook, not the learned model.
+
+    The learned model was shipped on the premise that one roll per plate
+    appearance covers what `mid_removal_p` and `removal_p` did separately.
+    It does not — see the note on `USE_LEARNED_HOOK`. With it on, starts end
+    on a completed inning 34.6% of the time against a real 63.2%; with the
+    two branches, 71.3%.
+
+    This guards the DEFAULT, because the failure mode is silent: the mean
+    outs barely move, so nothing else in this suite notices."""
+    from src.context import game
+
+    assert game.USE_LEARNED_HOOK is False, (
+        "the combined hook is back on — it gives one probability at two "
+        "moments whose real rates differ 2.2x (6.30% boundary vs 2.83% "
+        "mid-inning)")
+
+
+def check_both_hook_branches_respond_to_their_inputs():
+    """A branch wired to a dead parameter looks identical to a live one.
+
+    Mid-inning is a RESCUE, so it must rise with runners on and with damage
+    in the current inning. The boundary is a WORKLOAD call, so it must rise
+    with pitch count. Both must rise with pitches, since that is the shared
+    term."""
+    from src.context import sim
+
+    h = sim.Hook()
+    on = [h.mid_removal_p(80, 2, n, 0.0) for n in (0, 1, 2, 3)]
+    assert on == sorted(on) and on[3] > on[0] * 2, \
+        f"mid-inning hook ignores runners on base: {on}"
+    dmg = [h.mid_removal_p(80, 2, 1, d) for d in (0.0, 1.0, 2.0, 3.0)]
+    assert dmg == sorted(dmg) and dmg[3] > dmg[0], \
+        f"mid-inning hook ignores inning damage: {dmg}"
+    assert h.mid_removal_p(100, 2, 1, 1.0) > h.mid_removal_p(50, 2, 1, 1.0), \
+        "mid-inning hook ignores pitch count"
+    # Innings held FIXED. Varying pitches and innings together let
+    # `per_inning` carry the assertion on its own, so a boundary hook blind
+    # to pitch count passed this check.
+    assert h.removal_p(100, 2, 6, 4) > h.removal_p(80, 2, 6, 4), \
+        "boundary hook ignores pitch count"
+    assert h.removal_p(90, 2, 7, 4) > h.removal_p(90, 2, 5, 4), \
+        "boundary hook ignores how deep into the game it is"
