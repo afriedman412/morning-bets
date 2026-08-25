@@ -57,13 +57,60 @@ with a 2.2-sigma one and dilutes both, which is what `recency.py` did.
 the notes; the short version is that every measurement module was tested and
 none of the wiring was.
 
+## THE FRAME FOR ALL OF IT (user, end of day seven)
+
+**Central tendency beats the tail.** A bet on under 18.5 outs settles the
+same whether he went six strong or blew up in the second. What matters is
+the mass NEAR THE THRESHOLD, not the shape of the far tail. Day seven spent
+most of its effort on the disaster tail, which is the less useful end — and
+the tail work was then shipped OFF anyway. The 12-14 out bucket (19.4%
+against a real 16.6%) is 4.0-4.2 innings, which is exactly where lines sit,
+and it is the more valuable target.
+
+**The model was RIGHT about the short starts.** Burns at 11 outs and
+Whisenhunt at 8 priced at the 7.1st and 3.8th percentile. Those were rare.
+Pricing them as common would be worse, not better.
+
+**RUNS ARE THE GAME.** They lag as a within-start signal — that is why the
+hook keys on baserunners — but as a measure of whether the SIMULATION is
+right they are the thing itself. Everything else is a component.
+
+**IS THE HOOK WORK JUICING THE OFFENCE? TESTED — NO.** The concern was that
+the hook is fitted to reproduce starter lengths GIVEN this simulator's run
+environment, so a wrong offence gets absorbed into the hook and vice versa.
+Measured on the prefix ladder, 1,615 games, before and after a full day of
+hook work:
+
+    prefix     actual    morning    end of day
+    F1           1.03       0.88          0.88
+    F3           2.90       2.73          2.71
+    F5           4.95       4.66          4.67
+    F7           6.89       6.57          6.57
+
+Identical to two decimals. Mechanically that follows: relievers and starters
+are equal in aggregate here (K-BB 0.1358 against 0.1333), so moving WHEN a
+pitcher leaves does not move how many score.
+
+**THE MODEL RUNS COLD ON RUNS, AND THAT IS THE STANDING DEFECT.** 0.32 runs
+light at F7, about 5% at every prefix, unchanged all day. Note a three-game
+blind re-simulation made it look HOT (sim totals 7.6/8.1/8.4 against actual
+11/5/5, mean percentile 0.356) — that was 21 correlated quantities, maybe
+seven effectively independent, and it had the sign backwards. Trust the
+1,615-game ladder.
+
 ## WHAT TO DO NEXT
 
-**1. The 12-14 out bucket.** 19.4% against a real 16.6%, the largest
-remaining misfit. That is 4.0-4.2 innings, which is where books hang outs
+**1. THE RUN LEVEL — 5% light at every prefix.** The ladder has said this
+all day and every day; nothing has moved it. It is the stated product and it
+is the one number that is unambiguously wrong. Note the ladder CAN see this
+(it is a level error, not a redistribution) even though it cannot see a hook
+change.
+
+**2. The 12-14 out bucket.** 19.4% against a real 16.6%, the largest
+remaining misfit in the STARTER-LENGTH distribution. That is 4.0-4.2 innings, which is where books hang outs
 lines. Untouched by everything above.
 
-**2. Collapse to ONE engine.** `sim.simulate_start` and
+**3. Collapse to ONE engine.** `sim.simulate_start` and
 `game.simulate_game` both exist; the start-level loop has no bullpen, no
 margin and cannot produce a team total. `quote`, `price`, `calibrate`, `f5`
 and `versus_market` all sit on it, and every calibration table in the notes
@@ -71,17 +118,17 @@ was produced by it, so the migration invalidates recorded baselines in one
 commit. Note `USE_MEASURED_INHERITED` RETIRES with that loop rather than
 needing a port — `game.py` plays inherited runners out for real.
 
-**3. Score the blind re-simulation.** Three games from 2026-08-24 were
+**4. Score the blind re-simulation.** Three games from 2026-08-24 were
 re-simulated with rates cut off before the game date and published as a
 dashboard (`scratchpad/lastnight.py`, `scratchpad/dash.py`). NOTHING has been
 scored against what actually happened yet — that comparison is the point and
 it has not been made.
 
-**4. Within-start K% persistence, +6.4 sigma.** Whether he has the
+**5. Within-start K% persistence, +6.4 sigma.** Whether he has the
 swing-and-miss tonight carries; contact outcomes do not. Unused, and it bears
 directly on strikeout props, which is what `quote` gets asked about most.
 
-**5. Refit the hook properly.** `calibrate.tune` is serial, samples 500 of
+**6. Refit the hook properly.** `calibrate.tune` is serial, samples 500 of
 3,248 starts, and fits `sim.simulate` — the engine being deleted.
 `scratchpad/tune_game.py` fixes all three and does a joint search, but its
 objective still omits SPREAD, so it compresses the distribution to buy the

@@ -15,6 +15,8 @@ from src.context import game, sim
 from src.context import price as pm
 from src.context.sources import rates as rate_src
 
+import os
+EARLY = int(os.environ.get("EARLY", "0"))
 DATE = "2026-08-24"
 BEFORE = "2026-08-24"
 
@@ -33,6 +35,12 @@ LINEUPS = {
     "SF": ["Drew Gilbert", "Rafael Devers", "Jung Hoo Lee", "Derek Hill",
            "Dario Cavanaugh", "Nick Furman", "Sam Whitcomb", "Grant McCray",
            "Casey Koss"],
+    "PHI": ["Kyle Schwarber", "Trea Turner", "Bryce Harper", "Luis Arraez",
+            "Alec Bohm", "Bryson Stott", "Brandon Marsh", "J.T. Realmuto",
+            "Justin Crawford"],
+    "SEA": ["Randy Arozarena", "Dominic Canzone", "Julio Rodriguez",
+            "Josh Naylor", "Taylor Ward", "Cal Raleigh", "Cole Young",
+            "Weston Wilson", "Ben Rodden"],
 }
 
 GAMES = [
@@ -129,10 +137,11 @@ def main():
             acc[f"away_f{n}"], acc[f"home_f{n}"] = [], []
         for i in range(n_sims):
             rng = random.Random(20260824 + i)
+            hook = sim.Hook(early_innings=EARLY)
             A = game.build_side(sps[away], pens.get(away, []),
-                                nines[home], None, rng)
+                                nines[home], hook, rng)
             H = game.build_side(sps[home], pens.get(home, []),
-                                nines[away], None, rng)
+                                nines[away], hook, rng)
             r = game.simulate_game(A, H, lg, rng, track=PREFIXES)
             acc["away_runs"].append(r.away)
             acc["home_runs"].append(r.home)
@@ -151,8 +160,8 @@ def main():
         rec["dist"] = {k: dict(Counter(v)) for k, v in acc.items()}
         out.append(rec)
         print(f"  {away}@{home} done", flush=True)
-    json.dump(out, open("scratchpad/lastnight.json", "w"))
-    print("wrote scratchpad/lastnight.json")
+    json.dump(out, open(f"scratchpad/lastnight{EARLY}.json", "w"))
+    print(f"wrote scratchpad/lastnight{EARLY}.json")
 
 
 if __name__ == "__main__":
