@@ -3182,3 +3182,65 @@ not care about them equally: 14-18 outs is where the board is, and anything
 outside it is a line nobody bets. The same question is now open for
 strikeouts — which K lines carry the volume — and the answer should shape
 how K accuracy is scored too.
+
+## Day nine — the two cheap hook leads, both eliminated
+
+### Lead 2, the mid-inning refit: DEAD, and the premise was wrong
+
+The hypothesis was that its day-seven coefficients were calibrated against a
+state distribution the OLD boundary curve produced, and so were stale once
+that curve was replaced. False: it was fitted to REAL decisions from
+play-by-play, and real decisions do not depend on what our boundary curve
+does. `scratchpad/fit_midinning.py`, 47,716 mid-inning decisions:
+
+    bucket        n   actual  shipped   refit
+    0-60      32497   0.0047   0.0012  0.0038
+    60-70      5121   0.0201   0.0157  0.0304
+    70-80      4675   0.0445   0.0456  0.0640
+    80-90      3568   0.1132   0.1238  0.1325
+    90-100     1603   0.3019   0.2869  0.2524
+    100+        252   0.5635   0.5502  0.4456
+
+The SHIPPED curve tracks the real hazard closely everywhere; the refit is
+worse at five of six buckets. It needs nothing.
+
+AND THE REFIT FAILED FOR A REASON I HAD ALREADY RE-DISCOVERED TWICE TODAY: I
+pooled early and late rows. 32,497 of 47,716 sit under 60 pitches and swamp
+the fit, so the curve came out flat exactly where removals happen. Day seven
+fitted this curve late-only for precisely that reason. Third time in one
+session that a population day seven separated got re-pooled.
+
+### Restricting the BOUNDARY training set: worse, and the asymmetry is the point
+
+The boundary curve I shipped has the same pooling defect — it undershoots
+the tail, 0.596 against a real 0.749 at 100-110. Refitting it on restricted
+rows fixes the hazard and breaks the simulation:
+
+    candidate                mean    sd   bndry   RMS 14.5-17.5
+    shipped (pooled fit)    16.49  3.80   0.480          0.0342
+    trained pitches>=60     16.72  3.61   0.473          0.0576
+    trained inning>=4       16.74  3.60   0.473          0.0615
+    LEGACY (pre-today)      15.64  3.79   0.643          0.0546
+    ACTUAL                  15.78  4.13   0.663
+
+**THE BOUNDARY CURVE IS EVALUATED AT EVERY PITCH COUNT AND THE MID-INNING
+CURVE IS NOT.** Calibrating the boundary curve on 60+ only makes it
+under-pull early, so more starters survive to reach the tail and the mean
+gets WORSE even though the tail probability is now right. For the mid-inning
+curve, under-pulling early is harmless because the boundary curve does the
+early work. For the boundary curve there is nothing underneath it.
+
+So "fit each curve on its own population" is not universal advice. It holds
+for a curve that only fires in part of the range and fails for one that
+fires across all of it.
+
+### What is actually left
+
+The tail undershoot is a limitation of the FUNCTIONAL FORM, not of the
+training rows: the logit is linear in pitches and the real hazard
+accelerates past 90. No choice of training set fixes that. It needs a
+non-linear pitch term, which is a code change rather than a refit.
+
+The pooled boundary fit shipped today remains the best available in the
+current form — band RMS 0.0342 against LEGACY's 0.0546 over the lines that
+are 91.2% of the settled outs board.
