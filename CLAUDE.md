@@ -205,7 +205,7 @@ Run everything through the Makefile's Python virtualenv (`venv/bin/python`).
 - `venv/bin/python -m src.context.sources.<name>` — every source module has a demo main.
 - `venv/bin/python -m src.context.quote "Name" k under 4.5 +102` — price ONE bet: your book, Kalshi's mid AND ask, the markup in cents, our number as advisory.
 - `venv/bin/python -m src.context.price [DATE]` — price the whole slate against Kalshi; declines openers and thin-sample arms out loud.
-- `venv/bin/python -m src.context.f5` / `... f5_market [DATE]` — first-five simulation, and its open-vs-close test.
+- `venv/bin/python -m src.context.f5_market [DATE]` — first-five totals against Kalshi, open vs close. `f5.py`, the stub that simulated one side against a single league-average reliever, was DELETED with the rest of the one-sided engine on 2026-08-25.
 - `venv/bin/python -m src.context.versus_market` — the same test for K props.
 - `venv/bin/python -m src.context.calibrate` — replay real starts, compare the simulated distribution to what happened.
 - `... calibrate --reliability k|outs|all` — does a simulated 60% win 60% of the time? Pooled across starts, bucketed by what the model said. The check that matters for pricing.
@@ -213,7 +213,9 @@ Run everything through the Makefile's Python virtualenv (`venv/bin/python`).
 - `... calibrate --patience` / `--leash` — fit club and pitcher removal offsets as RESIDUALS. Order matters: club first, pitcher against the remainder, or the manager gets counted twice.
 - `... calibrate --holdout YYYY-MM-DD` — refit on the training window only, score on unseen starts.
 - `venv/bin/python -m src.context.sources.starters --backfill` — ground truth for who started. `grading.py` sets this going forward; the backfill is for history.
-- `make test` / `make test ARGS=sim` — 314 offline checks, ~70s.
+- `make test` / `make test ARGS=sim` — 328 offline checks, ~95s. It got
+  slower on 2026-08-25 and that is the deletion, not a regression: a check
+  that used to walk one pitching side now plays a whole game.
 - `venv/bin/python -m scratchpad.mutate` — MUTATION SWEEP. Flips one shipped
   constant at a time and reports which are unguarded. It found five: every
   measurement module was tested and none of the WIRING was. Refuses to run
@@ -297,9 +299,9 @@ src/context/
   assemble.py      builds one slate's snapshot; coverage() scores a bet
   snapshot.py      immutable gzipped storage + per-game market path
   estimate.py      deterministic estimator + bootstrap resilience
-  sim.py           plate-appearance simulator; log5 + base-out + fitted hook
+  sim.py           the plate-appearance model: log5, base-out state machine,
+                   the hook. NOT a driver — `game.py` is the only engine
   calibrate.py     replays real starts; tunes the hook; reliability + Brier
-  f5.py            first five innings: both starters + relief -> run totals
   f5_market.py     F5 against Kalshi's settled board, open vs close
   versus_market.py the same test for player props
   price.py         prices a whole slate against Kalshi
@@ -340,7 +342,26 @@ is either enormous or noise.
 
 `sim.py` replaces the sample with a simulation — log5 matchup rates against
 the specific nine he faces, a base-out state machine, and a hook fitted to
-the league's own removal behaviour. Offline, no API key, ~15k starts/sec.
+the league's own removal behaviour. Offline, no API key.
+
+**THERE IS ONE ENGINE AND IT IS `game.py`.** `sim.py` holds the
+plate-appearance model and the hook; it does NOT drive a simulation. The
+one-sided driver — `sim.simulate_start` and `sim.simulate` — was deleted on
+2026-08-25 along with the `f5.py` stub, the input-uncertainty block
+(`DRAW_RATES`, `HOOK_SIGMA`) and `INHERITED_SCORE_RATE`, which existed only
+because a loop that stopped at the hook could not simulate the reliever
+finishing the inning. Everything now goes through `game.simulate_game`, via
+`calibrate.replay` for historical pairs and `price.simulate_slate_game` for
+a live slate. **A full game is ~20x the work of the old one-sided start** —
+that is the price of both sides, a real bullpen and nine innings, and it is
+why the suite went from 70s to 95s.
+
+**Both starters or neither.** No opposing starter modelled means DECLINE to
+price, never a league-average stand-in: inventing the other club invents the
+score, and the score is what the hook, the bullpen and the margin are
+conditioned on. `paired_cases` drops about 10% of starts for this reason.
+The one mirror-the-opponent harness that exists is `tests/fixtures.py`, and
+`check_nothing_prices_through_the_fixtures` stops it reaching `src/`.
 
 **What it is worth, measured against real prices.** Against Kalshi's
 CLOSING price the strikeout model adds nothing (blend weight 0.00,
@@ -417,7 +438,7 @@ market, 0/4 started ones did.
 
 ### Test suite
 
-`make test` (245 checks, ~60s, no network, no pytest). `tests/run.py` collects
+`make test` (328 checks, ~95s, no network, no pytest). `tests/run.py` collects
 every `check_*`. `tests/test_regressions.py` is one check per bug that
 actually shipped, verified by mutation — reintroducing a fix fails exactly
 the check that covers it.

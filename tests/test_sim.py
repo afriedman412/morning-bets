@@ -16,6 +16,7 @@ import random
 
 from src.context import sim
 from src.context.sources import rates as rate_src
+from tests import fixtures as fx
 
 # Mirrors what `sim.league()` returns: baselines from ROTATION STARTERS on
 # the pitching denominator, not the whole pitcher pool on the batting one.
@@ -271,7 +272,7 @@ def check_team_offset_lengthens_or_shortens_outings():
     def mean_outs(off):
         rng = random.Random(2)
         hook = sim.Hook(team_offset=off)
-        return sum(sim.simulate_start(_pitcher(), _lineup(), LG, hook,
+        return sum(fx.one_side(_pitcher(), _lineup(), LG, hook,
                                       rng).outs for _ in range(400)) / 400
     assert mean_outs(-1.0) > mean_outs(0.0) > mean_outs(1.0)
 
@@ -313,7 +314,7 @@ def check_unknown_club_falls_back_to_the_league_hook():
 def check_start_is_internally_consistent():
     rng = random.Random(6)
     for _ in range(300):
-        r = sim.simulate_start(_pitcher(), _lineup(), LG, sim.Hook(), rng)
+        r = fx.one_side(_pitcher(), _lineup(), LG, sim.Hook(), rng)
         assert 0 <= r.outs <= 27, r.outs
         assert r.k <= r.outs, (r.k, r.outs)
         assert r.hr <= r.h, (r.hr, r.h)
@@ -327,36 +328,41 @@ def check_start_is_internally_consistent():
 def check_simulation_is_deterministic_for_a_seed():
     """A bet's assessment must not change between two runs of the same
     question."""
-    a = sim.simulate(_pitcher(), _lineup(), LG, n=50, seed=42)
-    b = sim.simulate(_pitcher(), _lineup(), LG, n=50, seed=42)
+    a = fx.starts(_pitcher(), _lineup(), LG, n=50, seed=42)
+    b = fx.starts(_pitcher(), _lineup(), LG, n=50, seed=42)
     assert [x.outs for x in a] == [x.outs for x in b]
     assert [x.k for x in a] == [x.k for x in b]
 
 
 def check_different_seeds_give_different_draws():
-    a = sim.simulate(_pitcher(), _lineup(), LG, n=50, seed=1)
-    b = sim.simulate(_pitcher(), _lineup(), LG, n=50, seed=2)
+    a = fx.starts(_pitcher(), _lineup(), LG, n=50, seed=1)
+    b = fx.starts(_pitcher(), _lineup(), LG, n=50, seed=2)
     assert [x.outs for x in a] != [x.outs for x in b]
 
 
 def check_better_lineup_shortens_the_start():
     good = _lineup(k_pct=0.14, bb_pct=0.13, hr_pct=0.06, babip=0.34)
     weak = _lineup(k_pct=0.32, bb_pct=0.05, hr_pct=0.012, babip=0.25)
-    a = sim.simulate(_pitcher(), good, LG, n=500, seed=8)
-    b = sim.simulate(_pitcher(), weak, LG, n=500, seed=8)
+    a = fx.starts(_pitcher(), good, LG, n=500, seed=8)
+    b = fx.starts(_pitcher(), weak, LG, n=500, seed=8)
     ma = sum(x.outs for x in a) / len(a)
     mb = sum(x.outs for x in b) / len(b)
     assert mb > ma + 0.5, (ma, mb)
 
 
 def check_park_factor_only_moves_home_runs():
-    a = sim.simulate(_pitcher(), _lineup(), LG, n=800, seed=8, hr_park=0.6)
-    b = sim.simulate(_pitcher(), _lineup(), LG, n=800, seed=8, hr_park=1.6)
+    # `hr_park`, the bare scalar the deleted one-sided loop took, is gone;
+    # the game engine carries a park DICT, which is the natural shape because
+    # both clubs play in the same building.
+    a = fx.starts(_pitcher(), _lineup(), LG, n=400, seed=8,
+                  park={"hr": 0.6, "k": 1.0, "bip": 1.0})
+    b = fx.starts(_pitcher(), _lineup(), LG, n=400, seed=8,
+                  park={"hr": 1.6, "k": 1.0, "bip": 1.0})
     assert sum(x.hr for x in b) > sum(x.hr for x in a)
 
 
 def check_prob_over_is_a_probability_and_monotone_in_the_line():
-    res = sim.simulate(_pitcher(), _lineup(), LG, n=600, seed=12)
+    res = fx.starts(_pitcher(), _lineup(), LG, n=600, seed=12)
     prev = 1.1
     for line in (8.5, 11.5, 14.5, 17.5, 20.5):
         p = sim.prob_over(res, "outs", line)
@@ -366,8 +372,8 @@ def check_prob_over_is_a_probability_and_monotone_in_the_line():
 
 
 def check_distribution_quantiles_are_ordered():
-    d = sim.distribution(sim.simulate(_pitcher(), _lineup(), LG, n=400,
-                                      seed=13), "outs")
+    d = sim.distribution(fx.starts(_pitcher(), _lineup(), LG, n=400,
+                                   seed=13), "outs")
     assert d["min"] <= d["p10"] <= d["p25"] <= d["p50"] <= d["p75"] \
         <= d["p90"] <= d["max"], d
 
@@ -425,7 +431,7 @@ def check_strikeouts_cannot_exceed_outs():
     entirely in the over's favour."""
     rng = random.Random(21)
     for _ in range(600):
-        r = sim.simulate_start(_pitcher(k_pct=0.45), _lineup(k_pct=0.40),
+        r = fx.one_side(_pitcher(k_pct=0.45), _lineup(k_pct=0.40),
                                LG, sim.Hook(), rng)
         assert r.k <= r.outs, (r.k, r.outs)
 
@@ -440,15 +446,15 @@ def check_k_rate_per_batter_matches_the_matchup_rate():
     p = _pitcher(k_pct=0.30)
     lineup = _lineup(k_pct=0.20)
     want = sim.log5(0.20, 0.30, LG["k_pct"])
-    res = sim.simulate(p, lineup, LG, n=2500, seed=22)
+    res = fx.starts(p, lineup, LG, n=2500, seed=22)
     k = sum(r.k for r in res)
     bf = sum(r.batters for r in res)
     assert abs(k / bf - want) < 0.012, (k / bf, want)
 
 
 def check_strikeout_pitcher_produces_more_strikeouts():
-    lo = sim.simulate(_pitcher(k_pct=0.15), _lineup(), LG, n=600, seed=23)
-    hi = sim.simulate(_pitcher(k_pct=0.35), _lineup(), LG, n=600, seed=23)
+    lo = fx.starts(_pitcher(k_pct=0.15), _lineup(), LG, n=600, seed=23)
+    hi = fx.starts(_pitcher(k_pct=0.35), _lineup(), LG, n=600, seed=23)
     mlo = sum(r.k for r in lo) / len(lo)
     mhi = sum(r.k for r in hi) / len(hi)
     assert mhi > mlo + 2.0, (mlo, mhi)
@@ -460,8 +466,8 @@ def check_lineup_contact_reduces_strikeouts():
     see who he is facing."""
     whiffy = _lineup(k_pct=0.32)
     contact = _lineup(k_pct=0.14)
-    a = sim.simulate(_pitcher(), whiffy, LG, n=600, seed=24)
-    b = sim.simulate(_pitcher(), contact, LG, n=600, seed=24)
+    a = fx.starts(_pitcher(), whiffy, LG, n=600, seed=24)
+    b = fx.starts(_pitcher(), contact, LG, n=600, seed=24)
     assert sum(r.k for r in a) > sum(r.k for r in b) * 1.3
 
 
@@ -469,13 +475,13 @@ def check_k_distribution_is_wider_than_a_point_estimate_suggests():
     """Two starts with the same expected K are not the same bet. If the
     simulated spread collapses, every threshold away from the mean gets
     priced as a near-certainty."""
-    d = sim.distribution(sim.simulate(_pitcher(k_pct=0.26), _lineup(),
+    d = sim.distribution(fx.starts(_pitcher(k_pct=0.26), _lineup(),
                                       LG, n=1500, seed=25), "k")
     assert d["p90"] - d["p10"] >= 4, d
 
 
 def check_k_prob_over_is_monotone_in_the_line():
-    res = sim.simulate(_pitcher(), _lineup(), LG, n=800, seed=26)
+    res = fx.starts(_pitcher(), _lineup(), LG, n=800, seed=26)
     prev = 1.1
     for line in (2.5, 4.5, 6.5, 8.5, 10.5):
         p = sim.prob_over(res, "k", line)
@@ -495,7 +501,7 @@ def check_longer_leash_raises_strikeout_totals():
     def stats(off):
         rng = random.Random(27)
         h = sim.Hook(team_offset=off)
-        r = [sim.simulate_start(_pitcher(), _lineup(), LG, h, rng)
+        r = [fx.one_side(_pitcher(), _lineup(), LG, h, rng)
              for _ in range(2000)]
         n = len(r)
         return sum(x.k for x in r) / n, sum(x.batters for x in r) / n
@@ -526,7 +532,7 @@ def check_k_and_outs_move_together_across_starts():
     """Within the simulation, longer outings must carry more strikeouts.
     A negative or flat relationship means the hook and the rate model have
     come uncoupled."""
-    res = sim.simulate(_pitcher(), _lineup(), LG, n=1200, seed=28)
+    res = fx.starts(_pitcher(), _lineup(), LG, n=1200, seed=28)
     short = [r.k for r in res if r.outs <= 12]
     long_ = [r.k for r in res if r.outs >= 18]
     assert short and long_
@@ -541,7 +547,7 @@ def check_shared_draws_keep_the_line_curve_monotone():
     put P(over 15.5) below P(over 17.5), which is impossible. Sharing draws
     makes the curve monotone by construction; this pins that.
     """
-    res = sim.simulate(_pitcher(), _lineup(), LG, n=400, seed=31)
+    res = fx.starts(_pitcher(), _lineup(), LG, n=400, seed=31)
     vals = [r.outs for r in res]
     prev = 1.1
     for ln in (11.5, 14.5, 15.5, 17.5, 18.5, 20.5):
@@ -640,62 +646,28 @@ def check_switch_hitters_need_no_special_case():
         "special-casing switch hitters; the derivation already handles them"
 
 
-# ── input uncertainty (measured harmful; kept off) ─────────────────────
-def check_posterior_draw_is_centred_on_the_rate():
-    rng = random.Random(41)
-    draws = [sim._draw(0.30, 600, rng) for _ in range(3000)]
-    assert abs(sum(draws) / len(draws) - 0.30) < 0.01
+# ── input uncertainty (measured harmful; deleted) ──────────────────────
+def check_input_uncertainty_stayed_deleted():
+    """MEASURED HARMFUL, and do not rebuild it without re-measuring.
 
+    Drawing each rate from its Beta posterior and jittering the hook offset
+    per start was built to cure the model's compressed probabilities and did
+    the opposite: widening a single start's distribution pushes its P(over)
+    TOWARD the base rate, which is the direction the defect already runs. On
+    600 starts at outs 15.5, Brier skill fell 10.3% -> 9.5% (hook sigma) and
+    -> 9.3% (rate draws), with sd(p) falling 0.120 -> 0.114. The compression
+    is missing SIGNAL, not missing noise, and it is on the dead list as
+    "input-uncertainty propagation".
 
-def check_posterior_is_wider_for_a_thinner_sample():
-    """A 600-PA starter's rate barely moves; a 60-PA one moves a lot. If
-    this inverts, the model would be most confident about the players it
-    knows least."""
-    import statistics as st
-    rng = random.Random(42)
-    wide = st.pstdev([sim._draw(0.30, 60, rng) for _ in range(2000)])
-    tight = st.pstdev([sim._draw(0.30, 600, rng) for _ in range(2000)])
-    assert wide > tight * 1.8, (wide, tight)
-
-
-def check_posterior_floor_bounds_a_tiny_sample():
-    """Without MIN_POSTERIOR_PA a 5-PA hitter gets a posterior so wide the
-    draw is pure noise — that overstates uncertainty rather than
-    representing it."""
-    import statistics as st
-    rng = random.Random(43)
-    sd = st.pstdev([sim._draw(0.30, 5, rng) for _ in range(2000)])
-    ref = st.pstdev([sim._draw(0.30, sim.MIN_POSTERIOR_PA, rng)
-                     for _ in range(2000)])
-    assert abs(sd - ref) < 0.02, (sd, ref)
-
-
-def check_uncertainty_knobs_default_off():
-    """MEASURED HARMFUL, do not switch on without re-measuring.
-
-    Drawing rates and jittering the hook per start was built to cure the
-    model's compressed probabilities and does the opposite: widening a
-    single start's distribution pushes its P(over) TOWARD the base rate,
-    which is the direction the defect already runs. On 600 starts at outs
-    15.5, Brier skill fell 10.3% -> 9.5% (hook sigma) and -> 9.3% (rate
-    draws), with sd(p) falling 0.120 -> 0.114.
-
-    The compression is missing SIGNAL, not missing noise.
+    The machinery hung off `sim.simulate` and went with it when the
+    one-sided engine was deleted. This is the guard that it does not come
+    back by accident — a `DRAW_RATES` reappearing in `sim` would be a
+    measured-harmful mechanism arriving switched on, which is how it got in
+    the first time.
     """
-    assert sim.HOOK_SIGMA == 0.0, sim.HOOK_SIGMA
-    assert sim.DRAW_RATES is False
-
-
-def check_defaults_reproduce_point_estimate_simulation():
-    """With both knobs off, `simulate` must be bit-identical to simulating
-    the same seed directly — otherwise every calibration number recorded
-    before they existed is silently invalidated."""
-    p, l = _pitcher(), _lineup()
-    a = sim.simulate(p, l, LG, n=40, seed=77)
-    rng = random.Random(77)
-    b = [sim.simulate_start(p, l, LG, sim.Hook(), rng) for _ in range(40)]
-    assert [x.outs for x in a] == [x.outs for x in b]
-    assert [x.k for x in a] == [x.k for x in b]
+    for gone in ("HOOK_SIGMA", "DRAW_RATES", "MIN_POSTERIOR_PA",
+                 "_draw", "_jitter_pitcher", "_jitter_batter"):
+        assert not hasattr(sim, gone), gone
 
 
 # ── multi-stat calibration coverage ────────────────────────────────────
@@ -767,7 +739,7 @@ def check_park_moves_the_right_outcomes():
 
     def counts(park):
         rng = random.Random(51)
-        res = [sim.simulate_start(_pitcher(), _lineup(), LG, sim.Hook(),
+        res = [fx.one_side(_pitcher(), _lineup(), LG, sim.Hook(),
                                   rng, park=park) for _ in range(700)]
         return (sum(r.k for r in res) / len(res),
                 sum(r.hr for r in res) / len(res))
@@ -785,9 +757,9 @@ def check_missing_park_index_falls_back_to_neutral_per_key():
 
 def check_neutral_park_reproduces_the_no_park_simulation():
     p, l = _pitcher(), _lineup()
-    a = [sim.simulate_start(p, l, LG, sim.Hook(), random.Random(9))
+    a = [fx.one_side(p, l, LG, sim.Hook(), random.Random(9))
          for _ in range(30)]
-    b = [sim.simulate_start(p, l, LG, sim.Hook(), random.Random(9),
+    b = [fx.one_side(p, l, LG, sim.Hook(), random.Random(9),
                             park=sim.NEUTRAL_PARK) for _ in range(30)]
     assert [x.outs for x in a] == [x.outs for x in b]
     assert [x.k for x in a] == [x.k for x in b]
@@ -929,6 +901,87 @@ def check_declining_to_price_is_reported_not_silent():
     assert "declined to price" in src
 
 
+# ── pricing goes through the game engine ───────────────────────────────
+def _slate_game(away_sp="A Starter", home_sp="H Starter",
+                status="Scheduled"):
+    """One statsapi-shaped slate row, with both lineups posted."""
+    nine = [f"B{i}" for i in range(9)]
+    return {
+        "game_id": "mlb-1", "venue_id": None, "status": status,
+        "start_utc": "2026-08-25T23:05:00Z",
+        "away": {"abbr": "AWY", "starter": away_sp, "starter_id": 1,
+                 "lineup": nine},
+        "home": {"abbr": "HOM", "starter": home_sp, "starter_id": 2,
+                 "lineup": nine},
+    }
+
+
+def _slate_rates(*names):
+    p = _pitcher()
+    return {n: {"name": n, "k_pct": p.k_pct, "bb_pct": p.bb_pct,
+                "hr_pct": p.hr_pct, "babip": p.babip, "pa": 600}
+            for n in names}
+
+
+def _price_args(pr):
+    b = _lineup()[0]
+    br = {f"B{i}": {"k_pct": b.k_pct, "bb_pct": b.bb_pct,
+                    "hr_pct": b.hr_pct, "babip": b.babip, "pa": 500}
+          for i in range(9)}
+    return dict(d="2026-08-25", lg=LG, pr=pr, br=br, league_bats=_lineup()[0],
+                pens={})
+
+
+def check_a_missing_opposing_starter_declines_rather_than_inventing_one():
+    """THE RULE THIS WHOLE MIGRATION ADOPTED.
+
+    A prop names ONE pitcher, but pricing him now means simulating the game
+    he is in, and a game needs the other starter. The tempting shortcut is a
+    league-average stand-in. That invents the other club, which invents the
+    score — and the score is what the hook, the bullpen and the margin are
+    all conditioned on, so the number would look like every other number and
+    be built on a pitcher who is not in the game.
+
+    Same posture the module already takes on openers and live games: say
+    nothing, out loud, with a reason.
+    """
+    from src.context import price
+    a = _price_args(_slate_rates("A Starter"))       # home starter has none
+    res, why = price.simulate_slate_game(_slate_game(), n_sims=2, **a)
+    assert res is None
+    assert "H Starter" in why, why
+
+    # And a game already under way, for the same reason it always was.
+    both = _price_args(_slate_rates("A Starter", "H Starter"))
+    res, why = price.simulate_slate_game(
+        _slate_game(status="In Progress"), n_sims=2, **both)
+    assert res is None and "live" in why, why
+
+
+def check_both_starters_come_out_of_one_simulated_game():
+    """Every bet has two sides, so the matchup is simulated ONCE and each
+    starter's line is read off the same `GameResult`.
+
+    Two things are asserted together because either alone would pass on a
+    broken build: that both lines exist and differ draw to draw, and that
+    they are CONSISTENT WITH ONE GAME — a starter's runs allowed cannot
+    exceed what his side gave up through the innings he was there for.
+    """
+    from src.context import price
+    a = _price_args(_slate_rates("A Starter", "H Starter"))
+    games, why = price.simulate_slate_game(_slate_game(), n_sims=40, **a)
+    assert games is not None, why
+    away = price.starter_line(games, is_home=False)
+    home = price.starter_line(games, is_home=True)
+    assert len(away) == len(home) == 40
+    assert away[0] is not home[0]
+    assert len({r.outs for r in away}) > 1, "every draw identical"
+    for g, sp in zip(games, away):
+        # `home` is runs SCORED by the home team, which is what the AWAY
+        # pitching side allowed. The starter is a subset of that side.
+        assert sp.runs <= g.home, (sp.runs, g.home)
+
+
 # ── arsenal multipliers ────────────────────────────────────────────────
 def check_arsenal_k_and_contact_are_separate_channels():
     """A pitch mix can miss bats without producing weak contact. Collapsing
@@ -1017,7 +1070,7 @@ def check_sacrifice_advances_runners():
     scored = advanced = 0
     for seed in range(300):
         rng = random.Random(seed)
-        r = sim.simulate_start(_pitcher(), _lineup(), LG, sim.Hook(), rng)
+        r = fx.one_side(_pitcher(), _lineup(), LG, sim.Hook(), rng)
         scored += r.runs
         advanced += r.sacrifices
     assert advanced > 0, "no sacrifices recorded across 300 starts"
@@ -1027,7 +1080,7 @@ def check_caught_stealing_records_an_out_with_no_batter():
     """CS counts toward a pitcher's innings pitched, so omitting it cost
     about 0.10 outs a start. It must consume an out WITHOUT consuming a
     plate appearance — if it increments `batters` the fix is wrong."""
-    res = sim.simulate(_pitcher(), _lineup(), LG, n=3000, seed=72)
+    res = fx.starts(_pitcher(), _lineup(), LG, n=3000, seed=72)
     cs = sum(r.caught_stealing for r in res) / len(res)
     assert 0.03 < cs < 0.30, cs
     for r in res:
@@ -1044,7 +1097,7 @@ def check_outs_per_batter_is_close_to_the_league():
     appearances the league number excludes — which made this check fail at
     0.6974 while the comparable figure was 0.708, exactly right.
     """
-    res = sim.simulate(_pitcher(), _lineup(), LG, n=4000, seed=73)
+    res = fx.starts(_pitcher(), _lineup(), LG, n=4000, seed=73)
     o = sum(r.outs for r in res)
     bf = o + sum(r.h + r.bb for r in res)
     assert 0.700 < o / bf < 0.716, o / bf
@@ -1147,7 +1200,7 @@ def check_steals_exist_alongside_caught_stealing():
     runs per baserunner read 10% light while the baserunner COUNT was
     correct. The data has 1,301 steals against ~346 caught."""
     assert sim.SB_RATE > sim.CS_RATE * 2, (sim.SB_RATE, sim.CS_RATE)
-    res = sim.simulate(_pitcher(), _lineup(), LG, n=2500, seed=81)
+    res = fx.starts(_pitcher(), _lineup(), LG, n=2500, seed=81)
     sb = sum(r.stolen_bases for r in res) / len(res)
     cs = sum(r.caught_stealing for r in res) / len(res)
     assert sb > cs, (sb, cs)
@@ -1156,7 +1209,7 @@ def check_steals_exist_alongside_caught_stealing():
 def check_hit_by_pitch_is_tracked_apart_from_walks():
     """HBP must not be folded into `bb`, or the walk total stops matching
     the boxscore — which is the number the calibration checks."""
-    res = sim.simulate(_pitcher(), _lineup(), LG, n=2500, seed=82)
+    res = fx.starts(_pitcher(), _lineup(), LG, n=2500, seed=82)
     hbp = sum(r.hbp for r in res) / len(res)
     assert 0.10 < hbp < 0.45, hbp
     assert sim.DAMAGE[sim.HBP] == sim.DAMAGE[sim.BB]
@@ -1316,7 +1369,7 @@ def check_earned_never_exceeds_total_runs():
     silently."""
     rng = random.Random(4)
     for _ in range(120):
-        r = sim.simulate_start(_pitcher(), _lineup(), LG, sim.Hook(), rng)
+        r = fx.one_side(_pitcher(), _lineup(), LG, sim.Hook(), rng)
         assert r.earned <= r.runs, (r.earned, r.runs)
         assert r.earned >= 0 and r.runs >= 0
 
@@ -1329,7 +1382,7 @@ def check_no_errors_means_no_unearned_runs():
     sim.ROE_PER_OUT = 0.0
     try:
         for _ in range(80):
-            r = sim.simulate_start(_pitcher(), _lineup(), LG, sim.Hook(), rng)
+            r = fx.one_side(_pitcher(), _lineup(), LG, sim.Hook(), rng)
             assert r.runs == r.earned, (r.runs, r.earned)
             assert r.roe == 0, r.roe
     finally:
@@ -1366,9 +1419,15 @@ def check_errors_raise_the_run_level():
         sim.ROE_PER_OUT = roe
         try:
             rng = random.Random(6)
-            out = [sim.simulate_start(_pitcher(), _lineup(), LG, never, rng)
+            out = [fx.one_side(_pitcher(), _lineup(), LG, never, rng)
                    for _ in range(n)]
-            assert all(r.outs == 27 for r in out), "the hook still fired"
+            # At LEAST the full nine, not exactly nine. The deleted
+            # one-sided loop stopped at `max_innings`; a real game goes to
+            # extras when it is tied, and with a never-pull hook and no pen
+            # this pitcher throws those too. The point of the assertion is
+            # unchanged — no start ended early, so nothing here is the hook
+            # reacting to errors.
+            assert all(r.outs >= 27 for r in out), "the hook still fired"
             return out
         finally:
             sim.ROE_PER_OUT = old
@@ -1445,7 +1504,7 @@ def check_a_leash_offset_actually_lengthens_the_start():
     def mean_outs(name):
         rng = random.Random(4)
         h = sim.for_start(sim.Hook(), "XXX", name)
-        return sum(sim.simulate_start(p, nine, lg, h, rng).outs
+        return sum(fx.one_side(p, nine, lg, h, rng).outs
                    for _ in range(400)) / 400
 
     saved = sim._LEASH
@@ -1476,53 +1535,21 @@ def check_for_start_composes_with_an_existing_team_offset():
         sim._LEASH = saved
 
 
-def check_inherited_runners_score_by_base_not_by_count():
-    """A man on third with none out is not a man on first with two down.
+def check_the_inherited_runner_fudge_stayed_deleted():
+    """Inherited runners are SIMULATED now, not settled by a coin flip.
 
-    The flat rate pools them at 0.33 and lands at a plausible 0.312 overall
-    while the real cells run 0.127 to 0.771, which is the advancement
-    mistake repeated — right in the aggregate for cancelling reasons.
+    `INHERITED_SCORE_RATE` (flat 0.33) and `INHERITED_SCORE_BY_STATE` (the
+    same thing counted by base and out) existed only because the one-sided
+    engine stopped the instant the hook fired and could not simulate the
+    reliever finishing the inning. `game.py` hands the base-out state over
+    intact, so a constant reappearing here would charge those runners TWICE
+    — once by coin flip on the way out and again when they actually score.
+
+    The measurement is not what is being deleted: `src.context.inherit`
+    counted 5,507 handovers and its cells (0.127 to 0.771 against a pooled
+    0.312) are still the record. The fudge is.
     """
-    orig, sim.USE_MEASURED_INHERITED = sim.USE_MEASURED_INHERITED, True
-    try:
-        def strand(bases, outs, n=4000):
-            total = 0
-            for s in range(n):
-                r = sim.StartResult()
-                fr = sim.Frame(bases=list(bases), outs=outs)
-                sim._leave(r, fr, random.Random(s))
-                total += r.runs
-            return total / n
-
-        third_none = strand([False, False, True], 0)
-        first_two = strand([True, False, False], 2)
-        assert third_none > first_two * 3, (third_none, first_two)
-    finally:
-        sim.USE_MEASURED_INHERITED = orig
-
-
-def check_the_inherited_flag_off_restores_the_flat_rate():
-    """Every mechanism stays separately scoreable, so off must be the old
-    behaviour exactly — base and out count stop mattering."""
-    orig, sim.USE_MEASURED_INHERITED = sim.USE_MEASURED_INHERITED, False
-    try:
-        def strand(bases, outs, n=4000):
-            total = 0
-            for s in range(n):
-                r = sim.StartResult()
-                fr = sim.Frame(bases=list(bases), outs=outs)
-                sim._leave(r, fr, random.Random(s))
-                total += r.runs
-            return total / n
-
-        third_none = strand([False, False, True], 0)
-        first_two = strand([True, False, False], 2)
-        assert abs(third_none - first_two) < 0.05, (third_none, first_two)
-    finally:
-        sim.USE_MEASURED_INHERITED = orig
-
-
-def check_the_measured_inherited_table_is_not_fittable():
-    """Measuring is not fitting. Handing a counted quantity back to a
-    coordinate descent is how it goes back to absorbing other defects."""
-    assert "INHERITED_SCORE_BY_STATE" not in sim.FITTABLE
+    for gone in ("INHERITED_SCORE_RATE", "INHERITED_SCORE_BY_STATE",
+                 "USE_MEASURED_INHERITED", "_leave"):
+        assert not hasattr(sim, gone), gone
+    assert "INHERITED_SCORE_RATE" not in sim.FITTABLE

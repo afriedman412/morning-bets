@@ -111,29 +111,48 @@ partly "starts by Colorado pitchers". Costs seconds, needs no re-simulation.
 The internal control that says the method works: signed `wind carry` reaches
 +2.1 on hits while raw wind SPEED sits at -0.5.
 
+## THE ONE-SIDED ENGINE IS DELETED (day nine, first commit)
+
+**DONE.** `sim.simulate_start` and `sim.simulate` are gone, and with them
+`f5.py` (the stub that faced one side with a single league-average
+reliever), the `engine="stub"` branch in `f5_market`, the input-uncertainty
+block (`DRAW_RATES`, `HOOK_SIGMA`, the Beta draws) and `_leave` with the
+three inherited-runner constants. Those existed ONLY because a loop that
+stopped at the hook could not simulate the reliever finishing the inning; `game.py`
+hands the base-out state over and plays them out. The `inherit.py`
+MEASUREMENT is untouched — the fudge went, the count stayed.
+
+`price` and `quote` now simulate the whole game and read both starters off
+one `GameResult` (`price.simulate_slate_game`), which is cheaper than what
+it replaced — it used to simulate each pitcher separately. `versus_market`
+and `recency` go through `cal.paired_cases` + `cal.replay` the same way
+`f5_market` already did. **Rule adopted: no modelled opposing starter ->
+DECLINE**, the same posture as openers and live games.
+
+**COST: a full game is ~20x the work of a one-sided start.** The suite went
+70s -> 95s and is 328 checks. `scratchpad/seymour.py` dropped from 40k draws
+to 20k for the same reason.
+
+WHAT IS NOT DONE AND IS THE FIRST THING TO CHECK: **nothing here has been
+re-scored.** No number in this file moved. `price`, `quote`, `versus_market`
+and `recency` all changed engine, so any CLV figure recorded for them is
+from the old one — and the change is not neutral, because the old engine had
+no bullpen after the hook, no margin term and no opposing offence.
+
 ## WHAT TO DO NEXT
 
-**1. FINISH DELETING THE ONE-SIDED ENGINE.** `calibrate` is migrated;
-`cal.paired_cases` + `cal.replay` are the only simulation entry point.
-Remaining: `f5.py` (2 sites, and it invents a league-average reliever
-instead of using real bullpens), `quote.py`/`price.py` via `sim.simulate`,
-~45 test call sites. NOTHING SCHEDULES price OR quote — not cron, not
-launchd, not the Makefile — so they do not gate this. Do `f5` + `quote` +
-the delete in ONE commit. Rule to adopt: no opposing starter -> DECLINE to
-price, which is what `price.py` already does for openers and live games.
-
-**2. REBUILD THE LEASH TWO-SIDED** (`python -m src.context.leash --build`).
+**1. REBUILD THE LEASH TWO-SIDED** (`python -m src.context.leash --build`).
 The shipped offsets were measured on the engine we no longer trust.
 
-**3. WIRE TEMPERATURE as an HR multiplier and score it.** Use the park HR
+**2. WIRE TEMPERATURE as an HR multiplier and score it.** Use the park HR
 factor, not the runs index — the -2.1 on `park runs idx` against a home-run
 target is that mismatch, not a finding.
 
-**4. RE-TEST HANDEDNESS.** Play-by-play carries real `batSide`/`pitchHand`
+**3. RE-TEST HANDEDNESS.** Play-by-play carries real `batSide`/`pitchHand`
 per plate appearance; the dead result used derived season splits, on the
 broken engine.
 
-**5. RE-RUN `fitf5`.** It was crossed. Every F5 number in these notes is
+**4. RE-RUN `fitf5`.** It was crossed. Every F5 number in these notes is
 from that state.
 
 ## TRAPS ADDED ON DAY EIGHT
@@ -168,8 +187,17 @@ inspected `replay`'s arguments instead of what it built.
 
 ## STATE
 
-* 337 checks, `make test`. New: `test_leash` (6), `test_order` (6),
-  `test_weather` (4), plus `test_game`, `test_sim`, `test_wiring`.
+* 328 checks, `make test`, ~95s. The count FELL and the suite got slower,
+  both from the deletion: checks that guarded the one-sided engine's own
+  constants went with it, and every remaining one now plays a whole game.
+  Four new checks, all mutation-verified —
+  `input_uncertainty_stayed_deleted`, `the_inherited_runner_fudge_stayed_
+  deleted`, `inherited_runners_are_played_out_not_settled_by_a_flag` and
+  `nothing_prices_through_the_fixtures`.
+* `tests/fixtures.py` is new: the ONLY thing that mirrors a pitching side
+  against itself, for checks that need innings and a fixture rather than a
+  slate. It calls `game.simulate_game` — it does not walk a plate
+  appearance — and `src/` may not import it.
 * `context.db` adds `mlb_lineups` (35,208 slots) and `mlb_weather` (2,034).
 * Stadium home-plate bearings, if ever needed: NOT required — statsapi
   reports wind field-relative. User supplied a table; it is in the day-eight

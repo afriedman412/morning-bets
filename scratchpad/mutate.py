@@ -34,8 +34,6 @@ MUTATIONS = [
      "times through the order does nothing"),
     ("src/context/sim.py", r"^USE_MEASURED_ADVANCEMENT = True",
      "USE_MEASURED_ADVANCEMENT = False", "advancement reverts to imported"),
-    ("src/context/sim.py", r"^USE_MEASURED_INHERITED = True",
-     "USE_MEASURED_INHERITED = False", "inherited runners revert to flat"),
     ("src/context/sim.py", r"    late_mid_per_pitch: float = [\d.]+",
      "    late_mid_per_pitch: float = 0.0", "late hook ignores pitch count"),
     ("src/context/sim.py", r"    late_mid_per_onbase: float = [\d.]+",
@@ -78,7 +76,7 @@ def _guard():
     """Refuse to run against a dirty tree, and restore on ANY exit.
 
     THIS HARNESS CORRUPTED THE SOURCE ONCE. A two-minute timeout SIGKILLed
-    it between mutating and restoring, leaving USE_MEASURED_INHERITED=False
+    it between mutating and restoring, leaving a measured mechanism switched off
     in sim.py — and the NEXT run then copied the already-mutated file as its
     backup and faithfully restored that, cementing the change. A sweep that
     silently switches off a shipped mechanism is worse than no sweep.

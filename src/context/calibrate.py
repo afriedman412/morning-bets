@@ -347,7 +347,7 @@ def park_for(venue_id) -> dict:
 
 #: One simulated game per draw is ~2x the work of one simulated start, and
 #: `replay` is the only way anything in this project simulates now. That is
-#: deliberate. `sim.simulate_start` modelled ONE PITCHING SIDE IN ISOLATION,
+#: deliberate. The deleted `sim.simulate_start` modelled ONE PITCHING SIDE,
 #: which cannot see its own team's runs — so `Hook.per_margin` and
 #: `mid_per_margin` were structurally unreachable and sat at 0.0 forever,
 #: and a "start" was a different model from a game rather than a part of

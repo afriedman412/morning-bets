@@ -2450,3 +2450,111 @@ his own club, that a lineup follows the play sequence. Three of the six new
 checks initially guarded nothing and were caught by mutation: two set the
 flag they were testing, one asserted "nine distinct names" without checking
 the sequence.
+
+---
+
+# Day nine — the one-sided engine is deleted
+
+`sim.simulate_start` and `sim.simulate` are gone. So is `f5.py`, the
+`engine="stub"` branch in `f5_market`, the input-uncertainty block
+(`DRAW_RATES`, `HOOK_SIGMA`, the Beta posterior draws) and `_leave` with
+`INHERITED_SCORE_RATE`, `INHERITED_SCORE_BY_STATE` and
+`USE_MEASURED_INHERITED`.
+
+## What went, and why each thing went with it rather than being ported
+
+**The driver, not the state machine.** `pa_outcome`, `apply_pa`,
+`baserunning` and `Hook` were always shared — they were extracted precisely
+so the two engines could not drift. What was duplicated is the loop around
+them, and that loop is what could not see a bullpen, an opposing offence or
+a margin. `Hook.per_margin` and `mid_per_margin` were structurally
+unreachable on it and sat at 0.0 forever.
+
+**The inherited-runner constants were a fudge FOR that loop.** A start that
+stops the instant the hook fires has to settle the runners it leaves behind
+somehow, so it flipped a coin at 0.33 — later at a base-out table counted on
+5,507 real handovers. `game.py` hands the state to the reliever and plays
+them out. Measured before the deletion: with the flag ON and OFF, the
+full-game engine gave EXACTLY the same answer, 8.56 against 8.56, because it
+never consulted the constant at all. The MEASUREMENT in `inherit.py` stays
+and is still the thing to check the simulator against; the constant does not.
+
+**The input-uncertainty block is on the dead list** ("input-uncertainty
+propagation") and both knobs shipped off. It hung off `simulate` and had
+nowhere left to hang.
+
+## Both starters or neither — the rule the migration adopted
+
+`price` and `quote` priced ONE pitcher through `sim.simulate`. They now
+simulate the whole game and read `away_sp` / `home_sp` off the same
+`GameResult`, which is CHEAPER than what it replaced: two pitchers, one
+matchup, one set of draws instead of two. `versus_market` and `recency` go
+through `cal.paired_cases` + `cal.replay`, the route `f5_market` already
+used.
+
+The tempting shortcut is a league-average stand-in for a missing opposing
+starter. It is refused everywhere: **inventing the other club invents the
+score**, and the score is what the hook, the bullpen and the margin are
+conditioned on, so the number would look exactly like every other number and
+rest on a pitcher who is not in the game. `paired_cases` already drops about
+10% of starts for this reason and that is the price of scoring on the engine
+the product uses.
+
+## THE COST, STATED PLAINLY: a full game is ~20x a one-sided start
+
+1,000 fixture starts take 1.33s where the old loop did ~15k/sec. That is
+both sides, a real bullpen, nine innings and extras. `make test` went 70s ->
+95s; `scratchpad/seymour.py` went from 40,000 draws to 20,000. Nothing is
+wrong — this is what simulating a game costs, and the old number was cheap
+because it was not simulating one.
+
+A second-order consequence worth knowing: **a never-pulled starter now
+throws extra innings.** `check_errors_raise_the_run_level` asserted
+`outs == 27` and had to become `outs >= 27`. The old loop capped at
+`max_innings`; a real game does not.
+
+## `tests/fixtures.py`, and the boundary around it
+
+About 40 checks used `simulate_start` as a harness for the plate-appearance
+model — does a home run clear the bases, do errors raise the run level, does
+a leash offset lengthen the start. They now go through `fixtures.one_side`,
+which builds two real `game.Side`s and calls `game.simulate_game`. It walks
+no plate appearance of its own; it is a fixture builder, not an engine.
+
+It MIRRORS the pitching side against itself, which is the one thing
+production may never do. `check_nothing_prices_through_the_fixtures` walks
+`src/` with `ast` and fails if anything there imports `tests`. Without it
+the cheapest fix for a missing opposing starter is to reach for the mirror.
+
+Evidence the fixture actually reaches the engine, which is the trap this
+project keeps hitting: mutating `build_side` to drop the hook it is handed
+fails four checks (`team_offset_lengthens_or_shortens_outings`,
+`a_leash_offset_actually_lengthens_the_start`,
+`longer_leash_raises_strikeout_totals`, `errors_raise_the_run_level`). A
+harness that reached nothing would have passed all of them.
+
+## Checks added, all mutation-verified
+
+    check_input_uncertainty_stayed_deleted        re-add DRAW_RATES -> fails
+    check_the_inherited_runner_fudge_stayed_...   re-add the constant -> fails
+    check_inherited_runners_are_played_out_...    make _advance ignore the
+                                                  bases -> loaded == clean
+    check_nothing_prices_through_the_fixtures     import fx in price -> fails
+    check_a_missing_opposing_starter_declines...  league-average fallback ->
+                                                  fails
+    check_both_starters_come_out_of_one_...       starter_line returns away_sp
+                                                  for both sides -> fails
+
+The first two are inverted checks — they assert a mechanism is ABSENT. That
+is the right shape for a measured-harmful mechanism that shipped switched on
+once already: the guard is against it coming back by accident, not against
+its value drifting.
+
+## NOTHING HERE HAS BEEN RE-SCORED
+
+No number in `RESUME.md` moved. Four modules changed engine — `price`,
+`quote`, `versus_market`, `recency` — so every CLV figure recorded for them
+was produced on a loop with no bullpen after the hook, no margin term and no
+opposing offence. The change is not expected to be neutral and has not been
+measured. That is the first thing to establish, and it is cheap for
+`versus_market` because the settled contracts are cached.

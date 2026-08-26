@@ -1,9 +1,10 @@
 """Full-game totals against Kalshi. The product, measured for the first time.
 
-WHY THIS COULD NOT EXIST BEFORE TODAY. `simulate_start` models one pitcher
-and stops when the hook fires, so a nine-inning total was not something this
-project could produce. First-five was reachable through a stub; the game was
-not. `game.py` closed that, and this is the first time the actual deliverable
+WHY THIS COULD NOT EXIST BEFORE 2026-08-23. The engine then was
+`simulate_start`, which modelled one pitcher and stopped when the hook
+fired, so a nine-inning total was not something this project could produce.
+First-five was reachable through a stub; the game was not. Both are deleted
+now. `game.py` closed that, and this is the first time the actual deliverable
 — a game over/under — has been scored against a real settled market.
 
 WHY IT MATTERS MORE THAN THE PROP TESTS. Strikeouts and outs are one input

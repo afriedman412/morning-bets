@@ -176,10 +176,10 @@ def check_margin_defaults_to_no_effect():
 def check_inherited_runners_are_simulated_not_estimated():
     """A starter pulled mid-inning hands over the bases and the outs.
 
-    `f5._side_runs` settles his stranded runners with a flat 0.33 because it
-    never simulates the reliever finishing the inning. This does, so the
-    constant must not appear in the full-game path at all — if it crept back
-    in, those runners would be counted twice.
+    The deleted `f5._side_runs` settled his stranded runners with a flat
+    0.33 because it never simulated the reliever finishing the inning. This
+    does, so the constant must not appear in the full-game path at all — if
+    it crept back in, those runners would be counted twice.
     """
     import inspect
     src = inspect.getsource(game)

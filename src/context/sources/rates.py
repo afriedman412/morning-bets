@@ -508,11 +508,11 @@ def arsenal_mults(starter_arsenal, batter_names, arsenals, season=None,
 #
 # WHY PER-CLUB AND PER-ARM, rather than one league-average reliever.
 #
-# `f5.relief_rates()` collapses the entire relief population into a single
-# set of rates and uses it for every leftover out. That is a defensible stub
-# for first-five, where relief appears in maybe a quarter of sides and
-# usually for under an inning. It is badly wrong for a full game, where the
-# bullpen throws roughly 40% of the innings EVERY time.
+# The deleted `f5.relief_rates()` collapsed the entire relief population
+# into a single set of rates and used it for every leftover out. That was a
+# defensible stub for first-five, where relief appears in maybe a quarter of
+# sides and usually for under an inning. It is badly wrong for a full game,
+# where the bullpen throws roughly 40% of the innings EVERY time.
 #
 # The reason is variance, not level. A league-average arm every night makes
 # the run distribution smooth, and the model's measured defect is already

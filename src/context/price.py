@@ -22,11 +22,12 @@ largest source of error here and it is flagged per row.
 from __future__ import annotations
 
 import json
+import random
 import urllib.request
 from datetime import date, timedelta
 
 from src import db, kalshi, roster
-from src.context import calibrate, gamestate, sim
+from src.context import calibrate, game, gamestate, sim
 from src.context.sources import rates as rate_src
 
 BASE = "https://statsapi.mlb.com/api/v1"
@@ -168,6 +169,90 @@ def _build(names, br, league_bats):
     return out
 
 
+def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
+                        seed=0):
+    """`n_sims` simulated games for one slate matchup. -> (results, reason).
+
+    BOTH STARTERS OR NEITHER, and that is the whole point of this function.
+    Until 2026-08-25 this module priced a pitcher through `sim.simulate`,
+    which modelled ONE PITCHING SIDE IN ISOLATION: it could not see its own
+    team's runs, so the margin terms on the hook were structurally
+    unreachable, and it was a different model from the one every calibration
+    table in the notes was produced on. There is one engine now.
+
+    A missing opposing starter is a DECLINE, not a league-average stand-in.
+    Inventing the other club invents the score, and the score is what the
+    hook and the bullpen are conditioned on. Same posture the module already
+    takes on openers and live games: say nothing rather than emit a number
+    that looks like the others.
+
+    EVERY BET HAS TWO SIDES, so this is also cheaper than what it replaces.
+    Both starters come out of ONE simulated game — `away_sp` and `home_sp`
+    off the same `GameResult` — where the old path simulated each pitcher
+    separately and paid twice for the same matchup.
+
+    NOTE WHAT `priceable` IS AND IS NOT APPLIED TO. It gates the pitcher
+    being QUOTED, and it is `price_slate`'s job, not this one's. An opener
+    on the other side is still a real opponent and gets simulated — with a
+    starter's hook, which is a known and recorded limitation ("openers as a
+    population"). Refusing to simulate him would decline his opponent's
+    market too, which is a worse answer than a slightly long opposing start.
+    """
+    if g["status"] not in gamestate.PREGAME_STATES:
+        return None, f"game is {g['status']} — never price a live one"
+
+    specs = {}
+    for side, opp in (("away", "home"), ("home", "away")):
+        s, o = g[side], g[opp]
+        name = s["starter"]
+        if not name:
+            return None, f"no probable starter for {s['abbr']}"
+        p = pr.get(name)
+        if not p:
+            return None, f"no rates on record for {name}"
+        names = o["lineup"] or projected_lineup(o["abbr"], d)
+        if len(names) < 9:
+            return None, f"could not build a lineup for {o['abbr']}"
+        # NAMED BY WHO FACES IT. `faces` is the OPPOSING nine — the batters
+        # this pitcher has to get out. `a_nine` read as "the away team's
+        # nine", held the opposite, and put seven modules on the wrong
+        # lineup for eight days.
+        faces = calibrate.adjust_lineup(_build(names, br, league_bats),
+                                        side == "home")
+        specs[side] = (sim.PitcherRates(
+            name=name, k_pct=p["k_pct"], bb_pct=p["bb_pct"],
+            hr_pct=p["hr_pct"], babip=p["babip"], pa=p["pa"]), faces,
+            s["abbr"])
+
+    park = (calibrate.park_for(g["venue_id"])
+            if calibrate.USE_PARK else None)
+    rng = random.Random(seed)
+    out = []
+    for _ in range(n_sims):
+        sides = {}
+        for side in ("away", "home"):
+            pitcher, faces, abbr = specs[side]
+            # `hook=None` with the leash on is what `calibrate.replay` does:
+            # `build_side` calls `sim.for_start` itself, so the club and
+            # per-pitcher offsets arrive by the one code path that is tested.
+            sd = game.build_side(pitcher, pens.get((abbr or "").upper(), []),
+                                 faces, None, rng, team=abbr)
+            sides[side] = sd
+        if calibrate.HOME_HOOK:
+            h = sides["home"].hook
+            sides["home"].hook = sim.Hook(**{
+                **h.__dict__,
+                "team_offset": h.team_offset + calibrate.HOME_HOOK})
+        out.append(game.simulate_game(sides["away"], sides["home"], lg, rng,
+                                      park=park))
+    return out, ""
+
+
+def starter_line(results, is_home):
+    """The starter's simulated lines for one side of the matchup."""
+    return [(r.home_sp if is_home else r.away_sp) for r in results]
+
+
 def price_slate(date_str: str | None = None, stats=("k", "outs"),
                 n_sims: int = N_SIMS, verbose: bool = True) -> list[dict]:
     """Every Kalshi market for the date, priced by simulation."""
@@ -181,6 +266,7 @@ def price_slate(date_str: str | None = None, stats=("k", "outs"),
                                   babip=lg["babip"])
 
     games = slate(d)
+    pens = rate_src.bullpens(lg, before=d)
     by_pitcher: dict[str, dict] = {}
     for g in games:
         for side, opp in (("away", "home"), ("home", "away")):
@@ -189,6 +275,7 @@ def price_slate(date_str: str | None = None, stats=("k", "outs"),
                 continue
             names = o["lineup"] or projected_lineup(o["abbr"], d)
             by_pitcher[s["starter"]] = {
+                "game": g,
                 "game_id": g["game_id"], "venue_id": g["venue_id"],
                 "team": s["abbr"], "opp": o["abbr"],
                 "is_home": side == "home",
@@ -203,6 +290,10 @@ def price_slate(date_str: str | None = None, stats=("k", "outs"),
 
     rows: list[dict] = []
     skipped: dict[str, str] = {}
+    #: One simulated set of games per MATCHUP, not per pitcher — both
+    #: starters' lines come off the same `GameResult`, and the k line and the
+    #: outs line for one arm are read off the same draws.
+    sims: dict[str, list] = {}
     for stat in stats:
         series = kalshi.SERIES_BY_STAT.get(stat)
         if not series:
@@ -225,14 +316,6 @@ def price_slate(date_str: str | None = None, stats=("k", "outs"),
                             if roster.player_id(k) == pid and pid), None)
             if not ctx:
                 continue
-            # Never price a game in progress. `gamestate.is_pregame` takes a
-            # MATCHUP and does its own fetch; we already hold the detailed
-            # status from the same schedule payload, so check the canonical
-            # set directly rather than making a second call per market.
-            # Unknown resolves to NOT pregame: a stale number costs little,
-            # a live one writes fiction nothing downstream can detect.
-            if ctx.get("status") not in gamestate.PREGAME_STATES:
-                continue
             p = pr.get(name)
             if not p:
                 continue
@@ -248,27 +331,24 @@ def price_slate(date_str: str | None = None, stats=("k", "outs"),
                 continue
             mkt = (yes_bid + yes_ask) / 2
 
-            pitcher = sim.PitcherRates(
-                name=name, k_pct=p["k_pct"], bb_pct=p["bb_pct"],
-                hr_pct=p["hr_pct"], babip=p["babip"], pa=p["pa"])
-            nine = _build(ctx["lineup"], br, league_bats)
-            if len(nine) < 9:
+            gid = ctx["game_id"]
+            if gid not in sims:
+                # The pregame guard lives in here now. `gamestate.is_pregame`
+                # takes a MATCHUP and does its own fetch; the detailed status
+                # is already on the schedule payload, so it is checked
+                # directly rather than once per market. Unknown resolves to
+                # NOT pregame: a stale number costs little, a live one writes
+                # fiction nothing downstream can detect.
+                res, whynot = simulate_slate_game(
+                    ctx["game"], d, lg, pr, br, league_bats, pens,
+                    n_sims=n_sims)
+                sims[gid] = res
+                if res is None:
+                    skipped[name] = whynot
+            if sims[gid] is None:
                 continue
-            hook = sim.for_start(sim.Hook(), ctx["team"], name)
-            if calibrate.USE_HOME_ROAD:
-                mk = (calibrate.HOME_OPP_K if ctx["is_home"]
-                      else calibrate.AWAY_OPP_K)
-                mc = (calibrate.HOME_OPP_CONTACT if ctx["is_home"]
-                      else calibrate.AWAY_OPP_CONTACT)
-                nine = [sim.BatterRates(
-                    name=b.name, pa=b.pa, arsenal_mult=b.arsenal_mult,
-                    k_pct=min(0.95, b.k_pct * mk), bb_pct=b.bb_pct * mc,
-                    hr_pct=b.hr_pct * mc, babip=b.babip * mc) for b in nine]
-            park = (calibrate.park_for(ctx["venue_id"])
-                    if calibrate.USE_PARK else sim.NEUTRAL_PARK)
 
-            res = sim.simulate(pitcher, nine, lg, n=n_sims, hook=hook,
-                               seed=0, park=park)
+            res = starter_line(sims[gid], ctx["is_home"])
             ours = sim.prob_over(res, "k" if stat == "k" else "outs", line)
             se = (ours * (1 - ours) / n_sims) ** 0.5
             rows.append({

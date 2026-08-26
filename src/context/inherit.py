@@ -7,11 +7,12 @@ had before they were measured: a man on third with one out and a man on
 first with none are not the same bet, and one pooled constant cannot be
 right for both.
 
-`game.py` does not use the constant — it hands the base-out state to the
-reliever and the runners score for real reasons. But `sim.simulate`, the
-START-LEVEL path that prices strikeouts and outs, still rolls the flat
-0.33, and those runs are CHARGED to the starter, so the constant moves his
-earned-run line directly.
+THE CONSTANT IS GONE AND THIS MEASUREMENT OUTLIVED IT. `game.py` never
+used it — it hands the base-out state to the reliever and the runners score
+for real reasons — and the start-level path that did roll the flat 0.33 was
+deleted with the one-sided engine on 2026-08-25. What follows is the count
+itself, which is the record of what inherited runners actually do and the
+thing to check the simulator against.
 
 This measures the replacement from play-by-play. For every mid-inning
 pitching change it records which runners were on which bases with how many

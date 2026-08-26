@@ -70,8 +70,21 @@ def american_to_prob(odds: str | int | float) -> float | None:
     return abs(a) / (abs(a) + 100) if a < 0 else 100 / (a + 100)
 
 
+#: Simulated games behind one quote. Fewer than `price.N_SIMS` per market
+#: would be false economy here — a quote is one bet, looked at once.
+N_SIMS = 20000
+
+
 def _sim_prob(name, stat, line, side, d):
-    """(prob, push, note). `prob` is None when the model declines."""
+    """(prob, push, note). `prob` is None when the model declines.
+
+    THE OPPOSING STARTER IS REQUIRED. This used to price the named pitcher
+    alone through `sim.simulate`, an engine that modelled one pitching side
+    in isolation and could not see its own team's runs. It now simulates the
+    whole game, so a matchup with no modelled opponent DECLINES rather than
+    being given a league-average one — the same posture as an opener or a
+    game already in progress.
+    """
     lg = sim.league()
     pr = rate_src.pitcher_rates(lg, before=d)
     p = pr.get(name)
@@ -81,29 +94,22 @@ def _sim_prob(name, stat, line, side, d):
     if not ok:
         return None, None, why
 
+    br = rate_src.batter_rates(lg, before=d)
+    league_bats = sim.BatterRates(
+        name="league", k_pct=lg["k_pct"], bb_pct=lg["bb_pct"],
+        hr_pct=lg["hr_pct"], babip=lg["babip"])
+    pens = rate_src.bullpens(lg, before=d)
+
     for g in price_mod.slate(d):
         for s_key, o_key in (("away", "home"), ("home", "away")):
             if g[s_key]["starter"] != name:
                 continue
-            s, o = g[s_key], g[o_key]
-            if g["status"] not in ("Scheduled", "Pre-Game", "Warmup",
-                                   "Delayed Start", "Preview"):
-                return (None, None,
-                        f"game is {g['status']} — never price a live one")
-            names = o["lineup"] or price_mod.projected_lineup(o["abbr"], d)
-            if len(names) < 9:
-                return None, None, "could not build an opposing lineup"
-            br = rate_src.batter_rates(lg, before=d)
-            league_bats = sim.BatterRates(
-                name="league", k_pct=lg["k_pct"], bb_pct=lg["bb_pct"],
-                hr_pct=lg["hr_pct"], babip=lg["babip"])
-            nine = price_mod._build(names, br, league_bats)
-            hook = sim.for_start(sim.Hook(), s["abbr"], name)
-            res = sim.simulate(
-                sim.PitcherRates(name=name, k_pct=p["k_pct"],
-                                 bb_pct=p["bb_pct"], hr_pct=p["hr_pct"],
-                                 babip=p["babip"], pa=p["pa"]),
-                nine, lg, n=20000, hook=hook, seed=0)
+            o = g[o_key]
+            games, whynot = price_mod.simulate_slate_game(
+                g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS)
+            if games is None:
+                return None, None, whynot
+            res = price_mod.starter_line(games, s_key == "home")
             attr = "k" if stat == "k" else "outs"
             over = sim.prob_over(res, attr, line)
             push = sim.prob_push(res, attr, line)

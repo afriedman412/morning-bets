@@ -23,7 +23,11 @@ from src.context.sources import rates as rate_src
 NAME = "Ian Seymour"
 DATE = "2026-08-25"
 LINE = 5.5
-N = 40000
+#: Was 40,000 when this simulated one pitching side. A full game is ~20x
+#: the work, and 20,000 still puts the Monte Carlo error on P(over) at
+#: 0.35 cents — an order below the difference between the two rate sets,
+#: which is what this file exists to show.
+N = 20000
 
 
 def split_rates(name: str, before: str) -> dict:
@@ -37,8 +41,9 @@ def split_rates(name: str, before: str) -> dict:
         return {r["s"]: dict(r) for r in c.execute(q, (name, before))}
 
 
-def run(rates: sim.PitcherRates, nine, lg, hook, label: str) -> None:
-    res = sim.simulate(rates, nine, lg, n=N, hook=hook, seed=0)
+def run(games, is_home: bool, rates: sim.PitcherRates, label: str) -> None:
+    """Report one rate set, off games already simulated through `price`."""
+    res = pm.starter_line(games, is_home)
     over = sim.prob_over(res, "k", LINE)
     ks = sorted(r.k for r in res)
     outs = sorted(r.outs for r in res)
@@ -74,19 +79,35 @@ def main() -> None:
              if NAME in (g["away"]["starter"], g["home"]["starter"]))
     side = "away" if g["away"]["starter"] == NAME else "home"
     opp = g["home" if side == "away" else "away"]
-    names = opp["lineup"] or pm.projected_lineup(opp["abbr"], DATE)
     br = rate_src.batter_rates(lg, before=DATE)
     league_bats = sim.BatterRates(name="league", k_pct=lg["k_pct"],
                                   bb_pct=lg["bb_pct"], hr_pct=lg["hr_pct"],
                                   babip=lg["babip"])
-    nine = pm._build(names, br, league_bats)
+    pens = rate_src.bullpens(lg, before=DATE)
     print(f"  vs {opp['abbr']} "
           f"({'confirmed' if opp['lineup'] else 'PROJECTED'} lineup)")
-    hook = sim.for_start(sim.Hook(), g[side]["abbr"], NAME)
 
-    run(sim.PitcherRates(name=NAME, k_pct=p["k_pct"], bb_pct=p["bb_pct"],
-                         hr_pct=p["hr_pct"], babip=p["babip"], pa=p["pa"]),
-        nine, lg, hook, "POOLED rates (what the model would have used)")
+    # THE WHOLE GAME, through the shipped path. Swapping the rate set in
+    # `pr` rather than calling the simulator directly is what keeps this a
+    # diagnostic OF `price` instead of a second opinion beside it — the
+    # opposing starter, the bullpens, the park and the home/road centring
+    # are whatever `price` would have used tonight.
+    def priced(rates: sim.PitcherRates, label: str) -> None:
+        pr2 = dict(pr)
+        pr2[NAME] = {"name": NAME, "k_pct": rates.k_pct,
+                     "bb_pct": rates.bb_pct, "hr_pct": rates.hr_pct,
+                     "babip": rates.babip, "pa": rates.pa}
+        games, why = pm.simulate_slate_game(g, DATE, lg, pr2, br,
+                                            league_bats, pens, n_sims=N)
+        if games is None:
+            print(f"\n  {label}\n    declined — {why}")
+            return
+        run(games, side == "home", rates, label)
+
+    pooled = sim.PitcherRates(name=NAME, k_pct=p["k_pct"],
+                              bb_pct=p["bb_pct"], hr_pct=p["hr_pct"],
+                              babip=p["babip"], pa=p["pa"])
+    priced(pooled, "POOLED rates (what the model would have used)")
 
     st = sp.get(1)
     if st and st["bf"]:
@@ -98,8 +119,8 @@ def main() -> None:
                "babip": st["h"] / max(bf - st["k"] - st["bb"] - st["hr"], 1)}
         sh = {k: rate_src._shrink(raw[k], bf, lg[k], k, who="pit")
               for k in raw}
-        run(sim.PitcherRates(name=NAME, pa=bf, **sh), nine, lg, hook,
-            "STARTS-ONLY rates (the role he is actually in)")
+        priced(sim.PitcherRates(name=NAME, pa=bf, **sh),
+               "STARTS-ONLY rates (the role he is actually in)")
 
 
 if __name__ == "__main__":

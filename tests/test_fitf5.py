@@ -14,7 +14,8 @@ from __future__ import annotations
 import random
 
 from src.context import calibrate as cal
-from src.context import f5, fitf5, game, sim
+from src.context import fitf5, game, sim
+from tests import fixtures as fx
 from tests.test_sim import LG, _lineup, _pitcher
 
 
@@ -71,7 +72,7 @@ def check_rules_actually_reaches_the_simulation():
     def runs(**over):
         with sim.rules(**over):
             rng = random.Random(4)
-            return sum(sim.simulate_start(p, nine, lg, sim.Hook(), rng).runs
+            return sum(fx.one_side(p, nine, lg, sim.Hook(), rng).runs
                        for _ in range(150))
 
     cold = runs(FIRST_TO_THIRD_ON_1B=0.0, SECOND_SCORES_ON_1B=0.0,
@@ -352,69 +353,6 @@ def check_scoring_covers_the_whole_run_distribution():
     steps = {b - a for a, b in zip(fitf5.SIDE_LINES, fitf5.SIDE_LINES[1:])}
     assert steps == {1.0}, steps          # no gaps: every count is scored
     assert max(fitf5.TOTAL_LINES) >= max(fitf5.SIDE_LINES), "totals run higher"
-
-
-# ── f5 ─────────────────────────────────────────────────────────────────
-def check_side_runs_returns_the_starter_line():
-    """`_side_runs` hands back the StartResult so the fit can report how far
-    the starter got without simulating him twice."""
-    rng = random.Random(2)
-    runs, r = f5._side_runs(_pitcher(), _lineup(), dict(LG), sim.Hook(),
-                            rng, sim.NEUTRAL_PARK, _pitcher(name="rel"))
-    assert isinstance(runs, int) and isinstance(r, sim.StartResult)
-    assert r.outs <= 15, r.outs
-
-
-def check_f5_never_exceeds_five_innings_of_outs():
-    """The starter's share is capped at 15 outs; relief covers the rest.
-    A starter credited with a sixth inning would settle an F5 bet on runs
-    that market never saw."""
-    rng = random.Random(6)
-    for _ in range(40):
-        _, r = f5._side_runs(_pitcher(k_pct=0.40), _lineup(), dict(LG),
-                             sim.Hook(intercept=-99.0, mid_intercept=-99.0),
-                             rng, sim.NEUTRAL_PARK, _pitcher(name="rel"))
-        assert r.outs <= 15, r.outs
-
-
-def check_f5_scores_are_not_crossed():
-    """The AWAY starter's runs allowed are the HOME team's score.
-
-    Getting this backwards is the single most likely way to build an F5
-    model that looks fine and is exactly wrong. Checked by making one
-    starter unhittable: the side he pitches for must be the one that keeps
-    the opponent off the board.
-    """
-    lg = dict(LG)
-    ace = _pitcher(name="ace", k_pct=0.90, bb_pct=0.001, hr_pct=0.0001,
-                   babip=0.01)
-    bad = _pitcher(name="bad", k_pct=0.02, bb_pct=0.30, hr_pct=0.15,
-                   babip=0.45)
-    res = f5.simulate_f5(ace, _lineup(), bad, _lineup(), lg, n=60, seed=1)
-    home = sum(r.home for r in res) / len(res)
-    away = sum(r.away for r in res) / len(res)
-    # The away starter is the ace, so the HOME team (which he faces) is shut
-    # down; the away team feasts on the home starter.
-    assert home < away, (home, away)
-    assert home < 1.0 and away > 3.0, (home, away)
-
-
-def check_f5_relief_is_scaled_to_the_outs_it_covers():
-    """Relief innings are simulated in whole innings and scaled down to the
-    outs actually needed. Without the scaling a starter pulled with one out
-    left gets charged a full inning of relief scoring."""
-    lg = dict(LG)
-    rng = random.Random(9)
-    quick = sim.Hook(intercept=5.0, mid_intercept=-99.0)   # gone after one
-    tot = 0
-    for _ in range(60):
-        runs, r = f5._side_runs(_pitcher(), _lineup(), lg, quick, rng,
-                                sim.NEUTRAL_PARK, _pitcher(name="rel"))
-        assert r.outs <= 15
-        tot += runs
-    # Five innings of league-average pitching is ~2.4 runs; a starter yanked
-    # after one plus four of relief cannot plausibly average double that.
-    assert 0.5 < tot / 60 < 6.0, tot / 60
 
 
 # ── recency weighting ──────────────────────────────────────────────────

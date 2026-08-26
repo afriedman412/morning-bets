@@ -39,17 +39,15 @@ N = int(sys.argv[1]) if len(sys.argv) > 1 else 250
 # Cumulative, in the order they were built, so each line shows what that one
 # mechanism added on top of the previous state rather than in isolation.
 STATES = [
-    ("all off (pre-day-five)", False, False, False),
-    ("+ relief length", True, False, False),
-    ("+ mid-inning relief hook", True, True, False),
-    ("+ inherited by base/out", True, True, True),
+    ("all off (pre-day-five)", False, False),
+    ("+ relief length", True, False),
+    ("+ mid-inning relief hook", True, True),
 ]
 
 results = {}
-for label, length, hook, inherited in STATES:
+for label, length, hook in STATES:
     game.USE_MEASURED_RELIEF_LENGTH = length
     game.USE_MEASURED_RELIEF_HOOK = hook
-    sim.USE_MEASURED_INHERITED = inherited
     tr = fitf5.losses(train, params, N, lg)
     te = fitf5.losses(test, params, N, lg)
     results[label] = (tr, te)
@@ -76,10 +74,9 @@ for label, (tr, te) in results.items():
 print("\n  The high-n ratio the notes prefer over a low-n aggregate:")
 for label, _ in results.items():
     i = [s[0] for s in STATES].index(label)
-    _, length, hook, inherited = STATES[i]
+    _, length, hook = STATES[i]
     game.USE_MEASURED_RELIEF_LENGTH = length
     game.USE_MEASURED_RELIEF_HOOK = hook
-    sim.USE_MEASURED_INHERITED = inherited
     r = fitf5.evaluate(test, params, n_sims=N, lg=lg, salt=0)
     print(f"    {label:<26} sim runs/side {r['sim_runs']:.3f} "
           f"sd {r['sim']['sd']:.3f}   actual {r['act_runs']:.3f} "

@@ -6,9 +6,10 @@ THREE THINGS WRONG WITH `calibrate.tune`, all fixed here.
 
   500 STARTS of the 3,248 available.
 
-  IT FITS THE ENGINE BEING DELETED. `calibrate.run` calls `sim.simulate`,
-  the start-level loop with no bullpen and no margin term, so its hook is
-  stale the moment the callers move to `game.simulate_game`.
+  IT FITTED THE ENGINE THAT HAS SINCE BEEN DELETED. `calibrate.run` used
+  to call `sim.simulate`, the start-level loop with no bullpen and no
+  margin term. It now replays real two-sided games, so any hook fitted
+  before 2026-08-25 was fitted against a different model.
 
 AND ONE THING WRONG WITH COORDINATE DESCENT ITSELF. It moves one parameter
 at a time, so it cannot cross a ridge: `intercept` and `pitch_center` both

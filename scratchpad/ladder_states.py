@@ -39,10 +39,9 @@ for a in sys.argv:
         LIM = int(a.split("=")[1])
 
 STATES = [
-    ("all off (pre-day-five)", False, False, False),
-    ("+ relief length", True, False, False),
-    ("+ mid-inning hook", True, True, False),
-    ("+ inherited by base/out", True, True, True),
+    ("all off (pre-day-five)", False, False),
+    ("+ relief length", True, False),
+    ("+ mid-inning hook", True, True),
 ]
 
 
@@ -64,10 +63,9 @@ def main() -> None:
 
     # state -> prefix -> {game_id: signed error}
     errs: dict[str, dict] = {}
-    for label, length, hook, inherited in STATES:
+    for label, length, hook in STATES:
         game.USE_MEASURED_RELIEF_LENGTH = length
         game.USE_MEASURED_RELIEF_HOOK = hook
-        sim.USE_MEASURED_INHERITED = inherited
         simd = ladder.simulate_prefixes(by, pens, lg, n_sims=N)
         errs[label] = {p: {g: simd[g][p] - actual[p][g]["total"]
                            for g in simd} for p in ladder.PREFIXES}

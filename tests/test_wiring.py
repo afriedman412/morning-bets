@@ -19,6 +19,7 @@ alone would guard the default and not the wiring.
 import random
 
 from src.context import game, sim
+from tests import fixtures as fx
 
 LG = sim.league()
 
@@ -63,8 +64,8 @@ def _starts(n=600, seed=3, hook=None, **flags):
         for k, v in flags.items():
             setattr(sim, k, v)
         rng = random.Random(seed)
-        return [sim.simulate_start(_pitcher(), _nine(), dict(LG),
-                                   hook or sim.Hook(), rng)
+        return [fx.one_side(_pitcher(), _nine(), dict(LG),
+                            hook or sim.Hook(), rng)
                 for _ in range(n)]
     finally:
         for k, v in prev.items():
@@ -82,44 +83,49 @@ def check_measured_advancement_reaches_the_run_level():
     assert abs(r_on - r_off) > 0.02, (r_on, r_off)
 
 
-def check_measured_inherited_runners_reach_the_start_level_path():
-    """`USE_MEASURED_INHERITED` replaced a flat 0.330 with a base-out table
-    running 0.127 to 0.771, and it was unguarded.
+def check_inherited_runners_are_played_out_not_settled_by_a_flag():
+    """`USE_MEASURED_INHERITED` was one of the five unguarded flags, and it
+    is GONE rather than guarded.
 
-    TWO REASONS AN AGGREGATE CHECK CANNOT SEE IT, both worth recording.
+    It only ever reached `sim.simulate_start`, which stopped the instant the
+    hook fired and so had to settle a departing starter's stranded runners
+    with a coin flip. Asserted against `simulate_game` the flag made no
+    difference at all — exactly zero, 8.56 against 8.56 — because the full
+    game hands the base-out state to the reliever and plays those runners
+    out for real. So it retired with the one-sided engine.
 
-    It only reaches `simulate_start`. The full-game engine never consults it
-    — it hands the base-out state to the reliever and plays the runners out
-    for real, which is strictly better — so `_leave` and its table retire
-    with the start-level loop rather than needing a port. Asserted against
-    `simulate_game` the difference is exactly zero, 8.56 against 8.56.
-
-    And the POOLED rate is 0.312 against the flat 0.330, so even on the path
-    that does use it the mean barely moves: 1.975 runs against 1.978 over
-    800 starts. The cells differ by a factor of six and cancel in the
-    average. So the check goes at the cell, not the aggregate.
+    That is why this check inverts: it asserts the fudge is absent AND that
+    the mechanism it stood in for is present. A reliever entering with the
+    bases loaded must allow more runs than one entering clean, or inherited
+    runners are not being played out at all and the deleted constant would
+    have been covering for it.
     """
-    import random
+    assert not hasattr(sim, "USE_MEASURED_INHERITED")
+    assert not hasattr(sim, "INHERITED_SCORE_RATE")
 
-    rng = random.Random(4)
-    hits = {True: 0, False: 0}
-    prev = sim.USE_MEASURED_INHERITED
-    try:
-        for flag in (True, False):
-            sim.USE_MEASURED_INHERITED = flag
-            for _ in range(4000):
-                r = sim.StartResult()
-                fr = sim.Frame()
-                fr.bases = [False, False, True]     # man on third
-                fr.outs = 0
-                sim._leave(r, fr, rng)
-                hits[flag] += r.runs
-    finally:
-        sim.USE_MEASURED_INHERITED = prev
-    on, off = hits[True] / 4000, hits[False] / 4000
-    # Third base, nobody out: 0.771 measured against the flat 0.330.
-    assert 0.72 < on < 0.82, on
-    assert 0.29 < off < 0.37, off
+    def runs_after_handover(bases):
+        tot = 0
+        for i in range(400):
+            rng = random.Random(70 + i)
+            fr = sim.Frame(bases=list(bases), outs=1)
+            side = game.Side(starter=_pitcher(), pen=[_pitcher()],
+                             lineup=_nine())
+            side.next_arm(fr.outs)          # the reliever walks into `fr`
+            before = side.cur_line.runs
+            while fr.outs < 3:
+                b = side.lineup[side.idx % 9]
+                side.idx += 1
+                o = sim.pa_outcome(b, side.current, dict(LG), rng)
+                sim.apply_pa(o, side.cur_line, fr, rng)
+                if fr.outs >= 3:
+                    break
+                sim.baserunning(side.cur_line, fr, rng)
+            tot += side.cur_line.runs - before
+        return tot / 400
+
+    loaded = runs_after_handover([True, True, True])
+    clean = runs_after_handover([False, False, False])
+    assert loaded > clean + 0.4, (loaded, clean)
 
 
 def check_the_hard_pitch_cap_actually_caps():
@@ -175,7 +181,6 @@ def check_the_measured_mechanisms_are_switched_on_by_default():
     the cheapest way to lose it.
     """
     assert sim.USE_MEASURED_ADVANCEMENT is True
-    assert sim.USE_MEASURED_INHERITED is True
     assert sim.USE_TTO is True
     assert game.USE_MEASURED_RELIEF_LENGTH is True
     assert game.USE_MEASURED_RELIEF_HOOK is True
@@ -194,11 +199,11 @@ def check_the_leash_reaches_a_full_game_and_not_only_a_start():
 
     Every `build_side` caller passes `hook=None`, and until this was fixed
     that fell through to a bare league `Hook()` — so `sim.for_start`, and
-    with it the whole per-pitcher leash, reached `sim.simulate_start` and
-    never reached `game.simulate_game`. The start-level path is the one
-    `calibrate`, `quote`, `price` and `f5` use, so the mechanism measured
-    correctly there while the engine that produces TEAM TOTALS, which is the
-    stated product, ran without it.
+    with it the whole per-pitcher leash, reached the start-level loop and
+    never reached `game.simulate_game`. That loop was the one `calibrate`,
+    `quote`, `price` and `f5` used, so the mechanism measured correctly
+    there while the engine that produces TEAM TOTALS, which is the stated
+    product, ran without it. Both the gap and the second engine are gone.
 
     It surfaced as a paired prefix ladder printing EXACTLY +0.0000 at F1,
     F3, F5 and F7 over 1,615 games. Read that as a plumbing failure, never
@@ -245,3 +250,33 @@ def check_a_tuner_can_switch_the_leash_off_at_the_side():
         assert side.hook.team_offset == -2.0, side.hook.team_offset
     finally:
         sim._LEASH = saved
+
+
+def check_nothing_prices_through_the_fixtures():
+    """`tests/fixtures.py` mirrors the pitching side against ITSELF.
+
+    That is a legitimate fixture and an illegitimate price. A mirror invents
+    the opposing club, and inventing the opponent invents the score — which
+    is what the hook, the bullpen and the margin are all conditioned on.
+    `price.simulate_slate_game` DECLINES instead, the same posture the module
+    already takes on openers and games in progress.
+
+    So the boundary is one-way and this pins it: `tests/` may import `src/`,
+    and nothing under `src/` may import `tests/`. Without the guard the
+    cheapest fix for a missing opposing starter is to reach for the mirror,
+    and it would price a real bet against a pitcher who is not in the game.
+    """
+    import ast
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent / "src"
+    bad = []
+    for f in sorted(root.rglob("*.py")):
+        for node in ast.walk(ast.parse(f.read_text())):
+            mods = []
+            if isinstance(node, ast.Import):
+                mods = [a.name for a in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                mods = [node.module or ""]
+            if any(m.split(".")[0] == "tests" for m in mods):
+                bad.append(str(f.relative_to(root.parent)))
+    assert not bad, bad

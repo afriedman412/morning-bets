@@ -1,9 +1,11 @@
 """A whole game, both sides, nine innings — the thing that was missing.
 
-WHAT DID NOT EXIST BEFORE THIS. `sim.simulate_start` models ONE PITCHER and
-returns the moment the hook fires. Innings after the pull were never
-simulated at all, so a full team total could not be produced: the project
-had pitcher props, it had first-five via a stub, and it had no game.
+WHAT DID NOT EXIST BEFORE THIS. The engine this replaced,
+`sim.simulate_start`, modelled ONE PITCHER and returned the moment the hook
+fired. Innings after the pull were never simulated at all, so a full team
+total could not be produced: the project had pitcher props, it had
+first-five via a stub, and it had no game. Both are deleted as of
+2026-08-25 and this is the only engine.
 
 TWO SIDES, RUN IN TANDEM. Away pitching faces the home nine, home pitching
 faces the away nine, and given the lineups those are independent — there is
@@ -19,21 +21,22 @@ has no idea whether it is winning. `Hook.per_margin` and `mid_per_margin`
 exist now and both default to ZERO, so this changes nothing until it is
 measured against observed removal timing.
 
-THE BULLPEN IS SAMPLED, NOT AVERAGED. `f5.relief_rates()` collapses 374
-relief arms into one set of rates. That is a defensible stub for first-five,
-where relief appears about a quarter of the time and usually for under an
-inning; it is badly wrong across a full game, where the bullpen throws
-roughly 40% of the innings EVERY time. The measured defect in the run
+THE BULLPEN IS SAMPLED, NOT AVERAGED. The deleted `f5.relief_rates()`
+collapsed 374 relief arms into one set of rates. That was a defensible stub
+for first-five, where relief appears about a quarter of the time and usually
+for under an inning; it is badly wrong across a full game, where the bullpen
+throws roughly 40% of the innings EVERY time. The measured defect in the run
 distribution is that it is COMPRESSED — too many shutouts and too few
 crooked numbers at once — and a league-average arm every night is precisely
 how that happens. The real arms span K% 0.165 to 0.304 with sd 0.037, and
 that spread was being computed and thrown away.
 
-INHERITED RUNNERS ARE NO LONGER A FUDGE. `f5._side_runs` credits a departing
-starter's stranded runners at a flat `INHERITED_SCORE_RATE` of 0.33 because
-it never simulates the reliever finishing the inning. This does simulate
-him, so those runners score or do not score for the reasons they actually
-would — the base-out state is handed over intact.
+INHERITED RUNNERS ARE NO LONGER A FUDGE. The deleted `f5._side_runs`
+credited a departing starter's stranded runners at a flat
+`INHERITED_SCORE_RATE` of 0.33 because it never simulated the reliever
+finishing the inning. This does simulate him, so those runners score or do
+not score for the reasons they actually would — the base-out state is handed
+over intact.
 """
 from __future__ import annotations
 
@@ -443,7 +446,7 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
     THE PER-START HOOK IS APPLIED HERE, and until 2026-08-25 it was not
     applied anywhere in this engine at all. Every caller passes `hook=None`,
     which fell through to a bare league `Hook()`, so `sim.for_start` — the
-    club and per-pitcher offsets — reached `sim.simulate_start` and never
+    club and per-pitcher offsets — reached the start-level loop and never
     reached a full game. The symptom was a paired prefix ladder reading
     EXACTLY +0.0000 at all four prefixes over 1,615 games: not "the ladder
     cannot see a hook change", which is true and expected, but the flag not

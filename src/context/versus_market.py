@@ -28,6 +28,8 @@ disagreement point the right way more often than chance?
 from __future__ import annotations
 
 
+import random
+
 from src import kalshi, roster
 from src.context import calibrate, price as price_mod, sim
 from src.context.sources import rates as rate_src
@@ -43,21 +45,34 @@ def _outcomes(date_str: str, conn=None) -> dict[str, dict]:
     return {r["player_name"]: r for r in rows if r["date"] == date_str}
 
 
+def day_pairs(date_str: str) -> dict:
+    """{game_id: (away_case, home_case)} for one date, rates frozen before it.
+
+    EVERY BET HAS TWO SIDES, which is what makes this cheap. A K contract
+    names one pitcher, but he is in a game with another one, and both lines
+    come off the same simulated game. `paired_cases` drops the ~10% of
+    starts whose opponent is not modelled — that is the price of scoring on
+    the engine the product actually uses, and it beats inventing the other
+    club, which would invent the score the hook is conditioned on.
+    """
+    calibrate._CASES.clear()
+    pairs = calibrate.paired_cases(since=date_str, rates_before=date_str)
+    return {gid: p for gid, p in pairs.items()
+            if p[0][0]["date"] == date_str}
+
+
 def collect(dates, stat="k", n_sims=2000, seed=0, verbose=True) -> list[dict]:
     """One row per settled market: our number, the market's, the result."""
     lg = sim.league()
     out: list[dict] = []
-    lineups = calibrate.opposing_lineups()
+    pens = rate_src.bullpens(lg)
 
     for d in dates:
         actual = _outcomes(d)
         if not actual:
             continue
         pr = rate_src.pitcher_rates(lg, before=d)
-        br = rate_src.batter_rates(lg, before=d)
-        league_bats = sim.BatterRates(
-            name="league", k_pct=lg["k_pct"], bb_pct=lg["bb_pct"],
-            hr_pct=lg["hr_pct"], babip=lg["babip"])
+        pairs = day_pairs(d)
 
         series = kalshi.SERIES_BY_STAT[stat]
         markets = [m for m in kalshi.settled_markets(series)
@@ -95,26 +110,24 @@ def collect(dates, stat="k", n_sims=2000, seed=0, verbose=True) -> list[dict]:
             opened = pp.get("open_prob")
 
             key = row["player_name"]
-            if key not in cache:
-                names = lineups.get((row["game_id"], row["team"])) or []
-                if len(names) < 9:
-                    continue
-                nine = []
-                for nm in names:
-                    b = br.get(nm)
-                    nine.append(sim.BatterRates(
-                        name=nm, k_pct=b["k_pct"], bb_pct=b["bb_pct"],
-                        hr_pct=b["hr_pct"], babip=b["babip"], pa=b["pa"])
-                        if b else league_bats)
-                pitcher = sim.PitcherRates(
-                    name=key, k_pct=p["k_pct"], bb_pct=p["bb_pct"],
-                    hr_pct=p["hr_pct"], babip=p["babip"], pa=p["pa"])
-                hook = sim.for_start(sim.Hook(), row["team"], key)
-                cache[key] = [x.outs if stat == "outs" else x.k
-                              for x in sim.simulate(pitcher, nine, lg,
-                                                    n=n_sims, hook=hook,
-                                                    seed=seed)]
-            vals = cache[key]
+            gid = row["game_id"]
+            if gid not in cache:
+                pair = pairs.get(gid)
+                if pair is None:
+                    # No modelled opposing starter, so no game to simulate.
+                    cache[gid] = None
+                else:
+                    rng = random.Random(seed)
+                    cache[gid] = [calibrate.replay(pair, lg, pens, rng)
+                                  for _ in range(n_sims)]
+            if cache[gid] is None:
+                continue
+            # `away_sp`/`home_sp` are the two starters of the SAME simulated
+            # game, so which one this contract is about comes off the row's
+            # own is_home flag rather than by matching abbreviations.
+            lines = [(r.home_sp if row["is_home"] else r.away_sp)
+                     for r in cache[gid]]
+            vals = [x.outs if stat == "outs" else x.k for x in lines]
             ours = sum(1 for v in vals if v > line) / len(vals)
             got = row["k"] if stat == "k" else row["o"]
             out.append({

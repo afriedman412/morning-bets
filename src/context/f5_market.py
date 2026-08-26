@@ -24,7 +24,7 @@ from collections import defaultdict
 
 from src import db, kalshi
 from src.context import calibrate as cal
-from src.context import f5, game, sim
+from src.context import game, sim
 from src.context.sources import rates as rate_src
 
 MIN_TRADES = 5
@@ -59,14 +59,15 @@ def _match(seg: str, games: dict):
     return None
 
 
-def _f5_totals(pair, home_abbr, lg, pens, n_sims, seed, engine):
+def _f5_totals(pair, home_abbr, lg, pens, n_sims, seed):
     """`n_sims` simulated F5 totals for one game. -> [int]
 
-    `engine="game"` runs the full two-sided simulator: a sampled bullpen, a
-    live score, errors, and inherited runners actually played out.
-    `engine="stub"` is the original — one league-average reliever and a flat
-    0.33 for stranded runners — kept so the two can be compared on the same
-    contracts rather than argued about.
+    THE STUB ENGINE IS GONE. Until 2026-08-25 this took an `engine` argument
+    and could run `f5.simulate_f5` instead — one league-average reliever for
+    every club and a flat 0.33 for stranded runners. It was kept so the two
+    could be compared on the same contracts, and keeping it is what let a
+    mechanism be wired into one engine and silently absent from the other
+    for a full day. There is one engine now.
     """
     home = next((x for x in pair if x[0]["team"] == home_abbr), None)
     away = next((x for x in pair if x[0]["team"] != home_abbr), None)
@@ -86,13 +87,6 @@ def _f5_totals(pair, home_abbr, lg, pens, n_sims, seed, engine):
     a_hook = sim.for_start(sim.Hook(), away[0]["team"], away[1].name)
     h_hook = sim.for_start(sim.Hook(), home[0]["team"], home[1].name)
 
-    if engine == "stub":
-        res = f5.simulate_f5(away[1], home_faces, home[1], away_faces,
-                             lg,
-                             away_hook=a_hook, home_hook=h_hook,
-                             n=n_sims, seed=seed)
-        return [r.total for r in res]
-
     rng = random.Random(seed)
     out = []
     for _ in range(n_sims):
@@ -104,11 +98,10 @@ def _f5_totals(pair, home_abbr, lg, pens, n_sims, seed, engine):
     return out
 
 
-def collect(dates, n_sims=400, seed=0, verbose=True,
-            engine="game") -> list[dict]:
+def collect(dates, n_sims=400, seed=0, verbose=True) -> list[dict]:
     """One row per settled F5-total contract: our number, theirs, the result."""
     lg = sim.league()
-    pens = rate_src.bullpens(lg) if engine == "game" else {}
+    pens = rate_src.bullpens(lg)
     out = []
     for d in dates:
         games = _games(d)
@@ -147,8 +140,7 @@ def collect(dates, n_sims=400, seed=0, verbose=True,
                 continue
 
             if g["game_id"] not in cache:
-                vals = _f5_totals(pair, g["h"], lg, pens, n_sims, seed,
-                                  engine)
+                vals = _f5_totals(pair, g["h"], lg, pens, n_sims, seed)
                 if vals is None:
                     continue
                 cache[g["game_id"]] = vals
@@ -226,6 +218,4 @@ if __name__ == "__main__":
     import sys
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
     dates = args or [f"2026-08-{d:02d}" for d in range(14, 22)]
-    engine = "stub" if "--stub" in sys.argv else "game"
-    print(f"engine: {engine}")
-    report(collect(dates, engine=engine))
+    report(collect(dates))

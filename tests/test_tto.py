@@ -15,6 +15,7 @@ import random
 import statistics as st
 
 from src.context import game, sim, tto
+from tests import fixtures as fx
 from tests.test_sim import LG, _lineup, _pitcher
 
 
@@ -75,15 +76,15 @@ def check_tto_actually_reaches_the_simulated_start():
         early = late = 0
         for s in range(400):
             rng = random.Random(s)
-            r = sim.simulate(p, _lineup(), dict(LG), n=1, seed=s,
-                             hook=sim.Hook(intercept=-99.0,
-                                           mid_intercept=-99.0))[0]
+            r = fx.one_side(p, _lineup(), dict(LG),
+                            sim.Hook(intercept=-99.0, mid_intercept=-99.0),
+                            rng)
             early += r.k
         sim.USE_TTO = False
         for s in range(400):
-            r = sim.simulate(p, _lineup(), dict(LG), n=1, seed=s,
-                             hook=sim.Hook(intercept=-99.0,
-                                           mid_intercept=-99.0))[0]
+            r = fx.one_side(p, _lineup(), dict(LG),
+                            sim.Hook(intercept=-99.0, mid_intercept=-99.0),
+                            random.Random(s))
             late += r.k
     finally:
         sim.USE_TTO = orig

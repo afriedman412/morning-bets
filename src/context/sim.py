@@ -1152,36 +1152,20 @@ ADVANCE_1B_ON_OUT = {0: 0.221, 1: 0.239, 2: 0.0}
 ADVANCE_2B_ON_OUT = {0: 0.490, 1: 0.439, 2: 0.0}
 ADVANCE_3B_ON_OUT = {0: 0.331, 1: 0.420, 2: 0.0}
 
-#: Runners a departing starter leaves on who go on to score. They are
-#: CHARGED TO HIM as earned runs, so `r.runs` has to include them or the
-#: calibration target is unreachable and the advancement rates get inflated
-#: to cover it. Measured: 38.3% of starts end mid-inning stranding 0.97
-#: runners each — 0.122 earned runs a start, 58% of the gap the advancement
-#: refit was closing.
-INHERITED_SCORE_RATE = 0.33
-
-#: P(an inherited runner scores), COUNTED on 5,507 of them across 2,006
-#: games by `src.context.inherit`, keyed by the base he stands on and the
-#: outs at the handover — the state `_leave` already has in hand.
-#:
-#: The flat 0.33 above is the advancement mistake again, and it fails the
-#: same way: pooled it lands at 0.312, near enough to look right, while the
-#: cells run from 0.127 to 0.771. Two-out handovers are the most common
-#: state by some way (2,624 of 5,507) and the flat rate over-credits every
-#: one of them, which inflates a departing starter's earned runs.
-#:
-#: NOT FITTABLE, and deliberately absent from `FITTABLE`. Handing a measured
-#: quantity back to a search is how it goes back to absorbing other defects.
-INHERITED_SCORE_BY_STATE = {
-    0: {0: 0.396, 1: 0.267, 2: 0.127},      # 1B
-    1: {0: 0.628, 1: 0.428, 2: 0.215},      # 2B
-    2: {0: 0.771, 1: 0.633, 2: 0.229},      # 3B
-}
-
-#: Roll inherited runners per BASE instead of one pooled coin flip each.
-#: Off restores the flat 0.33 exactly; every mechanism stays separately
-#: scoreable. Same shape as `USE_MEASURED_ADVANCEMENT`.
-USE_MEASURED_INHERITED = True
+# INHERITED RUNNERS ARE NOT A CONSTANT ANY MORE. `INHERITED_SCORE_RATE`
+# (a flat 0.33), `INHERITED_SCORE_BY_STATE` (the same thing counted by base
+# and out count) and `USE_MEASURED_INHERITED` lived here and RETIRED WITH THE
+# ONE-SIDED ENGINE on 2026-08-25. They only ever existed because
+# `simulate_start` stopped the moment the hook fired and so could not
+# simulate the reliever finishing the inning: a departing starter's stranded
+# runners had to be settled by a coin flip. `game.py` hands the base-out
+# state over intact and plays them out, so those runners now score, or do
+# not, for the reasons they actually would.
+#
+# The MEASUREMENT is not lost and was never the same thing as the constant:
+# `src.context.inherit` counted 5,507 handovers across 2,006 games and the
+# cells (0.127 to 0.771, against a pooled 0.312) are recorded there and in
+# the notes. What is deleted is a fudge for an engine that no longer exists.
 
 #: Wild pitches and passed balls, per plate appearance with a runner
 #: aboard. They move every runner up a base with no hit and no out.
@@ -1214,7 +1198,7 @@ FITTABLE = ("FIRST_TO_THIRD_ON_1B", "SECOND_SCORES_ON_1B",
             "FIRST_SCORES_ON_2B", "FIRST_SCORES_ON_1B",
             "RUNNER_ADVANCES_ON_OUT", "ADVANCE_1B_ON_OUT",
             "ADVANCE_2B_ON_OUT", "ADVANCE_3B_ON_OUT",
-            "INHERITED_SCORE_RATE", "WP_PB_RATE", "GIDP_RATE",
+            "WP_PB_RATE", "GIDP_RATE",
             "ROE_PER_OUT")
 
 
@@ -1236,38 +1220,6 @@ def rules(**overrides):
         yield
     finally:
         globals().update(prev)
-
-
-def _leave(r: "StartResult", fr: "Frame", rng: random.Random) -> "StartResult":
-    """End an outing mid-inning, with the bookkeeping every exit needs.
-
-    Two branches used to do this separately and one of them did neither —
-    the hard-pitch-cap exit returned without recording the runners left on
-    or the F5 line, so a cap-driven exit before the fifth reported zero runs
-    through five no matter how many it had allowed.
-
-    Takes the whole frame rather than bases and outs because the inherited
-    runners have to be scored through `_score`: crediting `r.runs` directly
-    skipped the earned/unearned split, which a check caught the moment
-    errors existed — `runs` and `earned` diverged even with the error rate
-    switched off.
-    """
-    r.pulled_mid_inning = True
-    r.left_on_base, r.outs_when_pulled = fr.on_base, fr.outs
-    if USE_MEASURED_INHERITED:
-        # Per BASE, because a man on third with nobody out (0.771) and a man
-        # on first with two down (0.127) are not the same bet, and the frame
-        # already knows which is which.
-        out_i = min(max(fr.outs, 0), 2)
-        scored = sum(1 for i, on in enumerate(fr.bases) if on
-                     and rng.random() < INHERITED_SCORE_BY_STATE[i][out_i])
-    else:
-        scored = sum(1 for _ in range(r.left_on_base)
-                     if rng.random() < INHERITED_SCORE_RATE)
-    _score(r, fr, scored)
-    if not r.covered_f5:
-        r.runs_f5, r.outs_f5 = r.runs, r.outs
-    return r
 
 
 def _advance(bases: list[bool], outcome: str, rng: random.Random,
@@ -1468,11 +1420,12 @@ def _score(r: StartResult, fr: Frame, runs: int) -> None:
 def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random) -> None:
     """Apply one plate-appearance outcome. Mutates `r` and `fr`.
 
-    EXTRACTED so a full game and a single start cannot drift apart. Both
-    `simulate_start` and `game.py` walk the same base-out state machine, and
-    a second hand-written copy of the double-play rule or the
-    third-out-scores-nobody rule is a bug waiting for the day someone fixes
-    one of them.
+    EXTRACTED so the two engines could not drift apart, and it is why
+    deleting the one-sided loop was a small change: `pa_outcome`, this and
+    `baserunning` were always the shared base-out state machine, and only
+    the driver around them was duplicated. A second hand-written copy of the
+    double-play rule or the third-out-scores-nobody rule is a bug waiting
+    for the day someone fixes one of them.
     """
     bases = fr.bases
     # The out count AS THE BALL IS STRUCK, captured before anything is
@@ -1566,163 +1519,39 @@ def baserunning(r: StartResult, fr: Frame, rng: random.Random) -> None:
             r.stolen_bases += 1
 
 
-def simulate_start(
-    pitcher: PitcherRates, lineup: list[BatterRates], lg: dict,
-    hook: Hook | None = None, rng: random.Random | None = None,
-    hr_park: float = 1.0, max_innings: int = 9,
-    park: dict | None = None,
-) -> StartResult:
-    """One start, plate appearance by plate appearance.
-
-    `lineup` is the nine in order; the simulation wraps, so times through
-    the order emerges from how long he lasts rather than being modelled.
-    """
-    rng = rng or random.Random()
-    hook = hook or Hook()
-    r = StartResult()
-    idx = 0
-
-    for inning in range(1, max_innings + 1):
-        fr = Frame()
-        while fr.outs < 3:
-            b = lineup[idx % len(lineup)]
-            idx += 1
-            # `r.batters` is the count BEFORE this plate appearance, so
-            # the tenth batter faced is the first of the second pass.
-            o = pa_outcome(b, pitcher, lg, rng, hr_park, park,
-                           tto=r.batters // 9 + 1)
-            apply_pa(o, r, fr, rng)
-
-            if fr.outs >= 3:
-                break
-            baserunning(r, fr, rng)
-            if fr.outs >= 3:
-                break
-            if rng.random() < hook.mid_removal_p(
-                    r.pitches, r.runs, fr.on_base, fr.damage,
-                    inning_runs=fr.runs, inning=inning,
-                    inning_br=fr.br):
-                return _leave(r, fr, rng)
-            if r.pitches >= hook.hard_pitch_cap:
-                # Same bookkeeping as any other mid-inning exit. This branch
-                # used to `return` without recording the runners left on OR
-                # the F5 line, so a hard-cap exit before the fifth reported
-                # zero runs through five however many it had allowed.
-                return _leave(r, fr, rng)
-
-        r.innings_completed = inning
-        if inning == 5:
-            r.runs_f5, r.outs_f5, r.covered_f5 = r.runs, r.outs, True
-        if inning >= max_innings:
-            break
-        if rng.random() < hook.removal_p(r.pitches, r.runs, inning,
-                                         r.h + r.bb,
-                                         inning_runs=fr.runs):
-            if not r.covered_f5:
-                r.runs_f5, r.outs_f5 = r.runs, r.outs
-            break
-        if r.pitches >= hook.hard_pitch_cap:
-            break
-    return r
-
-
-# ── uncertainty in the inputs ──────────────────────────────────────────
+# ── THE ONE-SIDED ENGINE IS GONE ───────────────────────────────────────
 #
-# THE DEFECT THIS FIXES. Ten thousand simulated starts using ONE k_pct and
-# ONE hook offset produce only within-start sampling noise. Two real sources
-# of variation are missing, and the reliability tables measured their
-# absence: the model is under-dispersed, saying 60.0% where 71.0% happens.
+# `simulate_start` walked ONE PITCHING SIDE plate appearance by plate
+# appearance and `simulate` drew `n` of them. They were the original engine
+# and `game.simulate_game` replaced them, but both were kept so results could
+# be compared — and keeping both is what cost day eight. A mechanism was
+# wired into one and silently absent from the other for a full day; a paired
+# prefix ladder read EXACTLY +0.0000 at all four prefixes over 1,615 games
+# because `game.build_side` never called `for_start`. Two models that agree
+# to four decimals on 1,615 games are the same model, and an
+# identical-to-four-decimals A/B is a plumbing result, never a null.
 #
-#   1. We do not know the pitcher's true rate. It was estimated from a few
-#      hundred plate appearances and then treated as exact. `pa` is already
-#      carried on both rate objects, so the posterior costs nothing.
-#   2. We do not know the night's conditions. One start the bullpen is
-#      gassed, another it is a blowout, another he is on short rest. The
-#      hook gets one fitted offset and applies it identically every time.
+# WHAT THE ONE-SIDED LOOP COULD NOT DO, which is why it had to go rather than
+# be maintained: no bullpen, so nothing after the hook was simulated at all;
+# no opposing offence, so it never knew whether it was winning and
+# `Hook.per_margin` and `mid_per_margin` were structurally unreachable and
+# sat at 0.0 forever; no boundary hook; and no park applied to the GAME,
+# which is the natural shape because both clubs play in the same building.
+# Every measured null in the dead list — park, handedness, day/night, home
+# field — was produced on it, against games that were not games.
 #
-# Both are the same mistake — treating an estimate as a fact — and both
-# inject variance BETWEEN starts, which is what was missing. Note that
-# handedness splits failed here precisely because they add variance between
-# BATTERS, which averages out across nine of them.
-
-#: Standard deviation of the per-start hook offset, in log-odds. Represents
-#: everything about tonight that shifts a manager's leash and is not
-#: modelled: bullpen state, score, series context, travel. FITTED by
-#: `calibrate.fit_dispersion` against Brier across all lines at once, not
-#: guessed. 0.0 reproduces the old point-estimate behaviour exactly.
-HOOK_SIGMA = 0.0
-#: Draw each rate from its Beta posterior per simulated start rather than
-#: using the point estimate. Off reproduces the old behaviour.
-DRAW_RATES = False
-#: Floor on the pseudo-sample behind a rate. A batter with 12 PA would
-#: otherwise get a posterior so wide the draw is noise, which overstates
-#: uncertainty rather than representing it.
-MIN_POSTERIOR_PA = 40.0
-
-
-def _draw(rate: float, pa: float, rng: random.Random) -> float:
-    """One draw from the Beta posterior implied by `rate` over `pa` trials.
-
-    Beta(rate*pa, (1-rate)*pa) has mean `rate` and a spread set by how much
-    evidence stands behind it — so a 600-PA starter barely moves and a
-    40-PA one moves a lot, which is the honest difference between them.
-    """
-    n = max(pa or 0.0, MIN_POSTERIOR_PA)
-    a = max(rate * n, 1e-3)
-    b = max((1.0 - rate) * n, 1e-3)
-    return min(max(rng.betavariate(a, b), 1e-6), 1 - 1e-6)
-
-
-def _jitter_pitcher(p: PitcherRates, rng: random.Random) -> PitcherRates:
-    return PitcherRates(
-        name=p.name, pa=p.pa,
-        k_pct=_draw(p.k_pct, p.pa, rng),
-        bb_pct=_draw(p.bb_pct, p.pa, rng),
-        hr_pct=_draw(p.hr_pct, p.pa, rng),
-        babip=_draw(p.babip, p.pa, rng),
-    )
-
-
-def _jitter_batter(b: BatterRates, rng: random.Random) -> BatterRates:
-    return BatterRates(
-        name=b.name, pa=b.pa, arsenal_mult=b.arsenal_mult,
-        arsenal_k_mult=b.arsenal_k_mult,
-        k_pct=_draw(b.k_pct, b.pa, rng),
-        bb_pct=_draw(b.bb_pct, b.pa, rng),
-        hr_pct=_draw(b.hr_pct, b.pa, rng),
-        babip=_draw(b.babip, b.pa, rng),
-    )
-
-
-def simulate(
-    pitcher: PitcherRates, lineup: list[BatterRates], lg: dict,
-    n: int = 10000, hook: Hook | None = None, seed: int = 0,
-    hr_park: float = 1.0, hook_sigma: float | None = None,
-    draw_rates: bool | None = None, park: dict | None = None,
-) -> list[StartResult]:
-    """`n` independent starts. Deterministic for a seed.
-
-    Each start optionally redraws the rates and the hook offset, so the
-    spread across the returned list reflects uncertainty in what we know
-    about this matchup and not only the coin flips inside one game.
-    """
-    rng = random.Random(seed)
-    base = hook or Hook()
-    sigma = HOOK_SIGMA if hook_sigma is None else hook_sigma
-    draw = DRAW_RATES if draw_rates is None else draw_rates
-
-    out = []
-    for _ in range(n):
-        h = base
-        if sigma:
-            h = Hook(**{**base.__dict__,
-                        "team_offset": base.team_offset + rng.gauss(0.0,
-                                                                    sigma)})
-        p = _jitter_pitcher(pitcher, rng) if draw else pitcher
-        nine = [_jitter_batter(b, rng) for b in lineup] if draw else lineup
-        out.append(simulate_start(p, nine, lg, h, rng, hr_park,
-                                  park=park))
-    return out
+# The state machine itself was never duplicated: `pa_outcome`, `apply_pa`,
+# `baserunning` and `Hook` above are the shared parts and are what `game.py`
+# calls. What is deleted is the second driver around them.
+#
+# THE INPUT-UNCERTAINTY BLOCK WENT WITH IT. `HOOK_SIGMA`, `DRAW_RATES` and
+# the Beta-posterior draws hung off `simulate` and were both switched OFF —
+# "input-uncertainty propagation" is one of the nine features on the dead
+# list. They are recorded there, not carried here.
+#
+# One pitching side out of a real game, for a check or a diagnostic, is
+# `tests/fixtures.one_side`. It builds two real Sides and calls
+# `simulate_game`; it does not walk a plate appearance itself.
 
 
 # ── reading a distribution off the simulation ──────────────────────────

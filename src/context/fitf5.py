@@ -51,7 +51,7 @@ from collections import defaultdict
 
 from src import db
 from src.context import calibrate as cal
-from src.context import f5, game, sim
+from src.context import game, sim
 from src.context.sources import rates as rate_src
 
 #: Thresholds the side distribution is scored across. This is the FULL
@@ -254,7 +254,6 @@ def evaluate(cases: list[dict], params: dict | None = None, n_sims=60,
     fails to reproduce.
     """
     lg = lg or sim.league()
-    relief = f5.relief_rates()
     p = defaults()
     p.update(params or {})
     base = sim.Hook(**{k: p[k] for k in HOOK_KEYS})

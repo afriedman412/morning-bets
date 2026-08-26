@@ -4,7 +4,15 @@ Three mechanisms landed, each behind its own flag:
 
     game.USE_MEASURED_RELIEF_LENGTH   outings run to their measured length
     game.USE_MEASURED_RELIEF_HOOK     relievers can be pulled mid-inning
-    sim.USE_MEASURED_INHERITED        inherited runners score by base and out
+    sim.USE_MEASURED_INHERITED        DELETED 2026-08-25 with the one-sided
+                                      engine. It settled a departing
+                                      starter's stranded runners by coin
+                                      flip because `simulate_start` could
+                                      not simulate the reliever finishing
+                                      the inning; the full game plays them
+                                      out. It never reached this engine at
+                                      all, so the old fourth state was
+                                      always identical to the third.
 
 Each is measured rather than fitted, so none of them is allowed to be
 reverted on a bad score — a guess that happens to score well is still a
@@ -22,7 +30,7 @@ a settled close and the edge is being early.
 import sys
 
 from scratchpad.clv_nsims import _dates, clv
-from src.context import game, sim, team_market
+from src.context import game, team_market
 
 start = sys.argv[1] if len(sys.argv) > 1 else "2026-08-01"
 end = sys.argv[2] if len(sys.argv) > 2 else "2026-08-21"
@@ -33,16 +41,14 @@ print(f"team totals, {len(dates)} dates {dates[0]}..{dates[-1]}, n_sims={N}",
       flush=True)
 
 STATES = [
-    ("all off (pre-day-five)", False, False, False),
-    ("length only", True, False, False),
-    ("length + hook", True, True, False),
-    ("all on (shipped)", True, True, True),
+    ("all off (pre-day-five)", False, False),
+    ("length only", True, False),
+    ("length + hook (shipped)", True, True),
 ]
 
-for label, length, hook, inherited in STATES:
+for label, length, hook in STATES:
     game.USE_MEASURED_RELIEF_LENGTH = length
     game.USE_MEASURED_RELIEF_HOOK = hook
-    sim.USE_MEASURED_INHERITED = inherited
     rows = team_market.collect(dates, n_sims=N, verbose=False)
     rows = [r for r in rows if r.get("open") is not None]
     s = clv(rows)

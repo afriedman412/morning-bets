@@ -57,11 +57,13 @@ so a half-life window can never reach past the game it is pricing.
 """
 from __future__ import annotations
 
+import random
 import statistics as st
 import sys
 
 from src import kalshi, roster
 from src.context import calibrate, price as price_mod, sim
+from src.context import versus_market as vm
 from src.context.sources import rates as rate_src
 from src.context.versus_market import MIN_TRADES, _outcomes
 
@@ -71,9 +73,16 @@ HALF_LIVES = (None, 21.0, 14.0)
 
 
 def collect(dates, stat="k", n_sims=1200, seed=0, verbose=True) -> list[dict]:
-    """One row per settled market, with our number under EVERY half-life."""
+    """One row per settled market, with our number under EVERY half-life.
+
+    ONLY THE PRICED PITCHER'S RATES MOVE. The paired case carries both
+    starters and the half-life is swapped into one of them; his opponent
+    keeps season-flat rates throughout. That is deliberate — the question is
+    whether recency helps the arm being priced, and re-weighting both sides
+    would confound it with a different run environment.
+    """
     out: list[dict] = []
-    lineups = calibrate.opposing_lineups()
+    pens = rate_src.bullpens(sim.league())
 
     for d in dates:
         actual = _outcomes(d)
@@ -82,14 +91,11 @@ def collect(dates, stat="k", n_sims=1200, seed=0, verbose=True) -> list[dict]:
         # Baselines respect the cutoff too — see sim.league. Without it a
         # "before the game" fit is anchored to numbers that saw the game.
         lg = sim.league(before=d)
-        br = rate_src.batter_rates(lg, before=d)
         rates = {hl: (rate_src.pitcher_rates(lg, before=d) if hl is None
                       else rate_src.pitcher_rates_recent(lg, before=d,
                                                          half_life=hl))
                  for hl in HALF_LIVES}
-        league_bats = sim.BatterRates(
-            name="league", k_pct=lg["k_pct"], bb_pct=lg["bb_pct"],
-            hr_pct=lg["hr_pct"], babip=lg["babip"])
+        pairs = vm.day_pairs(d)
 
         markets = [m for m in kalshi.settled_markets(
             kalshi.SERIES_BY_STAT[stat])
@@ -118,16 +124,12 @@ def collect(dates, stat="k", n_sims=1200, seed=0, verbose=True) -> list[dict]:
             if (pp.get("trades") or 0) < MIN_TRADES:
                 continue
 
-            names = lineups.get((row["game_id"], row["team"])) or []
-            if len(names) < 9:
+            pair = pairs.get(row["game_id"])
+            if pair is None:
                 continue
-            nine = []
-            for nm in names:
-                b = br.get(nm)
-                nine.append(sim.BatterRates(
-                    name=nm, k_pct=b["k_pct"], bb_pct=b["bb_pct"],
-                    hr_pct=b["hr_pct"], babip=b["babip"], pa=b["pa"])
-                    if b else league_bats)
+            # Which half of the pair this contract is about. The other half
+            # is the opposing starter and is left alone.
+            mine = 1 if row["is_home"] else 0
 
             rec = {"date": d, "player": key, "line": line,
                    "market": pp["close_prob"], "open": pp.get("open_prob"),
@@ -143,11 +145,19 @@ def collect(dates, stat="k", n_sims=1200, seed=0, verbose=True) -> list[dict]:
                     pitcher = sim.PitcherRates(
                         name=key, k_pct=p["k_pct"], bb_pct=p["bb_pct"],
                         hr_pct=p["hr_pct"], babip=p["babip"], pa=p["pa"])
-                    hook = sim.for_start(sim.Hook(), row["team"], key)
+                    # Same case, same opponent, same lineups, same seeds —
+                    # only this pitcher's rates differ between half-lives, so
+                    # the comparison is paired on everything else.
+                    swapped = list(pair)
+                    c = swapped[mine]
+                    swapped[mine] = (c[0], pitcher, c[2])
+                    rng = random.Random(seed)
+                    games = [calibrate.replay(tuple(swapped), lg, pens, rng)
+                             for _ in range(n_sims)]
+                    lines = [(g.home_sp if row["is_home"] else g.away_sp)
+                             for g in games]
                     cache[ck] = [x.k if stat == "k" else x.outs
-                                 for x in sim.simulate(pitcher, nine, lg,
-                                                       n=n_sims, hook=hook,
-                                                       seed=seed)]
+                                 for x in lines]
                 vals = cache[ck]
                 rec[f"hl_{hl}"] = sum(1 for v in vals if v > line) / len(vals)
             if ok:
