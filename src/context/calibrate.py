@@ -103,14 +103,45 @@ def actual_starts(season=None, before=None, limit=None,
         return [dict(r) for r in c.execute(q)]
 
 
-def opposing_lineups(conn=None) -> dict[tuple, list[str]]:
-    """{(game_id, pitcher_team): [batter names]} for the other side.
+#: Use the REAL batting order from play-by-play instead of the at-bat
+#: proxy. ON, and it is a correction rather than a feature.
+#:
+#: The proxy sorted each club's hitters by at-bats descending and took the
+#: top nine. Against play-by-play over 574 lineups it matched exactly 0.0%
+#: of the time, missed at least one batter in 23.5%, and put the average
+#: hitter 2.30 slots from where he really batted. At-bats exclude walks, so
+#: a high-OBP leadoff man sorted below a free swinger; a club that batted
+#: around handed its leadoff man five at-bats, so the "input" was partly a
+#: function of the result.
+#:
+#: The order is not cosmetic: the simulator wraps the lineup and derives
+#: times through the order from batters faced, and TTO is a measured 19%
+#: swing in strikeout rate between the first pass and the third.
+USE_REAL_ORDER = True
 
-    The nine who actually hit, in descending at-bats — the closest thing to
-    a batting order the boxscore cache carries. Order matters less than
-    membership for a nine-inning simulation, but a pinch hitter with one AB
-    should not lead off.
+
+def opposing_lineups(conn=None) -> dict[tuple, list[str]]:
+    """{(game_id, pitcher_team): [the nine he FACES, in batting order]}.
+
+    Prefers `order.lineups()`, which counts the true order off play-by-play
+    and covers 97% of final games. The at-bat proxy below remains only as
+    the fallback for the 3% with no cached play-by-play — it is kept rather
+    than deleted so a missing game degrades to a worse lineup instead of
+    dropping the start entirely.
     """
+    if USE_REAL_ORDER:
+        try:
+            from src.context import order
+            real = order.lineups()
+        except Exception:
+            real = {}
+        if real:
+            return {**_ab_proxy_lineups(conn), **real}
+    return _ab_proxy_lineups(conn)
+
+
+def _ab_proxy_lineups(conn=None) -> dict[tuple, list[str]]:
+    """The old at-bat-sorted approximation. FALLBACK ONLY — see above."""
     q = """
     select mb.game_id, mb.team, mb.player_name, mb.ab
     from mlb_batting mb join games g on g.game_id = mb.game_id

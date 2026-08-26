@@ -60,6 +60,20 @@ CREATE TABLE IF NOT EXISTS mlb_stints (
 CREATE INDEX IF NOT EXISTS idx_stints_date ON mlb_stints(date);
 CREATE INDEX IF NOT EXISTS idx_stints_pitcher
     ON mlb_stints(team, player_name);
+
+CREATE TABLE IF NOT EXISTS mlb_lineups (
+    game_id TEXT NOT NULL,
+    date TEXT,
+    team TEXT NOT NULL,
+    side TEXT,
+    slot INTEGER NOT NULL,
+    player_name TEXT,
+    batter_id INTEGER,
+    bat_side TEXT,
+    PRIMARY KEY (game_id, team, slot)
+);
+
+CREATE INDEX IF NOT EXISTS idx_lineups_game ON mlb_lineups(game_id);
 """
 
 
