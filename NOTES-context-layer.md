@@ -2800,3 +2800,56 @@ cannot close a correlation gap in any case.
 It is a LIVE-betting signal. Its pregame use is as evidence for the
 under-dispersion in E[K | outs] above, which is a shape correction and not a
 resolution one.
+
+## Day nine — pitch efficiency screened, and what it actually found
+
+Screened after a hand analysis of the same two slates named "pitch
+efficiency (pitches per out)" as THE most predictive input for outs props —
+Gray 4.74, Boyd 4.87, Dobnak 6.1 — and `sim.PITCH_COST` charges the same
+league table to every pitcher. `scratchpad/tempo.py`.
+
+**IT DOES NOT PASS ITS GATE, AND THE REASON IS THE INTERESTING PART.**
+Pitches per out is (pitches per PA) / (outs per PA), and the denominator is
+TRAFFIC — which the simulator already generates from a pitcher's own K%,
+BB% and BABIP. A per-pitcher pitches-per-out multiplier would count the same
+thing twice. The quantity to screen is the residual against his own outcome
+mix, which is tempo proper: deep counts and foul balls.
+
+    raw pitches per out          split-half r  +0.348
+    outcome-mix residual         split-half r  +0.207
+
+THE RESIDUAL PERSISTS WORSE THAN THE RAW RATIO, which is the signature of a
+signal that is mostly the part you already model. Its spread is +/-3% on
+pitch cost, shrinking to about +/-1.8% or ~0.3 outs, against a per-pitcher
+leash already worth 0.90 — below the bar and overlapping it.
+
+Worth recording that the overlap is real and large: corr(pitch efficiency,
+leash offset) is +0.552, and Tatsuya Imai is both the least efficient arm
+(6.54 pitches per out) and the largest short-leash offset. The leash has
+been fitting this blind. But once traffic is removed there is not much left
+for a separate mechanism to own.
+
+## WHAT THE SCREEN FOUND INSTEAD — a LEVEL error, 6% light
+
+    pitches per out    real 5.47   simulated 5.14    -6.1%
+    spread (sd)        real 0.334  simulated 0.185    55% produced
+    K per batter faced real 0.2149 simulated 0.2141   (not the cause)
+
+The ratio needs no batters-faced denominator, so it survives any accounting
+quibble about reached-on-error. **Our starts retire a hitter every 5.14
+pitches where real ones take 5.47.** At a 92-pitch hook that is 17.9 outs
+against 16.8, and the direction matches the marginal defect measured the
+same day — too many 21+ out starts (16.4% against a real 11.4%), too few at
+15-17 (28.6% against 34.2%).
+
+CAUTION BEFORE ANYONE "FIXES" IT BY RAISING `PITCH_COST`. The hook is fitted
+against the outs distribution, so it has been absorbing this: a pitch cost
+that is too low with a threshold pulled in to compensate reproduces the mean
+and distorts the shape. Raising the cost without refitting the hook will
+move the level twice. This is the compensation pattern the notes keep
+recording, and the honest fix is to re-measure `PITCH_COST` against the
+play-by-play and refit the hook in the same commit.
+
+`PITCH_COST` was last measured per PLATE APPEARANCE (3.94 billed against a
+real 3.839) and corrected. Per OUT it has never been checked, and per out is
+the quantity the hook actually integrates over.
