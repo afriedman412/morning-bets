@@ -24,12 +24,25 @@ WHAT IS SCORED, in the order it should be read:
 SAME SEEDS ACROSS VARIANTS. Every hook sees the identical game, lineup and
 draw sequence, so the comparison is paired and a difference is the curve.
 
-RUN IT `--no-leash` AND BELIEVE THAT ONE. The shipped per-pitcher offsets
-were fitted in commit 068c937, which lands BEFORE 6ab6737 shipped the linear
-curve — so they were measured as residuals against the LEGACY hook and they
-carry its bias inverted. Leaving them on hands legacy a curve-specific
-correction the other two do not get. `--no-leash` is the like-for-like
-comparison; the default is what the engine actually does today.
+THE LEGACY-vs-LINEAR RANKING IS NOT STABLE AND THAT IS A FINDING, not a bug
+in this script. Three configurations, three answers on band RMS:
+
+    config                                  legacy   linear
+    in-sample, season rates, leash on       0.0546   0.0342   (the ship)
+    holdout, rates frozen, leash on         0.0374   0.0533
+    holdout, rates frozen, leash off        0.0681   0.0252
+
+So this morning's ship of the linear curve rests on a comparison that flips
+when the population changes. I first attributed the flip to the leash —
+the offsets were fitted in 068c937, BEFORE 6ab6737 shipped the linear curve,
+so they are residuals against LEGACY — and the transcript refutes that on
+its own: the run behind the ship had the leash ON too (`calibrate.replay`
+defaults `apply_leash=True`). Population and rate-freezing move it as well,
+and none of the three has been isolated. DO NOT quote a legacy-vs-linear
+number without naming which row it came from.
+
+THE KNEE-vs-LINEAR RANKING IS STABLE across every configuration tried, which
+is why the knee decision does not depend on resolving the above.
 """
 from __future__ import annotations
 
@@ -202,9 +215,13 @@ def main(argv):
             line += f"{b:>9.4f}"
         print(line)
     print(f"  {'mean 14.5-17.5':<17}"
-          + "".join(f"{st.mean(briers[k][l] for l in BAND):>10.4f}"
+          + "".join(f"{st.mean(briers[k][ln] for ln in BAND):>10.4f}"
                     for k in VARIANTS))
-    print("  `base` is the no-skill Brier at that line's own base rate.")
+    base = st.mean(
+        (lambda a: a * (1 - a))(sum(1 for v in real if v > ln) / n)
+        for ln in BAND)
+    print(f"  {'no-skill base':<17}{base:>10.4f}   <- beat this or the "
+          f"per-start numbers are worse than a constant")
 
     print(f"\n  {'':<26}" + "".join(f"{k:>10}" for k in VARIANTS))
     print(f"  {'RMS err, 14.5-17.5':<26}"
