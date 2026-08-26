@@ -74,7 +74,11 @@ DUMP = "scratchpad/bnd_curves.json"
 VARIANTS = {
     "legacy": sim.LEGACY_BOUNDARY,
     "linear": sim.LINEAR_BOUNDARY,
-    "knee": {},                       # shipped defaults
+    # NOT `{}`. The shipped defaults reverted to linear in 330d816, so an
+    # empty dict silently made this column a duplicate of the one above it
+    # — which is exactly what the 2026-08-26 battery printed.
+    "knee": sim.KNEE_BOUNDARY,
+    "shipped": {},
 }
 
 _CASES: dict = {}
