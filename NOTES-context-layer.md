@@ -3265,6 +3265,25 @@ Two results from this session already pointed at it and were not connected:
   * `archetype.py` found pitch-mix typing real for relievers (p=0.003) and
     ABSENT for starters — the population that actually gets priced.
 
+CORRECTED SAME DAY, after the user pushed back: that second bullet does NOT
+say pitch mix is irrelevant to starters, and citing it that way conflates
+two questions. Archetype asked whether arsenals form CLUSTERS, and its own
+result is that they cluster for nobody — silhouette 0.121, decaying as k
+rises, a continuum on the simplex. Starters simply throw too similarly to
+each other to be sorted into types. The MATCHUP question was tested
+separately as arsenal multipliers and is dead on its own evidence, 9.79%
+Brier skill with and without.
+
+AND THAT MATCHUP TEST IS RE-OPENABLE. Arsenal, mixture, handedness and
+head-to-head were all scored against the two-engine setup on half a season,
+and all four flags are False. The dead list records HOW a thing was tried,
+and both the approach and the data have since changed. The specific thread
+to pull is already in these notes: arsenal improved EVERY high-K line
+(k 7.5 +0.67pp, AUC 0.813 -> 0.822) while low-K lines and outs slipped.
+That was correctly called below the noise floor. It now fits the day-nine
+result that strikeouts respond to better inputs and outs are immune to them,
+so re-run it PRE-REGISTERED on K alone at n_sims >= 400.
+
 It is also the trap already written into `sim.for_pitcher`: a group number
 standing in for an individual is substitution bias. The standing rule is
 shrink toward a prior and keep the underlying value; `rates.set_prior` just
