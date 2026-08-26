@@ -1571,3 +1571,48 @@ def check_the_inherited_runner_fudge_stayed_deleted():
                  "USE_MEASURED_INHERITED", "_leave"):
         assert not hasattr(sim, gone), gone
     assert "INHERITED_SCORE_RATE" not in sim.FITTABLE
+
+
+def check_pitch_cost_is_charged_at_full_precision():
+    """`PITCH_COST` is measured to two decimals; charging it must not round.
+
+    THE BUG THIS EXISTS FOR, and 333 checks missed it. `apply_pa` accumulated
+    `int(round(PITCH_COST[o]))`, discarding the fraction on EVERY plate
+    appearance. An out on contact costs 3.25 and was billed 3; a walk costs
+    5.48 and was billed 5 — the two commonest outcomes in the game, rounded
+    the same way about 23 times a start.
+
+    It cost 3.3 pitches per start of a measured 4.2-pitch shortfall, and
+    because the hook integrates over pitch count every starter lasted too
+    long: 16.4% of simulated starts reached 21+ outs against a real 11.4%.
+    The table was never wrong — it predicts 86.9 pitches a start against a
+    real 86.82. The rounding threw the calibration away.
+
+    Asserted on the ARITHMETIC rather than on a simulated total, because a
+    per-start total is noisy and the defect is exact: fifty outs must cost
+    fifty times 3.25, not fifty times 3.
+    """
+    r, fr = sim.StartResult(), sim.Frame()
+    rng = random.Random(0)
+    for _ in range(50):
+        fr = sim.Frame()               # fresh frame so nothing ends an inning
+        sim.apply_pa(sim.OUT, r, fr, rng)
+    want = 50 * sim.PITCH_COST[sim.OUT]
+    assert abs(r.pitches - want) < 1e-9, (r.pitches, want)
+    # and the fraction must actually survive, not be re-rounded downstream
+    assert r.pitches != int(r.pitches), r.pitches
+
+
+def check_the_pitch_table_reproduces_the_real_pitch_count():
+    """The measured table, applied to a real start's outcome mix, must land
+    on that start's real pitch count.
+
+    This is the check that would have caught the rounding from the other
+    side. Mean outcome mix over 3,527 real starts by arms meant to go long:
+    4.92 K, 1.84 BB, 0.72 HR, 4.22 non-homer hits, 10.96 outs on contact,
+    0.22 HBP — and 86.82 pitches. The table predicts 86.9.
+    """
+    mix = {sim.K: 4.92, sim.BB: 1.84, sim.HR: 0.72, sim.B1: 4.22,
+           sim.OUT: 10.96, sim.HBP: 0.22}
+    got = sum(n * sim.PITCH_COST[o] for o, n in mix.items())
+    assert abs(got - 86.82) < 2.0, got

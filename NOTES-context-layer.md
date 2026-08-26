@@ -2899,3 +2899,64 @@ over-shrunk 2.2x and pitcher HR under-shrunk 2.7x. Pitcher K% is the next
 one to re-measure, and unlike a new mechanism it is a constant that is
 already fitted — no new machinery, and it moves the quantity with the most
 headroom (K, 81% of ceiling).
+
+## Day nine — `int(round(PITCH_COST))` was throwing the calibration away
+
+Chasing the 6% pitches-per-out deficit to its cause. The decomposition is
+BF-free — everything per start, on arms meant to go long:
+
+                    real      sim     diff
+    outs           15.88    16.10    +1.4%
+    K               4.92     4.88    -0.7%
+    BB              1.84     1.85    +0.6%
+    H               4.94     4.87    -1.4%
+    HR              0.72     0.73    +2.0%
+    baserunners     7.00     6.94    -0.9%
+    pitches        86.82    82.60    -4.9%   <-
+
+THE OUTCOME MIX IS RIGHT TO WITHIN 2% ON EVERYTHING. Only pitches are wrong,
+so it is neither the run model nor the measured constants. `apply_pa` did:
+
+    r.pitches += int(round(PITCH_COST[o]))
+
+An out on contact costs 3.25 and was billed 3. A walk costs 5.48 and was
+billed 5. Those are the two commonest outcomes in the game, rounded the same
+way about 23 times a start. The out term alone is 2.8 pitches; the whole
+rounding is 3.3 of the 4.2-pitch shortfall.
+
+**THE TABLE WAS NEVER WRONG.** Applied to the real outcome mix it predicts
+86.9 pitches a start against a real 86.82. A measured constant, correct to
+two decimals, discarded at the point of use.
+
+WHY IT MATTERED BEYOND PITCH COUNT: the hook integrates over pitch count, so
+under-billing made every starter last too long. Fixed:
+
+    pitches per out       5.14 -> 5.34   (real 5.47), level -6.1% -> -2.3%
+    spread produced        55% -> 61%
+    mean outs            16.12 -> 15.72  (real 15.88)
+    starts at 21+ outs   16.4% -> 12.9%  (real 11.4%)
+
+E[K | outs] is untouched and still exact through 12-20 outs, and
+corr(outs, K) holds at +0.419 against a real +0.429.
+
+WHAT IT DID NOT FIX is the SHAPE. The mass moved into 12-14 (now 21.0%
+against a real 16.9%) rather than into 15-17 (30.1% against 34.2%). That is
+the hook's fitted parameters, and they have never been refitted against this
+engine — `intercept`, `pitch_center`, `pitch_scale` and `mid_intercept` all
+trace to the commit that created the simulator, fitted against
+`sim.simulate` AND against the rounded pitch counts. The refit now has a
+correct input underneath it, which is the right order: fixing the input
+after the fit would have moved the level twice.
+
+TWO CHECKS ADDED, both mutation-verified, because 333 existing checks missed
+this. One asserts the ARITHMETIC — fifty outs cost fifty times 3.25, not
+fifty times 3 — rather than a simulated total, which is noisy where the
+defect is exact. The other asserts the table reproduces the real per-start
+pitch count from the real outcome mix, which would have caught it from the
+other side.
+
+THE GENERAL LESSON, and it is a new one for this project: every trap
+recorded so far is about a constant being WRONG, or a mechanism not being
+REACHED. This is a constant that was right and reached, and destroyed in
+transit. Measuring a value and wiring it in is not sufficient; the units
+have to survive the arithmetic.

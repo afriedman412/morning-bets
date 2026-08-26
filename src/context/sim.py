@@ -1337,7 +1337,18 @@ class StartResult:
     earned: int = 0
     #: Batters who reached on an error.
     roe: int = 0
-    pitches: int = 0
+    #: FLOAT, and it matters. `PITCH_COST` is measured to two decimals and
+    #: this used to accumulate `int(round(...))` of it, discarding the
+    #: fraction on EVERY plate appearance. An out on contact costs 3.25 and
+    #: was billed 3; a walk costs 5.48 and was billed 5 — the two commonest
+    #: outcomes, rounded the same way ~23 times a start. It cost 3.3 pitches
+    #: per start of a measured 4.2-pitch shortfall, and because the hook
+    #: integrates over pitch count it made every starter last too long:
+    #: 16.4% of simulated starts reached 21+ outs against a real 11.4%.
+    #:
+    #: The table itself was never wrong. It predicts 86.9 pitches a start
+    #: against a real 86.82; the rounding is what threw the calibration away.
+    pitches: float = 0.0
     batters: int = 0
     #: Weighted trouble accumulated over the WHOLE START. `Frame.damage`
     #: resets every inning, which makes a starter squared up for three
@@ -1442,7 +1453,7 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random) -> None:
     # baserunner from -2.6% to -3.6%.
     outs_before = fr.outs
     r.batters += 1
-    r.pitches += int(round(PITCH_COST[o]))
+    r.pitches += PITCH_COST[o]
     fr.damage += DAMAGE[o]
     r.damage += DAMAGE[o]
     if o in (BB, HBP, B1, B2, B3, HR, ROE):
