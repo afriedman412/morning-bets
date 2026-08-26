@@ -3015,3 +3015,57 @@ CLAUDE.md's own line: do not fit the hook against the SETTLEMENT VALUE;
 fitting it to real removal DECISIONS is a different thing. `loss` targets
 the observed hazard curve, the boundary share and the shares at >=18 / <15 /
 >=21 outs.
+
+## Day nine — fitting the boundary curve alone makes the SIM worse
+
+The hook is two curves on two populations. Day seven fitted the MID-INNING
+one directly as a logistic on its own rows (`late_mid_offset`,
+`late_mid_per_pitch`, `late_mid_per_inning_br` are those coefficients). The
+BOUNDARY one never got the same treatment. `scratchpad/fit_boundary.py` does
+it, and the shipped form is already a logistic so no search is involved:
+
+    logit = intercept + (pitches - pitch_center)/pitch_scale
+            + per_run*runs + per_baserunner*br + per_inning*innings
+            + per_margin*margin
+
+38,485 real end-of-inning decisions, pull rate 0.0657, in-sample AUC 0.8925.
+`pitch_center` and `intercept` are not separately identified, so
+`pitch_center` is PINNED at the mean pitch count of a boundary decision and
+the intercept solved from it — otherwise it drifts to an arbitrary partner
+of the intercept, which is how it landed on a grid edge in the pooled sweep.
+
+THE SHIPPED CURVE IS FAR TOO EAGER, which the fit exposes plainly:
+
+    pitches       n   actual  shipped   fitted
+    60-70      4362    0.029    0.137    0.051
+    70-80      3927    0.074    0.293    0.114
+    80-90      3212    0.218    0.488    0.231
+    90-100     1775    0.504    0.679    0.406
+    100-110     371    0.749    0.799    0.596
+
+AND THE FITTED CURVE MAKES THE SIMULATED DISTRIBUTION WORSE:
+
+                          loss    mean     sd   bndry    <15   >=18   >=21
+    shipped            0.06265   15.64   3.79   0.643  0.329  0.360  0.118
+    fitted boundary    0.08193   16.50   3.79   0.479  0.275  0.426  0.158
+    ACTUAL                       15.78   4.13   0.663  0.271  0.406  0.119
+
+**THE TWO CURVES COMPETE FOR THE SAME EXITS.** A boundary curve that stops
+over-pulling leaves starters in to face more batters, and every extra batter
+is another mid-inning chance — so correcting one curve in isolation hands
+its exits to the other and the MIX collapses (boundary share 0.643 -> 0.479
+against a measured 0.663). The mid-inning curve was fitted on day seven
+against decisions generated under the OLD, too-eager boundary curve, so the
+pair is only jointly consistent as it stands.
+
+THE FINDING, and it is a new shape for this project: PER-DECISION
+CALIBRATION DOES NOT IMPLY DISTRIBUTIONAL CALIBRATION when two coupled
+curves share the state. Each can match its own observed hazard while the
+simulated mix is wrong. Day seven's lesson was do not POOL two populations;
+this one is do not fit them INDEPENDENTLY either. They have to be fitted
+together and validated on the simulated boundary share, which is a joint
+problem and not two separate ones.
+
+NOTHING SHIPPED. The shipped hook is worse per-decision and better
+distributionally, and until the pair is fitted jointly that trade is not
+ours to make one side of.
