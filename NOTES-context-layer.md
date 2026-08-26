@@ -2722,3 +2722,81 @@ arms off the league default leash — COVERAGE WAS DOING A FILTER'S JOB. With
 `intended_starters` doing that job on role, a low bar buys nothing and costs
 something. Rewritten to guard SHRINKAGE instead: a pitcher at the floor must
 keep under half his raw residual, and the floor must not creep past 8.
+
+## Day nine — are K and outs the same quantity? No, and the coupling is right
+
+The suspicion was that because `K = batters faced x K rate`, our strikeouts
+are just our length wearing a different name, and the two need separating.
+Measured (`scratchpad/kvsouts.py`), on arms meant to go long:
+
+    ACTUAL     n=3,570   mean outs 15.88  mean K 4.92  corr +0.429
+    SIMULATED  n=64,420  mean outs 16.12  mean K 4.89  corr +0.418
+
+    outs      share A  share S   E[K] A  E[K] S    diff   sd A   sd S
+    0-8          3.5%     2.3%     1.97    2.25   +0.28   1.30   1.39
+    9-11         6.1%     7.9%     3.14    3.24   +0.09   1.61   1.63
+    12-14       16.9%    19.4%     4.12    4.08   -0.04   1.84   1.86
+    15-17       34.2%    28.6%     4.86    4.86   -0.00   2.18   2.07
+    18-20       27.8%    25.3%     5.50    5.53   +0.03   2.35   2.23
+    21-27       11.4%    16.4%     6.70    6.08   -0.62   2.69   2.40
+
+THE COUPLING IS NOT THE DEFECT. The correlation matches to 0.011 and
+E[K | outs] is right to 0.04 strikeouts across 12-20 outs, which is 73% of
+starts and where every line sits. Reality couples them too — more batters
+faced, more strikeouts — and the counter-force is already modelled, since
+`PITCH_COST` charges 4.97 pitches for a strikeout against 3.25 for an out.
+Separating them would make the model less right.
+
+WHAT IS WRONG IS THE OUTS MARGINAL. Read the `share` columns: 16.4% of our
+starts reach 21+ outs against a real 11.4%, and 28.6% land at 15-17 against
+a real 34.2%. We simulate too many seven-inning starts and too few
+five-inning ones — the same misfit as the recorded "12-14 out bucket". K
+inherits it exactly, so fixing length pays twice.
+
+TWO SMALLER FINDINGS. In 21+ out starts we give 6.08 K against a real 6.70:
+real long starts are EARNED by missing bats, ours are too available to
+contact pitchers. And conditional on length our K is slightly UNDER-dispersed
+in the long buckets (2.07 against 2.18, 2.23 against 2.35, 2.40 against
+2.69), which is what a missing per-start K% state looks like.
+
+## THE HEADROOM, MEASURED LIKE FOR LIKE
+
+`scratchpad/headroom.py`. Holdout: rates frozen before 2026-07-01, scored on
+the 927 starts after it, leash OFF (it is fitted full-season and leaks the
+same way). Ceiling is the model-free ANOVA on ACTUALS, between_sd/total_sd.
+
+    stat   actual sd  between  ceiling  our corr  share  our spread
+    outs        3.83     1.39    0.363     0.121    33%        0.89
+    k           2.48     1.18    0.475     0.384    81%        1.02
+
+**K IS AT 81%, NOT EXHAUSTED.** About +0.09 of correlation is available.
+This CORRECTS the day-eight note that "strikeouts are at 93% and essentially
+exhausted" and an in-session claim that K was already at its ceiling — both
+compared an in-sample correlation against a clean ceiling.
+
+**THE FIRST VERSION OF THIS MEASUREMENT LEAKED AND SAID SO OUT LOUD.** Run
+with `paired_cases()` and no cutoff, a pitcher's season rates include the
+start being predicted, and it reported K at 112% OF A PERFECT FORECASTER'S
+CEILING. A share above 100% is the useful kind of impossible — it is a leak
+announcing itself, and it is worth building measurements whose failure mode
+is out of bounds rather than merely optimistic.
+
+**AIM, NOT AMOUNT, ON K.** Our K spread is 1.02 against a real between-start
+1.18 — we already produce 86% of the differentiation that exists, while
+capturing 81% of the ceiling. So K is not short of spread; some of it points
+at the wrong games. That is an input-quality problem. Outs is the opposite
+at 64%, a genuine missing mechanism — and the market nobody beats anyway.
+
+## WITHIN-START K% PERSISTENCE IS NOT A PRICING SIGNAL
+
+Recorded as "+6.4 sigma, unused, and it bears directly on strikeout props",
+and it was proposed this session as the K-specific mechanism to build. It is
+not one. The measurement is 1st-pass K% -> REST-OF-START K%: it is observed
+only once the game is under way. Pregame it says a per-start K% state exists
+without saying which way tonight, so wiring it in widens the distribution
+and does not move its centre — which is `DRAW_RATES`, measured harmful, and
+cannot close a correlation gap in any case.
+
+It is a LIVE-betting signal. Its pregame use is as evidence for the
+under-dispersion in E[K | outs] above, which is a shape correction and not a
+resolution one.
