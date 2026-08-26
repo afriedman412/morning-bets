@@ -268,6 +268,44 @@ def check_mid_inning_removal_responds_to_traffic_and_damage():
     assert allowed > quiet, (quiet, allowed)
 
 
+def check_the_boundary_knee_is_wired_and_ships_inert():
+    """`per_pitch_over` is a real term in the curve, and it ships at zero.
+
+    THE KNEE IS A MEASURED MECHANISM THAT LOST ON THE SCORE, which is why
+    it needs a test at all: an unwired parameter and a deliberately-zero one
+    look identical from the outside. Fitted on 38,485 real end-of-inning
+    decisions the hinge beats the linear logit at every pitch bucket (log
+    loss 0.16286 -> 0.15420, BIC 12599 -> 11942) and then loses on 1,040
+    holdout starts at the lines that settle (band Brier 0.2391 -> 0.2402).
+    See `sim.KNEE_BOUNDARY`.
+
+    So two claims are guarded. First that the shipped curve is LINEAR —
+    deleting the `per_pitch_over` term from `removal_p` must not change any
+    shipped number. Second that the term is CONNECTED, checked by turning it
+    on and requiring the measured tail rate back: at 105 pitches the real
+    bucket rate is 0.749 and the linear form gives 0.641.
+    """
+    assert sim.Hook().per_pitch_over == 0.0, "the knee ships inert"
+    h = sim.Hook()
+    lin = sim.Hook(**sim.LINEAR_BOUNDARY)
+    for n in (15, 55, 80, 105):
+        assert h.removal_p(n, 2, 5, 4) == lin.removal_p(n, 2, 5, 4), n
+
+    knee = sim.Hook(**sim.KNEE_BOUNDARY)
+    # Flat below the knee, and at the counted level: the real rate under 40
+    # pitches is 0.010 and the linear form gives 0.002.
+    early = [knee.removal_p(n, 2, max(1, n // 15), n // 12)
+             for n in (15, 30, 45, 55)]
+    assert max(early) - min(early) < 0.01, early
+    assert all(0.004 < v < 0.02 for v in early), early
+    # And steep above it, where 46% of removals happen.
+    assert knee.removal_p(105, 2, 7, 8) > 0.70, knee.removal_p(105, 2, 7, 8)
+    # Monotone across the join, at FIXED state — `per_inning` is negative,
+    # so walking the inning forward with the count is not ceteris paribus.
+    seq = [knee.removal_p(n, 2, 5, 4) for n in range(5, 111, 5)]
+    assert all(b >= a for a, b in zip(seq, seq[1:])), seq
+
+
 def check_hook_probabilities_stay_in_bounds():
     h = sim.Hook()
     for pitches in (0, 50, 200, 10000):

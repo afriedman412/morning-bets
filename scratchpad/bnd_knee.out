@@ -1,0 +1,31 @@
+  520 games / 1040 starts x 30 draws x 3 hooks, holdout 2026-07-01
+    100/520 games
+    200/520 games
+    300/520 games
+    400/520 games
+    500/520 games
+
+  1,040 starts scored
+
+  P(over) AT THE LINES — sim rate against what happened
+  line       actual   legacy   linear     knee     err legacy  err linear  err knee
+  12.5        0.812    0.772    0.850    0.859       -0.039    +0.039    +0.048
+  14.5        0.740    0.690    0.743    0.750       -0.050    +0.002    +0.010
+  15.5        0.544    0.502    0.617    0.633       -0.042    +0.073    +0.088
+  16.5        0.484    0.456    0.548    0.562       -0.028    +0.064    +0.078
+  17.5        0.417    0.394    0.461    0.474       -0.023    +0.044    +0.057
+  18.5        0.174    0.221    0.324    0.320       +0.047    +0.150    +0.146
+  20.5        0.119    0.146    0.192    0.195       +0.027    +0.073    +0.076
+
+                                legacy    linear      knee
+  RMS err, 14.5-17.5            0.0374    0.0533    0.0657   <- 91.2% of the board
+  RMS err, 12.5-20.5            0.0378    0.0761    0.0817
+
+                                legacy    linear      knee    ACTUAL
+  discrete CRPS                 2.1606    2.2124    2.2174
+  mean outs                      15.92     16.81     16.78     15.81
+  SD outs                         3.90      3.91      4.05      4.05
+  boundary share                 0.650     0.475     0.490     0.671
+
+  CRPS is the shape score and lower is better. The mean is a
+  known open defect and is NOT what this ships on.

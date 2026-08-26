@@ -622,9 +622,19 @@ class Hook:
     #:
     #: FITTED ON 38,485 REAL END-OF-INNING DECISIONS, 2026-08-26. See
     #: LEGACY_BOUNDARY below for what these were and why they changed.
+    #:
+    #: A KNEE WAS FITTED AND NOT SHIPPED. See `KNEE_BOUNDARY` — it is a
+    #: better description of what managers do and a worse description of
+    #: what we price, which is the sharpest case of that split so far.
     pitch_center: float = 47.6812
     #: How sharply the pitch-count term turns on. Larger is a softer curve.
     pitch_scale: float = 10.8972
+    #: Where the pitch term would turn on, if `per_pitch_over` were non-zero.
+    #: SHIPS INERT — the mechanism exists and the coefficient is 0.0, so the
+    #: curve is linear. `KNEE_BOUNDARY` turns it on.
+    pitch_knee: float = 60.0
+    #: Log-odds per pitch beyond `pitch_knee`. Zero ships a linear logit.
+    per_pitch_over: float = 0.0
     #: Added to the removal log-odds per run allowed so far.
     per_run: float = 0.0089
     #: Added per inning completed. Small and NEGATIVE once pitches are in
@@ -659,6 +669,11 @@ class Hook:
     #: Per baserunner allowed across the whole outing, applied between
     #: innings alongside runs. Two starters with three runs each are not the
     #: same case if one has allowed four hits and the other eleven.
+    #:
+    #: NOTE the fit this came from also returns `per_margin` -0.0113 and it
+    #: is NOT shipped — so the shipped boundary curve is the fitted one with
+    #: the margin column zeroed. Deliberate: margin is worth its own
+    #: measurement rather than arriving as a passenger on a shape change.
     per_baserunner: float = 0.0379
     #: Manager patience, as a log-odds offset applied to BOTH removal
     #: decisions. Negative means a longer leash.
@@ -801,6 +816,8 @@ class Hook:
                             + self.per_margin * margin)
         return _sigmoid(self.intercept + self.team_offset
                         + (pitches - self.pitch_center) / self.pitch_scale
+                        + self.per_pitch_over * max(0.0,
+                                                    pitches - self.pitch_knee)
                         + self.per_run * runs
                         + self.per_baserunner * baserunners
                         + self.per_margin * margin
@@ -1156,13 +1173,79 @@ USE_MEASURED_ADVANCEMENT = True
 #: aggregate favours the old curve only through 18.5 and 20.5 — six-plus
 #: innings, which is the thin end of the board.
 #:
-#: WHAT IS STILL WRONG: the logit is linear in pitches and the real hazard
-#: accelerates past 90, so the fitted curve undershoots the tail (0.596
-#: against a real 0.749 at 100-110). That shows up as P(over 18.5) at +0.114
-#: and is the next fix.
+#: WHAT WAS STILL WRONG, AND IS NOW FIXED: the logit was linear in pitches
+#: and the real hazard is not. `LINEAR_BOUNDARY` restores that intermediate
+#: version. It was wrong at BOTH ends and the errors do not cancel —
+#:
+#:     bucket     n      actual   linear   knee at 60
+#:     0-40     16115     0.010    0.002       0.010
+#:     50-60     4335     0.010    0.022       0.011
+#:     70-80     3927     0.074    0.114       0.077
+#:     90-100    1775     0.504    0.406       0.491
+#:     100-110    371     0.749    0.596       0.746
+#:
+#: — one hinge, one extra parameter, and it tracks reality at every bucket.
+#: Log loss 0.16286 -> 0.15420, AUC 0.8925 -> 0.8977, BIC 12599 -> 11942 on
+#: the same 38,485 decisions. A quadratic scored the same (BIC 11955) and
+#: was rejected for being non-monotone below 30 pitches.
 LEGACY_BOUNDARY = {
     "intercept": -4.6, "pitch_center": 80.0, "pitch_scale": 15.0,
     "per_run": 0.60, "per_inning": 0.45, "per_baserunner": 0.10,
+    "per_pitch_over": 0.0,
+}
+
+#: What ships, named so `scratchpad/score_boundary.py` can hold all three
+#: side by side. Identical to the defaults above.
+LINEAR_BOUNDARY = {
+    "intercept": -4.2384, "pitch_center": 47.6812, "pitch_scale": 10.8972,
+    "per_run": 0.0089, "per_inning": -0.1087, "per_baserunner": 0.0379,
+    "per_pitch_over": 0.0,
+}
+
+#: THE KNEE. Fitted, MEASURED BETTER PER DECISION, AND NOT SHIPPED — the
+#: clearest instance yet of the day-nine trap, so it is kept scoreable.
+#:
+#: One hinge, one extra parameter, fitted on the same 38,485 real
+#: end-of-inning decisions. Per decision it is not close:
+#:
+#:     bucket        n    actual   linear    knee
+#:     0-40      16115     0.010    0.002   0.010
+#:     50-60      4335     0.010    0.022   0.011
+#:     70-80      3927     0.074    0.114   0.077
+#:     90-100     1775     0.504    0.406   0.491
+#:     100-110     371     0.749    0.596   0.746
+#:
+#: log loss 0.16286 -> 0.15420, AUC 0.8925 -> 0.8977, BIC 12599 -> 11942.
+#: The knee at 60 was SCANNED over 40-80, not asserted: log loss is a flat
+#: bowl from 50 to 65, and 60 is where the sub-knee slope stops being
+#: negative, so the curve is monotone. A quadratic scored the same and was
+#: rejected for being convex — it decreases below its vertex at ~30 pitches
+#: and this curve is evaluated at EVERY inning end, including a 15-pitch
+#: first.
+#:
+#: ON 1,040 HOLDOUT STARTS, LEASH OFF, PAIRED SEEDS, IT LOSES:
+#:
+#:                          legacy   linear     knee   ACTUAL
+#:     RMS P(over) band     0.0681   0.0252   0.0371
+#:     Brier, band mean     0.2438   0.2391   0.2402
+#:     mean outs             15.60    16.44    16.41    15.81
+#:     SD outs                3.82     3.83     4.02     4.05
+#:
+#: AND IT DOES NOT DO THE ONE THING IT WAS BUILT FOR. The stated reason for
+#: a non-linear term was the +0.114 error at the 18.5 line, attributed to
+#: the undershot tail. The knee fixes the tail hazard exactly and moves that
+#: error by NOTHING (+0.106 both ways), because it also pulls LESS at 60-80
+#: — so more starters survive to reach the tail it now pulls correctly. The
+#: two errors were cancelling and correcting both changes nothing.
+#:
+#: WHAT IT DOES BUY is spread: outs SD 3.83 -> 4.02 against a real 4.05,
+#: which is a real and separate defect. Not enough to outweigh a loss on
+#: both scores that settle, but the reason to keep this here rather than
+#: delete it.
+KNEE_BOUNDARY = {
+    "intercept": -4.5637, "pitch_center": 47.6812, "pitch_scale": 264.5131,
+    "pitch_knee": 60.0, "per_pitch_over": 0.127018,
+    "per_run": 0.0227, "per_inning": -0.0654, "per_baserunner": 0.0610,
 }
 
 LEGACY_ADVANCEMENT = {
