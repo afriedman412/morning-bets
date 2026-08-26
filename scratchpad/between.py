@@ -31,8 +31,11 @@ from collections import defaultdict
 
 
 def load(path="scratchpad/ceiling_rows.json"):
+    """Starter rows only — `ceiling.py` also emits one TEAM-TOTAL row per
+    game, and those carry no `player`, so they must not reach a per-start
+    residual test."""
     with open(path) as f:
-        return json.load(f)
+        return [r for r in json.load(f) if not r.get("_team_row")]
 
 
 def _corr(x, y):

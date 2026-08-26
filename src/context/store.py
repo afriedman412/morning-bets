@@ -74,6 +74,20 @@ CREATE TABLE IF NOT EXISTS mlb_lineups (
 );
 
 CREATE INDEX IF NOT EXISTS idx_lineups_game ON mlb_lineups(game_id);
+
+CREATE TABLE IF NOT EXISTS mlb_weather (
+    game_id TEXT PRIMARY KEY,
+    date TEXT,
+    venue_id INTEGER,
+    temp_f INTEGER,
+    condition TEXT,
+    wind_mph INTEGER,
+    wind_dir TEXT,
+    carry INTEGER,
+    roof_closed INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS idx_weather_date ON mlb_weather(date);
 """
 
 

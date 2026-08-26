@@ -2382,3 +2382,71 @@ a pitcher's offset was measured partly on the very starts any in-sample
 replay would score. `calibrate --reliability`, `ceiling.py` and
 `score_leash_outs` all become flattered. Rebuild with `--before <cutoff>`
 and score after it, which is what every number above did.
+
+## DAY EIGHT, PART TWO — the engine was not simulating real games
+
+Prompted by the user's question, which is the whole lesson: *"how are you
+setting up the sides for these simulations? this matters."* Two defects, both
+in the inputs rather than the model, both invisible to every aggregate.
+
+### 1. Every pitcher was facing his own teammates
+
+`build_cases` attaches to each start the nine that pitcher FACES, so the away
+start already carries the HOME club's batters. `ladder` and the new
+`calibrate.replay` both handed the away PITCHING side the other lineup.
+Verified on names: Ryan Feltner of Colorado simulated against Brett Sullivan,
+Connor Norby and Jake McCarthy — Colorado's own hitters.
+
+It survived because both sides still got a real major-league nine, so run
+level, outs distribution, boundary share and pitchers per side all looked
+right. WHAT IT DESTROYS IS THE MATCHUP, which is the only thing that
+differentiates one game from another.
+
+INVALIDATES every full-game number: the prefix ladder including "the model
+runs 5% light", the day-seven resolution finding and the 0.19 game-total
+ceiling, `score_outs`, the dispersion work, the blind-game dashboard.
+
+### 2. Not one lineup in 574 was the right nine in the right order
+
+`opposing_lineups` had no batting-order column — the boxscore cache carries
+at-bats and nothing else — so it sorted by AB descending and took the top
+nine. Against play-by-play:
+
+    exact match (right nine, right order)      0.0%
+    lineups with at least one wrong batter    23.5%
+    mean slot error                            2.30
+
+Three stacked defects. At-bats EXCLUDE walks, so a high-OBP leadoff man
+sorts below a free swinger. A pinch hitter with two at-bats displaces a
+starter pulled early. And a club that bats around hands its leadoff man five
+at-bats, so the "input" is partly a function of the result — leakage into a
+quantity the model treats as known beforehand.
+
+The order is not cosmetic: the simulator wraps the lineup and derives times
+through the order from batters faced, and TTO is a MEASURED 19% swing in
+strikeout rate between the first pass and the third. A 2.3-slot error
+assigns that penalty to roughly the wrong third of the lineup.
+
+Fixed by `src/context/order.py` — the first nine distinct batters in a
+half-inning ARE the order, and the play-by-play has been cached since day
+four. 1,956 games, 97% coverage. The at-bat proxy survives only as the
+fallback for the rest.
+
+### WHY THIS MATTERS MORE THAN ANY MECHANISM ON THE LIST
+
+Every feature on the dead list — park, handedness, day/night, opponent
+quality — is a BETWEEN-GAME feature, and every one was tested on an engine
+where the opponent was the wrong club batting in an arbitrary order in a
+park the simulator was never told about (`simulate_game` accepts a park
+argument and every caller passed None). THOSE WERE NOT NULL RESULTS, THEY
+WERE BROKEN TESTS. The dead list needs re-running, not defending.
+
+### THE DIAGNOSTIC TO KEEP
+
+AN AGGREGATE THAT LOOKS RIGHT IS NOT EVIDENCE THE INPUTS ARE RIGHT. Both
+defects preserved every summary statistic this project tracks. What catches
+them is asserting on NAMES — structural checks that a pitcher does not face
+his own club, that a lineup follows the play sequence. Three of the six new
+checks initially guarded nothing and were caught by mutation: two set the
+flag they were testing, one asserted "nine distinct names" without checking
+the sequence.
