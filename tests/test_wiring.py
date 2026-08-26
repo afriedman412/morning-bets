@@ -18,6 +18,7 @@ alone would guard the default and not the wiring.
 """
 import random
 
+from src.context import calibrate as cal
 from src.context import game, sim
 from tests import fixtures as fx
 
@@ -331,3 +332,34 @@ def check_nothing_prices_through_the_fixtures():
             if any(m.split(".")[0] == "tests" for m in mods):
                 bad.append(str(f.relative_to(root.parent)))
     assert not bad, bad
+
+
+def check_the_hook_argument_reaches_the_replayed_game():
+    """`calibrate.run(hook=...)` must actually use the hook it is given.
+
+    THE BUG THIS EXISTS FOR. `run` accepted a `hook` argument, documented it,
+    and passed it nowhere: `replay` did not take one, so both sides were
+    built with `hook=None` and fell through to a bare league `Hook()`. Every
+    candidate `calibrate.tune` scored was therefore the SAME hook, and a full
+    coordinate descent over ten parameters returned "nothing improves
+    anything" with the loss identical to five decimal places.
+
+    That is the recorded diagnostic, third time it has paid: an
+    identical-to-many-decimals A/B is a plumbing result, never a null. The
+    proof was cruder than the loss — a never-pull hook and a
+    pull-immediately hook both returned 15.54 mean outs.
+
+    Asserted with hooks whose effect is enormous rather than realistic, so
+    the check tests the WIRING and cannot fail for a tuning reason.
+    """
+    never = sim.Hook(intercept=-99.0, mid_intercept=-99.0,
+                     hard_pitch_cap=100000)
+    quick = sim.Hook(intercept=9.0, mid_intercept=9.0)
+
+    def mean_outs(h):
+        res = cal.run(n_sims=2, max_starts=40, hook=h, seed=0)
+        o = [r.outs for r in res["sim"]]
+        return sum(o) / len(o)
+
+    a, b = mean_outs(never), mean_outs(quick)
+    assert a > b + 10, (a, b)

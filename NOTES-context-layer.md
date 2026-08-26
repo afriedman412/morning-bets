@@ -2960,3 +2960,58 @@ recorded so far is about a constant being WRONG, or a mechanism not being
 REACHED. This is a constant that was right and reached, and destroyed in
 transit. Measuring a value and wiring it in is not sufficient; the units
 have to survive the arithmetic.
+
+## Day nine — `calibrate.run(hook=...)` was passing it nowhere
+
+Found by the recorded diagnostic, third time it has paid. A full parallel
+coordinate descent over ten hook parameters, two sweeps, 1,090 starts x 40
+draws, returned NOT ONE PARAMETER MOVED and a loss identical to five decimal
+places. An identical-to-many-decimals A/B is a plumbing result, never a null.
+
+`run` accepted `hook`, documented it in its docstring, and passed it
+nowhere. `replay` did not take a hook at all, so both sides were built with
+`hook=None` and fell through to a bare league `Hook()`. Proven cruder than
+the loss:
+
+    shipped hook          mean outs 15.54
+    NEVER pull            mean outs 15.54
+    pull IMMEDIATELY      mean outs 15.54
+
+After the fix: 15.54 / 26.44 / 0.82.
+
+**SO `calibrate.tune` HAS BEEN INCAPABLE OF TUNING SINCE THE DAY-EIGHT
+MIGRATION TO `replay`.** Any hook fit attempted in that window was scoring
+one hook against itself. The shipped parameters were never affected, because
+nothing could change them — they still trace to the commit that created the
+simulator.
+
+Guarded by `check_the_hook_argument_reaches_the_replayed_game`, asserted with
+a never-pull and a pull-immediately hook so it tests the WIRING and cannot
+fail for a tuning reason. Mutation-verified, and the failure message is the
+signature: `(14.794117647058824, 14.794117647058824)`.
+
+THE PATTERN, now four times in this project: measured advancement, measured
+inherited runners, the per-pitcher leash, and now the hook argument. A
+mechanism is built and tested, the wiring is not, and the symptom is always
+a result that is TOO CLEAN. `tests/test_wiring.py` exists for exactly this
+and it keeps earning its place.
+
+## `scratchpad/tune_hook.py` — the tuner, parallel and honest about spread
+
+`calibrate.tune` is serial and samples 500 of 3,248 starts. Coordinate
+descent is sequential ACROSS parameters but the values within one parameter's
+sweep are independent, so they fork — 488s for two full sweeps at 1,200
+starts and 40 draws.
+
+It prints SD at every accepted step. `calibrate.loss` does not weight
+spread, so an optimiser pointed at it will compress the outs distribution to
+buy the hazard curve and the boundary share, and we are ALREADY 8% narrow
+(3.79 against a real 4.13). SD is deliberately not added to the objective —
+the hook may still be compensating for something else — but a fit that buys
+loss with spread is now visible instead of silently shipped.
+
+`calibrate.loss` and not `fitf5` is the right objective for the hook, per
+CLAUDE.md's own line: do not fit the hook against the SETTLEMENT VALUE;
+fitting it to real removal DECISIONS is a different thing. `loss` targets
+the observed hazard curve, the boundary share and the shares at >=18 / <15 /
+>=21 outs.

@@ -386,8 +386,21 @@ def paired_cases(season=None, before=None, since=None, rates_before=None,
 
 
 def replay(pair, lg, pens, rng, innings=9, track=(), apply_leash=True,
-           use_park=None):
+           use_park=None, hook=None):
     """One simulated game from a paired case. THE simulation entry point.
+
+    `hook` IS THE BASE HOOK FOR BOTH SIDES, and it was missing until
+    2026-08-26. `run` accepted a `hook` argument, documented it, and never
+    passed it anywhere — `replay` did not take one, so both sides were built
+    with `hook=None` and fell through to a bare league `Hook()`. Every
+    candidate `calibrate.tune` evaluated was therefore the SAME hook, and the
+    tuner returned "no parameter improves anything" with the loss identical
+    to five decimal places. Proven by handing `run` a never-pull hook and a
+    pull-immediately hook and getting 15.54 mean outs from both.
+
+    With `apply_leash` on, `build_side` composes this base with
+    `sim.for_start`, so a tuner sweeping global parameters and the
+    per-pitcher offsets stack rather than one silently replacing the other.
 
     Park is applied to the GAME, not to a side — both clubs play in the same
     building, which is the natural shape and was impossible to express while
@@ -407,10 +420,10 @@ def replay(pair, lg, pens, rng, innings=9, track=(), apply_leash=True,
     if USE_PARK if use_park is None else use_park:
         park = park_for(home[0].get("venue_id"))
     A = game.build_side(away[1], pens.get((away[0]["team"] or "").upper(), []),
-                        an, None, rng, team=away[0]["team"],
+                        an, hook, rng, team=away[0]["team"],
                         apply_leash=apply_leash)
     H = game.build_side(home[1], pens.get((home[0]["team"] or "").upper(), []),
-                        hn, None, rng, team=home[0]["team"],
+                        hn, hook, rng, team=home[0]["team"],
                         apply_leash=apply_leash)
     if HOME_HOOK:
         H.hook = sim.Hook(**{
@@ -559,7 +572,7 @@ def run(season=None, before=None, n_sims=100, max_starts=None,
             # `flat` keeps everyone on the league hook. The tuner needs it:
             # fitting global parameters while per-pitcher leash offsets are
             # already absorbing the error drives them somewhere meaningless.
-            r = replay(pair, lg, pens, rng, apply_leash=not flat)
+            r = replay(pair, lg, pens, rng, apply_leash=not flat, hook=hook)
             simd.append(r.away_sp)
             simd.append(r.home_sp)
     return {"lg": lg, "actual": act, "sim": simd, "starts_used": len(act)}
