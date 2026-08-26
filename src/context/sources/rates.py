@@ -125,9 +125,76 @@ def _where(season: int | None, before: str | None) -> str:
     return " ".join(bits)
 
 
+#: Shrink a thin current-season line toward the pitcher's OWN LAST SEASON
+#: instead of toward the league. OFF until measured.
+#:
+#: The case, measured 2026-08-26: pooling 2025 and 2026 flat lifts strikeout
+#: discrimination from 0.334 to 0.392 at a May cut and 0.391 to 0.432 at a
+#: July one — roughly half the headroom left on the stat that has any — and
+#: costs calibration, K bias going +0.087 to +0.286, because a flat pool
+#: weights an April 2025 inning exactly like an August 2026 one.
+#:
+#: This is the same arithmetic `_shrink` already does, aimed at a better
+#: target. A man with 180 innings last year is a far better guess for what
+#: he is than "average major league starter", and the current code throws
+#: that away in favour of the worse guess. It also decays on the calendar
+#: for free: in April his prior dominates because he has nothing else, by
+#: August his own numbers swamp it. That is exactly the May-to-July decay
+#: the pooled test measured, which is why the mechanism is believable and
+#: not just the number.
+USE_PRIOR_SEASON = False
+
+
+#: Set by `set_prior`. Held at module level rather than threaded through
+#: every call site because `build_cases` reaches `pitcher_rates` through
+#: four layers, and a flag that has to be passed by hand at each one is a
+#: flag that will be forgotten at one of them.
+_PRIOR: dict = {}
+
+
+def set_prior(season: int | None, lg_now: dict | None = None) -> int:
+    """Load and league-adjust `season`'s pitcher rates as the shrink target.
+
+    Returns how many pitchers are in it. Passing None clears it, which is
+    what every caller that is not testing this should do.
+    """
+    global _PRIOR
+    if season is None:
+        _PRIOR = {}
+        return 0
+    from src.context import sim
+    lg_now = lg_now or sim.league()
+    lg_prior = sim.league(season)
+    # No `before` on purpose: last season is COMPLETE by the time any of
+    # this season is being priced, so there is no cutoff to respect and
+    # using a partial one would throw away the reason to have it.
+    raw = pitcher_rates(lg_prior, season)
+    _PRIOR = _prior_adjusted(raw, lg_prior, lg_now)
+    return len(_PRIOR)
+
+
+def _prior_adjusted(prior: dict, lg_prior: dict, lg_now: dict) -> dict:
+    """Last season's rates, moved onto THIS season's run environment.
+
+    Home runs are up 7% between 2025 and 2026, so a 2025 home-run rate was
+    earned against a different ball. Using it raw imports the old run
+    environment along with the pitcher. Scaled by the league ratio, which
+    keeps his position relative to his peers and re-bases the level.
+    """
+    out = {}
+    for name, r in prior.items():
+        adj = dict(r)
+        for stat in ("k_pct", "bb_pct", "hr_pct", "babip"):
+            base = lg_prior.get(stat)
+            if base:
+                adj[stat] = r[stat] * (lg_now[stat] / base)
+        out[name] = adj
+    return out
+
+
 def pitcher_rates(
     lg: dict, season: int | None = None, before: str | None = None,
-    conn=None,
+    conn=None, prior: dict | None = None,
 ) -> dict[str, dict]:
     """{player_name: rates} for every pitcher with a line on record.
 
@@ -135,16 +202,36 @@ def pitcher_rates(
     no HBP and no reached-on-error. That is the same footing
     `sim._starter_league` uses for its baselines, so pitcher and league agree
     and the BATTER rates are the ones converted onto it.
+
+    `prior` is {name: rates} from a previous season, already league-adjusted
+    by `_prior_adjusted`. When a pitcher appears in it his thin current line
+    shrinks toward HIS OWN last year rather than toward the league; when he
+    does not — a genuine rookie — nothing changes and he shrinks to league
+    as before. See `USE_PRIOR_SEASON`.
     """
     def _run(c):
         return c.execute(
             _PITCHER_Q.format(where=_where(season, before))).fetchall()
 
     rows = _run(conn) if conn is not None else _with(_run)
+    prior = (prior or _PRIOR) if USE_PRIOR_SEASON else {}
     # These are already per BATTER FACED, which is the footing the league
     # baselines now use (see sim._starter_league). It is the BATTER rates
     # that get scaled onto it, not these. Scaling the pitchers was tried
     # first and made walks worse — their denominator was never the problem.
+    def _t(row, stat):
+        """The shrink TARGET: his own last season if we have it, else league.
+
+        His prior is itself a finite sample, so it is not used raw — a
+        pitcher with 30 innings last year gets a prior already pulled most
+        of the way back to the league by the same `_shrink`. Two stages, so
+        a thin prior cannot speak louder than the evidence behind it.
+        """
+        p = prior.get(row["name"])
+        if not p:
+            return lg[stat]
+        return _shrink(p[stat], lg[stat], p.get("pa", 0), stat, who="pit")
+
     out = {}
     for r in rows:
         bf = (r["o"] or 0) + (r["h"] or 0) + (r["bb"] or 0)
@@ -155,15 +242,15 @@ def pitcher_rates(
             "name": r["name"],
             "pa": bf,
             "apps": r["apps"],
-            "k_pct": _shrink((r["k"] or 0) / bf, lg["k_pct"], bf,
+            "k_pct": _shrink((r["k"] or 0) / bf, _t(r, "k_pct"), bf,
                              "k_pct", who="pit"),
-            "bb_pct": _shrink((r["bb"] or 0) / bf, lg["bb_pct"], bf,
+            "bb_pct": _shrink((r["bb"] or 0) / bf, _t(r, "bb_pct"), bf,
                               "bb_pct", who="pit"),
-            "hr_pct": _shrink((r["hr"] or 0) / bf, lg["hr_pct"], bf,
+            "hr_pct": _shrink((r["hr"] or 0) / bf, _t(r, "hr_pct"), bf,
                               "hr_pct", who="pit"),
             "babip": _shrink(
                 (((r["h"] or 0) - (r["hr"] or 0)) / bip) if bip > 0 else None,
-                lg["babip"], max(bip, 0), "babip", who="pit"),
+                _t(r, "babip"), max(bip, 0), "babip", who="pit"),
             "raw_k_pct": (r["k"] or 0) / bf,
         }
     return out

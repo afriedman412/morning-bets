@@ -103,15 +103,27 @@ def score(rows):
     }
 
 
-def cases_for(cut, rates_season):
+#: The three ways to treat a previous season, which is the actual question:
+#:   none   each season is a different person          (what ships)
+#:   pool   flat, an April 2025 inning = an August 2026 one
+#:   prior  last season is the PRIOR his thin line shrinks toward
+ARMS = ("none", "pool", "prior")
+
+
+def cases_for(cut, arm):
     cal._CASES.clear()
     sim._LEAGUE_CACHE.clear()
-    kw = {} if rates_season is None else {"rates_season": rates_season}
+    rate_src.USE_PRIOR_SEASON = (arm == "prior")
+    if arm == "prior":
+        rate_src.set_prior(scope.CURRENT_SEASON - 1)
+    else:
+        rate_src.set_prior(None)
+    kw = {"rates_season": scope.ALL_SEASONS} if arm == "pool" else {}
     return cal.paired_cases(season=scope.CURRENT_SEASON, since=cut,
                             rates_before=cut, **kw)
 
 
-def run_variant(cut, rates_season, label, restrict=None):
+def run_variant(cut, arm, label, restrict=None):
     """`restrict` forces both arms onto the SAME games.
 
     Without it the comparison is not paired and it flatters memory for the
@@ -120,14 +132,14 @@ def run_variant(cut, rates_season, label, restrict=None):
     gain is real and is reported separately — it is just not accuracy.
     """
     global _CASES, _PENS, _LG
-    pairs = cases_for(cut, rates_season)
+    pairs = cases_for(cut, arm)
     if restrict is not None:
         pairs = {g: v for g, v in pairs.items() if g in restrict}
     if not pairs:
         raise SystemExit(f"no paired cases for {cut}/{label}")
     _CASES = pairs
-    _LG = sim.league(scope.CURRENT_SEASON if rates_season is None
-                     else rates_season, before=cut)
+    _LG = sim.league(scope.ALL_SEASONS if arm == "pool"
+                     else scope.CURRENT_SEASON, before=cut)
     _PENS = rate_src.bullpens(_LG)
     gids = list(pairs)
     workers = max(1, (os.cpu_count() or 4) - 1)
@@ -145,29 +157,24 @@ def main(argv):
     _SIMS = int(argv[0]) if argv else 30
     for cut in CUTS:
         print(f"\n  CUT {cut} — rates frozen before it, starts scored after")
-        only = set(cases_for(cut, None))
-        mem = set(cases_for(cut, scope.ALL_SEASONS))
-        common = only & mem
-        print(f"    coverage: {len(only)} games without memory, {len(mem)} "
-              f"with, {len(common)} in both")
-        print(f"    memory alone makes {len(mem - only)} more games "
-              f"priceable; scoring the {len(common)} common ones")
-        base = run_variant(cut, None, "2026 only", common)
-        ext = run_variant(cut, scope.ALL_SEASONS, "2026 + 2025 memory",
-                          common)
-        if len(base) != len(ext):
-            print("    STILL unpaired; do not read the deltas")
-        a, b = score(base), score(ext)
-        print(f"    {'metric':<14}{'2026 only':>12}{'+memory':>12}"
-              f"{'delta':>10}")
-        for k in a:
+        sets = {a: set(cases_for(cut, a)) for a in ARMS}
+        common = set.intersection(*sets.values())
+        print("    coverage: "
+              + ", ".join(f"{a} {len(v)}" for a, v in sets.items())
+              + f", scoring the {len(common)} in all three")
+        got = {a: run_variant(cut, a, a, common) for a in ARMS}
+        sc = {a: score(v) for a, v in got.items()}
+        print(f"    {'metric':<14}" + "".join(f"{a:>12}" for a in ARMS)
+              + f"{'prior-none':>12}")
+        for k in sc["none"]:
+            row = f"    {k:<14}" + "".join(f"{sc[a][k]:>12.4f}" for a in ARMS)
+            d = sc["prior"][k] - sc["none"][k]
             better = ""
             if "CRPS" in k:
-                better = "  better" if b[k] < a[k] else ""
+                better = "  better" if d < 0 else ""
             elif "corr" in k:
-                better = "  better" if b[k] > a[k] else ""
-            print(f"    {k:<14}{a[k]:>12.4f}{b[k]:>12.4f}"
-                  f"{b[k] - a[k]:>+10.4f}{better}")
+                better = "  better" if d > 0 else ""
+            print(row + f"{d:>+12.4f}{better}")
     print("\n  CRPS lower is better; corr higher is better. Bias is reported")
     print("  and NOT optimised — it is the known mean-outs defect and it")
     print("  should not decide a question about memory.")

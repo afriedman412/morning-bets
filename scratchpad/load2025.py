@@ -14,14 +14,21 @@ from datetime import date
 
 from src.context.sources import season
 
-# 2025 opened in Tokyo on 18 March and the World Series ended 1 November.
-# Dates outside the season return no games and cost one schedule call.
-START, END = date(2025, 3, 15), date(2025, 11, 5)
+# Dates outside a season return no games and cost one schedule call, so the
+# windows are deliberately loose at both ends.
+WINDOWS = {
+    2025: (date(2025, 3, 15), date(2025, 11, 5)),
+    2024: (date(2024, 3, 15), date(2024, 11, 5)),
+    2023: (date(2023, 3, 15), date(2023, 11, 5)),
+}
 
 
 def main():
-    dates = season.missing_dates(START, END)
-    print(f"{len(dates)} dates from {START} to {END}", flush=True)
+    import sys
+    year = int(sys.argv[1]) if len(sys.argv) > 1 else 2025
+    start, end = WINDOWS[year]
+    dates = season.missing_dates(start, end)
+    print(f"{len(dates)} dates from {start} to {end}", flush=True)
     print(season.backfill(dates), flush=True)
 
 
