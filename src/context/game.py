@@ -458,16 +458,46 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
     searching global parameters while per-pitcher offsets absorb the error
     drives them somewhere meaningless.
     """
+    # THIS FUNCTION RUNS ONCE PER SIDE PER DRAW and was 22% of a simulated
+    # game, so the two wasteful things it did are worth naming.
+    #
+    # The weight list was rebuilt from scratch on EVERY pick — eight passes
+    # over thirty dicts to draw eight arms. It is built once and popped
+    # alongside the pool, which hands `rng.choices` exactly the same
+    # arguments in the same order and so is bit-identical.
     pool = list(pen_pool)
+    w = [max(a.get("apps") or 1, 1) for a in pool]
     arms = []
     while pool and len(arms) < depth:
-        w = [max(a.get("apps") or 1, 1) for a in pool]
         pick = rng.choices(range(len(pool)), weights=w, k=1)[0]
         a = pool.pop(pick)
-        arms.append(sim.PitcherRates(
-            name=a["name"], k_pct=a["k_pct"], bb_pct=a["bb_pct"],
-            hr_pct=a["hr_pct"], babip=a["babip"], pa=a.get("pa", 0)))
+        w.pop(pick)
+        arms.append(_arm(a))
     h = hook or sim.Hook()
     if apply_leash:
         h = sim.for_start(h, team, starter.name)
     return Side(starter=starter, pen=arms, lineup=lineup, hook=h)
+
+
+def _arm(row: dict) -> sim.PitcherRates:
+    """The `PitcherRates` for one bullpen row, built once and remembered.
+
+    The rows come from `sources.rates.bullpens`, which is called ONCE and
+    then handed to every draw — so the same thirty dicts were being turned
+    into fresh `PitcherRates` objects thousands of times over.
+
+    Cached ON THE ROW rather than in a module dict keyed by name, because
+    two clubs can carry the same name and a global cache would need
+    invalidating whenever rates are recomputed for a different cutoff. The
+    row IS the cutoff-specific object, so its lifetime is exactly right.
+
+    Safe to share the result between sides and draws: nothing in the engine
+    mutates a `PitcherRates`. `sim._jitter_pitcher` used to, and it was
+    deleted with the one-sided engine.
+    """
+    r = row.get("_rates")
+    if r is None:
+        r = row["_rates"] = sim.PitcherRates(
+            name=row["name"], k_pct=row["k_pct"], bb_pct=row["bb_pct"],
+            hr_pct=row["hr_pct"], babip=row["babip"], pa=row.get("pa", 0))
+    return r

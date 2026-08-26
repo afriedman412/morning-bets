@@ -500,12 +500,18 @@ def pa_outcome(
 ) -> str:
     """One plate appearance. Returns an outcome constant."""
     pk = park or NEUTRAL_PARK
+    # FOUR FLOATS, NOT A NEW OBJECT. This used to build a whole
+    # `PitcherRates` per plate appearance just to scale four rates, which is
+    # ~76 dataclass constructions per simulated game in the innermost loop
+    # of the whole model. `name` and `pa` were copied across and never read
+    # below. Arithmetic and order are unchanged, so this is bit-identical.
+    p_k, p_bb, p_hr, p_bab = p.k_pct, p.bb_pct, p.hr_pct, p.babip
     m = tto_mult(tto)
     if m is not None:
-        p = PitcherRates(
-            name=p.name, k_pct=p.k_pct * m["k_pct"],
-            bb_pct=p.bb_pct * m["bb_pct"], hr_pct=p.hr_pct * m["hr_pct"],
-            babip=p.babip * m["babip"], pa=p.pa)
+        p_k *= m["k_pct"]
+        p_bb *= m["bb_pct"]
+        p_hr *= m["hr_pct"]
+        p_bab *= m["babip"]
     # Off the top: a sacrifice is a plate appearance that was never going to
     # be a strikeout or a walk, so it conditions everything below it.
     if rng.random() < SAC_RATE:
@@ -517,7 +523,7 @@ def pa_outcome(
     # marginal rates all come out light by exactly SAC_RATE + HBP_RATE —
     # measured as K/9 8.16 against a real 8.44 when it was missing.
     cond = 1.0 - SAC_RATE - HBP_RATE
-    k = log5(b.k_pct, p.k_pct, lg["k_pct"]) * pk["k"] * b.arsenal_k_mult / cond
+    k = log5(b.k_pct, p_k, lg["k_pct"]) * pk["k"] * b.arsenal_k_mult / cond
     k = min(max(k, 1e-6), 0.95)
     if rng.random() < k:
         return K
@@ -525,19 +531,19 @@ def pa_outcome(
     # Remaining probabilities are conditional on not having struck out, so
     # each is rescaled by what is left rather than used as a raw PA rate.
     rest = 1.0 - k
-    bb = log5(b.bb_pct, p.bb_pct, lg["bb_pct"]) / cond
+    bb = log5(b.bb_pct, p_bb, lg["bb_pct"]) / cond
     if rest > 0 and rng.random() < bb / rest:
         return BB
 
     rest -= bb
-    hr = log5(b.hr_pct, p.hr_pct, lg["hr_pct"]) * hr_park * pk["hr"] \
+    hr = log5(b.hr_pct, p_hr, lg["hr_pct"]) * hr_park * pk["hr"] \
         * b.arsenal_mult / cond
     if rest > 0 and rng.random() < hr / rest:
         return HR
 
     # Ball in play. The arsenal multiplier applies here too: a mix this
     # hitter handles well produces harder contact, not just more homers.
-    babip = min(0.95, log5(b.babip, p.babip, lg["babip"])
+    babip = min(0.95, log5(b.babip, p_bab, lg["babip"])
                 * pk["bip"] * b.arsenal_mult)
     if rng.random() >= babip:
         # A ball in play the defence should have converted and did not.

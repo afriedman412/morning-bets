@@ -2558,3 +2558,61 @@ was produced on a loop with no bullpen after the hook, no margin term and no
 opposing offence. The change is not expected to be neutral and has not been
 measured. That is the first thing to establish, and it is cheap for
 `versus_market` because the settled contracts are cached.
+
+## Day nine, second pass — three optimisations, and a check that was luck
+
+`build_side` was 22% OF A SIMULATED GAME (115us against 1,037us) and runs
+twice per draw. Two things it did were waste, and both fixes are
+bit-identical — same fingerprint over 3,000 games on outs, k, bb, h, hr,
+runs, earned and pitches, and the same sampled bullpens:
+
+  * the weight list was rebuilt from scratch on EVERY pick, eight passes
+    over thirty dicts to draw eight arms. Built once and popped alongside
+    the pool, `rng.choices` gets identical arguments in identical order.
+  * the same thirty bullpen dicts were turned into fresh `PitcherRates`
+    objects on every draw. Cached on the row, which is safe now that
+    nothing mutates a `PitcherRates` — `_jitter_pitcher` was the only thing
+    that did and it went with the one-sided engine.
+
+115us -> 43us, and the production-shaped path (a game WITH a real bullpen)
+1.268ms -> 1.127ms, an 11% cut. `price.simulate_slate_game` also hoists the
+hook out of the per-draw loop: it is the same for every draw of a fixed
+matchup, while the BULLPEN must stay per-draw because which arms are
+available is a real source of spread.
+
+**A PREDICTED OPTIMISATION THAT MEASURED ZERO, recorded because the reasoning
+was wrong in an instructive way.** `pa_outcome` built a whole `PitcherRates`
+per plate appearance to scale four floats, and the estimate was ~76 of them
+per game. It is ~23: relievers are passed `tto=None`, so `tto_mult` returns
+None and nothing is allocated for them. Removing it is still correct — it
+was pointless work — but it bought nothing measurable, and the error was
+counting plate appearances instead of checking which ones take the branch.
+
+## A WIRING CHECK THAT WAS PASSING ON LUCK
+
+`check_measured_advancement_reaches_the_run_level` asserted that flipping
+`USE_MEASURED_ADVANCEMENT` moved the run level by more than 0.02 over 600
+starts. Measured properly the flag is worth about 0.05 runs a start (2.4040
+on against 2.4550 off, n=3,000) and runs per start have an sd near 2.0, so
+the standard error on that difference was roughly twice the effect. It read
+2.3817 against 2.3800 and failed.
+
+RUNS PER BASERUNNER DID NOT RESCUE IT, which is worth recording because the
+standing rule says to prefer a high-n ratio to a low-n aggregate. Across
+n = 400 / 600 / 1000 it came out -3.8% / +0.1% / +4.3% — the sign flips. The
+rule earned its place on ~17,500 simulated starts; at a few hundred the
+ratio is as noisy as the mean, because runs within one start are correlated
+and the baserunner count is not an independent sample.
+
+So the check now asserts the two halves separately, at high signal and low
+cost: that the engine CONSULTS `_advance` (instrumented, one real game,
+20+ calls) and that the flag CHANGES what `_advance` does (20,000 rolls of
+one base-out state where the measured and published tables differ by 14%).
+Both mutation-verified — freezing the table selection to the measured branch
+fails the second, stubbing the engine's calls fails the first.
+
+THE GENERAL POINT: a wiring check does not need the mechanism's real effect
+size to be resolvable. It needs to prove the flag reaches the code. Asking
+it to also demonstrate the effect on the settled quantity is what made it
+underpowered, and an underpowered check that passes is indistinguishable
+from one that guards something.

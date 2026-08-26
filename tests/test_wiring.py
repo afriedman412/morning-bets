@@ -72,15 +72,66 @@ def _starts(n=600, seed=3, hook=None, **flags):
             setattr(sim, k, v)
 
 
-def check_measured_advancement_reaches_the_run_level():
-    """`USE_MEASURED_ADVANCEMENT` was unguarded. It replaced imported
-    advancement tables with rates counted on this league, and it moves runs
-    per baserunner — so turning it off has to change the run level."""
-    on = _starts(USE_MEASURED_ADVANCEMENT=True)
-    off = _starts(USE_MEASURED_ADVANCEMENT=False)
-    r_on = sum(r.runs for r in on) / len(on)
-    r_off = sum(r.runs for r in off) / len(off)
-    assert abs(r_on - r_off) > 0.02, (r_on, r_off)
+def check_measured_advancement_reaches_the_simulated_inning():
+    """`USE_MEASURED_ADVANCEMENT` was one of the five unguarded flags. It
+    replaced imported advancement tables with rates counted on this league.
+
+    THIS CHECK USED TO ASSERT ON THE RUN LEVEL AND WAS PASSING ON LUCK.
+    Measured properly, the flag is worth about 0.05 runs a start (2.4040 on
+    against 2.4550 off over 3,000 starts), and runs per start have an sd
+    near 2.0 — so at the n=600 it could afford, the standard error on the
+    difference was twice the effect. It read 2.3817 against 2.3800 and
+    failed, having passed on the previous draw. Runs per baserunner is no
+    better here: across n = 400 / 600 / 1000 it came out -3.8% / +0.1% /
+    +4.3%, sign and all.
+
+    So the aggregate cannot carry this check at any n the suite can afford,
+    and the two halves are asserted separately instead — the same shape
+    `check_errors_raise_the_run_level` was forced into.
+
+      1. THE ENGINE CONSULTS `_advance`. Counted by instrumenting it and
+         playing one real game. A flag wired to a function nothing calls is
+         exactly the failure this file exists for.
+      2. THE FLAG CHANGES WHAT `_advance` DOES. At 20,000 rolls of a single
+         base-out state, where the measured and published tables differ by
+         14% and the noise does not.
+    """
+    import random
+
+    lg = dict(LG)
+    calls = [0]
+    real = sim._advance
+
+    def counted(*a, **kw):
+        calls[0] += 1
+        return real(*a, **kw)
+
+    sim._advance = counted
+    try:
+        rng = random.Random(21)
+        a = game.build_side(_pitcher(), _pen(), _nine(), None, rng)
+        h = game.build_side(_pitcher(), _pen(), _nine(), None, rng)
+        game.simulate_game(a, h, lg, rng)
+    finally:
+        sim._advance = real
+    assert calls[0] > 20, f"the engine barely consulted _advance ({calls[0]})"
+
+    # A man on second, one out, and a single. Measured .542 against a
+    # published .620 — a difference no 20,000-roll sample confuses.
+    def scores(flag, n=20000):
+        prev = sim.USE_MEASURED_ADVANCEMENT
+        sim.USE_MEASURED_ADVANCEMENT = flag
+        try:
+            rng = random.Random(7)
+            return sum(sim._advance([False, True, False], sim.B1, rng, 1)
+                       for _ in range(n)) / n
+        finally:
+            sim.USE_MEASURED_ADVANCEMENT = prev
+
+    on, off = scores(True), scores(False)
+    assert 0.52 < on < 0.57, on
+    assert 0.60 < off < 0.64, off
+    assert off - on > 0.04, (on, off)
 
 
 def check_inherited_runners_are_played_out_not_settled_by_a_flag():

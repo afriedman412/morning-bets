@@ -219,10 +219,21 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
         # lineup for eight days.
         faces = calibrate.adjust_lineup(_build(names, br, league_bats),
                                         side == "home")
+        # THE HOOK IS BUILT ONCE, NOT ONCE PER DRAW. It is the same for
+        # every draw of a fixed matchup — the club and per-pitcher offsets
+        # do not vary by simulation — so `build_side` is handed the finished
+        # hook and `apply_leash=False` stops it recomputing one. The BULLPEN
+        # still gets resampled every draw, and must: which arms are
+        # available is a real source of game-to-game spread.
+        hook = sim.for_start(sim.Hook(), s["abbr"], name)
+        if side == "home" and calibrate.HOME_HOOK:
+            hook = sim.Hook(**{
+                **hook.__dict__,
+                "team_offset": hook.team_offset + calibrate.HOME_HOOK})
         specs[side] = (sim.PitcherRates(
             name=name, k_pct=p["k_pct"], bb_pct=p["bb_pct"],
             hr_pct=p["hr_pct"], babip=p["babip"], pa=p["pa"]), faces,
-            s["abbr"])
+            s["abbr"], hook)
 
     park = (calibrate.park_for(g["venue_id"])
             if calibrate.USE_PARK else None)
@@ -231,18 +242,10 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
     for _ in range(n_sims):
         sides = {}
         for side in ("away", "home"):
-            pitcher, faces, abbr = specs[side]
-            # `hook=None` with the leash on is what `calibrate.replay` does:
-            # `build_side` calls `sim.for_start` itself, so the club and
-            # per-pitcher offsets arrive by the one code path that is tested.
-            sd = game.build_side(pitcher, pens.get((abbr or "").upper(), []),
-                                 faces, None, rng, team=abbr)
-            sides[side] = sd
-        if calibrate.HOME_HOOK:
-            h = sides["home"].hook
-            sides["home"].hook = sim.Hook(**{
-                **h.__dict__,
-                "team_offset": h.team_offset + calibrate.HOME_HOOK})
+            pitcher, faces, abbr, hook = specs[side]
+            sides[side] = game.build_side(
+                pitcher, pens.get((abbr or "").upper(), []), faces, hook,
+                rng, team=abbr, apply_leash=False)
         out.append(game.simulate_game(sides["away"], sides["home"], lg, rng,
                                       park=park))
     return out, ""
