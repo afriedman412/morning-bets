@@ -192,6 +192,11 @@ def _with(fn):
         return fn(c)
 
 
+#: "whatever `season` is". Distinct from None, which now means the CURRENT
+#: season, and from `scope.ALL_SEASONS`, which means pool every one.
+_SAME_SEASON = object()
+
+
 _CASES: dict[tuple, list] = {}
 
 #: Loaded once — the Savant exports are ~4MB and the fit reads them per
@@ -370,7 +375,8 @@ def park_for(venue_id) -> dict:
 #: home field) was produced on that engine, against games that were not
 #: games.
 def paired_cases(season=None, before=None, since=None, rates_before=None,
-                 max_starts=None, handed=None) -> dict:
+                 max_starts=None, handed=None,
+                 rates_season=_SAME_SEASON) -> dict:
     """{game_id: (away_case, home_case)} for games with BOTH starters modelled.
 
     A case is the `(start_row, PitcherRates, opposing_lineup)` triple that
@@ -386,7 +392,8 @@ def paired_cases(season=None, before=None, since=None, rates_before=None,
     by: dict = {}
     for case in build_cases(season=season, before=before, since=since,
                             rates_before=rates_before,
-                            max_starts=max_starts, handed=handed):
+                            max_starts=max_starts, handed=handed,
+                            rates_season=rates_season):
         by.setdefault(case[0]["game_id"], []).append(case)
     out = {}
     for gid, v in by.items():
@@ -446,11 +453,6 @@ def replay(pair, lg, pens, rng, innings=9, track=(), apply_leash=True,
             "team_offset": H.hook.team_offset + HOME_HOOK})
     return game.simulate_game(A, H, lg, rng, innings=innings, park=park,
                               track=track)
-
-
-#: "whatever `season` is". Distinct from None, which now means the CURRENT
-#: season, and from `scope.ALL_SEASONS`, which means pool every one.
-_SAME_SEASON = object()
 
 
 def build_cases(season=None, before=None, max_starts=None, since=None,
