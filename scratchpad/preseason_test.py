@@ -51,13 +51,22 @@ UNRANKED = 115.0
 
 def main(argv):
     cut = argv[0] if argv else HOLDOUT
-    R = pre.ranks()
-    complete = [k for k, m in pre.SOURCES.items() if m["complete"]]
+    # The season comes from the cut date, so one argument moves the whole
+    # test to another year. `build_cases` now defaults to the CURRENT season
+    # (`context.scope`), so a 2025 cut must say so or it silently replays
+    # 2026 starts against 2025 rankings.
+    season = int(cut[:4])
+    R = pre.ranks(season)
+    complete = [k for k, m in pre.SOURCES[season].items() if m["complete"]]
+    print(f"  season {season}, cut {cut}, lists: "
+          + ", ".join(f"{k} {pre.SOURCES[season][k]['date']}"
+                      for k in complete))
 
     post, prior = defaultdict(list), defaultdict(list)
-    for s, p, l in cal.build_cases(since=cut, rates_before=cut):
+    for s, p, l in cal.build_cases(season=season, since=cut,
+                                   rates_before=cut):
         post[s["player_name"]].append(s)
-    for s, p, l in cal.build_cases(before=cut):
+    for s, p, l in cal.build_cases(season=season, before=cut):
         prior[s["player_name"]].append(s)
 
     rows = []
