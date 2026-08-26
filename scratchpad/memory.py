@@ -74,12 +74,24 @@ def _one(args):
     i, gid = args
     pair = _CASES[gid]
     rng = random.Random(11 + i * 100003)
-    draws = [cal.replay(pair, _LG, _PENS, rng) for _ in range(_SIMS)]
-    out = []
+    draws = [cal.replay(pair, _LG, _PENS, rng, track=(5,)) for _ in range(_SIMS)]
+    # THE STATED PRODUCT. Starter lines are diagnostics; F5 and full team
+    # totals are what settles. A gain on strikeouts that does not reach the
+    # total is a gain on a prop nobody asked this model to price.
+    a_act = pair[1][0].get("r")          # runs the HOME starter allowed
+    h_act = pair[0][0].get("r")
+    tot = [d.away + d.home for d in draws]
+    f5 = [sum(d.prefix_side[5]) for d in draws if 5 in d.prefix_side]
+    out = [{"kind": "game",
+            "tot_dist": Counter(tot), "tot_mean": st.mean(tot),
+            "f5_mean": st.mean(f5) if f5 else None,
+            "f5_dist": Counter(f5),
+            "gid": gid}]
     for side, attr in ((0, "away_sp"), (1, "home_sp")):
         s = pair[side][0]
         lines = [getattr(d, attr) for d in draws]
         out.append({
+            "kind": "sp",
             "o_act": s["o"], "k_act": s["k"],
             "o_dist": Counter(x.outs for x in lines),
             "k_dist": Counter(x.k for x in lines),
@@ -91,6 +103,7 @@ def _one(args):
 
 def score(rows):
     n = _SIMS
+    rows = [r for r in rows if r.get("kind") == "sp"]
     return {
         "outs CRPS": st.mean(crps(r["o_dist"], n, r["o_act"]) for r in rows),
         "K CRPS": st.mean(crps(r["k_dist"], n, r["k_act"]) for r in rows),
@@ -152,6 +165,59 @@ def run_variant(cut, arm, label, restrict=None):
     return rows
 
 
+def _totals(cut, got):
+    """Game and F5 totals against what was actually scored."""
+    truth = actual_totals(cut)
+    print(f"    {'TOTALS':<14}" + "".join(f"{a:>12}" for a in ARMS))
+    for label, mkey in (("game RMSE", "tot_mean"), ("F5 RMSE", "f5_mean")):
+        line = f"    {label:<14}"
+        for a in ARMS:
+            errs = []
+            for r in got[a]:
+                if r.get("kind") != "game" or r.get(mkey) is None:
+                    continue
+                t = truth.get(r["gid"])
+                if not t:
+                    continue
+                act = t[0] if mkey == "tot_mean" else t[1]
+                if act is None:
+                    continue
+                errs.append(act - r[mkey])
+            line += (f"{(st.mean(e*e for e in errs))**0.5:>12.3f}"
+                     if errs else f"{'-':>12}")
+        print(line)
+    for label, mkey in (("game bias", "tot_mean"), ("F5 bias", "f5_mean")):
+        line = f"    {label:<14}"
+        for a in ARMS:
+            errs = []
+            for r in got[a]:
+                if r.get("kind") != "game" or r.get(mkey) is None:
+                    continue
+                t = truth.get(r["gid"])
+                if not t:
+                    continue
+                act = t[0] if mkey == "tot_mean" else t[1]
+                if act is not None:
+                    errs.append(r[mkey] - act)
+            line += f"{st.mean(errs):>+12.3f}" if errs else f"{'-':>12}"
+        print(line)
+
+
+def actual_totals(cut):
+    """{game_id: (full total, F5 total)} for games on or after the cut."""
+    from src import db
+    with db.connect() as c:
+        return {r["game_id"]: (
+            (r["away_score"] or 0) + (r["home_score"] or 0),
+            ((r["away_score_f5"] + r["home_score_f5"])
+             if r["away_score_f5"] is not None
+             and r["home_score_f5"] is not None else None))
+            for r in c.execute(
+                "select game_id, away_score, home_score, away_score_f5,"
+                " home_score_f5 from games where sport='mlb'"
+                " and status='Final' and date >= ?", (cut,))}
+
+
 def main(argv):
     global _SIMS
     _SIMS = int(argv[0]) if argv else 30
@@ -164,6 +230,7 @@ def main(argv):
               + f", scoring the {len(common)} in all three")
         got = {a: run_variant(cut, a, a, common) for a in ARMS}
         sc = {a: score(v) for a, v in got.items()}
+        _totals(cut, got)
         print(f"    {'metric':<14}" + "".join(f"{a:>12}" for a in ARMS)
               + f"{'prior-none':>12}")
         for k in sc["none"]:

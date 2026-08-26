@@ -1,0 +1,40 @@
+
+  CUT 2026-05-01 — rates frozen before it, starts scored after
+    coverage: none 995, pool 1141, prior 995, scoring the 995 in all three
+    none                    2985 starts
+    pool                    2985 starts
+    prior                   2985 starts
+    TOTALS                none        pool       prior
+    game RMSE            4.556       4.560       4.602
+    F5 RMSE              3.278       3.236       3.274
+    game bias           -0.564      -0.521      -0.576
+    F5 bias             -0.238      -0.247      -0.251
+    metric                none        pool       prior  prior-none
+    outs CRPS           2.1667      2.1836      2.1799     +0.0132
+    K CRPS              1.3467      1.3191      1.3195     -0.0272  better
+    outs corr           0.2825      0.2991      0.2837     +0.0012  better
+    K corr              0.3342      0.3819      0.3843     +0.0501  better
+    outs bias           0.8548      0.9912      0.9161     +0.0613
+    K bias              0.0867      0.2959      0.1360     +0.0493
+
+  CUT 2026-07-01 — rates frozen before it, starts scored after
+    coverage: none 520, pool 535, prior 520, scoring the 520 in all three
+    none                    1560 starts
+    pool                    1560 starts
+    prior                   1560 starts
+    TOTALS                none        pool       prior
+    game RMSE            4.530       4.484       4.486
+    F5 RMSE              3.308       3.282       3.338
+    game bias           -0.446      -0.489      -0.486
+    F5 bias             -0.152      -0.181      -0.184
+    metric                none        pool       prior  prior-none
+    outs CRPS           2.2014      2.1856      2.2138     +0.0125
+    K CRPS              1.3169      1.3131      1.3075     -0.0095  better
+    outs corr           0.2510      0.2699      0.2423     -0.0088
+    K corr              0.3912      0.4217      0.4114     +0.0203  better
+    outs bias           1.0025      1.0149      1.0212     +0.0187
+    K bias              0.2137      0.3141      0.2391     +0.0254
+
+  CRPS lower is better; corr higher is better. Bias is reported
+  and NOT optimised — it is the known mean-outs defect and it
+  should not decide a question about memory.
