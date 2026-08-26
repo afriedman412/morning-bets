@@ -35,6 +35,7 @@ import sys
 
 from src.context import calibrate as cal
 from src.context import sim
+from src.context.sources import rates as rate_src
 
 STATS = ("outs", "k", "er", "h", "bb")
 _COL = {"outs": "o", "k": "k", "er": "er", "h": "h", "bb": "bb"}
@@ -49,53 +50,55 @@ LINES = {"outs": (14.5, 15.5, 17.5, 18.5, 20.5),
          "bb": (1.5, 2.5)}
 
 _CASES = None
+_PENS = None
 
 
 def _one(args):
-    i, n_sims, seed = args
-    s, pitcher, lineup = _CASES[i]
+    """TWO rows — both starters, read off the SAME simulated games.
+
+    One row per start used to mean one simulated pitching side in isolation.
+    That side could not see its own team's runs, so it was a different model
+    from the game it was supposed to be part of. Both starters now come off
+    one `cal.replay`, which is the only simulation entry point there is.
+    """
+    gid, n_sims, seed = args
+    pair = _CASES[gid]
     lg = sim.league()
     rng = random.Random(seed)
-    hook = sim.for_start(sim.Hook(), s["team"], pitcher.name)
-    pk = cal.park_for(s.get("venue_id")) if cal.USE_PARK else sim.NEUTRAL_PARK
-    home = bool(s.get("is_home"))
-    nine = cal.adjust_lineup(lineup, home)
-    if cal.HOME_HOOK and home:
-        hook = sim.Hook(**{**hook.__dict__,
-                           "team_offset": hook.team_offset + cal.HOME_HOOK})
-    draws = [sim.simulate_start(pitcher, nine, lg, hook, rng, park=pk)
-             for _ in range(n_sims)]
-    rec = {"game_id": s["game_id"], "team": s["team"], "date": s["date"],
-           "player": s["player_name"], "venue_id": s["venue_id"],
-           "day_night": s["day_night"], "is_home": s["is_home"]}
-    for stat in STATS:
-        v = [getattr(d, _ATTR[stat]) for d in draws]
-        rec[f"a_{stat}"] = s[_COL[stat]]
-        rec[f"m_{stat}"] = st.mean(v)
-        rec[f"w_{stat}"] = st.pvariance(v)
-        rec[f"med_{stat}"] = st.median(v)
-        rec[f"p_{stat}"] = [sum(1 for x in v if x > ln) / len(v)
-                            for ln in LINES[stat]]
-    return rec
-
-
-def _init(cases):
-    global _CASES
-    _CASES = cases
+    draws = [cal.replay(pair, lg, _PENS, rng) for _ in range(n_sims)]
+    out = []
+    for side, res_attr in ((0, "away_sp"), (1, "home_sp")):
+        s = pair[side][0]
+        lines = [getattr(d, res_attr) for d in draws]
+        rec = {"game_id": s["game_id"], "team": s["team"], "date": s["date"],
+               "player": s["player_name"], "venue_id": s["venue_id"],
+               "day_night": s["day_night"], "is_home": s["is_home"]}
+        for stat in STATS:
+            v = [getattr(x, _ATTR[stat]) for x in lines]
+            rec[f"a_{stat}"] = s[_COL[stat]]
+            rec[f"m_{stat}"] = st.mean(v)
+            rec[f"w_{stat}"] = st.pvariance(v)
+            rec[f"med_{stat}"] = st.median(v)
+            rec[f"p_{stat}"] = [sum(1 for x in v if x > ln) / len(v)
+                                for ln in LINES[stat]]
+        out.append(rec)
+    return out
 
 
 def collect(limit=None, n_sims=300, seed=0, holdout=None):
-    global _CASES
+    global _CASES, _PENS
     # A holdout is the only way to answer the leakage question this whole
     # analysis turns on: with rates estimated over the SAME starts being
     # scored, a pitcher's season mean is already absorbed into his rates,
     # which SUPPRESSES a per-pitcher residual rather than inventing one —
     # but "the artifact has the conservative sign" is an argument, and a
     # cutoff is a measurement.
-    _CASES = cal.build_cases(max_starts=limit, since=holdout,
-                             rates_before=holdout)
+    _CASES = cal.paired_cases(max_starts=limit, since=holdout,
+                              rates_before=holdout)
+    _PENS = rate_src.bullpens(sim.league(), before=holdout)
     n = len(_CASES)
-    print(f"  {n} starts x {n_sims} draws", flush=True)
+    print(f"  {n} paired games ({n * 2} starts) x {n_sims} draws",
+          flush=True)
     # FORK, not spawn: a spawned child re-imports every module at DEFAULT
     # global state, so `USE_PARK`, `USE_TTO` and the rest silently revert
     # and the whole run measures a model nobody ships. Pinned elsewhere by
@@ -104,10 +107,10 @@ def collect(limit=None, n_sims=300, seed=0, holdout=None):
     workers = max(1, (os.cpu_count() or 4) - 2)
     with ctx.Pool(workers) as pool:
         out = []
-        for j, rec in enumerate(pool.imap(
-                _one, [(i, n_sims, seed) for i in range(n)], chunksize=16)):
-            out.append(rec)
-            if (j + 1) % 500 == 0:
+        for j, recs in enumerate(pool.imap(
+                _one, [(g, n_sims, seed) for g in _CASES], chunksize=8)):
+            out.extend(recs)
+            if (j + 1) % 250 == 0:
                 print(f"  {j + 1}/{n}", flush=True)
     return out
 

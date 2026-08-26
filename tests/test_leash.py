@@ -87,35 +87,48 @@ def check_shrinkage_is_the_measured_within_over_between():
 def check_leash_residuals_are_measured_against_the_bare_hook():
     """THE DOUBLE-COUNT GUARD, and the failure it prevents is silent.
 
-    `_sim_one` must simulate with a bare `sim.Hook()`, never through
-    `sim.for_start`. Once the leash ships ON, a rebuild that went through
-    `for_start` would measure the residual of a model that ALREADY has the
-    correction in it, find it near zero, and write offsets that decay to
-    nothing — or, with the sign the other way, run away. Neither shows up as
-    an error; the file just quietly stops meaning anything.
+    `_sim_one` must replay with `apply_leash=False`. Once the leash ships
+    ON, a rebuild that let it through would measure the residual of a model
+    that ALREADY has the correction in it, find it near zero, and write
+    offsets that decay to nothing — or, with the sign the other way, run
+    away. Neither shows up as an error; the file just quietly stops meaning
+    anything.
 
     Behavioural rather than a source scan: a huge leash is installed and the
     residual must not move.
     """
+    from src.context import calibrate as cal
     lg = sim.league()
-    p = sim.PitcherRates(name="Somebody", k_pct=lg["k_pct"],
-                         bb_pct=lg["bb_pct"], hr_pct=lg["hr_pct"],
-                         babip=lg["babip"], pa=600)
-    nine = [sim.BatterRates(name=f"b{i}", k_pct=lg["k_pct"],
-                            bb_pct=lg["bb_pct"], hr_pct=lg["hr_pct"],
-                            babip=lg["babip"]) for i in range(9)]
-    s = {"player_name": "Somebody", "date": "2026-05-01", "team": "XXX",
-         "o": 18, "venue_id": None, "is_home": 0}
-    saved_cases, saved_leash = leash._CASES, sim._LEASH
-    leash._CASES = [(s, p, nine)]
+
+    def case(name, home):
+        p = sim.PitcherRates(name=name, k_pct=lg["k_pct"],
+                             bb_pct=lg["bb_pct"], hr_pct=lg["hr_pct"],
+                             babip=lg["babip"], pa=600)
+        nine = [sim.BatterRates(name=f"b{i}", k_pct=lg["k_pct"],
+                                bb_pct=lg["bb_pct"], hr_pct=lg["hr_pct"],
+                                babip=lg["babip"]) for i in range(9)]
+        row = {"player_name": name, "date": "2026-05-01", "team": "XXX",
+               "o": 18, "venue_id": None, "is_home": 1 if home else 0,
+               "game_id": "g1"}
+        return (row, p, nine)
+
+    pen = [{"name": f"r{i}", "k_pct": lg["k_pct"], "bb_pct": lg["bb_pct"],
+            "hr_pct": lg["hr_pct"], "babip": lg["babip"], "pa": 200,
+            "apps": 40} for i in range(8)]
+    saved_cases, saved_pens, saved_leash = (
+        leash._CASES, leash._PENS, sim._LEASH)
+    leash._CASES = {"g1": (case("Away Guy", False), case("Somebody", True))}
+    leash._PENS = {"XXX": pen}
     try:
         sim._LEASH = None
-        bare = leash._sim_one((0, 60, 0))[3]
-        sim._LEASH = {"Somebody": -2.0}
-        with_leash = leash._sim_one((0, 60, 0))[3]
+        bare = [r[3] for r in leash._sim_one(("g1", 40, 0))]
+        sim._LEASH = {"Somebody": -2.0, "Away Guy": -2.0}
+        with_leash = [r[3] for r in leash._sim_one(("g1", 40, 0))]
     finally:
-        leash._CASES, sim._LEASH = saved_cases, saved_leash
-    assert abs(bare - with_leash) < 1e-9, (bare, with_leash)
+        leash._CASES, leash._PENS, sim._LEASH = (
+            saved_cases, saved_pens, saved_leash)
+    assert bare == with_leash, (bare, with_leash)
+    assert cal is not None
 
 
 def check_a_pitcher_with_too_little_history_gets_no_offset():

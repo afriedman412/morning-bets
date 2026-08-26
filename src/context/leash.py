@@ -149,26 +149,34 @@ def shrink_k(residuals_by_pitcher: dict) -> tuple[float, float, float]:
 
 
 _CASES = None
+_PENS = None
 
 
 def _sim_one(args):
-    i, n_sims, seed = args
-    s, pitcher, lineup = _CASES[i]
+    """Residuals for BOTH starters, off the same simulated games.
+
+    Two-sided, because a one-sided simulation cannot see its own team's
+    runs — so a starter left in because his club was up five looked
+    identical to one on a genuinely long leash, and the offset absorbed
+    both. `apply_leash=False` is the double-count guard: the residual has
+    to be measured against the model WITHOUT this mechanism or a rebuild
+    folds its own correction back in. Guarded by
+    `check_leash_residuals_are_measured_against_the_bare_hook`.
+    """
+    gid, n_sims, seed = args
     from src.context import calibrate as cal
+    pair = _CASES[gid]
     lg = sim.league()
     rng = random.Random(seed)
-    pk = cal.park_for(s.get("venue_id")) if cal.USE_PARK else sim.NEUTRAL_PARK
-    nine = cal.adjust_lineup(lineup, bool(s.get("is_home")))
-    # DELIBERATELY the bare league hook: no `for_start`, so no leash. The
-    # residual has to be measured against the model WITHOUT this mechanism
-    # or the second build would fold its own correction back in and the
-    # offsets would run away. Guarded by
-    # `check_leash_residuals_are_measured_against_the_bare_hook`.
-    hook = sim.Hook()
-    outs = [sim.simulate_start(pitcher, nine, lg, hook, rng, park=pk).outs
-            for _ in range(n_sims)]
-    return (s["player_name"], s["date"], s["team"],
-            s["o"] - st.mean(outs))
+    draws = [cal.replay(pair, lg, _PENS, rng, apply_leash=False)
+             for _ in range(n_sims)]
+    out = []
+    for idx, side in ((0, "away_sp"), (1, "home_sp")):
+        s = pair[idx][0]
+        outs = [getattr(d, side).outs for d in draws]
+        out.append((s["player_name"], s["date"], s["team"],
+                    s["o"] - st.mean(outs)))
+    return out
 
 
 def residuals(before=None, n_sims=120, season=None, quiet=False) -> dict:
@@ -177,22 +185,25 @@ def residuals(before=None, n_sims=120, season=None, quiet=False) -> dict:
     `before` bounds BOTH the starts and the rates, so a file built for a
     date contains nothing from that date onwards.
     """
-    global _CASES
+    global _CASES, _PENS
     from src.context import calibrate as cal
-    _CASES = cal.build_cases(season=season, before=before,
-                             rates_before=before)
+    from src.context.sources import rates as rate_src
+    _CASES = cal.paired_cases(season=season, before=before,
+                              rates_before=before)
+    _PENS = rate_src.bullpens(sim.league(), before=before)
     if not quiet:
-        print(f"  simulating {len(_CASES)} starts x {n_sims} draws",
-              flush=True)
-    args = [(i, n_sims, 0) for i in range(len(_CASES))]
+        print(f"  simulating {len(_CASES)} games "
+              f"({len(_CASES) * 2} starts) x {n_sims} draws", flush=True)
+    args = [(g, n_sims, 0) for g in _CASES]
     # fork, never spawn: a spawned worker re-imports at DEFAULT globals and
     # every flag this measurement depends on silently reverts.
     ctx = mp.get_context("fork")
     with ctx.Pool(max(1, (os.cpu_count() or 4) - 2)) as pool:
         rows = pool.map(_sim_one, args, chunksize=16)
     out = defaultdict(list)
-    for name, _date, _team, resid in rows:
-        out[name].append(resid)
+    for pairrows in rows:
+        for name, _date, _team, resid in pairrows:
+            out[name].append(resid)
     return dict(out)
 
 

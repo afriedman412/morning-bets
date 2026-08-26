@@ -30,7 +30,7 @@ import sys
 from collections import Counter
 
 from src import db, roster
-from src.context import sim
+from src.context import game, sim
 from src.context.sources import mixture
 from src.context.sources import rates as rate_src
 
@@ -314,6 +314,77 @@ def park_for(venue_id) -> dict:
     return _PARK_CACHE[venue_id]
 
 
+#: One simulated game per draw is ~2x the work of one simulated start, and
+#: `replay` is the only way anything in this project simulates now. That is
+#: deliberate. `sim.simulate_start` modelled ONE PITCHING SIDE IN ISOLATION,
+#: which cannot see its own team's runs — so `Hook.per_margin` and
+#: `mid_per_margin` were structurally unreachable and sat at 0.0 forever,
+#: and a "start" was a different model from a game rather than a part of
+#: one. Every measured null in the dead list (park, handedness, day/night,
+#: home field) was produced on that engine, against games that were not
+#: games.
+def paired_cases(season=None, before=None, since=None, rates_before=None,
+                 max_starts=None, handed=None) -> dict:
+    """{game_id: (away_case, home_case)} for games with BOTH starters modelled.
+
+    A case is the `(start_row, PitcherRates, opposing_lineup)` triple that
+    `build_cases` yields. Games where only one side is replayable are
+    DROPPED rather than given a league-average opponent: inventing the other
+    club would invent the score, and the score is the input this whole
+    migration exists to make reachable.
+
+    Retention is about 90% of starts — the same filter `ladder` has always
+    applied, which is why the ladder's game count (1,615) has always been
+    lower than the start count (3,600).
+    """
+    by: dict = {}
+    for case in build_cases(season=season, before=before, since=since,
+                            rates_before=rates_before,
+                            max_starts=max_starts, handed=handed):
+        by.setdefault(case[0]["game_id"], []).append(case)
+    out = {}
+    for gid, v in by.items():
+        if len(v) != 2:
+            continue
+        home = [c for c in v if c[0]["is_home"]]
+        away = [c for c in v if not c[0]["is_home"]]
+        if len(home) != 1 or len(away) != 1:
+            continue
+        out[gid] = (away[0], home[0])
+    return out
+
+
+def replay(pair, lg, pens, rng, innings=9, track=(), apply_leash=True,
+           use_park=None):
+    """One simulated game from a paired case. THE simulation entry point.
+
+    Park is applied to the GAME, not to a side — both clubs play in the same
+    building, which is the natural shape and was impossible to express while
+    each side was simulated on its own. `simulate_game` has always accepted
+    a park argument and every caller passed None, so until this existed park
+    had never once been evaluated inside a real game.
+    """
+    away, home = pair
+    an = adjust_lineup(away[2], False)
+    hn = adjust_lineup(home[2], True)
+    park = None
+    if USE_PARK if use_park is None else use_park:
+        park = park_for(home[0].get("venue_id"))
+    # A Side is a PITCHING side: the away side faces the HOME lineup.
+    A = game.build_side(away[1], pens.get((away[0]["team"] or "").upper(), []),
+                        hn, None, rng, team=away[0]["team"],
+                        apply_leash=apply_leash)
+    H = game.build_side(home[1], pens.get((home[0]["team"] or "").upper(), []),
+                        an, None, rng, team=home[0]["team"],
+                        apply_leash=apply_leash)
+    if HOME_HOOK:
+        H.hook = sim.Hook(**{
+            **H.hook.__dict__,
+            "team_offset": H.hook.team_offset + HOME_HOOK})
+    return game.simulate_game(A, H, lg, rng, innings=innings, park=park,
+                              track=track)
+
+
 def build_cases(season=None, before=None, max_starts=None, since=None,
                 rates_before=None, handed=None) -> list[tuple]:
     """[(actual_row, PitcherRates, [BatterRates])] for every replayable start.
@@ -442,15 +513,20 @@ def run(season=None, before=None, n_sims=100, max_starts=None,
     global parameters somewhere meaningless.
     """
     lg = sim.league(season)
-    cases = build_cases(season, before, max_starts)
-    hook = hook or sim.Hook()
+    pairs = paired_cases(season=season, before=before, max_starts=max_starts)
+    pens = rate_src.bullpens(lg, before=before)
     rng = random.Random(seed)
     act, simd = [], []
-    for s, pitcher, lineup in cases:
-        act.append(s)
-        h = hook if flat else sim.for_start(hook, s["team"], pitcher.name)
+    for pair in pairs.values():
+        act.append(pair[0][0])
+        act.append(pair[1][0])
         for _ in range(n_sims):
-            simd.append(sim.simulate_start(pitcher, lineup, lg, h, rng))
+            # `flat` keeps everyone on the league hook. The tuner needs it:
+            # fitting global parameters while per-pitcher leash offsets are
+            # already absorbing the error drives them somewhere meaningless.
+            r = replay(pair, lg, pens, rng, apply_leash=not flat)
+            simd.append(r.away_sp)
+            simd.append(r.home_sp)
     return {"lg": lg, "actual": act, "sim": simd, "starts_used": len(act)}
 
 
@@ -576,31 +652,25 @@ def per_start_probs_all(stat: str, lines, season=None, before=None,
     individual start is priced wrong and the errors cancel.
     """
     lg = sim.league(season)
-    cases = build_cases(season, before=before, since=since,
-                        rates_before=before)
+    pairs = paired_cases(season=season, before=before, since=since,
+                         rates_before=before)
+    pens = rate_src.bullpens(lg, before=before)
     key, attr = _STAT_COL[stat], _STAT_ATTR[stat]
     out = {ln: [] for ln in lines}
-    for s, pitcher, lineup in cases:
+    # BOTH starters off the SAME simulated games. Previously each start was
+    # its own one-sided simulation, which could not see its team's runs, so
+    # `Hook.per_margin` was unreachable and every reliability table in the
+    # notes was measured against games that were not games.
+    for pair in pairs.values():
         rng = random.Random(seed)
-        hook = sim.for_start(sim.Hook(), s["team"], pitcher.name) \
-            if adjusted else sim.Hook()
-        pk = park_for(s.get("venue_id")) if USE_PARK else sim.NEUTRAL_PARK
-        # Home/road, applied only to the home starter and only on top of
-        # park. Two channels because home advantage is not purely a leash
-        # effect: the visiting lineup hits worse, and the manager is a
-        # little more patient with his own crowd behind him.
-        home = bool(s.get("is_home"))
-        nine = adjust_lineup(lineup, home)
-        if HOME_HOOK and home:
-            hook = sim.Hook(**{**hook.__dict__,
-                               "team_offset": hook.team_offset + HOME_HOOK})
-        vals = []
-        for _ in range(n_sims):
-            r = sim.simulate_start(pitcher, nine, lg, hook, rng, park=pk)
-            vals.append(getattr(r, attr))
-        for ln in lines:
-            out[ln].append(
-                (s[key], sum(1 for v in vals if v > ln) / len(vals)))
+        draws = [replay(pair, lg, pens, rng, apply_leash=adjusted)
+                 for _ in range(n_sims)]
+        for idx, side in ((0, "away_sp"), (1, "home_sp")):
+            s = pair[idx][0]
+            vals = [getattr(getattr(d, side), attr) for d in draws]
+            for ln in lines:
+                out[ln].append(
+                    (s[key], sum(1 for v in vals if v > ln) / len(vals)))
     return out
 
 
@@ -711,18 +781,19 @@ def versus_estimator(cutoff: str, stat="outs", n_sims=200, seed=0,
     """
     from src.context import estimate
 
-    # The hook offsets are part of the model and must be trained on the
-    # training window too. Without this the rates are clean and the offsets
-    # are not, which is the quiet kind of leakage: everything LOOKS like a
-    # holdout because the obvious knob was set correctly.
+    # The leash is part of the model and must be built on the training
+    # window too. Without this the rates are clean and the offsets are not,
+    # which is the quiet kind of leakage: everything LOOKS like a holdout
+    # because the obvious knob was set correctly.
     if refit:
-        sim._PATIENCE = sim._LEASH = None
-        fit_patience(sims=30, write=True, before=cutoff)
-        fit_pitcher_leash(sims=40, write=True, before=cutoff)
-        sim._PATIENCE = sim._LEASH = None
+        from src.context import leash as leash_mod
+        leash_mod.build(before=cutoff)
+        sim.reload_offsets()
 
     lg = sim.league()
-    cases = build_cases(since=cutoff, rates_before=cutoff)
+    pairs = paired_cases(since=cutoff, rates_before=cutoff)
+    pens = rate_src.bullpens(lg, before=cutoff)
+    cases = [c for pair in pairs.values() for c in pair]
     key = _STAT_COL[stat]
     print(f"holdout from {cutoff}: {len(cases)} starts\n")
 
@@ -732,18 +803,19 @@ def versus_estimator(cutoff: str, stat="outs", n_sims=200, seed=0,
 
     for line in LINES[stat]:
         sim_rows, est_rows = [], []
-        for s, pitcher, lineup in cases:
-            hist = priors.get(pitcher.name) or []
-            if len(hist) < min_prior:
-                continue
-            won = s[key] > line
-            rng = random.Random(seed)
-            hook = sim.for_start(sim.Hook(), s["team"], pitcher.name)
-            hits = 0
-            for _ in range(n_sims):
-                r = sim.simulate_start(pitcher, lineup, lg, hook, rng)
-                hits += (r.outs if stat == "outs" else r.k) > line
-            sim_rows.append((won, hits / n_sims))
+        for pair in pairs.values():
+            for idx, side in ((0, "away_sp"), (1, "home_sp")):
+                s, pitcher, _lineup = pair[idx]
+                hist = priors.get(pitcher.name) or []
+                if len(hist) < min_prior:
+                    continue
+                won = s[key] > line
+                rng = random.Random(seed)
+                hits = 0
+                for _ in range(n_sims):
+                    r = getattr(replay(pair, lg, pens, rng), side)
+                    hits += (r.outs if stat == "outs" else r.k) > line
+                sim_rows.append((won, hits / n_sims))
             d = estimate.over_under(hist, line, "over")
             if d:
                 est_rows.append((won, d["p"]))
@@ -836,245 +908,5 @@ def tune(season=None, starts=500, sims=30, seed=0) -> sim.Hook:
     return best
 
 
-def fit_patience(season=None, sims=40, seed=0, write=True,
-                 before=None) -> dict:
-    """Per-club manager patience, as a residual against the fitted model.
-
-    For each team: simulate every one of its starts with the league hook,
-    then search for the log-odds offset that closes the gap between mean
-    simulated length and mean actual length. What the simulation already
-    explains — rotation quality, opponents faced, home parks — is therefore
-    NOT attributed to the manager. Only the unexplained remainder is.
-
-    That distinction is the whole point. Ranking clubs by raw starter length
-    produces a list of good rotations, not patient managers, and using it as
-    a hook adjustment double-counts pitching quality the model has already
-    priced.
-    """
-    import json
-
-    lg = sim.league(season)
-    cases = build_cases(season, before=before)
-    by_team: dict[str, list] = {}
-    for s, pitcher, lineup in cases:
-        by_team.setdefault((s["team"] or "").upper(), []).append(
-            (s, pitcher, lineup))
-
-    offsets, rows = {}, []
-    for team, group in sorted(by_team.items()):
-        if len(group) < 25:
-            continue                       # too few starts to say anything
-        actual = sum(s["o"] for s, _, _ in group) / len(group)
-        best_off, best_err, base_sim = 0.0, None, None
-        for off in (-1.2, -0.9, -0.6, -0.3, 0.0, 0.3, 0.6, 0.9, 1.2):
-            hook = sim.Hook(team_offset=off)
-            rng = random.Random(seed)
-            tot = n = 0
-            for _, pitcher, lineup in group:
-                for _ in range(sims):
-                    tot += sim.simulate_start(
-                        pitcher, lineup, lg, hook, rng).outs
-                    n += 1
-            mean = tot / n
-            if off == 0.0:
-                base_sim = mean
-            err = abs(mean - actual)
-            if best_err is None or err < best_err:
-                best_off, best_err = off, err
-        offsets[team] = best_off
-        rows.append((team, len(group), actual, base_sim, best_off))
-
-    rows.sort(key=lambda r: r[4])
-    print(f"{'club':<6}{'starts':>7}{'actual':>8}{'model':>8}"
-          f"{'resid':>8}{'offset':>8}   patience")
-    for team, n, actual, base, off in rows:
-        bar = ("<" * int(abs(off) * 6)) if off < 0 else (">" * int(off * 6))
-        label = "longer leash" if off < 0 else ("quick hook" if off > 0
-                                                else "league")
-        print(f"{team:<6}{n:>7}{actual:>8.2f}{base:>8.2f}"
-              f"{actual - base:>+8.2f}{off:>+8.2f}   {bar:<8} {label}")
-
-    if write:
-        with open(sim._PATIENCE_PATH, "w") as f:
-            json.dump(offsets, f, indent=1, sort_keys=True)
-        print(f"\nwrote {len(offsets)} clubs -> {sim._PATIENCE_PATH}")
-    return offsets
 
 
-#: Starts at which a pitcher's own leash residual is worth half its weight
-#: against his club's. A starter has 20-30 starts and his outs-per-start
-#: scatter is about 3.7, so the standard error on his mean is nearly an out
-#: — the same order as the entire effect being measured. Without shrinkage
-#: this fits noise and calls it a leash.
-LEASH_SHRINK_K = 12
-
-
-def fit_pitcher_leash(season=None, sims=60, seed=0, min_starts=3,
-                      write=True, before=None) -> dict:
-    """Per-pitcher leash, on top of his club's patience.
-
-    ORDER MATTERS. Team patience is applied first and this is fitted to what
-    remains. A pitcher throws for one manager, so his raw residual contains
-    that manager's tendency in full; fitting both against the same baseline
-    would count it twice and hand every San Diego starter a quick hook they
-    have individually done nothing to earn.
-
-    Uses a linear residual-to-offset conversion rather than a search per
-    pitcher: the response is close to linear over this range, and measuring
-    the slope once turns a nine-pass fit over 700 pitchers into two.
-
-    `min_starts` is 3, not 8. The earlier bar left 150-odd pitchers on the
-    league default leash, and pricing today's board showed what that costs:
-    the simulator ran a two-inning opener out to sixteen outs because it had
-    no reason not to. Three starts is thin, but LEASH_SHRINK_K discounts it
-    to roughly a fifth of its apparent residual, which is a better estimate
-    than pretending he is league-average.
-    """
-    import json
-
-    lg = sim.league(season)
-    cases = build_cases(season, before=before)
-
-    def sim_mean(group, extra=0.0):
-        tot = n = 0
-        rng = random.Random(seed)
-        for s, pitcher, lineup in group:
-            hook = sim.Hook(team_offset=sim.patience(s["team"]) + extra)
-            for _ in range(sims):
-                tot += sim.simulate_start(pitcher, lineup, lg, hook,
-                                          rng).outs
-                n += 1
-        return tot / n if n else 0.0
-
-    probe = cases[:300]
-    hi, lo = sim_mean(probe, -0.6), sim_mean(probe, +0.6)
-    slope = (hi - lo) / 1.2          # outs gained per unit of NEGATIVE offset
-    print(f"leash response: {slope:.2f} outs per unit offset "
-          f"(probe n={len(probe)})")
-    if slope <= 0.05:
-        raise ValueError("hook offset has no effect on length — check Hook")
-
-    by_p: dict[str, list] = {}
-    for s, pitcher, lineup in cases:
-        by_p.setdefault(pitcher.name, []).append((s, pitcher, lineup))
-
-    leash, rows = {}, []
-    for name, group in by_p.items():
-        if len(group) < min_starts:
-            continue
-        actual = sum(s["o"] for s, _, _ in group) / len(group)
-        modeled = sim_mean(group)
-        resid = actual - modeled
-        w = len(group) / (len(group) + LEASH_SHRINK_K)
-        off = round(-(resid / slope) * w, 3)
-        leash[name] = off
-        rows.append((name, len(group), actual, modeled, resid, off))
-
-    rows.sort(key=lambda r: r[5])
-    print(f"\n{len(rows)} pitchers with {min_starts}+ starts\n")
-    print(f"  {'pitcher':<22}{'GS':>4}{'actual':>8}{'model':>8}"
-          f"{'resid':>8}{'offset':>8}")
-    for r in rows[:8] + [None] + rows[-8:]:
-        if r is None:
-            print(f"  {'...':<22}")
-            continue
-        print(f"  {r[0][:20]:<22}{r[1]:>4}{r[2]:>8.2f}{r[3]:>8.2f}"
-              f"{r[4]:>+8.2f}{r[5]:>+8.2f}")
-
-    if write:
-        with open(sim._LEASH_PATH, "w") as f:
-            json.dump(leash, f, indent=1, sort_keys=True)
-        print(f"\nwrote {len(leash)} pitchers -> {sim._LEASH_PATH}")
-    return leash
-
-
-def holdout(cutoff: str, sims=200, seed=0, quiet=False) -> dict:
-    """Fit club patience and pitcher leash BEFORE `cutoff`, score after it.
-
-    The two offsets are fitted as residuals against the same starts they are
-    then judged on, which makes the in-sample improvement guaranteed and
-    meaningless. This refits on the training window only — including the
-    player rates — and measures error on starts the fit never saw.
-
-    Reported as mean absolute error in outs per start, flat hook versus
-    adjusted. Aggregate distribution is the wrong lens for this: the offsets
-    are residuals and cancel across the pool, so a league-wide histogram
-    cannot see them even when they are working.
-    """
-    sim._PATIENCE = sim._LEASH = None
-    fit_patience(sims=30, write=True, before=cutoff)
-    fit_pitcher_leash(sims=40, write=True, before=cutoff)
-    sim._PATIENCE = sim._LEASH = None
-
-    lg = sim.league()
-    test = build_cases(since=cutoff, rates_before=cutoff)
-    if not quiet:
-        print(f"\nholdout: {len(test)} starts on/after {cutoff}")
-
-    rows = []
-    for s, pitcher, lineup in test:
-        rng_a, rng_b = random.Random(seed), random.Random(seed)
-        flat_h = sim.Hook()
-        adj_h = sim.for_start(flat_h, s["team"], pitcher.name)
-        if flat_h.team_offset == adj_h.team_offset:
-            continue                      # no adjustment to test on this one
-        f = sum(sim.simulate_start(pitcher, lineup, lg, flat_h, rng_a).outs
-                for _ in range(sims)) / sims
-        a = sum(sim.simulate_start(pitcher, lineup, lg, adj_h, rng_b).outs
-                for _ in range(sims)) / sims
-        rows.append((s["o"], f, a))
-
-    if not rows:
-        print("no adjusted starts in the holdout window")
-        return {}
-    n = len(rows)
-    mae_f = sum(abs(o - f) for o, f, _ in rows) / n
-    mae_a = sum(abs(o - a) for o, _, a in rows) / n
-    bias_f = sum(f - o for o, f, _ in rows) / n
-    bias_a = sum(a - o for o, _, a in rows) / n
-    better = sum(1 for o, f, a in rows if abs(o - a) < abs(o - f))
-    out = {"n": n, "mae_flat": mae_f, "mae_adj": mae_a,
-           "bias_flat": bias_f, "bias_adj": bias_a, "better": better / n}
-    if not quiet:
-        print(f"  {'':<14}{'flat':>9}{'adjusted':>10}")
-        print(f"  {'MAE (outs)':<14}{mae_f:>9.3f}{mae_a:>10.3f}"
-              f"   {(mae_f - mae_a) / mae_f:+.1%}")
-        print(f"  {'bias':<14}{bias_f:>+9.3f}{bias_a:>+10.3f}")
-        print(f"  adjusted closer on {better}/{n} starts "
-              f"({better / n:.1%})")
-    return out
-
-
-if __name__ == "__main__":
-    args = sys.argv[1:]
-    if "--reliability" in args:
-        st = args[args.index("--reliability") + 1] \
-            if len(args) > args.index("--reliability") + 1 else "outs"
-        for stat in (["outs", "k"] if st == "all" else [st]):
-            print(f"\n{'=' * 62}\n{stat.upper()}\n{'=' * 62}")
-            reliability(stat, n_sims=200)
-        sys.exit(0)
-    if "--holdout" in args:
-        cut = args[args.index("--holdout") + 1]
-        holdout(cut)
-        sys.exit(0)
-    if "--leash" in args:
-        fit_pitcher_leash()
-        sys.exit(0)
-    if "--tune" in args:
-        tune(starts=500, sims=30)
-        sys.exit(0)
-    if "--patience" in args:
-        fit_patience()
-        sys.exit(0)
-    season = int(args[0]) if args and args[0].isdigit() else None
-    n = 100
-    for a in args:
-        if a.startswith("--sims="):
-            n = int(a.split("=")[1])
-    mx = None
-    for a in args:
-        if a.startswith("--starts="):
-            mx = int(a.split("=")[1])
-    report(run(season=season, n_sims=n, max_starts=mx,
-               flat="--flat" in args))

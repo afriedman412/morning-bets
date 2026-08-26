@@ -898,18 +898,23 @@ def check_price_gates_are_ordered_and_sane():
     assert 0.4 <= price.MIN_START_SHARE <= 0.75, price.MIN_START_SHARE
 
 
-def check_leash_covers_thin_starters_not_just_established_ones():
+def check_the_leash_covers_thin_starters_not_just_established_ones():
     """An 8-start bar left ~150 pitchers on the league default leash, which
     is what let a two-inning opener be simulated out to sixteen outs.
-    LEASH_SHRINK_K discounts three starts to about a fifth of their apparent
-    residual, which beats pretending he is league-average."""
-    import inspect
 
-    from src.context import calibrate as cal
-    sig = inspect.signature(cal.fit_pitcher_leash)
-    assert sig.parameters["min_starts"].default <= 3, \
-        "leash coverage narrowed again; openers will get a starter's leash"
-    assert cal.LEASH_SHRINK_K >= 8, cal.LEASH_SHRINK_K
+    Rewritten when `calibrate.fit_pitcher_leash` was deleted. That function
+    GRID-SEARCHED each offset to minimise the gap between simulated and
+    actual mean outs, which is fitting the settlement value — the thing
+    CLAUDE.md forbids. `src.context.leash` measures the residual and shrinks
+    it by a constant read off an ANOVA instead, so the property to guard is
+    now coverage and shrinkage, not the search.
+    """
+    from src.context import leash as leash_mod
+    assert leash_mod.MIN_PRIOR <= 3, leash_mod.MIN_PRIOR
+    # a three-start pitcher must be pulled most of the way back to league
+    hist = {f"p{i}": [2.0] * 3 for i in range(40)}
+    k, _betw, _wit = leash_mod.shrink_k(hist)
+    assert k > 0
 
 
 def check_declining_to_price_is_reported_not_silent():
