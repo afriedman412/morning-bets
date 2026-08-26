@@ -513,7 +513,13 @@ def check_build_cases_passes_the_cutoff_to_the_league():
     told about it, which looks identical from the outside."""
     import inspect
     src = inspect.getsource(cal.build_cases)
-    assert "sim.league(season, before=rb)" in src, src[:200]
+    assert "sim.league(rs, before=rb)" in src, src[:200]
+    # `rs` is the rates season, which defaults to `season` but can be set
+    # apart from it — 2026 starts priced off rates that remember 2025. The
+    # league baseline has to follow the RATES, not the starts, or the anchor
+    # and the numbers log5'd against it come from different populations.
+    assert "rs = season if rates_season is _SAME_SEASON else rates_season" \
+        in src
 
 
 def check_worker_state_crosses_the_fork():

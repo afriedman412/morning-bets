@@ -73,12 +73,21 @@ where o >= 1
 #: knocked out early, and those DO belong.
 ROTATION_MIN_GS = 5
 
+#: SEASON-SCOPED, and it has to be. This counts "did he start five times",
+#: and with two seasons loaded an unscoped count lets a pitcher who started
+#: twenty times in 2025 and three times in 2026 through the 2026 gate. That
+#: is not a rotation arm this season. Caught by digest: loading 2025 moved
+#: the 2026 case count 3,629 -> 3,709 with no code change, through here.
+#:
+#: Deliberately NOT filtered by `before`/`since`. The gate asks a question
+#: about the whole season, and date-scoping it would shrink the bar for an
+#: April backtest to "started five times by April".
 _ROTATION_JOIN = """
-join (select player_name
-      from mlb_pitching
-      where is_starter is not null
-      group by player_name
-      having sum(case when is_starter = 1 then 1 else 0 end) >= {gs}
+join (select p2.player_name
+      from mlb_pitching p2 join games g2 on g2.game_id = p2.game_id
+      where p2.is_starter is not null {season_where}
+      group by p2.player_name
+      having sum(case when p2.is_starter = 1 then 1 else 0 end) >= {gs}
      ) rot on rot.player_name = pr.player_name
 """
 
@@ -98,8 +107,10 @@ def actual_starts(season=None, before=None, limit=None,
         where += f" and g.date >= '{since}'"
     q = _STARTS_Q.format(
         where=where,
-        rotation_join=(_ROTATION_JOIN.format(gs=ROTATION_MIN_GS)
-                       if rotation_only else ""),
+        rotation_join=(_ROTATION_JOIN.format(
+            gs=ROTATION_MIN_GS,
+            season_where=(f"and g2.date like '{season}%'" if season else ""))
+            if rotation_only else ""),
         rotation_filter="")
     if limit:
         q += f" limit {limit}"
@@ -437,18 +448,35 @@ def replay(pair, lg, pens, rng, innings=9, track=(), apply_leash=True,
                               track=track)
 
 
+#: "whatever `season` is". Distinct from None, which now means the CURRENT
+#: season, and from `scope.ALL_SEASONS`, which means pool every one.
+_SAME_SEASON = object()
+
+
 def build_cases(season=None, before=None, max_starts=None, since=None,
-                rates_before=None, handed=None) -> list[tuple]:
+                rates_before=None, handed=None,
+                rates_season=_SAME_SEASON) -> list[tuple]:
     """[(actual_row, PitcherRates, [BatterRates])] for every replayable start.
 
     Split out from the simulation and memoised because the tuner evaluates
     a hundred candidate hooks against the same cases, and rebuilding rates
     and lineups each time made a two-minute search a twenty-minute one.
+
+    `rates_season` is to `season` what `rates_before` is to `before`: it
+    decouples WHICH SEASON the rates are measured over from which season's
+    starts are being replayed. Pass `scope.ALL_SEASONS` to score 2026 starts
+    against a pitcher whose rates remember 2025 — which is a question about
+    whether memory across a winter is worth anything, and cannot be asked
+    while one argument controls both.
     """
     handed = USE_HANDEDNESS if handed is None else handed
+    rs = season if rates_season is _SAME_SEASON else rates_season
     key = (season, before, max_starts, since, rates_before, handed,
            NEUTRALISE_PARK, USE_ARSENAL, USE_MIXTURE,
-           USE_CONTACT_MIXTURE)
+           USE_CONTACT_MIXTURE,
+           # In the memo key, or a cross-season run silently returns the
+           # single-season cases a previous call left behind.
+           "same" if rates_season is _SAME_SEASON else rs)
     if key in _CASES:
         return _CASES[key]
 
@@ -460,15 +488,15 @@ def build_cases(season=None, before=None, max_starts=None, since=None,
     # when both sides are average, so it anchors every simulated rate — and
     # computing it over every cached game let the test window into a
     # "train-only" fit. Same cutoff as the player rates.
-    lg = sim.league(season, before=rb)
-    pr = rate_src.pitcher_rates(lg, season, rb)
-    br = rate_src.batter_rates(lg, season, rb)
-    split = rate_src.batter_rates_by_hand(lg, season, rb) if handed else {}
+    lg = sim.league(rs, before=rb)
+    pr = rate_src.pitcher_rates(lg, rs, rb)
+    br = rate_src.batter_rates(lg, rs, rb)
+    split = rate_src.batter_rates_by_hand(lg, rs, rb) if handed else {}
     if NEUTRALISE_PARK:
         pr = rate_src.neutralise(
-            pr, rate_src.park_exposure("pitcher", season, rb))
+            pr, rate_src.park_exposure("pitcher", rs, rb))
         br = rate_src.neutralise(
-            br, rate_src.park_exposure("batter", season, rb))
+            br, rate_src.park_exposure("batter", rs, rb))
     lineups = opposing_lineups()
     league_bats = sim.BatterRates(name="league", k_pct=lg["k_pct"],
                                   bb_pct=lg["bb_pct"], hr_pct=lg["hr_pct"],

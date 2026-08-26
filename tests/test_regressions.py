@@ -344,8 +344,12 @@ def check_openers_are_excluded_from_the_modelled_population():
     fitted hook toward a leash nobody in the modelled set is on."""
     from src.context import calibrate
     assert calibrate.ROTATION_MIN_GS >= 3, calibrate.ROTATION_MIN_GS
-    assert "having sum(case when is_starter = 1 then 1 else 0 end) >= {gs}" \
+    assert "having sum(case when p2.is_starter = 1 then 1 else 0 end) >= {gs}" \
         in calibrate._ROTATION_JOIN
+    # And the count is per SEASON. Unscoped, a 2025 workhorse with three
+    # 2026 starts clears the 2026 bar — worth 80 extra cases when 2025 was
+    # loaded, all of them arms no book prices this year.
+    assert "{season_where}" in calibrate._ROTATION_JOIN
 
 
 def check_grading_records_who_started():

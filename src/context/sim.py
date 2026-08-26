@@ -68,22 +68,39 @@ select sum(p.outs_recorded) o, sum(p.h) h, sum(p.bb) bb, sum(p.k) k,
 from mlb_pitching p join games g on g.game_id = p.game_id
 where g.sport = 'mlb' and g.status = 'Final' and p.is_starter = 1 {where}
   and p.player_name in (
-      select player_name from mlb_pitching where is_starter is not null
-      group by player_name
-      having sum(case when is_starter = 1 then 1 else 0 end) >= 5)
+      select p2.player_name from mlb_pitching p2
+      join games g2 on g2.game_id = p2.game_id
+      where p2.is_starter is not null {season_where}
+      group by p2.player_name
+      having sum(case when p2.is_starter = 1 then 1 else 0 end) >= 5)
 """
 
 
-def _starter_league(conn=None, before: str | None = None) -> dict | None:
+def _starter_league(conn=None, before: str | None = None,
+                    season=None) -> dict | None:
     """Rate baselines from ROTATION STARTERS, per batter faced.
 
     The population the simulator simulates. Openers are excluded on the
     same 5-start bar `calibrate.ROTATION_MIN_GS` uses.
+
+    SEASON-SCOPED IN BOTH PLACES, and it took loading 2025 to notice it was
+    scoped in neither. These three rates — k_pct, bb_pct, hr_pct — OVERWRITE
+    the batting-side figures in `league()`, so an unscoped baseline here
+    pools two seasons into the anchor every simulated rate is log5'd
+    against. It showed up as `pa` and `runs_per_9` identical while K, BB and
+    HR all moved, which is only possible if the two came from different
+    queries.
     """
-    where = f"and g.date < '{before}'" if before else ""
+    season = scope.resolve(season)
+    where = f"and g.date like '{season}%'" if season else ""
+    if before:
+        where += f" and g.date < '{before}'"
 
     def _run(c):
-        return c.execute(_SP_Q.format(where=where)).fetchone()
+        return c.execute(_SP_Q.format(
+            where=where,
+            season_where=(f"and g2.date like '{season}%'" if season else ""))
+        ).fetchone()
     if conn is not None:
         r = _run(conn)
     else:
@@ -129,6 +146,13 @@ def league(season: int | None = None, conn=None,
 
     # None means THIS SEASON — `context.scope`. League baselines are the
     # clearest case for scoping: the ball is not the same year to year.
+    #
+    # THE RAW ARGUMENT IS KEPT because `resolve` is NOT idempotent: None
+    # means "unspecified" on the way in and "every season" on the way out,
+    # so resolving an already-resolved value turns ALL_SEASONS back into the
+    # current one. That bug shipped for ten minutes and presented as a
+    # pooled `pa` of 222,533 sitting next to pure-2026 rates.
+    raw_season = season
     season = scope.resolve(season)
     where = f"and g.date like '{season}%'" if season else ""
     if before:
@@ -191,7 +215,7 @@ def league(season: int | None = None, conn=None,
     # Scaling the pitchers instead was tried and made walks worse: the
     # pitcher rates were already on the right denominator, it was the
     # reference that was wrong.
-    sp = _starter_league(conn, before=before)
+    sp = _starter_league(conn, before=before, season=raw_season)
     if sp:
         out["batter_scale"] = {
             k: (sp[k] / out[k]) if out.get(k) else 1.0
