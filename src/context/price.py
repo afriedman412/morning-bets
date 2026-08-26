@@ -170,7 +170,7 @@ def _build(names, br, league_bats):
 
 
 def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
-                        seed=0):
+                        seed=0, progress=None):
     """`n_sims` simulated games for one slate matchup. -> (results, reason).
 
     BOTH STARTERS OR NEITHER, and that is the whole point of this function.
@@ -239,7 +239,11 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
             if calibrate.USE_PARK else None)
     rng = random.Random(seed)
     out = []
-    for _ in range(n_sims):
+    # `progress(done, total)` is called about a hundred times, not once per
+    # draw — a full game takes ~1.1ms, so a callback on every one would be a
+    # measurable share of the run just to redraw a bar.
+    every = max(1, n_sims // 100)
+    for i in range(n_sims):
         sides = {}
         for side in ("away", "home"):
             pitcher, faces, abbr, hook = specs[side]
@@ -248,6 +252,10 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
                 rng, team=abbr, apply_leash=False)
         out.append(game.simulate_game(sides["away"], sides["home"], lg, rng,
                                       park=park))
+        if progress is not None and (i + 1) % every == 0:
+            progress(i + 1, n_sims)
+    if progress is not None:
+        progress(n_sims, n_sims)
     return out, ""
 
 

@@ -193,7 +193,22 @@ def report(rows: list[dict]) -> None:
     import math
 
     def binom_p(k, n_, p=0.5):
-        return sum(math.comb(n_, i) * p ** i * (1 - p) ** (n_ - i)
+        """P(X >= k) for X ~ Binomial(n_, p), computed in LOG SPACE.
+
+        The obvious form — `sum(math.comb(n_, i) * p**i * (1-p)**(n_-i))` —
+        raises OverflowError once a band holds more than about a thousand
+        rows: `math.comb(1800, 900)` is a 540-digit integer and multiplying
+        it by a float converts it first. It was written against runs of
+        ~1,200 markets total, so no single band ever reached the limit, and
+        it crashed the first time this was scored on a full month.
+
+        Each term is exponentiated only after the logs are added, so nothing
+        larger than 1.0 is ever materialised.
+        """
+        lp, lq = math.log(p), math.log1p(-p)
+        return sum(math.exp(math.lgamma(n_ + 1) - math.lgamma(i + 1)
+                            - math.lgamma(n_ - i + 1) + i * lp
+                            + (n_ - i) * lq)
                    for i in range(k, n_ + 1))
 
     for lo, hi in ((0.0, 0.05), (0.05, 0.10), (0.10, 0.20), (0.20, 1.0)):

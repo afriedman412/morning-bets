@@ -95,7 +95,88 @@ OFFSET_CLAMP = 2.0
 #: A pitcher needs this many prior starts before his own number is used at
 #: all. Below it the shrinkage would do the right thing anyway; the floor
 #: exists so a single disaster start cannot register as a leash.
-MIN_PRIOR = 3
+#:
+#: RAISED 3 -> 5 on 2026-08-26. At three, a callup with two bad outings and
+#: one good one reads as a short leash — Cody Bolton [3, 7, 13], Kendry
+#: Rojas [6, 7, 12, 12] — when what it actually is is no evidence. It costs
+#: 22 arms and 2.5% of the starts (3,018 -> 2,943), and those arms were
+#: contributing almost nothing at K=14.8 anyway. What it really buys is
+#: keeping them out of `shrink_k`, where a handful of noisy three-start
+#: means inflate the between-pitcher variance for everybody else.
+MIN_PRIOR = 5
+
+#: A LEASH IS A MEASUREMENT OF ARMS THAT WERE MEANT TO GO LONG.
+#:
+#: `calibrate.ROTATION_MIN_GS` asks "did he start five times", and an opener
+#: who opened five times clears it. Nine of the eleven offsets that pinned
+#: at the +/-2.0 clamp on the first two-sided rebuild were openers and bulk
+#: relievers — Wandy Peralta with five "starts" in fifty-three appearances,
+#: averaging three outs. Their offsets are not manager patience, they are a
+#: ROLE wearing a leash's clothes, and because they also feed `shrink_k`
+#: they were setting the shrinkage constant for every real starter too.
+#:
+#: THE GATE IS ON THE UPPER TAIL OF HIS OWN DISTRIBUTION, NOT THE MEAN, and
+#: that is the whole point. This module measures how long a starter lasts.
+#: Screening on mean outs — which is what `price.priceable` does, correctly,
+#: for a different question — would SELECT ON THE DEPENDENT VARIABLE: it
+#: removes exactly the arms that were sent out for six and got shelled in
+#: the second, which are the observations carrying the signal. Tatsuya Imai
+#: has a one-out start and Noah Schultz has a one-out start; both belong.
+#:
+#: Measured on this league, the two populations do not overlap at all:
+#:
+#:     openers, p75 outs            3  4  4  4  6  6  6  9  9   (max 10)
+#:     shelled starters, p75 outs  14 15 15 15 16 16 18 18      (min 1)
+#:
+#: Any cut from 10 to 13 separates them with no errors either way. 12 sits
+#: in the middle of the gap rather than on the edge of a population.
+INTENT_MIN_P75_OUTS = 12
+
+_INTENT_Q = """
+select p.player_name nm, p.outs_recorded o
+from mlb_pitching p join games g on g.game_id = p.game_id
+where g.sport = 'mlb' and g.status = 'Final' and p.is_starter = 1 {where}
+"""
+
+
+def intended_starters(before=None, conn=None) -> set:
+    """Pitchers a club sends out MEANING to get length from them.
+
+    `before` bounds the evidence exactly as it bounds everything else here —
+    a file built for a date must contain nothing from that date onward, and
+    a role judged partly on the starts being scored would leak.
+    """
+    from src import db
+    q = _INTENT_Q.format(where=f" and g.date < '{before}'" if before else "")
+
+    def _run(c):
+        out = {}
+        for r in c.execute(q):
+            out.setdefault(r["nm"], []).append(r["o"] or 0)
+        return out
+    if conn is not None:
+        starts = _run(conn)
+    else:
+        with db.connect() as c:
+            starts = _run(c)
+    return intended_from_starts(starts)
+
+
+def intended_from_starts(starts: dict) -> set:
+    """{pitcher: [outs per start]} -> the ones meant to go long.
+
+    Split out from the query so the RULE can be tested without a database,
+    and because the rule is the part that is easy to get subtly wrong: it
+    reads the 75th percentile of a pitcher's own starts, never the mean.
+    """
+    keep = set()
+    for nm, outs in starts.items():
+        if len(outs) < MIN_PRIOR:
+            continue
+        v = sorted(outs)
+        if v[min(len(v) - 1, int(0.75 * len(v)))] >= INTENT_MIN_P75_OUTS:
+            keep.add(nm)
+    return keep
 
 
 def offset_for(d_outs: float) -> float:
@@ -210,6 +291,19 @@ def residuals(before=None, n_sims=120, season=None, quiet=False) -> dict:
 def build(before=None, n_sims=120, path=PATH, season=None) -> dict:
     """Measure, shrink, convert to log-odds, persist. Returns the mapping."""
     res = residuals(before=before, n_sims=n_sims, season=season)
+    # Openers leave BEFORE `shrink_k`, not after. They are systematically
+    # short, so leaving them in inflates the between-pitcher variance and
+    # drives K down — which loosens the shrinkage applied to every genuine
+    # starter. Filtering only the output would fix their own rows and leave
+    # everybody else's wrong.
+    keep = intended_starters(before=before)
+    dropped = [n for n in res if n not in keep]
+    res = {n: v for n, v in res.items() if n in keep}
+    if dropped:
+        print(f"  dropped {len(dropped)} arms not sent out for length "
+              f"(p75 outs < {INTENT_MIN_P75_OUTS}): "
+              f"{', '.join(sorted(dropped)[:5])}"
+              f"{' ...' if len(dropped) > 5 else ''}")
     k, between, within = shrink_k(res)
     offsets = {}
     for name, vals in res.items():

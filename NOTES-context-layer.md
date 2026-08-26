@@ -2616,3 +2616,109 @@ size to be resolvable. It needs to prove the flag reaches the code. Asking
 it to also demonstrate the effect on the settled quantity is what made it
 underpowered, and an underpowered check that passes is indistinguishable
 from one that guards something.
+
+## Day nine — the CLV record, re-measured on the shipped engine
+
+Every recorded claim about what our disagreements are worth was produced on
+`sim.simulate`, deleted this morning. All of it was re-run through
+`scratchpad/remeasure.py`, which forks `versus_market.collect` over dates.
+August 1-25, n_sims=1500.
+
+**K PROPS: THE CONCLUSION HOLDS, on 3,366 markets against the recorded
+1,220.** Market Brier 0.1576 (+36.0% over base, AUC 0.847), sim 0.1636
+(+33.6%, AUC 0.836) — 94% of the market's skill, inside the recorded 91-98%
+band. Best blend weight 0.00: our gap adds nothing to a price that exists.
+
+**ONE SUB-CLAIM DOES NOT HOLD, and `quote.py` prints it.** "Where the two
+agree within 5 cents the simulator is a shade better than Kalshi (0.1351
+against 0.1379)" is now false — the market is marginally better in EVERY
+band (0.1407 against 0.1424 inside five cents). The direction of the big-gap
+finding is unchanged and stronger: at 20+ cents the sim is right 21.9% of
+the time and its Brier is double the market's.
+
+**OUTS LOOKED ALIVE AND IT WAS LEAKAGE.** With the shipped full-season
+`hook_leash.json` the outs board scored sim Brier 0.2388 against the
+market's 0.2403, AUC 0.627 against 0.602, and a best blend weight of 0.50
+worth +1.21%. That would have been the first thing to beat a settled price.
+It is in-sample: the leash was fitted on the full season and August is
+inside it. Rebuilt `--before 2026-08-01` and re-scored:
+
+    leash                       sim Brier  vs base    AUC   best lam
+    full season (IN-SAMPLE)        0.2388    +4.5%  0.627   0.50
+    before Aug 1, ungated          0.2506    -0.3%  0.555   0.00
+    before Aug 1, intent-gated     0.2466    +1.3%  0.571   0.10
+
+Outs is still the dead half. K was re-run at each step as a control and did
+not move, so nothing systemic changed between the states.
+
+## THE LEASH POPULATION — openers were half the signal
+
+`calibrate.ROTATION_MIN_GS` asks "did he start five times", and an opener
+who opened five times clears it. Nine of the eleven offsets that pinned at
+the +/-2.0 clamp on the first two-sided rebuild were openers and bulk
+relievers — Wandy Peralta, five "starts" in fifty-three appearances,
+averaging three outs, carrying a leash offset.
+
+USER'S FRAMING, and it is the right definition: what the leash measures is
+how long a pitcher WHO WAS MEANT TO GO LONG actually lasts. An opener's
+three outs are not a short leash, they are the plan. They dilute the real
+signal, which is the starter sent out for six who gets shelled in the
+second.
+
+`leash.intended_starters` gates on that, and the effect is large:
+
+                            ungated   gated
+    offsets                     212     202
+    between-pitcher sd        1.803   0.900
+    shrinkage K (starts)        3.7    14.8
+    offset range              +2.00   +1.19
+    pinned at the clamp          11       0
+
+OPENERS WERE HALF THE APPARENT BETWEEN-PITCHER VARIATION. The clamp stopped
+binding — the grid-edge diagnostic clearing, which is what it does when a
+missing mechanism is supplied — and the surviving 0.90 outs lands exactly on
+the number day eight predicted from the other direction ("on genuine
+rotation arms the true per-pitcher leash sd is ~0.9-1.1 rather than 1.77").
+
+**THE GATE READS A PERCENTILE, NOT A MEAN, and the reason is worth keeping.**
+Screening on mean outs would SELECT ON THE DEPENDENT VARIABLE: this module
+measures how long a starter lasts, and a mean-based cut removes exactly the
+arms that were sent out for six and got shelled. `price.priceable` screens
+on mean outs and is right to — it answers a different question, whether to
+put a number on a bet. Measured, the two populations do not overlap on p75
+(openers 3-9, shelled starters 14-18) and any cut from 10 to 13 separates
+them cleanly.
+
+HONEST FOOTNOTE: the user pushed back that no real starter averages under 11
+outs anyway, and the data agrees — the two gates disagree on 6 arms of 241,
+all of them 3-4 start callups whose offsets shrink to nothing regardless. So
+the percentile form is the safer statement of the rule and buys nothing
+today. The synthetic fixture that motivated it was not checked against the
+real distribution first, which it should have been.
+
+`MIN_PRIOR` 3 -> 5. At three, a callup with two bad outings reads as a short
+leash when it is really no evidence (Cody Bolton [3, 7, 13], Kendry Rojas
+[6, 7, 12, 12]). Costs 22 arms and 2.5% of the starts, and mostly keeps them
+out of `shrink_k`.
+
+## TWO TRAPS ADDED
+
+**A SCORING FILE AND A PRICING FILE ARE DIFFERENT FILES.** `--before` builds
+the leash for SCORING a window; the shipped file must be full-season or
+every offset ignores the most recent month. The working tree carried a
+`--before 2026-08-01` build for a while today and would have priced with it.
+
+**VERIFY THE MUTATION LANDED, not just that you wrote one.** A mutation
+meant to disable shrinkage reported the check as unguarded. The insertion
+had silently gone somewhere ineffective; re-applied properly, the check
+caught it immediately. The standing rule is "write the mutation before
+believing the check" — it needs "and confirm the mutation is in the file".
+
+## A CHECK WHOSE PREMISE INVERTED
+
+`check_the_leash_covers_thin_starters_not_just_established_ones` asserted
+`MIN_PRIOR <= 3`, because a low bar was the only thing keeping short-outing
+arms off the league default leash — COVERAGE WAS DOING A FILTER'S JOB. With
+`intended_starters` doing that job on role, a low bar buys nothing and costs
+something. Rewritten to guard SHRINKAGE instead: a pitcher at the floor must
+keep under half his raw residual, and the floor must not creep past 8.

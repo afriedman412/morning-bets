@@ -880,13 +880,31 @@ def check_the_leash_covers_thin_starters_not_just_established_ones():
     CLAUDE.md forbids. `src.context.leash` measures the residual and shrinks
     it by a constant read off an ANOVA instead, so the property to guard is
     now coverage and shrinkage, not the search.
+
+    THE PREMISE CHANGED ON 2026-08-26 and the check changed with it. It
+    used to assert `MIN_PRIOR <= 3`, because a low bar was the only thing
+    keeping short-outing arms off the league default leash — coverage was
+    doing a filter's job. `leash.intended_starters` now does that job
+    properly, on role rather than on how few starts an arm has, so a low bar
+    buys nothing and costs something: at three starts a callup with two bad
+    outings reads as a short leash when it is really no evidence.
+
+    So the property guarded is SHRINKAGE, not coverage. A pitcher at the
+    floor must be pulled most of the way back to the league, and the floor
+    must not creep so high that ordinary starters fall off it.
     """
     from src.context import leash as leash_mod
-    assert leash_mod.MIN_PRIOR <= 3, leash_mod.MIN_PRIOR
-    # a three-start pitcher must be pulled most of the way back to league
-    hist = {f"p{i}": [2.0] * 3 for i in range(40)}
-    k, _betw, _wit = leash_mod.shrink_k(hist)
-    assert k > 0
+    assert 3 <= leash_mod.MIN_PRIOR <= 8, leash_mod.MIN_PRIOR
+
+    # 40 pitchers who all sit +2.0 outs above the model, each on the bare
+    # minimum history. Between-pitcher variance here is nil — they are
+    # identical — so the ANOVA must read this as noise and shrink hard.
+    n = leash_mod.MIN_PRIOR
+    hist = {f"p{i}": [2.0] * n for i in range(40)}
+    k, betw, _wit = leash_mod.shrink_k(hist)
+    assert k > 0, k
+    kept = n / (n + k)
+    assert kept < 0.5, f"a floor-sample pitcher keeps {kept:.0%} of his residual"
 
 
 def check_declining_to_price_is_reported_not_silent():

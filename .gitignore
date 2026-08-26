@@ -108,3 +108,6 @@ snapshots/
 
 .claude/settings.local.json
 scratchpad/august_rows.json
+
+# Simulated draws kept for querying; regenerate with scratchpad/bets.py
+scratchpad/sims/

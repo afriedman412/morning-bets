@@ -139,3 +139,51 @@ def check_a_pitcher_with_too_little_history_gets_no_offset():
     assert sim.leash("Nobody Who Has Ever Pitched") == 0.0
     assert sim.leash(None) == 0.0
     assert sim.leash("") == 0.0
+
+
+def check_the_leash_population_is_arms_meant_to_go_long():
+    """An opener's short outing says nothing about how long a STARTER lasts.
+
+    Nine of the eleven offsets that pinned at the +/-2.0 clamp on the first
+    two-sided rebuild were openers and bulk relievers, and because they also
+    feed `shrink_k` they were setting the shrinkage constant for every real
+    starter. `calibrate.ROTATION_MIN_GS` does not catch them: it asks "did
+    he start five times", and an opener who opened five times clears it.
+    """
+    keep = leash.intended_from_starts({
+        "opener":   [3, 3, 4, 4, 3, 5],
+        "bulk":     [6, 5, 6, 7, 6, 4],
+        "starter":  [15, 18, 16, 12, 18, 15],
+    })
+    assert keep == {"starter"}, keep
+
+
+def check_the_leash_gate_does_not_select_on_the_dependent_variable():
+    """THE TRAP THIS CHECK EXISTS FOR, and the reason the gate reads a
+    PERCENTILE and not a mean.
+
+    This module measures how long a starter is left in. Screening on MEAN
+    outs would remove exactly the arms that were sent out for six and got
+    shelled in the second — the observations that carry the whole signal —
+    and would truncate the short end of the distribution being measured.
+    `price.priceable` screens on mean outs and is right to, because it is
+    answering a different question: whether to put a number on a bet.
+
+    `wrecked` below has a mean of 10.2, under `price`'s 11-out bar, and a
+    p75 of 18. He is a starter having a terrible season and he belongs.
+    """
+    starts = {"wrecked": [1, 2, 18, 18, 15, 3, 18, 6],
+              "opener": [3, 4, 9, 9, 4, 3]}
+    import statistics as st
+    assert st.mean(starts["wrecked"]) < 11.0, "fixture no longer makes the point"
+    keep = leash.intended_from_starts(starts)
+    assert "wrecked" in keep, "dropped a shelled starter — the signal itself"
+    assert "opener" not in keep, keep
+
+
+def check_the_leash_gate_respects_the_cutoff():
+    """A role judged partly on the starts being scored would leak, the same
+    way rates would. `before` has to bound the evidence."""
+    import inspect
+    src = inspect.getsource(leash.intended_starters)
+    assert "g.date <" in src and "before" in src
