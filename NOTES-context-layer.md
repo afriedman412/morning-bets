@@ -3244,3 +3244,38 @@ non-linear pitch term, which is a code change rather than a refit.
 The pooled boundary fit shipped today remains the best available in the
 current form — band RMS 0.0342 against LEGACY's 0.0546 over the lines that
 are 91.2% of the settled outs board.
+
+## History supersedes typing, and the earlier measurements said so
+
+USER, end of day nine: "adding more data for pitcher history probably does
+what we were trying to do with typifying ... it gives the pitcher a baseline
+tendency."
+
+That is right and it retires a line of work rather than opening one. Typing
+was always a stand-in for not having enough of the man himself: you group
+pitchers who look alike because 40 batters faced will not support an
+estimate. His own 180 innings from last season is the same borrowing from a
+strictly better source.
+
+Two results from this session already pointed at it and were not connected:
+
+  * `bytype.py` split starters by strikeout rate and found the model's
+    defects are GLOBAL. The groups were not behaving differently, so there
+    was nothing for a type to capture.
+  * `archetype.py` found pitch-mix typing real for relievers (p=0.003) and
+    ABSENT for starters — the population that actually gets priced.
+
+It is also the trap already written into `sim.for_pitcher`: a group number
+standing in for an individual is substitution bias. The standing rule is
+shrink toward a prior and keep the underlying value; `rates.set_prior` just
+supplies a much sharper prior to shrink toward.
+
+WHERE TYPING KEEPS A CLAIM, both untested:
+
+  1. A TRUE ROOKIE has no history to borrow from and his pitch mix is
+     available from Savant on day one. Same small population where the
+     preseason-rank gradient died, so measure before building.
+  2. SHAPE RATHER THAN LEVEL. History gives a pitcher's level, not how he
+     decays within a start. Times through the order is currently ONE
+     league-wide curve, and whether a contact pitcher fades differently from
+     a flamethrower is a separate question history cannot answer.
