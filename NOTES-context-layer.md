@@ -2853,3 +2853,49 @@ play-by-play and refit the hook in the same commit.
 `PITCH_COST` was last measured per PLATE APPEARANCE (3.94 billed against a
 real 3.839) and corrected. Per OUT it has never been checked, and per out is
 the quantity the hook actually integrates over.
+
+## Day nine — the same error for a flamethrower and a contact starter?
+
+`scratchpad/bytype.py`. Terciles by the pitcher's own season K per batter
+faced, so the grouping is a property of the arm rather than of the start
+being scored. Different question from `sources/archetype.py`, which typed by
+PITCH MIX and asked whether type predicts performance; this asks whether the
+model's own ERROR is homogeneous, because every defect measured today was
+reported as a single number over all starters.
+
+    group              arms   K/BF   outs A  outs S     d   p/out A  p/out S      d
+    contact (low K)      62  0.162    15.62   15.96 +0.34     5.38     5.09  -5.5%
+    middle               62  0.209    15.88   16.09 +0.21     5.41     5.14  -5.1%
+    power (high K)       62  0.269    16.31   16.45 +0.14     5.38     5.14  -4.4%
+
+    group           K/start A  K/start S     d    21+ out starts (A / S)
+    contact              3.79       3.92 +0.12     9.2% / 15.9%
+    middle               4.82       4.81 -0.01    11.6% / 16.2%
+    power                6.15       5.92 -0.22    14.3% / 18.1%
+
+**PITCH EFFICIENCY IS FLAT ACROSS TYPES** (-5.5 / -5.1 / -4.4%), so it is a
+global constant and a global fix is the right shape. Note the REAL numbers
+barely move by type either — 5.38 / 5.41 / 5.38. A strikeout costs more
+pitches but converts reliably; a ball in play is cheap and often retires
+nobody. They wash, and the simulator reproduces that correctly.
+
+**THE OUTS MARGINAL IS FLAT TOO.** Every group over-produces 21+ out starts
+and under-produces 15-17, slightly worse for contact arms. Global; the hook.
+
+**THE K ERROR IS NOT FLAT, AND THAT IS THE FINDING.** Contact +0.12, middle
+-0.01, power -0.22 — monotone. Part is the outs gradient, but converting to
+K per batter faced leaves +3.2% on contact arms and -2.7% on power arms.
+About 6% of RATE COMPRESSION across the type range: pitcher K% is
+OVER-SHRUNK toward the league.
+
+It agrees with the headroom result from the same day arrived at another way
+— our K spread is 1.02 against a real between-start 1.18, 86%, and this is
+85% of the between-type range. So "K's shortfall is aim, not amount", stated
+earlier the same day, is half wrong: some of it is amount, and the mechanism
+is shrinkage rather than a missing feature.
+
+`stabilise.py` measures exactly this and has already found batter rates
+over-shrunk 2.2x and pitcher HR under-shrunk 2.7x. Pitcher K% is the next
+one to re-measure, and unlike a new mechanism it is a constant that is
+already fitted — no new machinery, and it moves the quantity with the most
+headroom (K, 81% of ceiling).
