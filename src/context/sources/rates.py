@@ -49,6 +49,7 @@ rather than the constants simply being replaced.
 from __future__ import annotations
 
 from src import db
+from src.context import scope
 
 #: Plate appearances at which each rate is worth half its own weight
 #: against the league. Higher means slower to trust.
@@ -113,6 +114,9 @@ group by mb.player_name
 
 def _where(season: int | None, before: str | None) -> str:
     bits = []
+    # None means THIS SEASON, not every season — see `context.scope`. Pass
+    # `scope.ALL_SEASONS` to pool history on purpose.
+    season = scope.resolve(season)
     if season:
         bits.append(f"and g.date like '{season}%'")
     if before:

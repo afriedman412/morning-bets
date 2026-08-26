@@ -59,6 +59,7 @@ MODULES = ["tests.test_pure", "tests.test_regressions",
            "tests.test_wiring",
            "tests.test_inherit", "tests.test_ladder", "tests.test_leash",
            "tests.test_order",
+           "tests.test_scope",
            "tests.test_stabilise", "tests.test_tto",
            "tests.test_weather",
            "tests.test_store"]

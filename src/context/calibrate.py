@@ -30,7 +30,7 @@ import sys
 from collections import Counter
 
 from src import db, roster
-from src.context import game, sim
+from src.context import game, scope, sim
 from src.context.sources import mixture
 from src.context.sources import rates as rate_src
 
@@ -86,6 +86,10 @@ join (select player_name
 def actual_starts(season=None, before=None, limit=None,
                   since=None, rotation_only=True) -> list[dict]:
     where = ""
+    # None means THIS SEASON — `context.scope`. Which starts are replayed
+    # has to agree with which games the rates were computed from, or a 2026
+    # start gets priced off a pitcher's pooled two-season line.
+    season = scope.resolve(season)
     if season:
         where += f" and g.date like '{season}%'"
     if before:

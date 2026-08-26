@@ -140,6 +140,25 @@ def main(argv):
         t2, _ = multi(thin, list(CONTROLS) + ["rank"], "actual")
         print(f"  {'pitching -> + rank':<38}{tb:>+8.3f} -> {t2:+.3f}")
 
+    # THE FULL PICTURE BY RECORD LENGTH. "+0.011 overall" and "+0.048 on
+    # the thin group" are both true and neither shows where the crossover
+    # is. Every band gets the same two models so the gain is comparable.
+    print(f"\n  WHAT THE RANK ADDS, BY LENGTH OF IN-SEASON RECORD")
+    print(f"  {'prior starts':<16}{'n':>5}{'pitching':>10}{'+rank':>9}"
+          f"{'gain':>8}{'corr':>8}")
+    bands = (("0-4", 0, 4), ("5-8", 5, 8), ("9-12", 9, 12),
+             ("13-16", 13, 16), ("17+", 17, 99), ("ALL", 0, 99))
+    for lbl, lo, hi in bands:
+        g = [r for r in rows if lo <= r["n_prior"] <= hi]
+        if len(g) < 8:
+            print(f"  {lbl:<16}{len(g):>5}   too few to read")
+            continue
+        b0, _ = multi(g, list(CONTROLS), "actual")
+        b1, _ = multi(g, list(CONTROLS) + ["rank"], "actual")
+        c = corr([r["rank"] for r in g], [r["resid"] for r in g])
+        print(f"  {lbl:<16}{len(g):>5}{b0:>10.3f}{b1:>9.3f}"
+              f"{b1 - b0:>+8.3f}{c:>+8.3f}")
+
     print(f"\n  BEST AND WORST LEASH RESIDUALS, with their March rank")
     print(f"  {'pitcher':<24}{'resid':>8}{'outs':>7}{'rank':>7}{'prior':>7}")
     ranked = sorted(rows, key=lambda r: -r["resid"])

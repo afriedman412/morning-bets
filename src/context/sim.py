@@ -36,6 +36,7 @@ import random
 from dataclasses import dataclass
 
 from src import db
+from src.context import scope
 
 # ── league baselines, from the local boxscore cache ────────────────────
 #
@@ -126,6 +127,9 @@ def league(season: int | None = None, conn=None,
     if key in _LEAGUE_CACHE:
         return _LEAGUE_CACHE[key]
 
+    # None means THIS SEASON — `context.scope`. League baselines are the
+    # clearest case for scoping: the ball is not the same year to year.
+    season = scope.resolve(season)
     where = f"and g.date like '{season}%'" if season else ""
     if before:
         # Strictly before, so a train-window fit is anchored to numbers that
