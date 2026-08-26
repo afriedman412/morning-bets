@@ -3,18 +3,24 @@
     venv/bin/python -m src.context.quote "Yusei Kikuchi" k under 4.5 +102
 
 WHAT THIS IS FOR. Not finding edges — measured, we do not have any: the
-simulator's disagreements with Kalshi carry zero information (blend weight
-0.00, corr with market residual -0.0044, t = -0.15 over 1,220 settled
-markets). What it answers is the question that IS reliably answerable: is
-the price in front of you fair, and where is fair coming from.
+simulator's disagreements with Kalshi carry zero information. Blending our
+gap into the price scores WORSE at every weight, best weight 0.00, over
+3,366 settled K markets. What it answers is the question that IS reliably
+answerable: is the price in front of you fair, and where is fair coming
+from.
+
+RE-MEASURED 2026-08-26 on the current engine. The figures here used to come
+off `sim.simulate`, a one-sided loop with no bullpen, no margin and no
+opposing offence, which was deleted that morning. The conclusion did not
+change; some of the numbers did, and where they did it is noted.
 
 THE HIERARCHY, IN ORDER OF TRUST.
 
   1. KALSHI, when it lists the contract with a tight book. It is an
      exchange — the two sides sum to about 1.01 against 1.04-1.05 at a
-     retail book — and it beat our simulator head to head (Brier 0.1547
-     vs 0.1593, AUC 0.854 vs 0.845). If Kalshi has it, Kalshi is the answer
-     and the simulator is a footnote.
+     retail book — and it beats our simulator head to head (Brier 0.1576
+     vs 0.1636, AUC 0.847 vs 0.836, August, 3,366 markets). If Kalshi has
+     it, Kalshi is the answer and the simulator is a footnote.
   2. THE SIMULATOR, only where Kalshi has no market. It is market-quality
      but not market-beating, which is exactly the profile of a usable
      stand-in for a missing price and NOT of an edge.
@@ -44,13 +50,22 @@ NOTABLE_MARKUP = 0.02
 #: Cents the book must differ from the SIMULATOR before we will say
 #: anything at all, when Kalshi has no contract to check against.
 #:
-#: Measured, not chosen for comfort. |sim - Kalshi| over 1,220 settled
-#: markets has a median of 3.7 cents and a 90th percentile of 11.4, and the
-#: error is not symmetric in usefulness: where the two agree within 5 cents
-#: the simulator is actually a shade better than Kalshi (Brier 0.1351 vs
-#: 0.1379), and where they disagree by 10+ it is much worse (0.2556 vs
-#: 0.2197). The sim is right precisely when it agrees and wrong precisely
-#: when it does not.
+#: Measured, not chosen for comfort, and RE-MEASURED on 2026-08-26 after the
+#: one-sided engine was deleted — the old figures came off an engine that no
+#: longer exists. 3,366 settled K markets, August:
+#:
+#:     |gap|          n   mkt Brier  sim Brier
+#:     0.00-0.05   1985      0.1407     0.1424
+#:     0.05-0.10    921      0.1728     0.1769
+#:     0.10-0.20    428      0.2023     0.2214
+#:     0.20-1.00     32      0.1660     0.3153
+#:
+#: THE OLD CLAIM THAT WE BEAT KALSHI INSIDE FIVE CENTS DID NOT SURVIVE. It
+#: read 0.1351 against 0.1379; the market is now marginally better in every
+#: band. What did survive, and got stronger, is the shape: the error is not
+#: symmetric in usefulness, and where we disagree by 20+ cents our Brier is
+#: nearly double the market's and we are right 21.9% of the time. The sim is
+#: least wrong precisely when it agrees and worst precisely when it does not.
 #:
 #: RETAIL MARKUP IS 2-5 CENTS AND OUR NOISE IS ~5. So the simulator cannot
 #: do the job Kalshi does — it cannot separate a fair price from a marked-up
@@ -202,8 +217,8 @@ def quote(name: str, stat: str, side: str, line: float,
     if ours is not None:
         print(f"    simulator              {ours:.3f}   ({note})")
         if k and k.get("mid_prob") is not None:
-            print(f"       advisory only — our disagreements measured "
-                  f"zero information (t = -0.15)")
+            print(f"       advisory only — blending our gap into the "
+                  f"price scores WORSE at every weight (3,366 markets)")
         elif book_win is not None:
             # No exchange price, so the simulator is all there is. Speak
             # only above the bar its own measured error justifies.
