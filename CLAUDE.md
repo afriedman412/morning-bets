@@ -103,6 +103,23 @@ a tuning problem.** It found the absent hit-by-pitch, absent fielding
 errors, and out-dependent runner advancement (twice). Treat a grid-edge
 result as a mechanism hypothesis immediately, not after three sweeps.
 
+**A HOOK CURVE IS FITTED ON THE POPULATION IT FIRES IN, AND POOLING IS
+THE DEFAULT MISTAKE.** The removal model is two curves — BOUNDARY (does he
+come back out) and MID-INNING (pull him now) — and each has its own rows.
+Fitting them pooled is wrong and it is what every convenient tool invites:
+day seven found the pooled fit gave a late curve at 7.24% where reality is
+33.80%, and on 2026-08-26 the same mistake was re-made THREE TIMES in one
+session, twice inside the mid-inning curve's own low-pitch rows (32,497 of
+47,716 sit under 60 pitches and swamp it).
+
+BUT THE RULE HAS A LIMIT, measured the same day: restrict the BOUNDARY
+curve's training rows the same way and the simulation gets WORSE (mean outs
+16.49 -> 16.74). The boundary curve is evaluated at EVERY pitch count and
+the mid-inning curve is not, so calibrating boundary on late rows only makes
+it under-pull early, more starters reach the tail, and the level breaks. Fit
+on the restricted population only when the curve fires only there and
+something else covers the rest.
+
 **And prefer a high-n ratio to a low-n aggregate.** Runs per baserunner
 (~17,500 simulated starts) told the truth every time; the mean F5 total over
 a few hundred games told me whatever the subsample felt like — four

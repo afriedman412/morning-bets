@@ -915,13 +915,30 @@ def loss(res: dict) -> float:
 
 
 def tune(season=None, starts=500, sims=30, seed=0) -> sim.Hook:
-    """Coordinate descent over the hook parameters.
+    """SUPERSEDED. Coordinate descent over the hook parameters, POOLED.
 
-    Not elegant and not global, but the surface is smooth in each parameter
-    and the whole search costs a couple of minutes. The point is that these
-    numbers end up FITTED to the league's own hook behaviour instead of
-    asserted, which is the difference between this module and the constants
-    table in NOTES that keeps producing bugs.
+    DO NOT USE THIS TO FIT THE HOOK, and do not copy its grid. It sweeps
+    parameters that belong to two different curves against one loss over the
+    pooled outs distribution, which is the mistake day seven exists to
+    correct — the removal model is a BOUNDARY curve and a MID-INNING curve,
+    each fitted on its own decisions. A pooled fit gave a late curve at
+    7.24% where reality is 33.80%.
+
+    ITS SHAPE IS AN ACTIVE TRAP. On 2026-08-26 this grid was copied into a
+    parallel tuner and the pooling mistake was re-made three times in one
+    session. What it optimises is also wrong: `loss` weights the hazard
+    block 4x and the boundary SHARE 1x, so it will buy hazard accuracy by
+    pushing the share off a value that was COUNTED (0.663) — trading a
+    measured quantity for a fitted one.
+
+    The live path is to fit each curve as a logistic on its own rows —
+    `scratchpad/fit_boundary.py` and `scratchpad/fit_midinning.py` — and to
+    score candidates on P(over) at the lines that carry volume, which for
+    outs is 14.5-17.5 (91.2% of the settled board).
+
+    Kept because `run(hook=...)` was dead until 2026-08-26 and anything
+    fitted through here before that date is void, which is worth being able
+    to reproduce.
     """
     grid = {
         "intercept": [-7.0, -6.0, -5.2, -4.6, -4.0, -3.2, -2.4],
