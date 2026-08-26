@@ -3115,3 +3115,70 @@ curves jointly after. Refitting now would only re-absorb the same error into
 differently-wrong parameters. Nothing shipped: `sim.Hook` is untouched, and
 the shipped hook remains the best available on the distribution while being
 the worst on the decisions.
+
+## Day nine — SHIPPED: the fitted boundary curve, on a value-weighted call
+
+Reversed the decision recorded two sections above, and the reason is the
+important part. The refusal rested on `calibrate.loss`, the mean and the
+boundary share — a weighted sum whose weights were never chosen to match
+what settles a bet. Nobody bets the boundary share. It is a diagnostic that
+the hook has the right SHAPE, which is an upstream proxy, and CLAUDE.md's
+central line is fit the quantity that settles, not the upstream proxy.
+
+Scored on P(over) at real outs lines instead:
+
+    line     ACTUAL  shipped   fitted   ship err  fit err
+    12.5      0.807    0.761    0.841     -0.047   +0.034
+    13.5      0.771    0.727    0.796     -0.043   +0.026
+    14.5      0.729    0.671    0.725     -0.058   -0.004
+    15.5      0.542    0.475    0.590     -0.067   +0.047
+    16.5      0.472    0.427    0.518     -0.045   +0.046
+    17.5      0.406    0.360    0.426     -0.045   +0.021
+    18.5      0.172    0.190    0.285     +0.019   +0.114
+    20.5      0.119    0.118    0.158     -0.001   +0.039
+
+    RMS 14.5-17.5    0.0546 -> 0.0346      (-37%)
+    RMS 12.5-20.5    0.0452 -> 0.0513
+
+**THE OLD CURVE'S ERROR WAS A BIAS, NOT NOISE** — negative at every line
+from 12.5 to 17.5, systematically under-pricing the over where the board
+actually is. The aggregate favours it only through 18.5 and 20.5, six-plus
+innings, which is the thin end.
+
+WHAT GOT WORSE AND WHY IT WAS ACCEPTED: mean outs 15.64 -> 16.50 (real
+15.78), boundary share 0.643 -> 0.479 (real 0.663), `calibrate.loss` 0.0627
+-> 0.0819. None of the three is a bet. The mean and the share are
+diagnostics of the compensation described in the previous section — outs per
+plate appearance runs 1.4% high — and the standing rule is that a measured
+value scoring worse LOCATES the compensation rather than refuting itself.
+
+`sim.LEGACY_BOUNDARY` holds the old values so the change stays separately
+scoreable, the same shape as `LEGACY_ADVANCEMENT`.
+
+STILL WRONG, and it is the next fix: the logit is linear in pitches while
+the real hazard accelerates past 90, so the fitted curve undershoots the
+tail (0.596 against a real 0.749 at 100-110). That is exactly where the
++0.114 at the 18.5 line comes from.
+
+### Two checks whose premise inverted with it
+
+`per_inning` fitted to -0.109, and two checks asserted that a later inning
+at a FIXED pitch count raises P(pulled). It does not, and that is defensible
+baseball rather than a concession: a man in the 7th on 90 pitches has been
+more efficient than one in the 5th on 90. Inning and pitch count carry the
+same information and the fit gives it to pitches. MARGINALLY the hazard
+still climbs 0.013 / 0.043 / 0.131 / 0.287 / 0.375 across innings three to
+seven, because pitch count climbs with the inning — so both assertions moved
+to a realistic joint step. Same treatment as
+`check_advancement_rises_with_the_out_count`, which weakened a strict ladder
+that turned out to be a property of the published references.
+
+### THE LESSON, and it generalises past the hook
+
+WE HAD BEEN TREATING EVERY NUMBER AS EQUALLY VALUABLE. `calibrate.loss` sums
+a hazard block, a mean, a boundary share and three out-shares, and a change
+that improves one and degrades another reads as no improvement. But we do
+not care about them equally: 14-18 outs is where the board is, and anything
+outside it is a line nobody bets. The same question is now open for
+strikeouts — which K lines carry the volume — and the answer should shape
+how K accuracy is scored too.

@@ -619,16 +619,21 @@ class Hook:
     #: closest lands P(outs>=18) at 46.9% against a real 41.1%. That is the
     #: "no parameter reaches the target, so the mechanism is missing"
     #: signature: what is absent is a disaster mode, not a better constant.
-    pitch_center: float = 80.0
+    #:
+    #: FITTED ON 38,485 REAL END-OF-INNING DECISIONS, 2026-08-26. See
+    #: LEGACY_BOUNDARY below for what these were and why they changed.
+    pitch_center: float = 47.6812
     #: How sharply the pitch-count term turns on. Larger is a softer curve.
-    pitch_scale: float = 15.0
+    pitch_scale: float = 10.8972
     #: Added to the removal log-odds per run allowed so far.
-    per_run: float = 0.60
-    #: Added per inning completed, capturing the times-through-order effect
-    #: and the simple fact that a manager's tolerance shortens late.
-    per_inning: float = 0.45
+    per_run: float = 0.0089
+    #: Added per inning completed. Small and NEGATIVE once pitches are in
+    #: the same model: inning and pitch count carry the same information and
+    #: the fit gives it to pitches. Not evidence that late innings shorten a
+    #: leash — evidence that pitches already say so.
+    per_inning: float = -0.1087
     #: Baseline log-odds before any of the above.
-    intercept: float = -4.6
+    intercept: float = -4.2384
     # -- mid-inning removal --
     #
     # A third of real starts end mid-inning, and the first version of this
@@ -654,7 +659,7 @@ class Hook:
     #: Per baserunner allowed across the whole outing, applied between
     #: innings alongside runs. Two starters with three runs each are not the
     #: same case if one has allowed four hits and the other eleven.
-    per_baserunner: float = 0.10
+    per_baserunner: float = 0.0379
     #: Manager patience, as a log-odds offset applied to BOTH removal
     #: decisions. Negative means a longer leash.
     #:
@@ -1123,6 +1128,42 @@ def _rate(table, outs: int) -> float:
 #: constants themselves so that turning the switch off does not require
 #: remembering which six globals to put back.
 USE_MEASURED_ADVANCEMENT = True
+
+#: THE BOUNDARY CURVE AS IT SHIPPED UNTIL 2026-08-26, kept so the change
+#: stays separately scoreable — `sim.Hook(**sim.LEGACY_BOUNDARY)` restores it.
+#:
+#: It was fitted by `calibrate.tune` against `sim.simulate`, the one-sided
+#: engine deleted the day before, and against a pitch count billed
+#: `int(round(PITCH_COST))` — about four pitches a start light. Measured
+#: against 38,485 real end-of-inning decisions it fires at 0.293 where
+#: reality is 0.074 (70-80 pitches) and 0.137 against 0.029 (60-70). It is
+#: systematically too eager to pull.
+#:
+#: WHY IT SURVIVED SO LONG, and the reason the replacement looks worse on
+#: `calibrate.loss`: its over-eagerness was COMPENSATING for starters who
+#: last too long, because outs per plate appearance runs 1.4% high. Swapping
+#: it moves mean outs 15.64 -> 16.50 against a real 15.78, and the boundary
+#: share 0.643 -> 0.479 against 0.663. Both got worse.
+#:
+#: IT SHIPPED ANYWAY BECAUSE NEITHER OF THOSE IS A BET. Weighted by where
+#: books actually hang outs lines the fitted curve is much better:
+#:
+#:     RMS error on P(over), lines 14.5-17.5   0.0546 -> 0.0346
+#:     RMS error on P(over), lines 12.5-20.5   0.0452 -> 0.0513
+#:
+#: and the old curve's errors were a BIAS, negative at every line from 12.5
+#: to 17.5 (-0.043 to -0.067), systematically under-pricing the over. The
+#: aggregate favours the old curve only through 18.5 and 20.5 — six-plus
+#: innings, which is the thin end of the board.
+#:
+#: WHAT IS STILL WRONG: the logit is linear in pitches and the real hazard
+#: accelerates past 90, so the fitted curve undershoots the tail (0.596
+#: against a real 0.749 at 100-110). That shows up as P(over 18.5) at +0.114
+#: and is the next fix.
+LEGACY_BOUNDARY = {
+    "intercept": -4.6, "pitch_center": 80.0, "pitch_scale": 15.0,
+    "per_run": 0.60, "per_inning": 0.45, "per_baserunner": 0.10,
+}
 
 LEGACY_ADVANCEMENT = {
     "FIRST_TO_THIRD_ON_1B": {0: 0.24, 1: 0.28, 2: 0.34},

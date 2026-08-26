@@ -228,12 +228,25 @@ def check_advance_never_produces_negative_or_impossible_runs():
 
 # ── the hook ───────────────────────────────────────────────────────────
 def check_removal_probability_is_monotone_in_every_term():
+    """Every term that should raise P(pulled) does.
+
+    `per_inning` IS NOT ONE OF THEM ANY MORE, and that is measured rather
+    than conceded. Fitted on 38,485 real end-of-inning decisions it comes out
+    at -0.109: at a FIXED pitch count, a starter deeper in the game has been
+    more efficient, which is a reason to leave him in. Inning and pitches
+    carry the same information and the fit gives it to pitches. Marginally
+    the hazard still rises steeply by inning (0.013 to 0.375, innings three
+    to seven) because pitch count rises with it — so the inning assertion
+    moves to a realistic joint step rather than an artificial ceteris
+    paribus one.
+    """
     h = sim.Hook()
     base = h.removal_p(80, 2, 5)
     assert h.removal_p(110, 2, 5) > base       # more pitches
     assert h.removal_p(80, 6, 5) > base        # more runs
-    assert h.removal_p(80, 2, 7) > base        # later inning
     assert h.removal_p(80, 2, 5, baserunners=12) > base
+    # deeper AND further into the pitch count, which is how a game moves
+    assert h.removal_p(100, 2, 7) > base
 
 
 def check_mid_inning_removal_responds_to_traffic_and_damage():
@@ -1616,3 +1629,36 @@ def check_the_pitch_table_reproduces_the_real_pitch_count():
            sim.OUT: 10.96, sim.HBP: 0.22}
     got = sum(n * sim.PITCH_COST[o] for o, n in mix.items())
     assert abs(got - 86.82) < 2.0, got
+
+
+def check_the_boundary_curve_is_the_fitted_one():
+    """The between-innings curve is fitted on real decisions, not imported.
+
+    Pinned because it SHIPPED WHILE SCORING WORSE on `calibrate.loss`, the
+    mean and the boundary share, and a future session reading only those
+    would revert it. The justification is value-weighted and is the whole
+    point:
+
+        RMS error on P(over), outs lines 14.5-17.5   0.0546 -> 0.0346
+        RMS error on P(over), outs lines 12.5-20.5   0.0452 -> 0.0513
+
+    Books hang outs lines in the first band. The old curve was also BIASED —
+    negative at every line from 12.5 to 17.5, -0.043 to -0.067 — so it
+    systematically under-priced the over where it matters most. The
+    aggregate favours it only through 18.5 and 20.5, six-plus innings.
+
+    `sim.LEGACY_BOUNDARY` restores the old values for scoring.
+    """
+    h = sim.Hook()
+    assert abs(h.pitch_center - 47.6812) < 1e-6, h.pitch_center
+    assert abs(h.pitch_scale - 10.8972) < 1e-6, h.pitch_scale
+    assert abs(h.intercept - (-4.2384)) < 1e-6, h.intercept
+    # The legacy record has to stay complete enough to restore the curve.
+    for k in ("intercept", "pitch_center", "pitch_scale", "per_run",
+              "per_inning", "per_baserunner"):
+        assert k in sim.LEGACY_BOUNDARY, k
+    old = sim.Hook(**sim.LEGACY_BOUNDARY)
+    # The old curve's defining defect: far too eager in the 70-80 band,
+    # where it fires at 0.293 against a real 0.074.
+    assert old.removal_p(75, 2, 5, 4) > h.removal_p(75, 2, 5, 4) * 2, \
+        "the fitted curve should be much less trigger-happy at 75 pitches"
