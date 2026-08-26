@@ -1,5 +1,173 @@
 # Resume here — state as of 2026-08-25 (day eight)
 
+## START HERE — TRUST ALMOST NO RECORDED NUMBER BEFORE THIS FILE
+
+Day eight found TWO defects in the SIMULATION INPUTS. Both preserved every
+aggregate this project tracks, so nothing in the notes flagged them, and
+both destroyed the MATCHUP — the only thing that differentiates one game
+from another, and the exact quantity days six and seven failed to find.
+
+**1. EVERY PITCHER WAS FACING HIS OWN TEAMMATES.** `build_cases` attaches to
+each start the nine that pitcher FACES, so the away start already carries
+the HOME club's batters. Seven modules then handed the away pitching side
+the other lineup: `ladder`, `calibrate.replay`, **`fitf5`** (the primary F5
+benchmark), `f5_market`, `total_market`, `team_market`, `marginals`.
+Verified on names — Ryan Feltner of Colorado simulated against Brett
+Sullivan, Connor Norby and Jake McCarthy, Colorado's own hitters.
+
+The variable names caused it: `a_nine` reads as "the away team's nine" and
+held the nine the away PITCHER FACES. Renamed `away_faces`/`home_faces`
+everywhere so the correct call is the one that reads correctly.
+
+**2. NOT ONE LINEUP IN 574 WAS RIGHT.** `opposing_lineups` had no
+batting-order column, so it sorted the boxscore by at-bats descending and
+took the top nine:
+
+    exact match (right nine, right order)      0.0%
+    lineups with at least one wrong batter    23.5%
+    mean slot error                            2.30
+
+At-bats exclude walks, so a high-OBP leadoff man sorted below a free
+swinger; a pinch hitter with two at-bats displaced a starter pulled early;
+and a club that batted around handed its leadoff man five at-bats, so the
+"input" was partly a function of the result. Order is not cosmetic — TTO is
+a measured 19% K% swing and the simulator derives it from batters faced.
+
+Fixed by `src/context/order.py`, counted off play-by-play. 1,956 games, 97%.
+
+**INVALIDATED:** every full-game number — the prefix ladder including "the
+model runs 5% light", the day-seven resolution finding and the 0.19
+game-total ceiling, `score_outs`, the dispersion work, the blind dashboard,
+and every `fitf5` result. **SURVIVES:** the model-free ANOVA (actuals only)
+and the one-sided leash measurement.
+
+## THE BASELINE, ON A CORRECT ENGINE
+
+Two-sided, real matchup, real batting order, leash OFF, 3,248 starts:
+
+           actual sd   our within   our spread   corr
+    outs        3.99         3.86         0.59   0.263
+    k           2.44         2.02         1.00   0.496
+    er          2.00         1.77         0.28   0.203
+    h           2.24         1.94         0.44   0.278
+
+    TEAM TOTALS, per side, 1,624 games
+              actual sd   implied real   our spread   share   corr   level
+    F3             1.74           0.40         0.23     59%  0.198  -0.05
+    F5             2.31           0.69         0.35     51%  0.222  -0.10
+    F7             2.76           0.95         0.43     46%  0.213  -0.11
+    full           3.17           1.23         0.59     48%  0.164  -0.26
+
+**Fixing the engine did NOT move the starter numbers** (outs corr 0.263
+before and after). Both lineups were always real major-league nines, and
+club-to-club quality varies far less than the noise inside one start. The
+level error on team totals is now -0.10 runs per side at F5, NOT the 5%
+recorded from the crossed engine.
+
+## WHAT IS ACTUALLY NEW AND REAL
+
+**TEMPERATURE ON HOME RUNS: t +3.6** with a pitcher fixed effect, +0.0081
+HR per degree — about 0.32 HR per start across 55-95F. Clears the bar.
+UNWIRED; this is the first genuinely new mechanism in days.
+
+**BULLPEN OUTS YESTERDAY ON STARTER OUTS: t +2.6** under the same fixed
+effect. Nothing in the simulator knows about yesterday.
+
+**THE PER-PITCHER LEASH** (`src/context/leash.py`, `sim.USE_LEASH`) — a
+pitcher's residual is stable on OUTS and noise on k/h/bb/er, so what is
+wrong is how long he is left in. Out of sample +0.105 -> +0.226. **THE
+SHIPPED `hook_leash.json` WAS MEASURED ONE-SIDED AND MUST BE REBUILT.**
+
+**PARK IS NEUTRAL, MEASURED PROPERLY FOR THE FIRST TIME.** `NEUTRALISE_PARK`
+was off, so rates already contained each pitcher's own park and layering a
+factor on top counted it 1.5x. Neutralised and applied once: F5 spread 0.35
+-> 0.39, correlation 0.222 -> 0.208. More differentiation, no accuracy.
+
+**DAY/NIGHT IS DEAD, cleanly.** Null in all three specifications, and with
+real lineups "day games get weaker lineups" is already captured.
+
+**HOME/ROAD IS REAL AND CORRECTLY SIZED.** With the adjustment on, t +0.1;
+switched OFF it reappears at t +2.4, worth +0.38 outs.
+
+## HOW TO TEST A BETWEEN-GAME FEATURE (use this, it is cheap)
+
+`scratchpad/allelse.py` — joint fit plus a WITHIN-PITCHER fixed effect, on
+the residual. Univariate correlation is not enough: park on hits reads +2.5
+alone and +0.9 under the fixed effect, because "starts in a hitter park" is
+partly "starts by Colorado pitchers". Costs seconds, needs no re-simulation.
+The internal control that says the method works: signed `wind carry` reaches
++2.1 on hits while raw wind SPEED sits at -0.5.
+
+## WHAT TO DO NEXT
+
+**1. FINISH DELETING THE ONE-SIDED ENGINE.** `calibrate` is migrated;
+`cal.paired_cases` + `cal.replay` are the only simulation entry point.
+Remaining: `f5.py` (2 sites, and it invents a league-average reliever
+instead of using real bullpens), `quote.py`/`price.py` via `sim.simulate`,
+~45 test call sites. NOTHING SCHEDULES price OR quote — not cron, not
+launchd, not the Makefile — so they do not gate this. Do `f5` + `quote` +
+the delete in ONE commit. Rule to adopt: no opposing starter -> DECLINE to
+price, which is what `price.py` already does for openers and live games.
+
+**2. REBUILD THE LEASH TWO-SIDED** (`python -m src.context.leash --build`).
+The shipped offsets were measured on the engine we no longer trust.
+
+**3. WIRE TEMPERATURE as an HR multiplier and score it.** Use the park HR
+factor, not the runs index — the -2.1 on `park runs idx` against a home-run
+target is that mismatch, not a finding.
+
+**4. RE-TEST HANDEDNESS.** Play-by-play carries real `batSide`/`pitchHand`
+per plate appearance; the dead result used derived season splits, on the
+broken engine.
+
+**5. RE-RUN `fitf5`.** It was crossed. Every F5 number in these notes is
+from that state.
+
+## TRAPS ADDED ON DAY EIGHT
+
+**AN AGGREGATE THAT LOOKS RIGHT IS NOT EVIDENCE THE INPUTS ARE RIGHT.** Both
+defects preserved run level, outs distribution, boundary share and pitchers
+per side. What catches them is asserting on NAMES.
+
+**AN IDENTICAL-TO-FOUR-DECIMALS A/B IS PLUMBING, NEVER A NULL.** A paired
+ladder read EXACTLY +0.0000 at all four prefixes over 1,615 games. That was
+`game.build_side` never calling `sim.for_start`.
+
+**A MODEL-BASED CEILING IS ONLY AS GOOD AS THE MODEL'S OWN SPREAD.**
+`ceiling.py` reported an outs ceiling BELOW our own correlation. Cross-check
+with the ANOVA on actuals, which touches no model.
+
+**A SPLIT-HALF THAT PASSES CAN STILL BE THE WRONG QUANTITY.** The club
+residual passes the bullpen-role gate at +0.595 and is worthless once the
+pitcher offset is in.
+
+**NAME A VARIABLE BY WHO FACES IT.** `a_nine` cost seven modules.
+
+**DO NOT OVERRIDE THE FEED WITH AN ASSUMPTION.** `weather.py` briefly zeroed
+wind under a closed roof, treating six readings as a quirk. They are all
+American Family Field and T-Mobile Park — RETRACTABLE roofs, and T-Mobile's
+is a cover, not a seal.
+
+**FIVE CHECKS WRITTEN TODAY GUARDED NOTHING** until mutation caught them:
+two set the flag they were testing, one asserted a clamp against itself, one
+asserted "nine distinct names" without checking the sequence, and one
+inspected `replay`'s arguments instead of what it built.
+
+## STATE
+
+* 337 checks, `make test`. New: `test_leash` (6), `test_order` (6),
+  `test_weather` (4), plus `test_game`, `test_sim`, `test_wiring`.
+* `context.db` adds `mlb_lineups` (35,208 slots) and `mlb_weather` (2,034).
+* Stadium home-plate bearings, if ever needed: NOT required — statsapi
+  reports wind field-relative. User supplied a table; it is in the day-eight
+  section of `NOTES-context-layer.md`.
+
+---
+
+# ARCHIVE — the rest of day eight and earlier
+
+# Resume here — state as of 2026-08-25 (day eight)
+
 ## START HERE
 
 **Read `CLAUDE.md`'s THE OBJECTIVE section and `AF_PLAN.md` first.** Judge
