@@ -1,3 +1,165 @@
+# Resume here — state as of 2026-08-26 (day nine)
+
+## WHAT CHANGED TODAY, IN ONE LINE
+
+Two silent bugs found and fixed, the second engine deleted, and the standard
+for judging a change moved from `calibrate.loss` to **P(over) at the lines
+that carry volume**. That last one reversed a ship/no-ship decision and is
+the most portable thing here.
+
+## SHIPPED
+
+**ONE ENGINE.** `sim.simulate_start` and `sim.simulate` are gone, with
+`f5.py`, the input-uncertainty block (`DRAW_RATES`, `HOOK_SIGMA`) and the
+inherited-runner fudge. `price`, `quote`, `versus_market` and `recency` all
+run `game.simulate_game` now. **Rule: no modelled opposing starter ->
+DECLINE.** A full game is ~20x a one-sided start; `tests/run.py` forks one
+process per check to absorb it (95s -> 36s, 337 checks).
+
+**TWO BUGS, both silent, both caught by recorded diagnostics.**
+
+  1. `apply_pa` charged `int(round(PITCH_COST[o]))`. An out costs 3.25 and
+     was billed 3, a walk 5.48 billed 5 — ~23 times a start. The TABLE was
+     never wrong (86.9 predicted against a real 86.82); the fraction was
+     discarded at the point of use. Fixing it: pitches per out 5.14 -> 5.34,
+     starts at 21+ outs 16.4% -> 12.9% against a real 11.4%.
+  2. `calibrate.run(hook=...)` passed its hook nowhere. **The tuner had been
+     scoring one hook against itself since the day-eight migration.** Found
+     because a ten-parameter sweep moved nothing and the loss was identical
+     to five decimals. Shipped values were never corrupted, because nothing
+     could change them.
+
+**THE FITTED BOUNDARY CURVE**, on 38,485 real end-of-inning decisions. The
+old one fired at 0.293 where reality is 0.074. `sim.LEGACY_BOUNDARY` restores
+it. It ships DESPITE scoring worse on `calibrate.loss`, the mean and the
+boundary share — see the standard below.
+
+**THE LEASH** is gated to arms meant to go long (`leash.intended_starters`,
+p75 outs >= 12) with `MIN_PRIOR` 3 -> 5, and rebuilt on the current engine.
+Openers were HALF the apparent between-pitcher variation: between-sd 1.80 ->
+0.90, K 3.7 -> 14.8 starts, nothing pinned at the clamp any more.
+
+## THE STANDARD THAT CHANGED — read this before scoring anything
+
+`calibrate.loss` sums a hazard block, a mean, a boundary share and three
+out-shares, so a change that helps one and hurts another reads as no
+improvement. **We do not care about them equally, and nobody bets the
+boundary share.** Measured, from the settled Kalshi board:
+
+    OUTS   14.5-17.5 = 91.2% of contracts    18.5 = 6.2%    20.5 = 0.1%
+    K      2.5-8.5   = 86.5%, flat across 3.5-7.5 (~13% each), no peak
+
+Scored that way the fitted boundary curve wins where it matters and loses
+where nobody bets:
+
+    RMS error on P(over), outs 14.5-17.5    0.0546 -> 0.0346  (-37%)
+    RMS error on P(over), outs 12.5-20.5    0.0452 -> 0.0513
+
+and the old curve's error was a BIAS — negative at every line from 12.5 to
+17.5, systematically under-pricing the over.
+
+## WHERE THE MODEL ACTUALLY STANDS, re-measured on the shipped engine
+
+**K props: 94% of the market's skill, blend weight 0.00** over 3,366 settled
+August contracts. No edge, none lost. **The sub-claim that we beat Kalshi
+inside five cents is DEAD** — the market is now marginally better in every
+band. `quote.py` was printing the old numbers and has been corrected.
+
+**Outs is still the dead half.** It looked alive at blend 0.50 / AUC 0.627
+and that was leash LEAKAGE: the shipped offsets were full-season and August
+sat inside them. Rebuilt `--before 2026-08-01`, the edge vanishes (AUC
+0.555, blend 0.00).
+
+**HEADROOM, like for like** (holdout, rates frozen, leash off):
+
+    stat   ceiling  our corr  share  our spread  real between
+    outs     0.363     0.121    33%        0.89          1.39
+    k        0.475     0.384    81%        1.02          1.18
+
+**K IS AT 81%, NOT EXHAUSTED** — about +0.09 of correlation available. This
+CORRECTS day eight's "strikeouts are at 93% and essentially exhausted",
+which compared an in-sample correlation against a clean ceiling. Note also
+that the OUTS ceiling collapses 0.599 -> 0.330 once openers are excluded:
+most of the apparent predictability in outs was "openers go 3, starters go
+16", which no book prices.
+
+## THE OPEN DEFECT: mean outs 16.49 against a real 15.78
+
+Isolated to three parts, two of them now eliminated:
+
+  * **53% is the traffic deficit** — outs per plate appearance ~1.4% high,
+    i.e. too few baserunners. This is the day-six "0.13 runs light per side",
+    which has now survived measured advancement, measured inherited runners,
+    TTO and the re-measured shrinkage constants. Unsolved.
+  * **The rest is the boundary curve's FUNCTIONAL FORM.** Its logit is
+    linear in pitches while the real hazard accelerates past 90, so it fires
+    at 0.596 where reality is 0.749 at 100-110 — under-pulling exactly where
+    46% of removals happen. **Next step: a non-linear pitch term.** This is a
+    code change, not a refit.
+  * ELIMINATED: the mid-inning curve needs nothing (it is fitted on REAL
+    decisions and tracks the observed hazard at every bucket), and
+    restricting the boundary curve's training rows makes things WORSE.
+
+## WHAT TO DO NEXT
+
+1. **Non-linear pitch term in the boundary curve.** The only lead left on
+   the mean, and the first thing in days that is not a refit.
+2. **`fitf5` has still never been re-run.** Every F5 number in these notes
+   predates the crossed-lineup fix. It is not blocked by anything.
+3. **The traffic deficit.** Oldest defect in the model; four mechanisms have
+   failed on it. Worth a fresh approach rather than a fifth constant.
+4. **K distribution is UNDER-DISPERSED** — sd 2.24 against a real 2.47, mass
+   pulled from both tails into 4-6. NOT bimodal (per-pitcher means are one
+   broad hump, 2.8 to 8.4). Within-start K% persistence (+6.4 sigma) is the
+   candidate: it cannot move the centre, but this is a shape defect and
+   shape is what it fixes.
+
+## TRAPS ADDED ON DAY NINE
+
+**A CONSTANT CAN BE RIGHT, REACHED, AND DESTROYED IN TRANSIT.** Every trap
+here until today was a constant being WRONG or a mechanism not being
+REACHED. `int(round(PITCH_COST))` was neither. Measuring a value and wiring
+it in is not enough; the units have to survive the arithmetic.
+
+**PER-DECISION CALIBRATION IS NOT DISTRIBUTIONAL CALIBRATION** when two
+coupled curves share the state. The boundary and mid-inning curves compete
+for the same exits — correcting one in isolation hands its exits to the
+other. Day seven's lesson was do not POOL them; this one is do not fit them
+INDEPENDENTLY either.
+
+**RE-POOLING IS THE DEFAULT MISTAKE AND IT WAS MADE THREE TIMES TODAY.** Now
+recorded in `CLAUDE.md` beside the grid-edge diagnostic, and
+`calibrate.tune` is marked SUPERSEDED because its grid is what got copied
+each time. The rule has a limit, also measured: restricting the BOUNDARY
+curve's rows makes the simulation worse, because it fires at every pitch
+count and the mid-inning curve does not.
+
+**VERIFY THE MUTATION LANDED, not just that you wrote one.** A mutation
+meant to disable shrinkage reported a check as unguarded; it had silently
+failed to apply.
+
+**A SHARE ABOVE 100% OF A PERFECT FORECASTER IS A LEAK ANNOUNCING ITSELF.**
+`headroom.py` reported K at 112% of ceiling before the holdout was added.
+Build measurements whose failure mode is out of bounds rather than merely
+optimistic.
+
+## STATE
+
+* 337 checks, `make test`, ~36s, forked one process per check. Fork not
+  spawn — a spawned child re-imports at default globals and every flag
+  reverts.
+* New tools: `scratchpad/headroom.py` (ceiling per stat, population
+  declared), `kvsouts.py`, `bytype.py`, `tempo.py`, `fit_boundary.py`,
+  `fit_midinning.py`, `tune_hook.py`, `joint_hook.py`, `remeasure.py`
+  (CLV re-run, forked over dates), `bets.py` (prices named bets, keeps every
+  draw in queryable sqlite).
+* `tests/fixtures.py` is the ONLY mirror-the-opponent harness and `src/` may
+  not import it.
+
+---
+
+# ARCHIVE — day eight and earlier
+
 # Resume here — state as of 2026-08-25 (day eight)
 
 ## START HERE — WHAT IS FRESH AND WHAT IS STALE
