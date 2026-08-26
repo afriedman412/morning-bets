@@ -1,6 +1,19 @@
 # Resume here — state as of 2026-08-25 (day eight)
 
-## START HERE — TRUST ALMOST NO RECORDED NUMBER BEFORE THIS FILE
+## START HERE — WHAT IS FRESH AND WHAT IS STALE
+
+**THE DAY-EIGHT NUMBERS BELOW WERE RE-RUN ON A CORRECT ENGINE. TRUST THEM.**
+The baseline table, the per-side team totals, the park result, the weather
+results, day/night and home/road were all measured AFTER both fixes below
+landed. They are not suspect.
+
+STALE, and the only three things that are: the **prefix ladder** (run before
+the crossing was found, so "5% light" is from the broken engine — the team
+total level of -0.10 runs per side supersedes it but the ladder itself has
+not been re-executed), **`fitf5`** (never re-run; it was among the last
+modules fixed), and the **shipped leash offsets** (measured one-sided).
+
+Everything ELSE recorded before day eight rests on the broken engine.
 
 Day eight found TWO defects in the SIMULATION INPUTS. Both preserved every
 aggregate this project tracks, so nothing in the notes flagged them, and
@@ -35,11 +48,11 @@ a measured 19% K% swing and the simulator derives it from batters faced.
 
 Fixed by `src/context/order.py`, counted off play-by-play. 1,956 games, 97%.
 
-**INVALIDATED:** every full-game number — the prefix ladder including "the
-model runs 5% light", the day-seven resolution finding and the 0.19
-game-total ceiling, `score_outs`, the dispersion work, the blind dashboard,
-and every `fitf5` result. **SURVIVES:** the model-free ANOVA (actuals only)
-and the one-sided leash measurement.
+**INVALIDATED — all PRE-day-eight:** the prefix ladder including "the model
+runs 5% light", the day-seven resolution finding and the 0.19 game-total
+ceiling, `score_outs`, the dispersion work, the blind dashboard, and every
+`fitf5` result. **SURVIVES:** the model-free ANOVA (actuals only), the
+one-sided leash measurement, and everything re-run today.
 
 ## THE BASELINE, ON A CORRECT ENGINE
 
