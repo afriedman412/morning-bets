@@ -3069,3 +3069,49 @@ problem and not two separate ones.
 NOTHING SHIPPED. The shipped hook is worse per-decision and better
 distributionally, and until the pair is fitted jointly that trade is not
 ours to make one side of.
+
+## Day nine — the joint fit, and what actually blocks the hook
+
+`scratchpad/joint_hook.py`. Boundary curve held at its per-decision fit,
+mid-inning curve rescaled on three parameters, objective `calibrate.loss`
+plus an explicit boundary-share term at weight 4 (the share is what broke,
+and `loss` weights it 1 against a hazard block at 4).
+
+                          obj     loss    mean     sd   bndry
+    shipped           0.06429  0.06265   15.64   3.79   0.643
+    + fitted boundary 0.21765  0.08193   16.50   3.79   0.479
+    JOINT best        0.20491  0.17862   17.19   3.84   0.582
+    ACTUAL                              15.78   4.13   0.663
+
+IT WENT THE WRONG WAY AND THAT IS THE FINDING. To restore the share the fit
+cut mid-inning pulls (`late_mid_offset` -7.97 -> -8.8), which lifted the
+share 0.479 -> 0.582 and pushed mean outs to 17.19 against a real 15.78,
+with the loss more than doubling.
+
+**THE SHIPPED BOUNDARY CURVE'S OVER-EAGERNESS IS COMPENSATING FOR STARTERS
+WHO WOULD OTHERWISE LAST TOO LONG.** It fires at 0.293 where reality is
+0.074 — indefensible per decision — and the shipped hook still lands mean
+outs at 15.64 against 15.78. Replace it with the honest curve and the mean
+goes to 16.50. There is no setting of the two curves that fixes the mix
+without breaking the mean, because the error is not in the curves.
+
+WHAT IT IS. Pitches per out is 5.34 against a real 5.47, still 2.3% light
+after the rounding fix closed the first 3.8 points. Pitches per PA is now
+right, so the residual is the DENOMINATOR: outs per plate appearance runs
+1.4% high, i.e. we retire slightly too many batters, i.e. slightly too few
+baserunners. That is the oldest defect on the list — "the sim is 0.13 runs
+light per side", recorded on day six and surviving measured advancement,
+measured inherited runners, TTO and the new shrinkage.
+
+SO THE HOOK IS BLOCKED ON THE RUN MODEL, not on the fitting method. The
+method is now right and is reporting that its input is wrong. Two curves,
+each correctly fitted to real decisions, each making the simulation worse,
+is the signature of a downstream rule that has been absorbing an upstream
+error — and the standing rule says a worse score after a correct measurement
+LOCATES the compensation rather than licensing a revert.
+
+THE ORDER OF WORK THAT FOLLOWS. Fix the traffic deficit first; refit the two
+curves jointly after. Refitting now would only re-absorb the same error into
+differently-wrong parameters. Nothing shipped: `sim.Hook` is untouched, and
+the shipped hook remains the best available on the distribution while being
+the worst on the decisions.
