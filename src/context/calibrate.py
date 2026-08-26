@@ -365,17 +365,21 @@ def replay(pair, lg, pens, rng, innings=9, track=(), apply_leash=True,
     had never once been evaluated inside a real game.
     """
     away, home = pair
+    # `build_cases` attaches to each start the nine that pitcher FACES, so
+    # `away[2]` is already the HOME club's batters. The away PITCHING side
+    # therefore takes `an`, not `hn`. Getting this backwards has every
+    # pitcher facing his own teammates — see
+    # `check_each_side_faces_the_opposing_lineup`.
     an = adjust_lineup(away[2], False)
     hn = adjust_lineup(home[2], True)
     park = None
     if USE_PARK if use_park is None else use_park:
         park = park_for(home[0].get("venue_id"))
-    # A Side is a PITCHING side: the away side faces the HOME lineup.
     A = game.build_side(away[1], pens.get((away[0]["team"] or "").upper(), []),
-                        hn, None, rng, team=away[0]["team"],
+                        an, None, rng, team=away[0]["team"],
                         apply_leash=apply_leash)
     H = game.build_side(home[1], pens.get((home[0]["team"] or "").upper(), []),
-                        an, None, rng, team=home[0]["team"],
+                        hn, None, rng, team=home[0]["team"],
                         apply_leash=apply_leash)
     if HOME_HOOK:
         H.hook = sim.Hook(**{

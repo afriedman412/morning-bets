@@ -473,3 +473,102 @@ def check_per_side_prefix_totals_are_not_crossed():
     # The final per-side totals must agree with the headline score.
     last = r.prefix_side[max(r.prefix_side)]
     assert last[0] <= r.away and last[1] <= r.home, (last, r.away, r.home)
+
+
+def check_each_side_faces_the_opposing_lineup():
+    """EVERY PITCHER WAS FACING HIS OWN TEAMMATES. Shipped, undetected.
+
+    `build_cases` attaches to each start the nine that pitcher FACES, so the
+    away start already carries the HOME club's batters. `ladder` and
+    `calibrate.replay` both then handed the away PITCHING side the other
+    lineup, which crossed them: Ryan Feltner of Colorado was simulated
+    against Brett Sullivan, Connor Norby and Jake McCarthy — Colorado's own
+    hitters.
+
+    It survived because both sides still got a real major-league nine, so
+    every AGGREGATE looked fine: run levels, outs distribution, boundary
+    share. What it destroys is the MATCHUP, which is the only thing that
+    differentiates one game from another — so it lands squarely on the
+    quantity this project has spent days failing to find.
+
+    Structural, not statistical: names in, names out.
+    """
+    from src.context import calibrate as cal
+    from src.context.sources import rates as rate_src
+    lg = sim.league()
+    pairs = cal.paired_cases(max_starts=400)
+    assert pairs, "no paired games"
+    pens = rate_src.bullpens(lg)
+    checked = 0
+    for pair in list(pairs.values())[:5]:
+        away, home = pair
+        rng = random.Random(1)
+        a_faces = {b.name for b in cal.adjust_lineup(away[2], False)}
+        h_faces = {b.name for b in cal.adjust_lineup(home[2], True)}
+        # the two nines must be different people in the first place
+        assert not (a_faces & h_faces), "both sides given the same lineup"
+        A = game.build_side(away[1], pens.get(
+            (away[0]["team"] or "").upper(), []),
+            cal.adjust_lineup(away[2], False), None, rng)
+        H = game.build_side(home[1], pens.get(
+            (home[0]["team"] or "").upper(), []),
+            cal.adjust_lineup(home[2], True), None, rng)
+        assert {b.name for b in A.lineup} == a_faces, "away side crossed"
+        assert {b.name for b in H.lineup} == h_faces, "home side crossed"
+        # and the starter must not appear among the hitters he faces
+        assert A.starter.name not in {b.name for b in A.lineup}
+        checked += 1
+    assert checked >= 3, checked
+
+
+def check_replay_does_not_hand_a_pitcher_his_own_teammates():
+    """The same invariant THROUGH `calibrate.replay`, the only simulation
+    entry point there is.
+
+    Intercepts `game.simulate_game` to capture the Sides `replay` actually
+    assembles, because checking the arguments beforehand guards nothing: the
+    first version of this check inspected `adjust_lineup` output and
+    `build_side` directly, and re-crossing the two lines inside `replay`
+    left it passing. Found by mutation, which is the only way that surfaces.
+    """
+    from src import db
+    from src.context import calibrate as cal
+    from src.context.sources import rates as rate_src
+    lg = sim.league()
+    pairs = cal.paired_cases(max_starts=400)
+    assert pairs, "no paired games"
+    pens = rate_src.bullpens(lg)
+
+    seen = {}
+    real = game.simulate_game
+
+    def spy(away_side, home_side, *a, **kw):
+        seen["A"] = {b.name for b in away_side.lineup}
+        seen["H"] = {b.name for b in home_side.lineup}
+        seen["a_sp"] = away_side.starter.name
+        seen["h_sp"] = home_side.starter.name
+        return real(away_side, home_side, *a, **kw)
+
+    pair = next(iter(pairs.values()))
+    gid = pair[0][0]["game_id"]
+    game.simulate_game = spy
+    try:
+        cal.replay(pair, lg, pens, random.Random(1))
+    finally:
+        game.simulate_game = real
+
+    with db.connect() as c:
+        by_team = {}
+        for r in c.execute(
+                "select team, player_name from mlb_batting where game_id=?",
+                (gid,)):
+            by_team.setdefault(r["team"], set()).add(r["player_name"])
+    a_team = (pair[0][0]["team"] or "").upper()
+    h_team = (pair[1][0]["team"] or "").upper()
+    # a PITCHING side faces the OTHER club. Ryan Feltner of Colorado was
+    # simulated against Colorado's own hitters for as long as this engine
+    # has existed.
+    assert seen["A"] <= by_team.get(h_team, set()), (
+        f"away pitcher ({a_team}) is facing {a_team}'s own hitters")
+    assert seen["H"] <= by_team.get(a_team, set()), (
+        f"home pitcher ({h_team}) is facing {h_team}'s own hitters")

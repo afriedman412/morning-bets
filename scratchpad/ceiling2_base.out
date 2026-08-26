@@ -1,0 +1,72 @@
+  1624 paired games (3248 starts) x 300 draws
+  250/1624
+  500/1624
+  750/1624
+  1000/1624
+  1250/1624
+  1500/1624
+
+  3248 starts
+
+           actual sd  our within  implied  our spread   share  ceiling    corr  of ceil
+  outs          3.99        3.86     0.98        0.55     56%    0.247   0.200      81%
+  k             2.44        2.02     1.37        1.00     73%    0.562   0.393      70%
+  er            2.00        1.76     0.94        0.28     29%    0.470   0.172      37%
+  h             2.24        1.94     1.13        0.43     39%    0.502   0.227      45%
+  bb            1.31        1.28     0.23        0.37    159%    0.177   0.276     156%
+
+  'implied' is sqrt(var(actual) - mean within-start var): how
+  much start-to-start variation really exists. 'our spread' is
+  the sd of our per-start predicted means, 'share' the ratio.
+  'ceiling' is the correlation a PERFECT forecaster would get
+  (implied/actual sd); 'of ceil' is how much of it we capture.
+
+  outs    actual mean  15.70   model  15.95   +0.25
+  k       actual mean   4.86   model   4.90   +0.05
+  er      actual mean   2.44   model   2.25   -0.20
+  h       actual mean   4.89   model   4.80   -0.09
+  bb      actual mean   1.83   model   1.85   +0.02
+
+  BET LEVEL — how far the number moves off the base rate
+
+  outs   median of our per-start medians 16.0, sd 0.92, 7 distinct values
+     line    base  our mean p  our sd(p)  achievable   share
+     14.5   72.4%       69.5%      0.055       0.092     59%
+     15.5   52.0%       50.3%      0.059       0.097     60%
+     17.5   38.7%       40.0%      0.060       0.091     66%
+     18.5   16.3%       22.3%      0.045       0.080     57%
+     20.5   11.2%       14.7%      0.038       0.052     73%
+
+  k   median of our per-start medians 5.0, sd 1.06, 13 distinct values
+     line    base  our mean p  our sd(p)  achievable   share
+      3.5   68.7%       71.6%      0.148       0.193     77%
+      4.5   52.3%       54.3%      0.177       0.223     79%
+      5.5   36.9%       37.3%      0.176       0.222     79%
+      6.5   23.8%       23.1%      0.148       0.191     77%
+      7.5   13.8%       12.9%      0.109       0.145     75%
+
+  er   median of our per-start medians 2.0, sd 0.30, 5 distinct values
+     line    base  our mean p  our sd(p)  achievable   share
+      1.5   61.8%       60.5%      0.062       0.176     35%
+      2.5   41.7%       39.0%      0.064       0.187     34%
+      3.5   26.7%       22.2%      0.052       0.158     33%
+      4.5   15.8%       11.4%      0.036       0.106     34%
+
+  h   median of our per-start medians 5.0, sd 0.53, 7 distinct values
+     line    base  our mean p  our sd(p)  achievable   share
+      4.5   55.3%       54.1%      0.089       0.199     45%
+      5.5   38.2%       34.8%      0.085       0.193     44%
+      6.5   23.0%       19.4%      0.066       0.155     42%
+
+  bb   median of our per-start medians 2.0, sd 0.51, 5 distinct values
+     line    base  our mean p  our sd(p)  achievable   share
+      1.5   56.1%       55.5%      0.110       0.110    100%
+      2.5   27.2%       28.3%      0.102       0.102    100%
+
+  'our sd(p)' IS the Brier resolution term (its square).
+  'achievable' adds the missing between-start spread to each
+  start's own mean and re-reads the probability, so it is what
+  this same simulator would produce if it differentiated starts
+  as much as reality does. share < 100% is unpriced signal.
+
+  wrote scratchpad/ceiling_rows_noleash.json (3248 rows)

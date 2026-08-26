@@ -234,6 +234,14 @@ def _probit(p):
 
 
 def main():
+    # `--noleash` gives the BASELINE. Scoring the shipped full-season leash
+    # file against the season it was built on is in-sample and flatters it;
+    # the honest pair is --noleash against a `--before <cutoff>` file scored
+    # after the cutoff.
+    if "--noleash" in sys.argv:
+        sim.USE_LEASH = False
+        sim.reload_offsets()
+        sys.argv = [a for a in sys.argv if a != "--noleash"]
     limit = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1] != "-" \
         else None
     n_sims = int(sys.argv[2]) if len(sys.argv) > 2 else 300
@@ -243,6 +251,8 @@ def main():
     lines_report(rows)
     path = ("scratchpad/ceiling_rows.json" if not holdout
             else "scratchpad/ceiling_holdout.json")
+    if not sim.USE_LEASH:
+        path = path.replace(".json", "_noleash.json")
     with open(path, "w") as f:
         json.dump(rows, f)
     print(f"\n  wrote {path} ({len(rows)} rows)")
