@@ -274,14 +274,19 @@ def evaluate(cases: list[dict], params: dict | None = None, n_sims=60,
             rng = random.Random(away["seed"] + salt)
             vals = {"away": [], "home": []}
             for _ in range(n_sims):
+                # `lineup` is the nine that pitcher FACES, so each side
+                # takes its OWN. Crossing them hands every starter his own
+                # teammates, which preserves every aggregate and destroys
+                # the matchup — see check_replay_does_not_hand_a_pitcher_
+                # his_own_teammates.
                 A = game.build_side(
                     away["pitcher"],
                     pens.get((away["team"] or "").upper(), []),
-                    home["lineup"], base, rng)
+                    away["lineup"], base, rng)
                 H = game.build_side(
                     home["pitcher"],
                     pens.get((home["team"] or "").upper(), []),
-                    away["lineup"], base, rng)
+                    home["lineup"], base, rng)
                 game.simulate_game(A, H, lg, rng)
                 # `Side.runs_f5` is runs ALLOWED through five by that
                 # pitching side, which is exactly what the side observation

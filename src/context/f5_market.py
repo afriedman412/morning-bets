@@ -76,13 +76,19 @@ def _f5_totals(pair, home_abbr, lg, pens, n_sims, seed, engine):
     # centres the opposing lineup on the season mean and `f5_market` did not,
     # so every previous number here was measured on a different model from
     # the one being priced.
-    a_nine = cal.adjust_lineup(away[2], False)
-    h_nine = cal.adjust_lineup(home[2], True)
+    # NAMED BY WHO FACES THEM. `away[2]` is the nine the AWAY PITCHER
+    # faces, which is the HOME club's batters — so the away pitching
+    # side takes `away_faces`. The old `a_nine`/`h_nine` names read as
+    # "the away team's nine" and every one of these files handed the
+    # away side the wrong one: every pitcher faced his own teammates.
+    away_faces = cal.adjust_lineup(away[2], False)
+    home_faces = cal.adjust_lineup(home[2], True)
     a_hook = sim.for_start(sim.Hook(), away[0]["team"], away[1].name)
     h_hook = sim.for_start(sim.Hook(), home[0]["team"], home[1].name)
 
     if engine == "stub":
-        res = f5.simulate_f5(away[1], a_nine, home[1], h_nine, lg,
+        res = f5.simulate_f5(away[1], home_faces, home[1], away_faces,
+                             lg,
                              away_hook=a_hook, home_hook=h_hook,
                              n=n_sims, seed=seed)
         return [r.total for r in res]
@@ -91,9 +97,9 @@ def _f5_totals(pair, home_abbr, lg, pens, n_sims, seed, engine):
     out = []
     for _ in range(n_sims):
         A = game.build_side(away[1], pens.get((away[0]["team"] or "").upper(),
-                                              []), h_nine, a_hook, rng)
+                                              []), away_faces, a_hook, rng)
         H = game.build_side(home[1], pens.get((home[0]["team"] or "").upper(),
-                                              []), a_nine, h_hook, rng)
+                                              []), home_faces, h_hook, rng)
         out.append(game.simulate_game(A, H, lg, rng).total_f5)
     return out
 

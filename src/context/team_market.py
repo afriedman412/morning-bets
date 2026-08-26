@@ -64,17 +64,22 @@ def _team_runs(pair, home_abbr, lg, pens, n_sims, seed) -> dict | None:
     away = next((x for x in pair if not x[0]["is_home"]), None)
     if not home or not away:
         return None
-    a_nine = cal.adjust_lineup(away[2], False)
-    h_nine = cal.adjust_lineup(home[2], True)
+    # NAMED BY WHO FACES THEM. `away[2]` is the nine the AWAY PITCHER
+    # faces, which is the HOME club's batters — so the away pitching
+    # side takes `away_faces`. The old `a_nine`/`h_nine` names read as
+    # "the away team's nine" and every one of these files handed the
+    # away side the wrong one: every pitcher faced his own teammates.
+    away_faces = cal.adjust_lineup(away[2], False)
+    home_faces = cal.adjust_lineup(home[2], True)
     rng = random.Random(seed)
     out = {"away": [], "home": []}
     for _ in range(n_sims):
         A = game.build_side(away[1],
                             pens.get((away[0]["team"] or "").upper(), []),
-                            h_nine, None, rng)
+                            away_faces, None, rng)
         H = game.build_side(home[1],
                             pens.get((home[0]["team"] or "").upper(), []),
-                            a_nine, None, rng)
+                            home_faces, None, rng)
         r = game.simulate_game(A, H, lg, rng)
         # GameResult.away/.home are runs SCORED, which is what this market
         # settles on — the opposite convention from Side.runs, which is runs

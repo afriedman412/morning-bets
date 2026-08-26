@@ -127,8 +127,9 @@ def run(by, actual, lg, pens, n_sims=N_SIMS, seed=7) -> dict:
     for i, (gid, v) in enumerate(by.items()):
         home = next(x for x in v if x[0]["is_home"])
         away = next(x for x in v if not x[0]["is_home"])
-        an = cal.adjust_lineup(away[2], False)
-        hn = cal.adjust_lineup(home[2], True)
+        # named by who faces them — see calibrate.replay
+        away_faces = cal.adjust_lineup(away[2], False)
+        home_faces = cal.adjust_lineup(home[2], True)
         d_away = {m[0]: Counter() for m in START_MARGINALS}
         d_home = {m[0]: Counter() for m in START_MARGINALS}
         d_pre = {n: Counter() for n in PREFIXES}
@@ -138,10 +139,10 @@ def run(by, actual, lg, pens, n_sims=N_SIMS, seed=7) -> dict:
             rng = random.Random(seed + i * 100003 + draw)
             A = game.build_side(
                 away[1], pens.get((away[0]["team"] or "").upper(), []),
-                hn, None, rng)
+                away_faces, None, rng)
             H = game.build_side(
                 home[1], pens.get((home[0]["team"] or "").upper(), []),
-                an, None, rng)
+                home_faces, None, rng)
             r = game.simulate_game(A, H, lg, rng, track=PREFIXES)
             for lbl, _k, attr in START_MARGINALS:
                 d_away[lbl][getattr(r.away_sp, attr)] += 1
