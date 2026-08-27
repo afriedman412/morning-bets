@@ -1505,7 +1505,29 @@ ADVANCE_3B_ON_OUT = {0: 0.331, 1: 0.420, 2: 0.0}
 #: free bases with no batter involved. Worth remembering as a case where a
 #: published league rate was translated onto the wrong denominator, which is
 #: the same class of error that cost 6-8% on walks.
-WP_PB_RATE = 0.0155
+#:
+#: RE-MEASURED 2026-08-27 AND THE 0.0155 WAS THE SAME BUG ONE LEVEL DOWN.
+#: "0.0057 per batter faced across 2,070 starts" is a STARTER number applied
+#: to every arm, exactly like `HBP_RATE`. Counted per play off play-by-play
+#: on 330,808 plate appearances with a runner actually aboard, using
+#: `pbp.plays` for the base state BEFORE each play (`scratchpad/wp_pb.py`):
+#:
+#:     wild pitches  6,150   0.01785 per exposed PA
+#:     passed balls    863   0.00261 per exposed PA
+#:     combined              0.02046
+#:
+#: Passed balls are 12.8% of the total, which also closes the per-catcher
+#: BLOCKING question: an eighth of an already-small quantity is ~0.002 runs.
+#: Framing was measured on strikeouts and walks and is separately dead.
+#:
+#: NO LONGER SEARCHED. This was the only parameter `fitf5` moved, and the
+#: fit had pushed it DOWN to 0.0155 while reality is 0.0205 — a fitted
+#: constant drifting away from a measurable truth is a fitted constant
+#: absorbing some other defect. The direction says the model over-converts
+#: free bases into runs, so the search bought accuracy by handing out fewer
+#: of them. Handing a measured quantity back to a search is what lets that
+#: happen, so `fitf5.MEASURED` now excludes it.
+WP_PB_RATE = 0.02046
 
 
 #: The base-running constants a fit is allowed to move, by name.

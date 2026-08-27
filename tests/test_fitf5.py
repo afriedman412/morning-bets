@@ -332,8 +332,16 @@ def check_the_fit_does_not_move_the_hook_by_default():
     default search moves run-production constants only. This pins the
     default rather than the capability: `--with-hook` still exists.
     """
-    assert set(fitf5.PARAMS) == set(fitf5.RULE_KEYS), fitf5.PARAMS
     for k in fitf5.HOOK_KEYS:
+        assert k not in fitf5.PARAMS, k
+    # And the run-production rules are searched EXCEPT the ones that have
+    # been counted on this league. `WP_PB_RATE` was re-measured at 0.02046
+    # on 2026-08-27 after the fit had settled it at 0.0155, which is a
+    # fitted constant drifting away from a measurable truth — so it moved to
+    # `MEASURED` and the search may not touch it again.
+    assert set(fitf5.PARAMS) == set(fitf5.RULE_KEYS) - set(fitf5.MEASURED)
+    for k in fitf5.MEASURED:
+        assert k in fitf5.RULE_KEYS, k
         assert k not in fitf5.PARAMS, k
 
 

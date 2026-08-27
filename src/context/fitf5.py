@@ -102,7 +102,24 @@ HOOK_KEYS = ("intercept", "per_inning", "per_run", "pitch_center",
 #: sigma — a constant straining on a path the product does not use.
 RULE_KEYS = ("WP_PB_RATE",)
 
-PARAMS = RULE_KEYS
+#: COUNTED ON THIS LEAGUE, so the search must not move it. `WP_PB_RATE` was
+#: re-measured on 2026-08-27 at 0.02046 per plate appearance with a runner
+#: aboard, against a shipped 0.0155 the fit had settled on — and a fitted
+#: constant drifting away from a measurable truth is a fitted constant
+#: absorbing somebody else's error. Here the direction is diagnostic: the
+#: search cut free bases, which is what you do when the model turns the ones
+#: it has into too many runs.
+#:
+#: It stays in RULE_KEYS because `evaluate` should still say out loud which
+#: rules it is running under; it leaves PARAMS because that is what `tune`
+#: sweeps.
+#:
+#: THE CONSEQUENCE IS THAT PARAMS IS NOW EMPTY, and that is the honest state
+#: rather than a bug: the only thing this objective ever fitted has been
+#: measured instead. `--with-hook` still adds the hook terms back.
+MEASURED = ("WP_PB_RATE",)
+
+PARAMS = tuple(k for k in RULE_KEYS if k not in MEASURED)
 
 
 def defaults() -> dict:
@@ -357,7 +374,7 @@ GRID = {
     # fitted — see sim.py. They are scanned as a single multiplier on the
     # whole table instead, so the SHAPE stays published and only the level
     # can move.
-    "WP_PB_RATE": [0.010, 0.0155, 0.022, 0.030],
+    "WP_PB_RATE": [0.010, 0.0155, 0.02046, 0.022, 0.030],
     # A double play ends a rally outright, so this is a run-production
     # mechanism and not the outs term it looks like.
     #
@@ -479,7 +496,13 @@ def check_grids() -> None:
     corrected to 0.0155 and the grid was left alone.
     """
     d = defaults()
-    bad = [k for k in PARAMS
+    # RULE_KEYS, not PARAMS. A measured constant leaves PARAMS but keeps its
+    # grid, and checking only PARAMS made this guard VACUOUS the moment the
+    # last searched parameter was measured — it iterated an empty tuple and
+    # passed. The hook keys are deliberately excluded: their grids are known
+    # not to contain the refitted incumbents, and widening this check would
+    # turn a real invariant into a failing one nobody could act on.
+    bad = [k for k in RULE_KEYS
            if not any(abs(v - d[k]) < 1e-12 for v in GRID[k])]
     if bad:
         raise ValueError(

@@ -3729,3 +3729,40 @@ with a runner on rather than STARTED with one — the same misreading as
 each play, the answer moved 0.02036 -> 0.02046. Checking it was still right;
 the two sets happen to be nearly the same size and that could not be known
 in advance.
+
+### WP_PB_RATE set to the counted value and REMOVED FROM THE SEARCH
+
+0.0155 -> 0.02046, and the second half of that sentence is the important
+one. It was the ONLY parameter `fitf5` searched, and the fit had settled it
+BELOW the measurable truth — a fitted constant drifting away from a number
+you can count is a fitted constant absorbing somebody else's error.
+
+Scored on 3,664 sides, 60 sims, 4 salts:
+
+    rate                 CRPS               sim F5 runs   actual   gap
+    measured 0.02046     1.60186 +/-0.0015    2.4187      2.4708   +0.0521
+    old fitted 0.0155    1.60147 +/-0.0024    2.4053      2.4708   +0.0655
+
+**IT CLOSES 20% OF THE F5 RUN GAP AND THE SCORE CANNOT TELL.** That is the
+expected shape for a measured quantity replacing an imported one, and it is
+why the standing rule says such a change does not have to prove itself on
+the loss. The CRPS difference is 0.0004 against error bars of 0.0015-0.0024.
+
+The direction is the diagnostic that was predicted before the run: the
+search had been buying accuracy by handing out FEWER free bases, which is
+what you do when the model turns the ones it has into too many runs. With
+the level pinned to reality, a fifth of the shortfall closes by itself and
+whatever remains is now visible rather than absorbed.
+
+`fitf5.MEASURED` is the new home for constants the search may not touch.
+PARAMS is consequently EMPTY, which is the honest state and not a bug: the
+only thing this objective ever fitted has now been counted instead.
+`--with-hook` still adds the hook terms back.
+
+TWO GUARDS MOVED WITH IT. `check_grids` iterated PARAMS, so it went VACUOUS
+the moment the last searched parameter was measured — it looped over an
+empty tuple and passed, and its own meta-test caught that. It now iterates
+RULE_KEYS, which keeps the invariant for anything that could be re-enabled.
+The hook keys stay excluded deliberately: their grids are known not to hold
+the refitted incumbents, so widening the check would turn a real invariant
+into a failure nobody could act on.
