@@ -57,48 +57,63 @@ def _d(s):
 
 
 def club_schedule(season="2026"):
-    """{(club, date): features} from the schedule alone."""
+    """{(club, date): features} using the REAL travel numbers.
+
+    `sources/rest.py` already fetches the thirty venue coordinates, computes
+    great-circle miles and a SIGNED time-zone shift (positive eastbound,
+    because arriving on a clock that says it is later costs more than the
+    reverse). It was built for the evidence layer and never once screened
+    against outcomes — which is the whole gap here.
+
+    The crude version of this screen used "did the venue change", scoring a
+    Seattle-to-Miami redeye and a cross-town move identically. That was
+    null; this is the version that can tell them apart.
+    """
+    from src.context.sources import rest as rest_src
+
     with db.connect() as c:
         rows = [dict(r) for r in c.execute(
             "select date, home_team_abbr, away_team_abbr, venue_id,"
             " day_night from games where sport = 'mlb'"
             f" and date like '{season}%' order by date")]
-    by_club = defaultdict(list)
-    for r in rows:
-        for club, home in ((r["home_team_abbr"], True),
-                           (r["away_team_abbr"], False)):
-            if club:
-                by_club[club].append((r["date"], r["venue_id"],
-                                      r["day_night"], home))
+    prev_dn = {}
     out = {}
-    for club, seq in by_club.items():
-        seq.sort()
-        stretch = 0
-        since_home = 0
-        for i, (d, ven, dn, home) in enumerate(seq):
-            f = {"getaway": 0, "travel": 0, "both": 0,
-                 "stretch": 0, "long_trip": 0}
-            if i:
-                pd, pven, pdn, _ph = seq[i - 1]
-                gap = (_d(d) - _d(pd)).days
-                stretch = stretch + 1 if gap == 1 else 0
-                # A DAY game after a NIGHT game, next day. The getaway-day
-                # complaint, and it is an INTERACTION — the flat day/night
-                # flag that was screened cannot express it.
-                f["getaway"] = int(gap == 1 and dn == "day" and pdn == "night")
-                # Venue changed, so the club moved. Crude — it does not know
-                # distance or time zones — but it is the schedule alone and
-                # needs no external table.
-                f["travel"] = int(ven != pven)
-                f["both"] = f["getaway"] * f["travel"]
-                f["stretch"] = stretch
-            since_home = 0 if home else since_home + 1
-            f["long_trip"] = since_home
-            out[(club, d)] = f
+    for r in rows:
+        for club in (r["home_team_abbr"], r["away_team_abbr"]):
+            if not club:
+                continue
+            try:
+                info = rest_src.for_team(club, r["date"], r["venue_id"],
+                                         int(season))
+            except Exception:
+                info = None
+            if not info:
+                prev_dn[club] = r["day_night"]
+                continue
+            miles = info.get("travel_miles") or 0.0
+            tz = info.get("tz_shift") or 0.0
+            pdn = prev_dn.get(club)
+            # The getaway shape the module's own docstring names: a DAY game
+            # after a NIGHT game, on no rest.
+            getaway = int(r["day_night"] == "day" and pdn == "night"
+                          and info["days_rest"] == 0)
+            out[(club, r["date"])] = {
+                "miles": miles,
+                "far": float(miles >= 1200),
+                "east_tz": max(0.0, tz),      # eastbound only, signed hours
+                "abs_tz": abs(tz),
+                "getaway": float(getaway),
+                # The punishing combination, now with real distance in it
+                # rather than "the venue changed".
+                "redeye": float(getaway and miles >= 500),
+                "consec": float(info.get("consecutive_days") or 0),
+            }
+            prev_dn[club] = r["day_night"]
     return out
 
 
-FEATS = ("getaway", "travel", "both", "stretch", "long_trip")
+FEATS = ("miles", "far", "east_tz", "abs_tz", "getaway",
+         "redeye", "consec")
 
 
 def corr(xs, ys):

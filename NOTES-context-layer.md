@@ -4187,8 +4187,28 @@ see" — a tired club is neither worse nor more variable.
 Recorded explicitly because 0.4% of a sample producing +2.3 is exactly the
 shape that gets written up as promising.
 
-WHAT IS STILL UNTESTED, and it is the only version left: `travel` here is
-"did the venue change", which scores a redeye from Seattle to Miami and a
-cross-town move identically. Real DISTANCE and TIME ZONES need venue
-coordinates, which this repo does not carry. That variant is open; the crude
-one is closed.
+**AND THE REAL-DISTANCE VERSION IS ALSO NULL.** The coordinates were
+already here: `sources/rest.py` has fetched the thirty venue locations and
+computed great-circle miles and a SIGNED eastbound time-zone shift the whole
+time. It was built for the evidence layer and had never once been scored
+against outcomes. Re-run on the real numbers:
+
+    feature        cases   signed z   |resid| z
+    miles            860       +1.5        +0.3
+    far (1200mi)     236       +1.2        +0.9
+    eastbound tz     220       +0.6        -0.9
+    any tz change    446       +1.0        +0.6
+    getaway          780       -0.5        -0.9
+    redeye             7       +2.2        +3.4
+    consec days    2,770       -1.5        -1.3
+
+Everything with power is flat on both questions. THE ONLY ROW OVER 2 SIGMA
+IS AGAIN THE COMBINATION AND IT NOW HAS SEVEN STARTS IN IT — fewer than the
+crude version's thirteen, and recorded as not a lead for the second time.
+
+A tell that the near-misses are noise: `miles` is POSITIVELY signed, meaning
+a batting club that just flew further scores MORE. That is backwards for a
+fatigue effect, and a real one would not change sign to suit the feature.
+
+Schedule burden is closed: no distance, no time zone, no getaway day, no
+stretch, on either the level or the variance.
