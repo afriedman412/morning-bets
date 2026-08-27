@@ -381,11 +381,62 @@ roster spots moved a headline edge by half. Worth building: treat the
 projected lineup as an uncertainty to be propagated rather than an input to
 be trusted, and flag any edge whose size depends on unconfirmed names.
 
-NOTE ALSO the handedness screen said the effect is ~0.06 K per start and
-that stands — it is a between-START average over a population where 42 of 91
-pitchers have REVERSED splits. It does NOT say handedness is negligible for
-ONE start with a one-sided lineup, which is a different quantity and is
-still unmeasured.
+## HANDEDNESS IS NOT DEAD — I SCREENED THE WRONG CHANNEL. START HERE.
+
+**THIS IS THE FIRST THING TO DO NEXT.** The day-twelve screen that killed
+handedness measured ONE of its two channels and the Toronto card exposed the
+other on a live board.
+
+    PITCHER SIDE  does THIS PITCHER have a platoon split, applied to the
+                  mix he faces. `scratchpad/platoon_split.py`. Genuinely
+                  small — +1.2 sigma, 0.046 K per start, leave-one-out —
+                  because 42 of 91 starters have REVERSED splits and the
+                  population cancels. That result stands.
+
+    BATTER SIDE   does THIS HITTER strike out more against a lefty.
+                  NEVER SCREENED. This is the channel the old
+                  `USE_HANDEDNESS` used, and it is where the effect is.
+
+Toronto's real card against the left-handed Noah Cameron, per batter:
+
+    batter                 vsLHP   ours(overall)    diff
+    Alejandro Kirk          17.8            11.7    +6.1
+    Charles McAdoo          37.1            25.9   +11.2
+    Daz Cameron             28.6            24.0    +4.6
+    Myles Straw             18.1            15.0    +3.1
+    ...
+    simple mean             21.69           18.69   +3.00 pp
+
+Seven of nine strike out MORE against a lefty and the lineup mean moves
+18.69% -> 21.69%, a 16% relative jump. **Cameron's expected strikeouts go
+4.19 -> roughly 4.8, which puts o4.5 near 0.55 — the market's number. The
+entire remaining edge on the biggest disagreement of the day is handedness.**
+
+BEWARE THE AGGREGATION, which is how this was nearly missed twice. The
+PA-weighted vs-LHP figure is 18.69% and coincidentally equals our
+simple-mean overall figure, which makes handedness look like exactly zero.
+The SIM weights the nine roughly equally, so SIMPLE MEAN is the comparison
+that matters and it is +3.00 pp.
+
+WHY THE OLD `USE_HANDEDNESS` NULL DOES NOT SETTLE IT: it used DERIVED splits
+— a batter's whole game line credited to the opposing starter's hand,
+relievers included, then pulled halfway back by `SPLIT_STABILISE` — on the
+two-engine setup. Its own docstring names the test that would separate an
+attenuated derivation from a real null: exact splits. Play-by-play now
+carries real `batSide`/`pitchHand` on every plate appearance across 9,962
+games.
+
+THE SCREEN TO RUN, and it is cheap: per start, recompute the opposing
+lineup's rates using true vs-hand batter splits, take the difference from
+the overall-rate version, and correlate that against the K residual over all
+3,278 starts. LEAVE-ONE-OUT from the start — the pitcher-side screen
+reported +4.8 sigma before the start was removed from its own predictor and
++1.2 after.
+
+**AND NOTE WHAT THIS SAYS ABOUT THE DEAD LIST GENERALLY.** Handedness was
+killed twice, once by the shipped A/B and once by my screen, and both times
+the mechanism was mis-specified rather than absent. A null is only as good
+as the channel it tested.
 
 **DECLINES WORKED AS DESIGNED.** BAL/STL declined twice over: first no
 announced starter, then a named starter (Cooper Hjerpe) with ZERO
