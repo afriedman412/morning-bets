@@ -4150,3 +4150,45 @@ VARIES — by pitcher, by workload, by anything with a measurable spread —
 would move discrimination as well as calibration, and that is the version
 worth building. A flat one was the cheapest test of the diagnosis and it
 confirmed the diagnosis without earning its place.
+
+### Schedule burden: travel, getaway days, stretches — null on BOTH questions
+
+Raised as: are we considering where players played the day before, long
+travel, day games right after night games? Checked first — six between-game
+features were already screened and all came back null, but "days rest" there
+is the PITCHER'S days since his own start and day/night was a FLAT FLAG.
+Nothing about where the CLUB was yesterday had ever been tested, and all six
+were scored on the OUTS residual, which is the channel immune to everything.
+
+`scratchpad/schedule.py` screens the BATTING club's schedule burden against
+the earned-run residual, and asks TWO questions per feature, which no screen
+here had done before:
+
+    signed    is the tired club WORSE
+    |resid|   is the tired club more VARIABLE
+
+The second is the one that matters, because the defect this model actually
+has is dispersion, not level. A flat dispersion term confirmed the defect and
+was neutral on CRPS precisely because it did not vary; schedule burden was a
+candidate for something that does.
+
+    feature      positives   signed z   |resid| z
+    getaway            780       -0.5        -0.9
+    travel             859       +1.2        +0.1
+    both                13       +1.6        +2.3
+    stretch          2,770       -1.5        -1.2
+    long_trip        1,640       +0.9        -1.3
+
+**NULL, AND WELL POWERED.** Getaway days have 780 cases and read -0.9 on
+dispersion; crude travel has 859 and reads +0.1. This is not "too small to
+see" — a tired club is neither worse nor more variable.
+
+**THE ONE ROW OVER 2 SIGMA HAS THIRTEEN STARTS IN IT** and is not a lead.
+Recorded explicitly because 0.4% of a sample producing +2.3 is exactly the
+shape that gets written up as promising.
+
+WHAT IS STILL UNTESTED, and it is the only version left: `travel` here is
+"did the venue change", which scores a redeye from Seattle to Miami and a
+cross-town move identically. Real DISTANCE and TIME ZONES need venue
+coordinates, which this repo does not carry. That variant is open; the crude
+one is closed.
