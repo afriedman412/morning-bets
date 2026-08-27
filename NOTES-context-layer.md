@@ -3617,3 +3617,61 @@ The same lens, applied to a feature with seven or eight nulls behind it:
     multiplier must carry ONLY the interaction. The screen claims to divide
     by a league-average mix, which is the right shape — verify rather than
     assume.
+
+### HIT-BY-PITCH was a POPULATION MISMATCH, not a level error
+
+`HBP_RATE` and `SAC_RATE` are drawn off the top of every plate appearance
+from flat league constants — for every pitcher, every hitter, every night.
+Both are KNOWABLE, which is the whole argument: measured replacing imported,
+not a new mechanism. Counted per plate appearance off play-by-play
+(`scratchpad/hbp_sac.py`, 753,982 PA):
+
+    season   SP HBP   RP HBP    gap     SP SAC   RP SAC    gap
+    2023     0.01003  0.01342   +34%    0.00794  0.01014   +28%
+    2024     0.00991  0.01273   +28%    0.00783  0.01123   +43%
+    2025     0.00944  0.01208   +28%    0.00864  0.01218   +41%
+    2026     0.01044  0.01262   +21%    0.00888  0.01272   +43%
+
+The pooled rate is 11.9% above the shipped 0.0098 — which matches the "HBP
+11% light" note — but the shipped value is roughly RIGHT for the population
+it was measured on. It was counted on STARTERS from boxscores and is applied
+to EVERY ARM, and relievers hit batters 21-34% more often in every season on
+file. Sacrifices are worse: relievers see 43% more, because late innings are
+when a run is worth bunting for. Both are trending up.
+
+FIXED BY ROLE, not by moving the constant. `PitcherRates` gained
+`hbp_rate`/`sac_rate` (None = the old flat fallback, so it is inert),
+`game.build_side` sets them per arm behind `USE_ROLE_HBP`, and `cond` now
+rescales by THE SAME two rates that were drawn — using the league constant
+there would bias every rate below it, worst for exactly the arms the
+per-role rates exist to describe.
+
+Relievers throw ~43% of plate appearances, so this is ~0.03 runs a game of
+level that was simply missing. It matters more than 1% suggests because a
+hit-by-pitch is a BASERUNNER and the model is 6% short on runs with the
+right number of hits, strikeouts and home runs.
+
+PER-PITCHER HBP IS ALSO REAL AND UNUSUALLY STABLE, and is NOT yet wired:
+sd 0.00675 with p10 0.0043 against p90 0.0200 — a five-fold range — and a
+split-half of +0.551 correcting to +0.711 reliability, which is bullpen-role
+territory. Leverage 0.035 runs pitcher-only, near 0.05 with the batter side
+added. Right at the floor, so it is a judgement call rather than a free win.
+
+**TWO TEST FAILURES WORTH MORE THAN THE FIX.**
+
+1. `check_rates_are_conditioned_on_the_off_the_top_draws` asserted the
+   SOURCE TEXT `"cond = 1.0 - SAC_RATE - HBP_RATE"`. It broke on a refactor
+   that was not a regression, which is the defining failure of a check that
+   reads code instead of running it. Replaced with a behavioural check: an
+   arm given a huge off-the-top share must still produce the SAME strikeouts
+   per plate appearance, because that is the entire point of the rescale.
+2. The replacement then SURVIVED ITS OWN MUTATION, twice. First because the
+   asserted target was wrong — I expected strikeouts per plate appearance to
+   FALL by the off-the-top share when the correct answer is that it does not
+   move — inside a band wide enough to contain the bug either way. Second
+   because `build_side` overwrote the test's explicit rates unconditionally,
+   so the "loud" arm was never loud. That second one is a real design bug:
+   the field was unusable by any caller. An explicit rate now wins.
+
+A check that reads source text and a check that never runs its own premise
+look identical from the outside — both pass, both green, both worthless.

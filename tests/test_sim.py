@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import random
 
+from dataclasses import replace
+
 from src.context import sim
 from src.context.sources import rates as rate_src
 from tests import fixtures as fx
@@ -1287,12 +1289,44 @@ def check_hit_by_pitch_is_tracked_apart_from_walks():
 def check_rates_are_conditioned_on_the_off_the_top_draws():
     """Sacrifices and hit-by-pitches are drawn before the strikeout branch,
     so everything after is conditional on neither firing. Without dividing
-    by (1 - SAC_RATE - HBP_RATE) every marginal rate comes out light by
-    exactly that much — measured as K/9 8.16 against a real 8.44."""
+    by (1 - sac - hbp) every marginal rate comes out light by exactly that
+    much — measured as K/9 8.16 against a real 8.44.
+
+    Asserted on BEHAVIOUR, not on the text of the line. The source-string
+    version broke the moment the two rates became per-arm, which is exactly
+    the failure mode of a check that reads code instead of running it: it
+    cannot tell a refactor from a regression.
+
+    The specific thing guarded is that the rescale uses THE SAME rates that
+    were drawn. An arm with a high hit-by-pitch rate loses more plate
+    appearances off the top, so dividing by the league constant instead
+    would bias every rate below it — and the bias would be largest for
+    exactly the arms the per-role rates exist to describe.
+    """
     import inspect
     src = inspect.getsource(sim.pa_outcome)
-    assert "cond = 1.0 - SAC_RATE - HBP_RATE" in src
     assert src.count("/ cond") >= 3, "not every branch is rescaled"
+
+    # An arm with an ENORMOUS off-the-top share still has to produce
+    # strikeouts at close to its own rate, because the rescale compensates.
+    p = _pitcher()
+    base = fx.starts(p, _lineup(), LG, n=1500, seed=83)
+    k_base = sum(r.k for r in base) / sum(r.batters for r in base)
+    loud = replace(p, hbp_rate=0.08, sac_rate=0.02)
+    hot = fx.starts(loud, _lineup(), LG, n=1500, seed=83)
+    k_hot = sum(r.k for r in hot) / sum(r.batters for r in hot)
+    # STRIKEOUTS PER PLATE APPEARANCE MUST NOT MOVE. That is the whole
+    # point of the rescale: 10% of plate appearances now end off the top,
+    # and the remaining 90% carry a correspondingly higher strikeout
+    # probability, so the share of ALL plate appearances is unchanged.
+    #
+    # Rescaling by the league constant instead drops it to ~0.92 — the
+    # branches are divided by the old, much smaller off-the-top share. An
+    # earlier version of this check asserted the ratio was ~0.90 with a
+    # +/-20% band, which is the wrong target AND wide enough to contain the
+    # bug; the mutation survived it. 36,000 plate appearances put the
+    # sampling error near 1.4%, so this band is ~3 sigma and excludes 0.92.
+    assert 0.95 < k_hot / k_base < 1.05, (k_base, k_hot, k_hot / k_base)
 
 
 def check_league_baselines_come_from_rotation_starters():

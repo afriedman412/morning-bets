@@ -537,6 +537,26 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
         # front of his new one.
         starter = replace(starter, babip=max(starter.babip - d, 0.0))
         arms = [replace(a, babip=max(a.babip - d, 0.0)) for a in arms]
+    if USE_ROLE_HBP:
+        # THE ARM DECIDES ITS OWN. `HBP_RATE` was measured on starters and
+        # applied to every pitcher, and relievers hit batters 21-34% more
+        # often in every season on file. Same for sacrifices, where the gap
+        # is 43% — late innings are when a run is worth bunting for.
+        # Applied here rather than in `sim` because this is the only place
+        # that knows which arm is the starter.
+        # A RATE ALREADY SET WINS. Overwriting unconditionally makes the
+        # field unusable by any caller that wants to specify one — which
+        # silently clobbered a regression check's whole premise and let its
+        # mutation survive.
+        def _role(arm, hbp, sac):
+            return replace(arm,
+                           hbp_rate=(arm.hbp_rate if arm.hbp_rate is not None
+                                     else hbp),
+                           sac_rate=(arm.sac_rate if arm.sac_rate is not None
+                                     else sac))
+
+        starter = _role(starter, sim.HBP_RATE_SP, sim.SAC_RATE_SP)
+        arms = [_role(a, sim.HBP_RATE_RP, sim.SAC_RATE_RP) for a in arms]
     return Side(starter=starter, pen=arms, lineup=lineup, hook=h,
                 forced_exit_outs=_draw_early_exit(h, rng))
 
@@ -557,6 +577,13 @@ def _draw_early_exit(h: sim.Hook, rng: random.Random) -> int | None:
         return None
     return rng.choices(outs, weights=[sim.EARLY_EXIT_DIST[o]
                                       for o in outs], k=1)[0]
+
+
+#: Let each arm carry its own hit-by-pitch and sacrifice rate instead of
+#: the flat league constant. OFF restores the previous behaviour exactly,
+#: so the correction stays separately scoreable like every other mechanism
+#: here.
+USE_ROLE_HBP = True
 
 
 def _arm(row: dict) -> sim.PitcherRates:

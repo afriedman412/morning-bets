@@ -334,7 +334,22 @@ DAMAGE = {BB: 1.0, B1: 1.0, B2: 1.7, B3: 2.3, HR: 3.0, K: 0.0, OUT: 0.0,
 
 #: Share of plate appearances that are a sacrifice bunt or fly. An
 #: automatic out; never a BABIP event.
+#:
+#: BY ROLE, because it is not one number. Counted per plate appearance off
+#: play-by-play, 2026 (`scratchpad/hbp_sac.py`):
+#:
+#:     season   SP SAC   RP SAC
+#:     2023     0.00794  0.01014
+#:     2024     0.00783  0.01123
+#:     2025     0.00864  0.01218
+#:     2026     0.00888  0.01272
+#:
+#: Relievers see 43% more sacrifices than starters and both are trending
+#: up — late innings are when a run is worth bunting for. The flat constant
+#: below is retained as the fallback for an arm with no role attached.
 SAC_RATE = 0.010
+SAC_RATE_SP = 0.00888
+SAC_RATE_RP = 0.01272
 #: Share of plate appearances ending in a hit by pitch. A free baserunner
 #: the model never had.
 #:
@@ -348,7 +363,28 @@ SAC_RATE = 0.010
 #:
 #: MEASURED, not published: 0.0098 per batter faced over 2,070 starts, from
 #: the `hitByPitch` field the boxscore was already returning.
+#:
+#: THAT MEASUREMENT WAS ON STARTERS AND IS APPLIED TO EVERY ARM. Counted per
+#: plate appearance off play-by-play (`scratchpad/hbp_sac.py`), relievers hit
+#: batters 21-34% more often than starters in every season on file:
+#:
+#:     season   SP HBP   RP HBP    gap
+#:     2023     0.01003  0.01342   +34%
+#:     2024     0.00991  0.01273   +28%
+#:     2025     0.00944  0.01208   +28%
+#:     2026     0.01044  0.01262   +21%
+#:
+#: So the pooled rate reads 11.9% above the shipped constant and the shipped
+#: constant is roughly RIGHT for the population it was measured on. This was
+#: a population mismatch, not a level error, and the correct fix is to let
+#: the rate depend on who is pitching — which the engine already knows.
+#:
+#: A hit-by-pitch is a BASERUNNER and this model is 6% short on runs with the
+#: right number of hits, strikeouts and home runs, so under-counting them on
+#: 43% of plate appearances is not a rounding error.
 HBP_RATE = 0.0098
+HBP_RATE_SP = 0.01044
+HBP_RATE_RP = 0.01262
 #: Chance a runner on first is caught stealing, per plate appearance he is
 #: aboard for. Removes the runner AND records an out.
 CS_RATE = 0.0148
@@ -477,6 +513,11 @@ class PitcherRates:
     #: Batters faced behind these rates. Carried so a caller can widen the
     #: distribution for a pitcher with 80 PA on record versus one with 600.
     pa: int = 0
+    #: Per-arm hit-by-pitch and sacrifice rates. None falls back to the
+    #: flat league constants, so an arm with no role attached behaves
+    #: exactly as before.
+    hbp_rate: float | None = None
+    sac_rate: float | None = None
     #: {"L": rates, "R": rates} — HIS rates against each batter side. The
     #: other half of the matchup, and it did not exist before 2026-08-27:
     #: every handedness attempt in this project conditioned the batter and
@@ -619,15 +660,19 @@ def pa_outcome(
         p_bab *= m["babip"]
     # Off the top: a sacrifice is a plate appearance that was never going to
     # be a strikeout or a walk, so it conditions everything below it.
-    if rng.random() < SAC_RATE:
+    sac_r = SAC_RATE if p.sac_rate is None else p.sac_rate
+    hbp_r = HBP_RATE if p.hbp_rate is None else p.hbp_rate
+    if rng.random() < sac_r:
         return SAC
-    if rng.random() < HBP_RATE:
+    if rng.random() < hbp_r:
         return HBP
     # Sacrifices and hit-by-pitches were taken off the top, so everything
     # below is conditional on neither firing. Without this rescale the
     # marginal rates all come out light by exactly SAC_RATE + HBP_RATE —
     # measured as K/9 8.16 against a real 8.44 when it was missing.
-    cond = 1.0 - SAC_RATE - HBP_RATE
+    # The SAME two rates that were just drawn, or the rescale corrects for
+    # a draw that never happened and every rate below comes out biased.
+    cond = 1.0 - sac_r - hbp_r
     k = log5(b.k_pct, p_k, lgm["k_pct"]) * pk["k"] * b.arsenal_k_mult / cond
     k = min(max(k, 1e-6), 0.95)
     if rng.random() < k:
