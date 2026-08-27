@@ -4019,3 +4019,53 @@ small sample at a DIFFERENT SEED — cheap, and it separates "sampling" from
 But the right FIX is more samples, not a different seed. Changing the seed
 until a check passes is fitting the test to its outcome, which is the same
 error as widening the band. n went 400 -> 900 and the band stayed.
+
+### WHERE THE RUN GAP IS: advancement, not rates. Measured and settled.
+
+`scratchpad/f5_decomp.py` compares, for every scored side, the events the
+simulator produces through five against the events that ACTUALLY happened
+through five, counted off play-by-play. 1,659 games, 30 sims, starter
+innings on both halves of the comparison.
+
+    channel    sim/side    actual      gap    gap %
+    k            4.2771    4.2981   +0.0210    +0.5%
+    bb           1.6041    1.6257   +0.0216    +1.3%
+    hbp          0.2034    0.1962   -0.0072    -3.7%
+    h            3.6555    3.6519   -0.0036    -0.1%
+    hr           0.6301    0.6212   -0.0089    -1.4%
+    ---------------------------------------------------
+    on           6.0931    6.0949   +0.0018    +0.0%
+    ---------------------------------------------------
+    runs         2.1533    2.1905   +0.0372    +1.7%
+
+**THE MODEL PUTS EXACTLY THE RIGHT MEN ON AND BRINGS 1.7% FEWER OF THEM
+HOME.** Baserunners agree to +0.0%. Every event channel is inside 1.4%. The
+linear-weights sum of the channel gaps says the model should have SLIGHTLY
+MORE runs than it does (-0.0103 explained against +0.0372 observed), so the
+shortfall is not upstream at all.
+
+Runs per baserunner: 0.3534 simulated against 0.3594 actual.
+
+**THIS CLOSES A WHOLE CLASS OF WORK.** No further measurement of strikeout,
+walk, hit or home run rates can close the gap, because those are already
+right to within a percent. The remaining defect is in the base-out state
+machine — sequencing and advancement — and that is where the next effort
+belongs. It also explains why today's rate fixes were individually real and
+collectively small: they were correcting channels that were already nearly
+right, and the wild-pitch one helped because it is an ADVANCEMENT mechanism
+(a free base with no batter), not a rate.
+
+**THREE DENOMINATOR MISTAKES IN ONE SCRIPT, all mine, all producing
+confident wrong tables.** `Side.line` is the STARTER'S line and reliever
+lines are DISCARDED on each arm change (`cur_line = StartResult()`), so
+comparing it against every first-five plate appearance reads as a UNIFORM
+6.5-10.2% shortfall in every channel at once. A uniform shortfall across
+independent channels is the signature of a DENOMINATOR error, never of rates
+being wrong — no set of rate bugs moves strikeouts, walks, hits and home
+runs by the same 8%. Then the same again on runs alone, where `runs_f5` is
+the SIDE's and the actual was the starter's, which showed the model 10.5%
+HIGH on runs while every event channel matched to 1.4% — also impossible,
+and also a denominator.
+
+The rule worth keeping: WHEN EVERY CHANNEL IS WRONG BY THE SAME PERCENTAGE,
+STOP LOOKING AT THE RATES AND CHECK WHAT YOU DIVIDED BY.
