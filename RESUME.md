@@ -381,6 +381,64 @@ roster spots moved a headline edge by half. Worth building: treat the
 projected lineup as an uncertainty to be propagated rather than an input to
 be trusted, and flag any edge whose size depends on unconfirmed names.
 
+## THE RUN GAP IS ADVANCEMENT AND IT IS UNDER-DISPERSION. START HERE.
+
+**MEASURED AND SETTLED** (`scratchpad/f5_decomp.py`, 1,659 games). Simulated
+events through five against what ACTUALLY happened through five, starter
+innings on both halves:
+
+    channel    sim/side    actual    gap %
+    k            4.2771    4.2981    +0.5%
+    bb           1.6041    1.6257    +1.3%
+    hbp          0.2034    0.1962    -3.7%
+    h            3.6555    3.6519    -0.1%
+    hr           0.6301    0.6212    -1.4%
+    on           6.0931    6.0949    +0.0%      <-- EXACT
+    runs         2.1533    2.1905    +1.7%
+
+**THE MODEL PUTS THE RIGHT MEN ON AND BRINGS 1.7% FEWER HOME.** No further
+measurement of strikeout, walk, hit or home run rates can close this — they
+are already right to within a percent. Runs per baserunner 0.3534 against
+0.3594.
+
+**AND IT IS SHAPE, NOT RATES.** Runs allowed by the starter through five:
+
+    runs     sim %  actual %     diff
+       0     22.72     23.24    +0.51
+       1     21.80     21.43    -0.37
+       2     18.93     18.38    -0.55
+       3     14.31     13.74    -0.56
+       4      9.75      9.37    -0.38
+       5      6.12      6.51    +0.39
+      6+      6.37      7.32    +0.95
+
+Reality has MORE shutouts AND MORE blowups; the model is bunched in the
+middle. Both tails thin at once is CLUSTERING — plate appearances resolve
+independently and real ones arrive in bunches. Runs are convex in
+clustering, so the missing tail also drags the mean. One defect, both
+symptoms.
+
+**CONFIRMED BY A FLAT DISPERSION TERM** (`scratchpad/dispersion.py`): one
+latent draw per start at sigma 0.10 cuts the shape error 44% AND closes 86%
+of the run gap. Two separate defects would need the shape overshot to fix
+the level; one sigma doing both says they are one thing.
+
+**IT IS NOT SHIPPED, AND WHY MATTERS FOR WHAT TO BUILD NEXT.** It is neutral
+on F5 CRPS (+0.00313 +/- 0.00315 held out) because a FLAT term adds the same
+dispersion everywhere — the marginal distribution gets righter and no
+individual game's prediction improves. Calibration moves, discrimination
+does not.
+
+**SO BUILD A DISPERSION THAT VARIES.** By pitcher, by workload, by anything
+with a measurable spread and a stability gate. That moves discrimination as
+well as calibration and is the one thing left that can reach this gap.
+
+NOTE `form.py` IS PARKED ON A DIFFERENT QUESTION. It asked whether nightly
+form is PREDICTABLE IN ADVANCE and answered no three ways. Generating enough
+bad nights needs no prediction at all. Form was tried as a predictor; it has
+never been tried as a dispersion. Also note `early_exit_p`, already built and
+shipped inert, aims at the same tail from the hook side.
+
 ## THREE CONSTANTS WERE MEASURED ON STARTERS AND USED ON EVERYONE (2026-08-27)
 
 **THAT IS A PATTERN, NOT THREE COINCIDENCES, AND THE REST OF THE CONSTANTS
