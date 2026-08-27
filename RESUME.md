@@ -671,6 +671,31 @@ dragged to league average on thin current lines. `shrink_target` is now one
 function serving both populations so the next improvement cannot reach half
 the pitchers.
 
+**AND IT IS THE LARGEST MEASURED GAIN OF THE DAY ON THE PRODUCT**
+(`scratchpad/pen_prior_ab.py`, paired, 1,152 sides, relievers isolated —
+starters see the prior in both arms):
+
+                          CRPS   runs     sd  shutout  5+ runs
+    pen: league only   1.66361   2.34   2.22    22.6%    15.6%
+    pen: prior         1.63913   2.34   2.21    22.6%    15.5%
+    ACTUAL                       2.44   2.32    21.9%    17.6%
+
+CRPS -0.0245, about 5 sigma against the +/- 0.0043 `fitf5` reports on this
+sample, and three times the size of the team-defence number that turned out
+to be a bug.
+
+CROSS-CHECKED BY ACCIDENT, which is the reason to trust it: the
+pre-restructure `defence OFF` arm scored 1.66361 and the post-restructure one
+1.63913. That drift was assumed to be run-to-run noise and is in fact this
+fix landing in between — two independent measurements of the same quantity
+agreeing to five decimals.
+
+IT SHARPENS THE SHAPE AND DOES NOT TOUCH THE LEVEL: runs 2.34 either way
+against a real 2.44. The bullpen throws ~40% of the innings and was being
+priced as generic; knowing which arm is which is worth a lot of distribution
+and no runs. **The 5%-light defect remains untouched by everything tried on
+day eleven.**
+
 **AND THE STABILISE CONSTANTS HAVE THE SAME DEFECT ONE LEVEL DOWN.**
 `stabilise._PIT` filters `is_starter = 1`, so every pitcher constant was
 measured on STARTERS and is applied to relievers. Measured separately, k and
