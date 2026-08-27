@@ -1777,3 +1777,102 @@ def check_the_boundary_curve_is_the_fitted_one():
     # what left starters a full out too long.
     assert pre.removal_p(105, 2, 5, 4) < h.removal_p(105, 2, 5, 4), \
         "the corrected curve must pull harder at 105 pitches"
+
+
+def check_a_rate_multiplier_enters_the_odds_not_the_probability():
+    """Park and arsenal used to MULTIPLY log5's probability output.
+
+    log5 is an odds-ratio construction, so scaling its output is not a
+    consistent change to the underlying rates: a 1.05x on a .05 probability
+    is nearly a 1.05x on the odds and on a .45 probability it is not close.
+    The same park factor therefore meant something different in a high
+    strikeout matchup than a low one, worst in the TAILS, which is where
+    prop lines sit.
+
+    It could also leave [0, 1], which is the ONLY reason those branches ever
+    needed clamping — and they clamped three different ways. `bb` and `hr`
+    were unclamped, and a walk probability above what remained fired every
+    time AND drove `rest` negative, so the `rest > 0` guard skipped home
+    runs entirely. An out-of-range value read as a channel quietly going to
+    zero, with no error and no grid edge to notice it by.
+
+    Measured before the change: 0 clamps in 529,581 plate appearances, so it
+    was latent rather than live — but latent on the CURRENT multipliers, and
+    park and arsenal are both off. Anything that switches them on moves the
+    operating point.
+    """
+    lg = 0.2167
+
+    # 1. THE SHIPPED CONFIG IS UNTOUCHED. Every multiplier is 1.0 today,
+    #    so this refactor has to be the exact identity or it is not a
+    #    refactor.
+    for i in range(1, 1000):
+        p = i / 1000.0
+        assert sim.odds_mult(p, 1.0, lg) == p, p
+
+    # 2. It means what a park factor is documented to mean: a league-average
+    #    matchup in an `m` park comes out at exactly m * league.
+    for m in (0.85, 0.95, 1.05, 1.20):
+        assert abs(sim.odds_mult(lg, m, lg) - m * lg) < 1e-12, m
+
+    # 3. It cannot escape (0, 1) for any multiplier, which is what deletes
+    #    the clamps rather than papering over them.
+    for p in (0.02, 0.30, 0.45, 0.90, 0.99):
+        for m in (0.01, 0.5, 1.5, 3.0, 50.0):
+            got = sim.odds_mult(p, m, lg)
+            assert 0.0 < got < 1.0, (p, m, got)
+
+    # 4. Monotone in the multiplier, or it is not a multiplier.
+    prev = 0.0
+    for m in (0.5, 0.9, 1.0, 1.1, 2.0):
+        got = sim.odds_mult(0.30, m, lg)
+        assert got > prev, (m, got, prev)
+        prev = got
+
+
+def check_every_outcome_channel_survives_extreme_rates():
+    """The plate-appearance chain must not lose a channel under pressure.
+
+    The branches are drawn in order — K, then BB, then HR, then ball in
+    play — each rescaled by the probability mass still unallocated. Get the
+    ordering or the rescaling wrong and a channel silently goes to zero,
+    which is the one failure mode nothing downstream can detect: a missing
+    home run rate just looks like a slightly low home run rate, and a fitted
+    constant absorbs it.
+
+    WHAT THIS DOES NOT CLAIM. At physically impossible inputs — a .62
+    matchup strikeout rate alongside a .69 walk rate, which sum past one —
+    walks do take the whole remainder and home runs get nothing. That is a
+    consequence of being handed rates that cannot coexist, and clamping the
+    walk to the remainder does NOT change it: `bb / rest` is then exactly
+    1.0 and the walk still fires every time. Verified by mutation, which is
+    how an earlier version of this check was caught claiming otherwise.
+
+    So this asserts the range where the model actually operates, extended
+    well past anything real.
+    """
+    import random
+    lg = dict(sim.league())
+    # The best strikeout arm against the worst contact bat, with a walk rate
+    # nobody has posted. Still sums to well under one.
+    b = sim.BatterRates(name="x", k_pct=0.35, bb_pct=0.16, hr_pct=0.07,
+                        babip=0.36, pa=600)
+    p = sim.PitcherRates(name="y", k_pct=0.35, bb_pct=0.16, hr_pct=0.07,
+                         babip=0.36, pa=600)
+    seen = set()
+    rng = random.Random(7)
+    for _ in range(20000):
+        seen.add(sim.pa_outcome(b, p, lg, rng))
+    for want in (sim.HR, sim.BB, sim.K, sim.OUT):
+        assert want in seen, (want, seen)
+
+    # And impossible inputs must remain DEFINED rather than producing a
+    # negative probability mass. The outcome distribution is unchanged; the
+    # invariant is not.
+    wild_b = sim.BatterRates(name="w", k_pct=0.40, bb_pct=0.30, hr_pct=0.12,
+                             babip=0.40, pa=600)
+    wild_p = sim.PitcherRates(name="v", k_pct=0.40, bb_pct=0.30, hr_pct=0.12,
+                              babip=0.40, pa=600)
+    rng = random.Random(11)
+    for _ in range(5000):
+        sim.pa_outcome(wild_b, wild_p, lg, rng)

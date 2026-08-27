@@ -3766,3 +3766,49 @@ RULE_KEYS, which keeps the invariant for anything that could be re-enabled.
 The hook keys stay excluded deliberately: their grids are known not to hold
 the refitted incumbents, so widening the check would turn a real invariant
 into a failure nobody could act on.
+
+### log5 multipliers moved inside the construction; the clamps are gone
+
+Park and arsenal MULTIPLIED log5's probability output. log5 is an odds-ratio
+construction, so scaling its output is not a consistent change to the
+underlying rates: 1.05x on a .05 probability is nearly 1.05x on the odds, and
+on a .45 probability it is not close. The same park factor therefore meant
+something different in a high-strikeout matchup than a low one, worst in the
+TAILS, which is where prop lines sit.
+
+`sim.odds_mult(p, m, lg)` applies the multiplier as the odds ratio that takes
+the league rate to `m * lg`. A league-average matchup in an `m` park now
+comes out at EXACTLY `m * lg` (verified to 1e-17), it bends rather than
+scaling away from the league rate, and it CANNOT leave (0, 1) for any finite
+positive multiplier.
+
+THAT DELETES THE CLAMPS RATHER THAN TIDYING THEM. They existed only because
+output multipliers can leave [0, 1], and they clamped three different ways in
+four adjacent branches — `k` both sides, `babip` upper only, `bb` and `hr`
+not at all. Measured before removal: ZERO clamps in 529,581 plate
+appearances, so it was latent, but latent on the CURRENT multipliers, and
+park and arsenal are both off.
+
+**BIT-IDENTICAL, VERIFIED BY FINGERPRINT.** Every multiplier is 1.0 in the
+shipped config and `odds_mult(p, 1.0, lg) == p` exactly for all 999 tested
+probabilities, so this had to be a no-op — and is. 400 games x 6 sims,
+hashing runs plus both starters' k/h/hr/bb:
+
+    committed engine   5bdcf78e9e70c3579220e55431c18aeb   8.591667 runs
+    refactored engine  5bdcf78e9e70c3579220e55431c18aeb   8.591667 runs
+
+**AND A CORRECTION, CAUGHT BY MUTATION RATHER THAN BY READING.** A test at
+impossible rates (a .62 matchup strikeout rate alongside a .69 walk rate)
+returned only {K, BB, SAC, HBP} — no home runs, no balls in play. That was
+reported here as a real defect the refactor had exposed. IT IS NOT ONE. Those
+two rates sum past 1.0 and cannot coexist; the chain's response is arbitrary
+but not wrong. Clamping the walk to the remainder does NOT change it, because
+`bb / rest` is then exactly 1.0 and the walk still fires every time — proven
+by removing the clamp and watching the check pass anyway.
+
+So `min(..., rest)` on `bb` and `hr` is an INVARIANT guard (no negative
+probability mass) with no behavioural consequence and no test guarding it.
+Recorded as such rather than left looking like a fix.
+
+Second time in one session a story was fitted to a result before it was
+checked. Both times the mutation caught it.

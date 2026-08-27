@@ -254,6 +254,37 @@ def log5(batter: float, pitcher: float, lg: float) -> float:
     return num / den if den else lg
 
 
+def odds_mult(p: float, m: float, lg: float) -> float:
+    """A RATE multiplier applied to an odds-ratio construction.
+
+    `log5` combines three rates as ODDS. Multiplying its probability output
+    is therefore not a consistent change to the underlying rates: a 1.05x on
+    a .05 probability is nearly a 1.05x on the odds, and on a .45 probability
+    it is not close. The same park factor then means something different in a
+    high-strikeout matchup than a low one, and the distortion is worst in the
+    TAILS, which is where prop lines sit.
+
+    It can also leave [0, 1], which is the only reason the branches below
+    ever needed clamping — and they clamped three different ways, with the
+    unclamped ones silently suppressing the branch after them.
+
+    This is the operation that stays inside the construction. `m` is picked
+    to mean what a park factor or an arsenal multiplier is documented to
+    mean: a league-average matchup in an `m` park comes out at EXACTLY
+    `m * lg`. Away from the league rate it bends rather than scaling, which
+    is the correct behaviour and the whole point — a .45 strikeout matchup
+    cannot absorb a 1.2x the way a .05 one can.
+
+    Cannot return a value outside (0, 1) for any finite positive `m`.
+    """
+    if m == 1.0 or not 0.0 < p < 1.0 or not 0.0 < lg < 1.0:
+        return p
+    ml = min(max(m * lg, 1e-9), 1.0 - 1e-9)
+    ratio = (ml / (1.0 - ml)) / (lg / (1.0 - lg))
+    o = (p / (1.0 - p)) * ratio
+    return o / (1.0 + o)
+
+
 # ── the plate appearance ───────────────────────────────────────────────
 #
 # Outcomes are drawn in a fixed order — strikeout, walk, home run, then
@@ -673,28 +704,45 @@ def pa_outcome(
     # The SAME two rates that were just drawn, or the rescale corrects for
     # a draw that never happened and every rate below comes out biased.
     cond = 1.0 - sac_r - hbp_r
-    k = log5(b.k_pct, p_k, lgm["k_pct"]) * pk["k"] * b.arsenal_k_mult / cond
-    k = min(max(k, 1e-6), 0.95)
+    # `/ cond` is NOT a modelling multiplier and stays as division: it is a
+    # conditional-probability renormalisation, P(K | not sac, not hbp), and
+    # it cannot exceed 1 because a strikeout is disjoint from both.
+    k = odds_mult(log5(b.k_pct, p_k, lgm["k_pct"]),
+                  pk["k"] * b.arsenal_k_mult, lgm["k_pct"]) / cond
     if rng.random() < k:
         return K
 
     # Remaining probabilities are conditional on not having struck out, so
     # each is rescaled by what is left rather than used as a raw PA rate.
+    #
+    # ONE CLAMPING POLICY, APPLIED THE SAME WAY TO EVERY BRANCH: a rate may
+    # not exceed the probability mass still unallocated. Without it a walk
+    # rate above what remained fired every time AND drove `rest` negative,
+    # so the `rest > 0` guard below skipped home runs and balls in play
+    # entirely — the plate appearance could only return K, BB, SAC or HBP.
+    # No error, no clamp, no grid edge: a channel quietly went to zero,
+    # which is the one failure mode this project cannot detect downstream.
+    #
+    # It takes physically impossible inputs to reach (a .62 matchup
+    # strikeout rate alongside a .69 walk rate), which is why it never fired
+    # in 529,581 real plate appearances. Defined behaviour at impossible
+    # inputs still beats undefined behaviour at impossible inputs.
     rest = 1.0 - k
-    bb = log5(b.bb_pct, p_bb, lgm["bb_pct"]) / cond
+    bb = min(log5(b.bb_pct, p_bb, lgm["bb_pct"]) / cond, rest)
     if rest > 0 and rng.random() < bb / rest:
         return BB
 
     rest -= bb
-    hr = log5(b.hr_pct, p_hr, lgm["hr_pct"]) * hr_park * pk["hr"] \
-        * b.arsenal_mult / cond
+    hr = min(odds_mult(log5(b.hr_pct, p_hr, lgm["hr_pct"]),
+                       hr_park * pk["hr"] * b.arsenal_mult,
+                       lgm["hr_pct"]) / cond, rest)
     if rest > 0 and rng.random() < hr / rest:
         return HR
 
     # Ball in play. The arsenal multiplier applies here too: a mix this
     # hitter handles well produces harder contact, not just more homers.
-    babip = min(0.95, log5(b.babip, p_bab, lgm["babip"])
-                * pk["bip"] * b.arsenal_mult)
+    babip = odds_mult(log5(b.babip, p_bab, lgm["babip"]),
+                      pk["bip"] * b.arsenal_mult, lgm["babip"])
     if rng.random() >= babip:
         # A ball in play the defence should have converted and did not.
         # Drawn HERE rather than from the whole plate appearance because an
