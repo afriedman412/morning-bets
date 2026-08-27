@@ -1,0 +1,90 @@
+  19,924 starts with a faced-nine, 3,278 scored, shrink k=32, league babip 0.2871
+
+  batter K% split (vs L minus vs R), 148 hitters with 120+ each:
+    mean +0.0056  sd 0.0504  range -0.094 to +0.161
+    reversed (higher vs R): 72 of 148
+
+  === K (vs the k residual), shrink k=32
+  arm         weight        n        r       z   mean|x|     sd x  per start  ceiling
+  in-season   pa        3,207   -0.024    -1.3    0.0051   0.0065      0.142   +0.068
+  in-season   flat      3,207   -0.020    -1.1    0.0052   0.0065      0.143   +0.068
+              tail    1% -0.0159  99% +0.0182  max +0.0242   top-20%-by-|x| r -0.038 z -1.0
+              quints  -0.0095->+0.18  -0.0044->+0.06  -0.0013->+0.02  +0.0020->+0.17  +0.0083->-0.06  
+  strict-loo  pa        3,204   -0.022    -1.2    0.0051   0.0065      0.142   +0.068
+  strict-loo  flat      3,204   -0.018    -1.0    0.0052   0.0065      0.143   +0.068
+              tail    1% -0.0156  99% +0.0181  max +0.0249   top-20%-by-|x| r -0.046 z -1.2
+              quints  -0.0095->+0.19  -0.0044->+0.08  -0.0013->-0.05  +0.0020->+0.22  +0.0083->-0.08  
+  raw         pa        3,207   -0.019    -1.1    0.0065   0.0086      0.189   +0.090
+  raw         flat      3,207   -0.014    -0.8    0.0066   0.0088      0.193   +0.090
+              tail    1% -0.0224  99% +0.0256  max +0.0411   top-20%-by-|x| r -0.039 z -1.0
+              quints  -0.0121->+0.15  -0.0051->+0.07  -0.0015->+0.05  +0.0025->+0.11  +0.0111->-0.01  
+  prior       pa        3,136   +0.016    +0.9    0.0042   0.0058      0.118   +0.057
+  prior       flat      3,136   +0.017    +0.9    0.0042   0.0057      0.118   +0.057
+              tail    1% -0.0164  99% +0.0152  max +0.0345   top-20%-by-|x| r +0.003 z +0.1
+              quints  -0.0087->+0.03  -0.0032->-0.02  -0.0010->+0.14  +0.0013->+0.23  +0.0069->+0.01  
+
+  === BABIP (vs the h residual), shrink k=184
+  arm         weight        n        r       z   mean|x|     sd x  per start  ceiling
+  in-season   pa        3,070   +0.047    +2.6    0.0030   0.0038      0.055   +0.026
+  in-season   flat      3,070   +0.050    +2.8    0.0025   0.0033      0.047   +0.026
+              tail    1% -0.0073  99% +0.0094  max +0.0136   top-20%-by-|x| r +0.084 z +2.1
+              quints  -0.0051->-0.06  -0.0019->+0.11  +0.0001->+0.21  +0.0020->+0.31  +0.0054->+0.19  
+  strict-loo  pa        3,068   +0.047    +2.6    0.0030   0.0038      0.055   +0.026
+  strict-loo  flat      3,068   +0.049    +2.7    0.0025   0.0033      0.047   +0.026
+              tail    1% -0.0074  99% +0.0094  max +0.0140   top-20%-by-|x| r +0.075 z +1.9
+              quints  -0.0051->-0.07  -0.0019->+0.11  +0.0001->+0.20  +0.0020->+0.33  +0.0054->+0.17  
+  raw         pa        3,070   +0.049    +2.7    0.0087   0.0123      0.179   +0.085
+  raw         flat      3,070   +0.058    +3.2    0.0079   0.0114      0.165   +0.085
+              tail    1% -0.0238  99% +0.0362  max +0.0712   top-20%-by-|x| r +0.084 z +2.1
+              quints  -0.0145->-0.09  -0.0050->+0.07  -0.0000->+0.27  +0.0048->+0.27  +0.0179->+0.23  
+  prior       pa        2,925   -0.015    -0.8    0.0033   0.0044      0.060   +0.029
+  prior       flat      2,925   -0.018    -1.0    0.0029   0.0038      0.052   +0.029
+              tail    1% -0.0080  99% +0.0111  max +0.0173   top-20%-by-|x| r -0.017 z -0.4
+              quints  -0.0053->+0.15  -0.0017->+0.24  +0.0003->+0.16  +0.0023->+0.24  +0.0068->+0.03  
+
+  === HR (vs the hr residual), shrink k=160
+  arm         weight        n        r       z   mean|x|     sd x  per start  ceiling
+  in-season   pa        3,207   +0.025    +1.4    0.0013   0.0016      0.034   +0.040
+  in-season   flat      3,207   +0.023    +1.3    0.0013   0.0015      0.033   +0.040
+              tail    1% -0.0038  99% +0.0033  max +0.0058   top-20%-by-|x| r +0.032 z +0.8
+              quints  -0.0020->-0.04  -0.0002->-0.03  +0.0006->+0.03  +0.0014->+0.00  +0.0023->+0.01  
+  strict-loo  pa        3,204   +0.025    +1.4    0.0013   0.0016      0.034   +0.040
+  strict-loo  flat      3,204   +0.023    +1.3    0.0013   0.0015      0.033   +0.040
+              tail    1% -0.0039  99% +0.0033  max +0.0057   top-20%-by-|x| r +0.023 z +0.6
+              quints  -0.0020->-0.04  -0.0002->-0.04  +0.0006->+0.03  +0.0014->+0.02  +0.0023->+0.02  
+  raw         pa        3,207   +0.016    +0.9    0.0025   0.0034      0.074   +0.086
+  raw         flat      3,207   +0.014    +0.8    0.0025   0.0034      0.074   +0.086
+              tail    1% -0.0095  99% +0.0085  max +0.0189   top-20%-by-|x| r +0.032 z +0.8
+              quints  -0.0045->-0.03  -0.0005->-0.05  +0.0010->+0.06  +0.0022->-0.02  +0.0044->+0.01  
+  prior       pa        3,136   +0.029    +1.6    0.0010   0.0012      0.025   +0.029
+  prior       flat      3,136   +0.029    +1.7    0.0010   0.0012      0.024   +0.029
+              tail    1% -0.0033  99% +0.0026  max +0.0051   top-20%-by-|x| r +0.062 z +1.6
+              quints  -0.0015->-0.05  +0.0000->-0.01  +0.0006->+0.01  +0.0011->-0.01  +0.0018->+0.04  
+
+  === COMBINED, the three channels as one run adjustment
+  arm               n        r       z   sd runs  ceiling
+  in-season     3,070   +0.031    +1.7     0.062   +0.031
+  strict-loo    3,068   +0.033    +1.8     0.062   +0.031
+  raw           3,070   +0.030    +1.7     0.136   +0.069
+  prior         2,925   +0.006    +0.3     0.050   +0.025
+
+  === EARNED RUNS, each channel's adjustment against a_er - m_er
+  channel     arm               n        r       z
+  k           in-season     3,207   -0.023    -1.3
+  k           strict-loo    3,204   -0.025    -1.4
+  k           raw           3,207   -0.028    -1.6
+  k           prior         3,136   -0.033    -1.9
+  babip       in-season     3,070   +0.025    +1.4
+  babip       strict-loo    3,068   +0.027    +1.5
+  babip       raw           3,070   +0.025    +1.4
+  babip       prior         2,925   -0.023    -1.2
+  hr          in-season     3,207   +0.016    +0.9
+  hr          strict-loo    3,204   +0.016    +0.9
+  hr          raw           3,207   +0.013    +0.7
+  hr          prior         3,136   +0.013    +0.8
+
+  x is how far handedness moves the LINEUP's rate off the
+  overall rate the model actually fed the simulator. `per start`
+  is one standard deviation of that in events, over the
+  denominator the start really took — the size of the correction
+  on the table, before asking whether it points the right way.

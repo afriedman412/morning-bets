@@ -111,3 +111,7 @@ scratchpad/august_rows.json
 
 # Simulated draws kept for querying; regenerate with scratchpad/bets.py
 scratchpad/sims/
+# Per-batter handedness splits, 15 MB, rebuilt from the play-by-play cache
+# in a few minutes by scratchpad/platoon_bat.py. Delete it to force a
+# rebuild after changing the shape of a counts cell.
+scratchpad/bat_splits.json

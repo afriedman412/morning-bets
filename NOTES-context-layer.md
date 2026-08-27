@@ -3298,3 +3298,81 @@ WHERE TYPING KEEPS A CLAIM, both untested:
      decays within a start. Times through the order is currently ONE
      league-wide curve, and whether a contact pitcher fades differently from
      a flamethrower is a separate question history cannot answer.
+
+---
+
+## Day thirteen — handedness, the other channel, and a magnitude result
+
+Pre-registered in RESUME the night before and run first thing:
+`scratchpad/platoon_bat.py`, full output in `scratchpad/platoon_bat.out`.
+Per-plate-appearance `batSide`/`pitchHand` over 9,962 games, four seasons.
+
+THE CONSTRUCTION. Per start, the opposing lineup's rate recomputed from each
+batter's record against THIS STARTER'S HAND, minus the same lineup's rate
+from their overall numbers — the amount a handedness-aware model would move
+the start — correlated against the residual the model already leaves.
+Switch hitters need no special case because the split is keyed on the
+PITCHER'S hand, so a switch hitter's "vs LHP" cell is his right-handed
+record, which is what he will actually do.
+
+Four arms: `in-season` (2026 splits, the start's own plate appearances
+removed), `strict-loo` (the batter's WHOLE GAME removed, either hand),
+`raw` (unshrunk, to bound how much the shrink absorbs), `prior` (2023-25
+only, no leak by construction and what a model would hold in March).
+
+    channel   in-season   strict-loo   raw     prior    per start   ceiling
+    k          -1.3        -1.2        -1.1    +0.9     0.142 K     +0.068
+    babip      +2.6        +2.6        +2.7    -0.8     0.055 H     +0.026
+    hr         +1.4        +1.4        +0.9    +1.6     0.034 HR    +0.040
+    COMBINED   +1.7        +1.8        +1.7    +0.3     0.062 runs  +0.031
+
+STRIKEOUTS ARE DEAD WITH POWER, and that is the channel the live-board case
+was about. A perfect correction scores r +0.068, z ~3.8. Measured -0.024,
+wrong-signed on every in-season arm, flat across quintiles, dead in the
+top-20%-by-|x| tail.
+
+THE COMBINED RESULT IS NOT A NULL AND SHOULD NOT BE FILED AS ONE. All three
+channels as one linear-weights run adjustment move a start by 0.062 runs of
+standard deviation, and the measured r EQUALS ITS OWN CEILING: +0.031
+against +0.031. z +1.7 is the MOST a mechanism this size can score at
+n=3,070. Handedness is real, correctly signed on contact, and sits at the
+leverage floor where this project cannot distinguish it from nothing.
+
+That distinction matters for the dead list. Handedness has now been killed
+three times — the shipped A/B, the pitcher-side screen, and this — but only
+the third is durable. The first two were MIS-SPECIFIED, and a null is only
+as good as the channel it tested. This one is a MAGNITUDE result: it does
+not say the effect is absent, it says the effect is 0.06 runs. Re-open it
+only if the leverage floor moves or the residual gets much quieter, not on
+a cleverer mechanism.
+
+AND IT WOULD BE STRUCTURAL WORK. The hand changes when the sim swaps
+pitchers, so handedness is a per-plate-appearance lookup against the current
+arm, not a per-lineup adjustment applied once. That is the same shape as the
+team-defence correction and it is not worth building for 0.06 runs.
+
+### The leak, again, and what finally guards it
+
+The `strict-loo` arm first reported **+6.2 sigma** on BABIP and +5.3 on HR —
+the arm that removes MORE data scoring higher than the one that removes
+less, which is arithmetically impossible for a real effect. It was
+subtracting nothing. `game`'s batter-id keys stayed ints while `faced` was
+normalised to strings, so every lookup missed and the start sat inside its
+own predictor. Three plate appearances out of four hundred, perfectly
+correlated with the outcome, doubled the correlation.
+
+This is the third time this project has produced a several-sigma finding out
+of a start being inside its own predictor (`headroom.py` at 112% of a
+perfect forecaster, `platoon_split` at +4.8 before leave-one-out and +1.2
+after). The general form: **a leave-one-out that silently removes nothing is
+indistinguishable from a discovery.** `arm` now raises when misses outnumber
+hits rather than reporting a number.
+
+The diagnostic that caught it is worth keeping: MORE EXCLUSION SHOULD NEVER
+RAISE THE SCORE. When a stricter arm beats a looser one, the stricter arm is
+broken.
+
+Second guard from the same run: the three channels drop different rows —
+babip needs balls in play where k and hr need plate appearances — so the
+combine refused to zip them and now joins on the start key. It printed the
+mismatch rather than silently producing a fourth number.

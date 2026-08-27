@@ -381,62 +381,84 @@ roster spots moved a headline edge by half. Worth building: treat the
 projected lineup as an uncertainty to be propagated rather than an input to
 be trusted, and flag any edge whose size depends on unconfirmed names.
 
-## HANDEDNESS IS NOT DEAD — I SCREENED THE WRONG CHANNEL. START HERE.
+## HANDEDNESS, BOTH CHANNELS, SCREENED AND CLOSED (2026-08-27)
 
-**THIS IS THE FIRST THING TO DO NEXT.** The day-twelve screen that killed
-handedness measured ONE of its two channels and the Toronto card exposed the
-other on a live board.
+The day-twelve screen measured ONE of handedness's two channels. The Toronto
+card exposed the other on a live board, so it was pre-registered and run.
+Both are now measured on exact per-plate-appearance splits over 9,962 games.
+`scratchpad/platoon_bat.py`, output in `scratchpad/platoon_bat.out`.
 
     PITCHER SIDE  does THIS PITCHER have a platoon split, applied to the
-                  mix he faces. `scratchpad/platoon_split.py`. Genuinely
-                  small — +1.2 sigma, 0.046 K per start, leave-one-out —
-                  because 42 of 91 starters have REVERSED splits and the
-                  population cancels. That result stands.
+                  mix he faces. `scratchpad/platoon_split.py`. +1.2 sigma,
+                  0.046 K per start — 42 of 91 starters have REVERSED
+                  splits and the population cancels. That result stands.
 
-    BATTER SIDE   does THIS HITTER strike out more against a lefty.
-                  NEVER SCREENED. This is the channel the old
-                  `USE_HANDEDNESS` used, and it is where the effect is.
+    BATTER SIDE   does THIS HITTER strike out more against a lefty, keyed
+                  on the PITCHER'S hand so switch hitters fall out for
+                  free. Three channels, four arms, scored against its own
+                  residual AND against earned runs.
 
-Toronto's real card against the left-handed Noah Cameron, per batter:
+**THE STRIKEOUT CHANNEL IS DEAD, AND THIS TIME THE TEST HAD POWER.** A
+perfect correction could score r +0.068 (z ~3.8); measured r is -0.024
+(z -1.3), WRONG-SIGNED on all four arms, flat across quintiles, dead in the
+tail. The prior-season arm agrees at +0.9. This is the channel the Cameron
+case was about and it does not survive.
 
-    batter                 vsLHP   ours(overall)    diff
-    Alejandro Kirk          17.8            11.7    +6.1
-    Charles McAdoo          37.1            25.9   +11.2
-    Daz Cameron             28.6            24.0    +4.6
-    Myles Straw             18.1            15.0    +3.1
-    ...
-    simple mean             21.69           18.69   +3.00 pp
+**THE CONTACT CHANNELS ARE RIGHT-SIGNED AND TOO SMALL TO RESOLVE.**
 
-Seven of nine strike out MORE against a lefty and the lineup mean moves
-18.69% -> 21.69%, a 16% relative jump. **Cameron's expected strikeouts go
-4.19 -> roughly 4.8, which puts o4.5 near 0.55 — the market's number. The
-entire remaining edge on the biggest disagreement of the day is handedness.**
+    channel   in-season   strict-loo   raw     prior    per start
+    k          -1.3        -1.2        -1.1    +0.9     0.142 K
+    babip      +2.6        +2.6        +2.7    -0.8     0.055 H
+    hr         +1.4        +1.4        +0.9    +1.6     0.034 HR
+    COMBINED   +1.7        +1.8        +1.7    +0.3     0.062 runs
+
+Home runs are positive on every arm and significant on none. BABIP reads
++2.6 in-season and FLIPS to -0.8 out of sample. Against EARNED RUNS every
+one of the twelve cells sits inside |z| 1.9 with inconsistent signs.
+
+**THE COMBINED NUMBER IS THE ONE TO REMEMBER, AND IT IS NOT A NULL — IT IS
+AN UNRESOLVABLE QUESTION.** All three channels as one linear-weights run
+adjustment move a start by 0.062 runs of standard deviation, and the
+measured r of +0.031 EQUALS ITS OWN CEILING. z +1.7 is the most a mechanism
+that size can score at n=3,070. Handedness is real, correctly signed on
+contact, and sits at the leverage floor (~0.05 runs) where this project
+cannot tell it from nothing. Wiring it in would also be structural work —
+the hand changes when the sim swaps pitchers, so it is a per-plate-appearance
+lookup, not a per-lineup one. Not worth it for 0.06 runs.
+
+RECONCILING THE CAMERON CASE, because the anecdote was real: the lineup
+shift exists. The 99th-percentile card moves 1.8 K-points shrunk and the
+largest measured moved 3.6 raw — about +0.5 K on a start. What the screen
+says is that the DIRECTION of that shift carries no information about how
+many strikeouts actually happened. The +0.6 K I would have added to Cameron
+was not justified.
 
 BEWARE THE AGGREGATION, which is how this was nearly missed twice. The
-PA-weighted vs-LHP figure is 18.69% and coincidentally equals our
-simple-mean overall figure, which makes handedness look like exactly zero.
-The SIM weights the nine roughly equally, so SIMPLE MEAN is the comparison
-that matters and it is +3.00 pp.
+PA-weighted vs-LHP figure coincidentally equals our simple-mean overall
+figure, making handedness look like exactly zero. The sim weights the nine
+roughly equally, so SIMPLE MEAN is the comparison that matters.
 
-WHY THE OLD `USE_HANDEDNESS` NULL DOES NOT SETTLE IT: it used DERIVED splits
-— a batter's whole game line credited to the opposing starter's hand,
-relievers included, then pulled halfway back by `SPLIT_STABILISE` — on the
-two-engine setup. Its own docstring names the test that would separate an
-attenuated derivation from a real null: exact splits. Play-by-play now
-carries real `batSide`/`pitchHand` on every plate appearance across 9,962
-games.
+**TWO BUGS THE RUN SURFACED, BOTH NOW GUARDED IN THE SCRIPT.**
 
-THE SCREEN TO RUN, and it is cheap: per start, recompute the opposing
-lineup's rates using true vs-hand batter splits, take the difference from
-the overall-rate version, and correlate that against the K residual over all
-3,278 starts. LEAVE-ONE-OUT from the start — the pitcher-side screen
-reported +4.8 sigma before the start was removed from its own predictor and
-+1.2 after.
+1. The strict leave-one-out arm reported **+6.2 sigma** on BABIP and +5.3 on
+   HR. It was subtracting NOTHING: `game`'s batter-id keys stayed ints while
+   `faced` was normalised to strings on the JSON round trip, so every lookup
+   missed and the start sat inside its own predictor. That is the exact leak
+   signature `platoon_split` documented (+4.8 -> +1.2). A leave-one-out that
+   silently removes nothing is indistinguishable from a discovery, so `arm`
+   now RAISES when misses outnumber hits.
+2. The three channels drop different rows — babip needs balls in play where
+   k and hr need plate appearances. The combine refused rather than zipping
+   misaligned lists, and now joins on the start key.
 
-**AND NOTE WHAT THIS SAYS ABOUT THE DEAD LIST GENERALLY.** Handedness was
-killed twice, once by the shipped A/B and once by my screen, and both times
-the mechanism was mis-specified rather than absent. A null is only as good
-as the channel it tested.
+**WHAT THIS SAYS ABOUT THE DEAD LIST.** Handedness was killed three times
+now: the shipped A/B, the pitcher-side screen, and this. The first two were
+mis-specified — a null is only as good as the channel it tested — and
+re-opening was right. The third is a MAGNITUDE result, which is a different
+and more durable kind of dead: it does not say the effect is absent, it says
+the effect is 0.06 runs and this sample cannot see 0.06 runs. Do not
+re-open it on a better mechanism; re-open it only if the leverage floor
+moves or the residual gets much quieter.
 
 **DECLINES WORKED AS DESIGNED.** BAL/STL declined twice over: first no
 announced starter, then a named starter (Cooper Hjerpe) with ZERO
