@@ -65,16 +65,19 @@ def _amplify(pairs, amp: float) -> int:
     return n
 
 
-def arsenal_arm(kind, n_sims, salts, lg, workers=8):
-    """Score one arsenal configuration on the starters' own lines."""
+def build_pairs(kind, lg):
+    """Cases for one arsenal SOURCE. Slow — `arsenal_mults` projects ~18
+    Savant matchups per start over 3,300 starts inside `build_cases`, which
+    is minutes. Built once per source and reused, because rebuilding it per
+    ARM is what made the first version look like it had hung."""
     cal.USE_ARSENAL = kind != "off"
-    season = 2025 if kind == "prior" else SCORE_SEASON
     real = None
     if kind == "prior":
         # The pitcher's PREVIOUS season's arsenal, which cannot contain the
-        # start being scored. Savant serves per-season, so this is the one
-        # leak-free construction available — the `before` cutoff does not
-        # help, because the blob is season-to-date whenever it is fetched.
+        # start being scored. The `before` cutoff does not help: the Savant
+        # blob is season-to-date whenever it is fetched, which is the leak
+        # `arsenal_screen.py` reasons away in a docstring instead of
+        # removing. Both seasons are on disk.
         from src import panel
         real = panel.savant_pitcher_arsenal
         panel.savant_pitcher_arsenal = (
@@ -82,43 +85,43 @@ def arsenal_arm(kind, n_sims, salts, lg, workers=8):
     try:
         cal._CASES.clear()
         pairs = cal.paired_cases(season=SCORE_SEASON)
-        touched = 0
-        if kind.startswith("x"):
-            touched = _amplify(pairs, float(kind[1:]))
-        elif kind != "off":
-            touched = sum(1 for _g, (a, h) in pairs.items()
-                          for c in (a, h) for b in c[2]
-                          if b.arsenal_mult != 1.0)
+        touched = sum(1 for _g, (a, h) in pairs.items()
+                      for c in (a, h) for b in c[2]
+                      if b.arsenal_mult != 1.0 or b.arsenal_k_mult != 1.0)
         if kind != "off" and touched == 0:
-            raise SystemExit(f"{kind}: NO multiplier was attached — the arm "
-                             f"is identical to `off` and its result is "
+            raise SystemExit(f"{kind}: NO multiplier attached — the arm is "
+                             f"identical to `off` and its result would be "
                              f"plumbing, not a null")
-        hd._PAIRS = [(g, a, h) for g, (a, h) in sorted(pairs.items())]
-        hd._LG, hd._PENS = lg, rate_src.bullpens(lg)
-        n = len(hd._PAIRS)
-        step = max(1, n // (workers * 2))
-        jobs = [(lo, min(lo + step, n), n_sims, salt)
-                for salt in salts for lo in range(0, n, step)]
-        import multiprocessing as mp
-        with mp.get_context("fork").Pool(workers) as pool:
-            out = pool.map(hd._chunk, jobs)
-        k = len(jobs) // len(salts)
-        per_salt = []
-        for i in range(len(salts)):
-            acc = {c: [0.0, 0.0, 0] for c in CHANNELS}
-            for a in out[i * k:(i + 1) * k]:
-                for c in CHANNELS:
-                    for j in range(3):
-                        acc[c][j] += a[c][j]
-            per_salt.append({c: (acc[c][0] / acc[c][2], acc[c][1] / acc[c][2])
-                             for c in CHANNELS})
-        return len(pairs), touched, per_salt
+        return pairs, touched
     finally:
         if real is not None:
             from src import panel
             panel.savant_pitcher_arsenal = real
         cal.USE_ARSENAL = False
         cal._CASES.clear()
+
+
+def score(pairs, n_sims, salts, lg, workers=8):
+    hd._PAIRS = [(g, a, h) for g, (a, h) in sorted(pairs.items())]
+    hd._LG, hd._PENS = lg, rate_src.bullpens(lg)
+    n = len(hd._PAIRS)
+    step = max(1, n // (workers * 2))
+    jobs = [(lo, min(lo + step, n), n_sims, salt)
+            for salt in salts for lo in range(0, n, step)]
+    import multiprocessing as mp
+    with mp.get_context("fork").Pool(workers) as pool:
+        out = pool.map(hd._chunk, jobs)
+    k = len(jobs) // len(salts)
+    per_salt = []
+    for i in range(len(salts)):
+        acc = {c: [0.0, 0.0, 0] for c in CHANNELS}
+        for a in out[i * k:(i + 1) * k]:
+            for c in CHANNELS:
+                for j in range(3):
+                    acc[c][j] += a[c][j]
+        per_salt.append({c: (acc[c][0] / acc[c][2], acc[c][1] / acc[c][2])
+                         for c in CHANNELS})
+    return per_salt
 
 
 def main(argv):
@@ -128,19 +131,35 @@ def main(argv):
     print(f"  starters' own lines, {SCORE_SEASON} starts")
     print(f"  {n_sims} sims x {len(salts)} salts, paired\n")
 
+    import copy
     res = {}
+    order = []
     for kind, label in (("off", "off"), ("in", "arsenal 2026"),
-                        ("prior", "arsenal 2025"), ("x4", "arsenal x4")):
-        ngames, touched, per_salt = arsenal_arm(kind, n_sims, salts, lg)
-        res[label] = per_salt
-        rps = {c: st.mean(s[c][1] for s in per_salt) for c in CHANNELS}
-        print(f"  {label:<14}{ngames:>5} games  {touched:>6,} mults   "
-              + "  ".join(f"{c} {rps[c]:.4f}" for c in CHANNELS))
+                        ("prior", "arsenal 2025")):
+        pairs, touched = build_pairs(kind, lg)
+        res[label] = score(pairs, n_sims, salts, lg)
+        order.append(label)
+        rps = {c: st.mean(s_[c][1] for s_ in res[label]) for c in CHANNELS}
+        print(f"  {label:<14}{len(pairs):>5} games  {touched:>6,} mults   "
+              + "  ".join(f"{c} {rps[c]:.4f}" for c in CHANNELS), flush=True)
+        if kind == "in":
+            # THE POSITIVE CONTROL, off the SAME cases so it costs no rebuild.
+            # If a 4x arsenal effect is invisible then every arsenal null ever
+            # recorded here is uninformative, and there are eight of them.
+            amp = copy.deepcopy(pairs)
+            t4 = _amplify(amp, 4.0)
+            res["arsenal x4"] = score(amp, n_sims, salts, lg)
+            order.append("arsenal x4")
+            rps = {c: st.mean(s_[c][1] for s_ in res["arsenal x4"])
+                   for c in CHANNELS}
+            print(f"  {'arsenal x4':<14}{len(amp):>5} games  {t4:>6,} mults   "
+                  + "  ".join(f"{c} {rps[c]:.4f}" for c in CHANNELS),
+                  flush=True)
 
     print(f"\n  RPS vs off, paired by salt (NEGATIVE is better):")
     print(f"  {'arm':<14}" + "".join(f"{c:>18}" for c in CHANNELS))
     base = res["off"]
-    for label in ("arsenal 2026", "arsenal 2025", "arsenal x4"):
+    for label in [x for x in order if x != "off"]:
         cells = []
         for c in CHANNELS:
             d = [b[c][1] - a[c][1] for a, b in zip(base, res[label])]

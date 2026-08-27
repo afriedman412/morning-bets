@@ -4212,3 +4212,91 @@ fatigue effect, and a real one would not change sign to suit the feature.
 
 Schedule burden is closed: no distance, no time zone, no getaway day, no
 stretch, on either the level or the variance.
+
+### Is anyone harder to predict? No — and that closes the dispersion lead
+
+Asked directly: are there pitchers or teams we get more wrong than others?
+`scratchpad/whos_wrong.py`, split-half on odd against even starts,
+Spearman-Brown corrected, scored on EARNED RUNS.
+
+    population  metric                 n   half r   full r
+    pitcher     BIAS  mean residual  107   -0.006   -0.011
+    pitcher     DISP  mean |resid|   107   +0.037   +0.072
+    pitcher     DISP  sd of resid    107   +0.059   +0.112
+    club        BIAS  mean residual   30   +0.171   +0.292
+    club        DISP  mean |resid|    30   -0.119   -0.271
+
+**NOTHING REPEATS.** There IS spread — mean |residual| runs 1.19 at the 10th
+percentile to 1.91 at the 90th across pitchers — but the same arms are not
+hard next time. Club dispersion comes back NEGATIVE, which is what noise
+looks like, and club bias at +0.171 on n=30 is z 0.9.
+
+Properly powered: at n=107 a half-length reliability of 0.19 (full ~0.32)
+would have shown at 2 sigma. Measured 0.037. And anything below that would
+shrink to the league mean anyway, which IS the flat term already measured
+neutral on CRPS.
+
+**SO "VARY THE DISPERSION BY PITCHER" IS CLOSED**, and it was the top
+remaining lead out of the under-dispersion diagnosis. Whatever makes a start
+blow up is not a property of the pitcher that persists.
+
+### The model UNDER-DIFFERENTIATES starts — but it is not exploitable
+
+`scratchpad/spread_cal.py` regresses ACTUAL on PREDICTED. Slope 1.0 means
+the spread of predictions is right; above 1 means they are too bunched.
+
+`m_*` is a MONTE CARLO MEAN over 40 draws, so it carries its own sampling
+noise, and noise in a regression PREDICTOR attenuates the slope. That
+correction is not optional here — on earned runs the noise is 55% of the
+predictor's variance:
+
+    channel   sd(pred)  MC sd  sd(true)  raw b  TRUE b  z vs 1
+    er           0.392  0.290     0.263  0.594   1.317    +1.6
+    h            0.587  0.328     0.487  0.942   1.370    +3.9
+    hr           0.159  0.129     0.093  0.878   2.588    +5.7
+    bb           0.442  0.200     0.394  0.979   1.232    +3.8
+    k            1.133  0.317     1.088  1.063   1.153    +4.3
+    outs         1.248  0.602     1.094  1.209   1.575    +8.5
+
+**EVERY CHANNEL IS ABOVE 1.** Reality separates starts 15% more than the
+model does on strikeouts, 37% on hits, 57% on outs, 2.6x on home runs. Trust
+the SMALL corrections most — strikeouts (x1.08) and walks (x1.26) barely move
+and still land at +4.3 and +3.8 sigma. Home runs need a x2.9 correction so
+2.588 is the softest number there, but its direction agrees.
+
+UNCORRECTED, EARNED RUNS READ 0.594 AND SAY THE OPPOSITE — that the model
+over-separates. Reporting that would have been a confident sign error. The
+tell was in the data: `p_er` moves in steps of 0.025, which is 1/40.
+
+**BUT IT IS NOT EXPLOITABLE BY RESCALING.** Fit the slope on the early half
+and apply it to the later half and MSE moves -1.43% to +0.70%, mixed signs.
+The reason the two facts agree: the DELIVERED predictions carry the Monte
+Carlo noise, and noise WIDENS what shrinkage NARROWED, so the raw slopes are
+already near 1 (h 0.986, hr 0.997, k 0.982). The underlying model is too
+bunched; its output is not.
+
+The compression is where shrinkage lives — the batter table shows the model
+carrying 0.89 of observed strikeout spread, 0.73 on home runs, 0.57 on
+BABIP, and pitcher home-run rates use k=934, so a 600-batter pitcher keeps
+39% of his own number. Closing it needs more SIGNAL, not rescaling.
+
+**AND A NOTE THAT PROTECTS EVERY OTHER SCREEN RUN TODAY.** This Monte Carlo
+noise is 55% of the PREDICTOR's variance and only ~2% of the RESIDUAL's
+(0.084 against 4.0), because the residual is dominated by real outcome
+variance. So residual correlations — handedness, arsenal, schedule, travel —
+are attenuated by under 1% and stand as measured. The two are different
+denominators and it matters which one is being asked about.
+
+### Per-batter run share is NOT ANSWERABLE without a state-machine change
+
+Asked: is the offense distributed across hitters correctly — should Judge not
+take a bigger share? `sim.apply_pa` does not know which batter is up and
+`fr.bases` carries booleans, not runner identity, so no run can be attributed
+to whoever drove it in. Answering it means giving the bases identity, which
+is a real change to the state machine and is recorded rather than guessed at.
+
+What IS measurable is the INPUT spread, and it matches the shipped shrinkage
+constants almost exactly (model/raw: k 0.887, bb 0.742, hr 0.733, babip
+0.570 against STABILISE-implied weights at 250 plate appearances of 0.887,
+0.758, 0.610, 0.576). Consistent, so the flattening is the configured amount
+rather than a bug.
