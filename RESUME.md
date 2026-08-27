@@ -1,3 +1,75 @@
+# BEFORE YOU START — read this or you will redo work
+
+## WHAT IS RUNNING RIGHT NOW (do not restart it)
+
+`scratchpad/load_rest.sh`, chained in one background job:
+
+    2023 season load  ->  play-by-play backfill  ->  real pitch counts
+
+    check it:   tail -3 scratchpad/load_rest.out
+    done when:  it prints "=== HISTORY LOAD COMPLETE ==="
+
+The pbp and pitch-count passes take their work list from the `games` table,
+so they cover 2024 AND 2023 with no argument. Nothing needs adding.
+
+## DATA STATE
+
+    2026  2,079 games (season in progress)
+    2025  2,639 games, complete + postseason
+    2024  2,639 games, complete          235 dates, 0 failed
+    2023  loading
+
+`.cache/pbp` ~1 GB and climbing. Backups of the pipeline DB before each
+load: `/tmp/morning_bets_backup_pre2025.db`, `..._pre2024.db`.
+
+## PARALLELISATION — WHAT IS AND IS NOT, AND WHY
+
+**The season load is SEQUENTIAL ON PURPOSE. Do not "optimise" it.**
+`season.py` says so in its own docstring — it is somebody's free public API.
+More importantly a second writer against SQLite would collide, and
+`backfill` COUNTS A LOCK COLLISION AS A FAILED DATE AND SKIPS IT. That
+leaves silent gaps that look exactly like a completed load. ~14s per date,
+~50 min per season.
+
+**Everything else already forks and does not need work:**
+
+    pbp / pitches backfill    8 workers (network-bound)
+    tests/run.py              one process per check, 95s -> 35s
+    score_boundary, memory    fork over games, cpu_count-1
+    fit_boundary              one pass, ~5 min over 4,663 games
+
+Fork, never spawn. A spawned child re-imports at DEFAULT globals and every
+`USE_*` flag silently reverts.
+
+## TOOLS BUILT TODAY — CHECK HERE BEFORE WRITING ONE
+
+    memory.py           3 arms (none/pool/prior) x 2 cuts, on outs, K,
+                        game totals and F5. THE main experiment.
+    season_hook.py      do managers pull the same way across seasons
+    preseason_test.py   preseason rank vs the leash residual, any season
+    preseason_ranks.py  2025 + 2026 lists, transcribed with provenance
+    reputation.py       career/awards vs the residual
+    qualitative.py      prior-season IP, budget, rookie, age
+    rank_starters.py    stat-line rank vs prior outs
+    yesterday.py        one slate vs actuals AND vs Kalshi close
+    score_boundary.py   legacy/linear/knee/shipped, paired seeds
+    fit_boundary_nl.py  linear vs quad vs hinge forms
+    scope_baseline.py   digests every season-sensitive number
+    battery.sh          the whole re-measurement, unattended
+
+## QUESTIONS ALREADY ANSWERED — DO NOT RE-RUN
+
+* Does more data fix outs? NO. Memory, and 89,983 hook decisions.
+* Does it reach game totals? NO. Inside noise on RMSE 4.5.
+* Do managers pull the same in 2025 and 2026? YES, on matched calendar.
+* Stat-line rank, career record, awards, workload, rookie status vs the
+  leash? ALL absorbed by the pitcher's own recent innings.
+* Preseason rank gradient? DEAD on 2025. Headline correlation replicates.
+* Boundary knee? Better per decision, worse on what settles. Ships inert.
+* K% shrinkage constants? Tested, no change needed.
+
+---
+
 # Resume here — state as of 2026-08-26 (day ten)
 
 ## WHAT CHANGED TODAY, IN ONE LINE
