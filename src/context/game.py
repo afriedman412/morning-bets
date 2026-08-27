@@ -199,11 +199,18 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
         # lineup pass, and passing 1 for him would hand every arm out of the
         # bullpen a 1.105 strikeout bonus.
         tto = None if side.starter_out else side.line.batters // 9 + 1
+        # LAZY, PER SLOT. Resolving all nine on every arm change built ~90
+        # matchups a game against ~76 plate appearances — MORE objects than
+        # the per-PA version it replaced, and measured 23% slower. A
+        # reliever who faces three batters needs three, not nine.
         if side._mups_for is not side.current:
-            side._mups = [sim.resolve(x, side.current, lg, park)
-                          for x in side.lineup]
+            side._mups = [None] * len(side.lineup)
             side._mups_for = side.current
-        o = sim.pa_from(side._mups[slot], rng, tto=tto)
+        mu = side._mups[slot]
+        if mu is None:
+            mu = side._mups[slot] = sim.resolve(
+                side.lineup[slot], side.current, lg, park)
+        o = sim.pa_from(mu, rng, tto=tto)
 
         before = side.cur_line.runs
         sim.apply_pa(o, side.cur_line, fr, rng)

@@ -620,9 +620,16 @@ def check_the_matchup_cache_rebuilds_when_the_arm_changes():
                                     "babip": 0.30, "apps": 40}],
                            bats, None, rng)
 
+    def _resolved(sd):
+        """The slots actually faced. Resolution is LAZY — a reliever who
+        sees three batters builds three matchups, not nine — so unfaced
+        slots are legitimately None."""
+        return [m for m in sd._mups if m is not None]
+
     game._half_inning(side, lg, rng, 1, 0, None)
     assert side._mups_for is side.current, "cache never populated"
-    first = side._mups[0].p_k
+    assert _resolved(side), "nothing was resolved"
+    first = _resolved(side)[0].p_k
 
     # Same arm: the resolved objects must be REUSED, not rebuilt.
     same = side._mups
@@ -634,5 +641,7 @@ def check_the_matchup_cache_rebuilds_when_the_arm_changes():
     assert side.current is not quiet, "the pen was never reached"
     game._half_inning(side, lg, rng, 3, 0, None)
     assert side._mups_for is side.current, "cache did not follow the change"
-    assert side._mups[0].p_k != first, (side._mups[0].p_k, first)
-    assert abs(side._mups[0].p_k - 0.45) < 1e-9, side._mups[0].p_k
+    got = _resolved(side)
+    assert got, "nothing resolved for the new arm"
+    assert got[0].p_k != first, (got[0].p_k, first)
+    assert abs(got[0].p_k - 0.45) < 1e-9, got[0].p_k

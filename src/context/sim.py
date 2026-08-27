@@ -660,7 +660,7 @@ def tto_mult(tto: int | None) -> dict | None:
     return TTO_MULT.get(min(max(tto, 1), 3))
 
 
-@dataclass
+@dataclass(slots=True)
 class Matchup:
     """EVERYTHING one plate appearance depends on, resolved in one place.
 

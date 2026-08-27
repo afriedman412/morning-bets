@@ -3873,3 +3873,21 @@ re-test: a new adjustment now touches `resolve` and nothing else. Nobody
 constructing a batter needs to know handedness or park or arsenal exist, and
 the three log5 terms sit on adjacent lines where conditioning one and not
 the others is visible rather than scattered across five layers.
+
+**AND IT COSTS 11%, WHICH CONTRADICTS WHAT WAS PREDICTED HERE.** The claim
+was that structure and speed pointed the same way. They do not. Best of
+seven over 2,000 games:
+
+    inline, per plate appearance   2.169s   (median 2.203)
+    resolved Matchup, lazy         2.414s   (median 2.435)
+
+The FIRST attempt was worse still at 2.761s, because resolving all nine on
+every arm change built ~90 matchups a game against ~76 plate appearances —
+MORE objects than the per-PA version it replaced, which is exactly the cost
+the old comment warned about. Lazy per-slot resolution plus `slots=True`
+recovered most of it: a reliever who faces three batters now builds three.
+
+11% is the price of the structure and it is worth paying, but it is a TRADE
+and not a free win. It also sits against `stop_after=5` from the same day,
+which made the F5 loop 1.66x faster — so the fit loop is still roughly 1.5x
+ahead of where the morning started.
