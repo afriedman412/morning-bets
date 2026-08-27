@@ -3675,3 +3675,57 @@ added. Right at the floor, so it is a judgement call rather than a free win.
 
 A check that reads source text and a check that never runs its own premise
 look identical from the outside — both pass, both green, both worthless.
+
+### Wild pitches and passed balls — the catcher half is closed, the level is not
+
+Raised as: catchers are dead for their effect on PITCHING, but what about
+passed balls? The framing null was measured on strikeouts and walks, which
+is what framing moves. BLOCKING is a different skill and had never been
+screened. Counted on 330,808 plate appearances with a runner aboard
+(`scratchpad/wp_pb.py`):
+
+    wild pitches  6,150  0.01785 per exposed PA
+    passed balls    863  0.00261 per exposed PA
+    combined             0.02046   (shipped WP_PB_RATE 0.0155, -24.3%)
+
+**THE CATCHER HALF IS CLOSED.** Passed balls are 12.8% of free-base
+advances; the pitcher owns 87% of them through wild pitches. A per-catcher
+blocking model works on an eighth of an already-small quantity — about 0.002
+runs. Not worth building, and that is now measured rather than assumed.
+
+**THE LEVEL IS 24.3% LIGHT, AND IT IS THE SAME BUG AS HIT-BY-PITCH.** The
+docstring derives 0.0155 from "0.0057 wild pitches per batter faced across
+2,070 starts" — STARTERS, from boxscores — then applies it to every arm.
+Third constant in one day measured on one population and used on another.
+
+Per-pitcher spread is real and persists: sd 0.01214, p10 0.00578 against p90
+0.03509 (a six-fold range), split-half +0.490 correcting to +0.657
+reliability. Leverage is 0.020 runs, under the floor, so the PER-ARM version
+is not worth wiring. The LEVEL is.
+
+**AND THE LEVEL CANNOT SIMPLY BE SET, WHICH IS THE INTERESTING PART.**
+`WP_PB_RATE` is a FITTED parameter — `fitf5.RULE_KEYS` and its grid — and
+the search pushed it DOWN to 0.0155 while reality is 0.0205. That direction
+is a diagnostic: the model appears to OVER-CONVERT free bases into runs, so
+the fit compensated by handing out fewer of them. Setting the measured value
+would expose whatever that was masking, and this is exactly the
+advance-without-a-hit channel that the 6% run shortfall lives in.
+
+Doing it properly means setting 0.0205 AND REMOVING IT FROM THE SEARCH —
+handing a measured quantity back to a fit is how it goes back to absorbing
+other defects, which is the standing rule. That is a protocol change, not a
+constant edit, so it is left as a decision rather than made quietly.
+
+Note also `check_grids`: every searched parameter's grid must contain its
+shipped value, so changing the constant without the grid silently freezes
+the parameter and reads as a genuine "no move". It already happened to this
+exact constant for two full runs.
+
+**A denominator was checked and it mattered less than expected.** The first
+version read `matchup.postOnFirst/postOnSecond/postOnThird` as the pre-play
+base state. "post" means AFTER, so it counted plate appearances that ENDED
+with a runner on rather than STARTED with one — the same misreading as
+`count.outs`. Rebuilt on `pbp.plays`, which reconstructs the state before
+each play, the answer moved 0.02036 -> 0.02046. Checking it was still right;
+the two sets happen to be nearly the same size and that could not be known
+in advance.
