@@ -355,6 +355,38 @@ same comparison shows the model still carries too much mass at 3-6 runs
 as a matter of bias, not information** — worth remembering before trusting
 an under lean.
 
+**THE LINEUP PROJECTION IS THE WEAKEST LINK IN THE PRICING PATH, and it is
+not modelled as a source of error anywhere.** Demonstrated on a live board.
+
+The biggest edge on 2026-08-27 was Noah Cameron unders against Toronto,
+built on a projected nine at 17.03% K against a 21.67% league. The user
+supplied the ACTUAL card: 18.69%. Two names of nine were wrong — we had
+Gimenez (19.2%) and Lukes (15.7%), the real card had Charles McAdoo (37.1%
+vs LHP) and Daz Cameron (28.6%), the two highest-strikeout bats on the sheet.
+
+    line    projected card    actual card    market
+    o3.5         0.543          0.622        0.710
+    o4.5         0.331          0.413        0.545
+    o5.5         0.174          0.239        0.345
+
+Cameron's expected strikeouts go 3.7 -> 4.19 and **HALF THE EDGE
+DISAPPEARS** — the gap at 4.5 falls from 21.4 points to 13.2. And that
+UNDERSTATES it: only the personnel could be corrected. The 18.69% is the
+vs-LHP split and the model uses overall rates with no handedness, while
+Cameron is a lefty facing eight right-handed bats holding the platoon edge.
+
+**Everything the modelling work touched today — the hook, BABIP, reliever
+rates — is worth less on a live board than getting the card right.** Two
+roster spots moved a headline edge by half. Worth building: treat the
+projected lineup as an uncertainty to be propagated rather than an input to
+be trusted, and flag any edge whose size depends on unconfirmed names.
+
+NOTE ALSO the handedness screen said the effect is ~0.06 K per start and
+that stands — it is a between-START average over a population where 42 of 91
+pitchers have REVERSED splits. It does NOT say handedness is negligible for
+ONE start with a one-sided lineup, which is a different quantity and is
+still unmeasured.
+
 **DECLINES WORKED AS DESIGNED.** BAL/STL declined twice over: first no
 announced starter, then a named starter (Cooper Hjerpe) with ZERO
 appearances in four seasons on disk. A debut is exactly where the market
