@@ -86,6 +86,55 @@ Fork, never spawn. A spawned child re-imports at DEFAULT globals and every
 SINGLES.** Decomposing the five ways to reach base localised it for the first
 time.
 
+## THE SINGLES GAP WAS A DENOMINATOR. FIXED, AND IT REACHED THE RUNS.
+
+`bip = outs_recorded + hits - K - HR` counts OUTS, and outs are not balls in
+play. A DOUBLE PLAY is one ball in play and TWO outs; a CAUGHT STEALING or
+pickoff is an out and no ball in play at all. Counted per play off
+play-by-play, matched on the same games (`scratchpad/babip_def.py`):
+
+    2026 starters   boxscore 57,079   counted 55,225   ratio 1.0336
+    2025 starters   boxscore 77,378   counted 74,898   ratio 1.0331
+    2025 relievers  boxscore 55,842   counted 54,125   ratio 1.0317
+
+**THE NUMERATOR IS EXACT** — 15,920 non-homer hits from both sources on the
+matched games — so it is purely the denominator. League BABIP 0.2778 against
+a counted 0.2883.
+
+**WHY IT SURFACED IN BABIP AND NOWHERE ELSE, and this is the transferable
+part.** The same inflation understates k_pct, bb_pct and hr_pct by ~2% too —
+but those are resolved through log5 AGAINST A LEAGUE MEASURED THE SAME WAY,
+so the error cancels in the ratio. **BABIP's LEVEL reaches the simulation as
+an absolute rate and does not cancel.** One error, visible in exactly one
+channel, which is why a decomposition found it and seven days of aggregates
+did not.
+
+    channel      before    after
+    1B            -4.9%    -1.7%
+    REACHED       -2.4%    -0.6%
+
+AND ON THE PRODUCT, paired, 1,152 sides (`scratchpad/bip_ab.py`):
+
+                       CRPS    runs     sd  shutout  5+ runs
+    boxscore bip    1.63754    2.30   2.19    22.9%    15.0%
+    counted bip     1.62634    2.37   2.23    22.1%    15.8%
+    ACTUAL                     2.44   2.32    21.9%    17.6%
+
+**CRPS -0.0112, and every column moves the right way at once** — which
+almost nothing here ever does. The run deficit HALVES (0.14 -> 0.07 per
+side), the under-dispersion narrows, shutouts land within 0.2 points, and
+the crooked-innings gap closes by a third after resisting everything all
+week.
+
+STILL OPEN in that table: hit-by-pitch 11% light, and sides scoring 5+ still
+1.8 points short — so some CLUSTERING is missing even with the traffic
+roughly right.
+
+**MATCH THE GAME SET WHEN COMPARING TWO SOURCES.** The boxscore is missing
+starter rows for 67 games of 2026. Compared unmatched, the 3.4% denominator
+inflation cancels against a 3.3% game shortfall and the ratio reads 1.001 —
+a real defect hidden by an unrelated one.
+
 ## READ THIS BEFORE THE TABLE BELOW — A CORRECTION TO IT
 
 The decomposition was first run at 300 games and reported as "the right

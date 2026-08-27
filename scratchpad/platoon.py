@@ -23,6 +23,19 @@ REAL HANDEDNESS, per plate appearance, off play-by-play — `batSide` and
 `pitchHand` as they actually were, switch-hitters included, rather than a
 season split derived and shrunk.
 
+SUPERSEDED IN PART — READ THIS. The first version measured only the LINEUP
+side: the share of batters with the platoon advantage, correlated against the
+residual. That is under-powered by construction, because it assumes every
+pitcher has the same size split. The real mechanism is an INTERACTION — a
+pitcher with a severe split facing a stacked lineup is a different case from
+one with no split facing the same lineup, and averaging over pitchers whose
+splits differ in size AND SIGN washes it out. The old `USE_HANDEDNESS`
+attempt had the mirror-image hole: it varied the BATTER's rates by the
+pitcher's hand and never modelled how big that pitcher's own split is.
+
+`scratchpad/platoon_split.py` runs the interaction version. This file is kept
+because the lineup-only null is still worth having on record.
+
 THE MEASURE is the share of batters faced who had the platoon ADVANTAGE
 (opposite hand to the pitcher). A league-average lineup runs near 0.55; a
 stacked one is well above. Correlated against the residual the model already

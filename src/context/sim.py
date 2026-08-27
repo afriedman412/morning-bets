@@ -109,7 +109,11 @@ def _starter_league(conn=None, before: str | None = None,
     if not r or not r["o"]:
         return None
     bf = (r["o"] or 0) + (r["h"] or 0) + (r["bb"] or 0)
-    bip = bf - (r["k"] or 0) - (r["bb"] or 0) - (r["hr"] or 0)
+    # Balls in play, not OUTS — see `rates.BIP_PER_OUT_UNIT`. The anchor and
+    # the pitcher rates have to use one denominator or log5 resolves a rate
+    # against a differently-measured league.
+    from src.context.sources import rates as _rt
+    bip = _rt.balls_in_play(bf, r["k"], r["bb"], r["hr"])
     return {
         "k_pct": (r["k"] or 0) / bf,
         "bb_pct": (r["bb"] or 0) / bf,

@@ -74,6 +74,49 @@ STABILISE_MEASURED = {
 USE_MEASURED_STABILISE = True
 
 
+#: Balls in play, from a boxscore, are OVERCOUNTED by this much.
+#:
+#: `bip = outs_recorded + hits - strikeouts - home runs` counts OUTS, and
+#: outs are not balls in play. A double play is one ball in play and TWO
+#: outs; a caught stealing or pickoff is an out and NO ball in play. Both
+#: inflate the denominator, which deflates BABIP.
+#:
+#: COUNTED PER PLAY off play-by-play, matched on the same games
+#: (`scratchpad/babip_def.py`):
+#:
+#:     2026 starters   boxscore 57,079   counted 55,225   ratio 1.0336
+#:     2025 starters   boxscore 77,378   counted 74,898   ratio 1.0331
+#:     2025 relievers  boxscore 55,842   counted 54,125   ratio 1.0317
+#:
+#: The NUMERATOR is exact — 15,920 non-homer hits from both sources on the
+#: matched games — so this is purely a denominator error. Note the matched
+#: game set matters: the boxscore is missing starter rows for 67 games of
+#: 2026, and comparing unmatched makes the 3.4% inflation cancel against a
+#: 3.3% shortfall and read as 1.001.
+#:
+#: WHY IT SHOWS UP IN BABIP AND NOWHERE ELSE. The same inflation understates
+#: k_pct, bb_pct and hr_pct by ~2% too, but those resolve through log5
+#: AGAINST A LEAGUE MEASURED THE SAME WAY, so the error very largely cancels
+#: in the ratio. BABIP's LEVEL survives into the simulation as an absolute
+#: rate. That is why the channel decomposition showed strikeouts, walks and
+#: home runs all within 1% and singles 4.9% short.
+#:
+#: 1,763 second-outs-of-a-double-play plus 211 outs on the bases account for
+#: the 1,854 phantom balls in play in 2026.
+BIP_PER_OUT_UNIT = 1.0333
+
+#: Off restores the boxscore denominator exactly.
+USE_COUNTED_BIP = True
+
+
+def balls_in_play(bf: float, k, bb, hr) -> float:
+    """Balls in play behind a pitcher's line, corrected for the out count."""
+    raw = bf - (k or 0) - (bb or 0) - (hr or 0)
+    if raw <= 0:
+        return 0.0
+    return raw / BIP_PER_OUT_UNIT if USE_COUNTED_BIP else raw
+
+
 def _shrink(observed: float | None, lg: float, n: float, stat: str,
             who: str = "bat") -> float:
     """Weighted average of the player's rate and the league's.
@@ -645,7 +688,7 @@ def pitcher_rates(
         bf = (r["o"] or 0) + (r["h"] or 0) + (r["bb"] or 0)
         if bf < 1:
             continue
-        bip = bf - (r["k"] or 0) - (r["bb"] or 0) - (r["hr"] or 0)
+        bip = balls_in_play(bf, r["k"], r["bb"], r["hr"])
         out[r["name"]] = {
             "name": r["name"],
             "pa": bf,
@@ -1105,7 +1148,7 @@ def reliever_league(season=None) -> dict:
         _PEN_LG[key] = {}
         return {}
     bf = (r["o"] or 0) + (r["h"] or 0) + (r["bb"] or 0)
-    bip = bf - (r["k"] or 0) - (r["bb"] or 0) - (r["hr"] or 0)
+    bip = balls_in_play(bf, r["k"], r["bb"], r["hr"])
     out = {
         "k_pct": (r["k"] or 0) / bf,
         "bb_pct": (r["bb"] or 0) / bf,
@@ -1145,7 +1188,7 @@ def bullpens(lg: dict, season: int | None = None, before: str | None = None,
         bf = (r["o"] or 0) + (r["h"] or 0) + (r["bb"] or 0)
         if bf < 1 or (r["apps"] or 0) < MIN_PEN_APPS:
             continue
-        bip = bf - (r["k"] or 0) - (r["bb"] or 0) - (r["hr"] or 0)
+        bip = balls_in_play(bf, r["k"], r["bb"], r["hr"])
 
         def _t(stat, _r=r):
             return shrink_target(_r["name"], _r["team"], stat,

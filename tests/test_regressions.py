@@ -471,3 +471,42 @@ def check_the_error_rate_is_counted_not_calibrated():
 
     assert 0.010 < sim.ROE_PER_OUT < 0.0132, sim.ROE_PER_OUT
     assert sim.ROE_PER_OUT < 0.0134, "back on the 2023/24 era rate"
+
+
+def check_balls_in_play_are_counted_as_plays_not_as_outs():
+    """`bip = outs_recorded + hits - K - HR` counts OUTS, and outs are not
+    balls in play.
+
+    A double play is ONE ball in play and TWO outs; a caught stealing or
+    pickoff is an out and NO ball in play. Counted per play off play-by-play
+    and matched on the same games:
+
+        2026 starters   boxscore 57,079   counted 55,225   ratio 1.0336
+        2025 starters   boxscore 77,378   counted 74,898   ratio 1.0331
+        2025 relievers  boxscore 55,842   counted 54,125   ratio 1.0317
+
+    The numerator is exact — 15,920 non-homer hits from both sources — so it
+    is purely the denominator, and it deflated league BABIP from a true
+    0.2883 to 0.2778.
+
+    IT SHOWED UP IN BABIP AND NOWHERE ELSE because k/bb/hr resolve through
+    log5 against a league measured the same way, so the error cancels in the
+    ratio; BABIP's LEVEL reaches the simulation as an absolute rate.
+
+    Guarded as a band on the ratio and by the arithmetic, so a future change
+    that reverts to the raw boxscore denominator fails here rather than
+    quietly costing 6 baserunners per 1,000 plate appearances.
+    """
+    from src.context.sources import rates
+
+    assert rates.USE_COUNTED_BIP is True
+    assert 1.025 < rates.BIP_PER_OUT_UNIT < 1.042, rates.BIP_PER_OUT_UNIT
+    # 100 batters faced, 25 K, 8 BB, 3 HR -> 64 raw, corrected downward.
+    raw, got = 64.0, rates.balls_in_play(100, 25, 8, 3)
+    assert got < raw, (raw, got)
+    assert abs(got - raw / rates.BIP_PER_OUT_UNIT) < 1e-9, got
+    # A smaller denominator RAISES the rate built on it, which is the point.
+    assert (20.0 / got) > (20.0 / raw)
+    # Degenerate lines must not produce a negative or exploding denominator.
+    assert rates.balls_in_play(10, 9, 1, 0) == 0.0
+    assert rates.balls_in_play(0, 0, 0, 0) == 0.0
