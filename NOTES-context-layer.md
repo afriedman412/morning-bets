@@ -3376,3 +3376,61 @@ Second guard from the same run: the three channels drop different rows —
 babip needs balls in play where k and hr need plate appearances — so the
 combine refused to zip them and now joins on the start key. It printed the
 mismatch rather than silently producing a fourth number.
+
+### The aggregation objection, and the screen that answers it
+
+The residual screen above collapses each start to ONE number — the lineup's
+mean rate shift — and asks whether that predicts the starter's aggregate
+line. That is an aggregate test of a mechanism that operates per plate
+appearance, and it is the same substitution this project keeps making. The
+objection is correct in principle: the simulator resolves one plate
+appearance at a time and could hold each hitter's UNBLENDED rate against the
+arm actually on the mound, and a mean cannot see what only exists below it.
+
+Specifically, handedness does not only move a lineup up or down, it SPREADS
+THE NINE APART. Runs are convex in offensive rates — clustering makes
+crooked innings — so a mean-preserving spread should RAISE expected runs,
+and a correlation against the mean shift is blind to that by construction.
+It is also asymmetric, which would make it a per-game feature rather than a
+level constant: a hitter's blended rate is dominated by the right-handers he
+mostly faces, so a LEFTY pulls him ~0.036 off it against ~0.014 for a
+right-hander.
+
+MEASURED, `scratchpad/hand_convex.py`, 20,000 paired games on common random
+numbers, lineup mean held EXACTLY fixed:
+
+    arm                      F5        F7        F9
+    vs LHP (real size)    -0.009    -0.004    -0.013
+    vs RHP (real size)    +0.012    +0.004    +0.008
+    2x the real spread    +0.014    +0.013    +0.009   +/- 0.018
+
+Even at DOUBLE the real spread the effect is ~0.014 runs and unresolved. At
+real size it is smaller and the sign flips between arms. Against a 0.05-run
+leverage floor this is bounded at about a quarter of it. The dispersion
+channel is closed.
+
+AND THE BULLPEN ARGUMENT RUNS THE OTHER WAY. A lineup facing a left-handed
+starter sees left-handers for roughly 60% of the game against the ~28% baked
+into their season line, so there IS a systematic per-game shift — but it is
+concentrated in the STARTER'S innings, which is exactly what the residual
+screen measured and found null. Extending to the full game mixes in
+right-handed relievers and DILUTES it. The starter-only test was handedness
+at its strongest, not its weakest.
+
+**A SAMPLING WARNING WORTH MORE THAN THE RESULT.** At 6,000 paired games the
+2x control read +0.05 on all three prefixes — positive, consistent across
+F5/F7/F9, and exactly what the mechanism predicts. At 20,000 it fell to
++0.014. It was noise wearing the shape of a finding, and the run would have
+been reported as a confirmation if it had stopped where it was first
+intended to. Paired common-random-numbers designs are not immune to this:
+the pairing shrinks the standard error, it does not shrink it enough for
+0.02 runs at 6,000 draws.
+
+The clamp bug in the same file is the other half of the lesson. Perturbing a
+rate and CLIPPING it into range is not mean-preserving and cannot be undone,
+because a clipped value will not move; the floor binds harder than the
+ceiling, mean K% rises, runs fall, and the convexity being measured is
+cancelled by the artifact. The fix is to shrink the whole centred vector
+until nothing clamps, which preserves the mean exactly. The first version
+reported a 4x control at ZERO and would have been read as a broken screen
+rather than a broken perturbation.

@@ -426,6 +426,22 @@ cannot tell it from nothing. Wiring it in would also be structural work —
 the hand changes when the sim swaps pitchers, so it is a per-plate-appearance
 lookup, not a per-lineup one. Not worth it for 0.06 runs.
 
+**THE AGGREGATION OBJECTION WAS RAISED AND IS ANSWERED.** The screen above
+collapses a start to the lineup's MEAN shift, and the simulator works per
+plate appearance, so it can hold each hitter's unblended rate against the
+arm on the mound. A mean cannot see dispersion, and handedness SPREADS a
+lineup apart — which by convexity should raise runs. Measured directly in
+the game engine (`scratchpad/hand_convex.py`, 20,000 paired games, lineup
+mean held exactly fixed): even at DOUBLE the real spread it is +0.014 runs
++/- 0.018, and at real size the sign flips between the LHP and RHP arms.
+Bounded at a quarter of the 0.05-run floor. Both channels are closed.
+
+The bullpen argument runs the other way too: a lineup facing a lefty starter
+sees left-handers ~60% of the game against the ~28% in their season line,
+but that shift is concentrated in the STARTER'S innings, which is what the
+residual screen already measured. Full-game mixes in righty relievers and
+DILUTES it.
+
 RECONCILING THE CAMERON CASE, because the anecdote was real: the lineup
 shift exists. The 99th-percentile card moves 1.8 K-points shrunk and the
 largest measured moved 3.6 raw — about +0.5 K on a start. What the screen
