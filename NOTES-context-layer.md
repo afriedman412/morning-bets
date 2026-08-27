@@ -3891,3 +3891,67 @@ recovered most of it: a reliever who faces three batters now builds three.
 and not a free win. It also sits against `stop_after=5` from the same day,
 which made the F5 loop 1.66x faster — so the fit loop is still roughly 1.5x
 ahead of where the morning started.
+
+### The role audit: the pattern does NOT extend to baserunning
+
+Three constants on 2026-08-27 turned out to be measured on starters and
+applied to every arm, so the obvious next move was to check the rest.
+`scratchpad/role_audit.py` re-counts every run-producing constant split by
+SP/RP innings, on the denominators the simulator actually rolls in.
+
+**IT IS A NULL, AND THAT IS THE USEFUL PART.** RP/SP lands between 0.91 and
+1.08 on every advancement and baserunning constant. Relief innings are later
+and tighter, but runners advance the same way in them. The
+starter-measured-reliever-applied pattern is real for the PITCHER'S OWN
+rates (hit-by-pitch, sacrifices, wild pitches) and absent for what runners
+do. Stops the pattern being over-applied.
+
+**ADVANCEMENT WAS ALREADY RIGHT** and an apples-to-oranges comparison nearly
+said otherwise. `FIRST_SCORES_ON_1B` is a SEPARATE constant from
+`FIRST_TO_THIRD_ON_1B`, so the shipped first-to-third excludes a runner who
+scores. Comparing a "reached third OR scored" count against it read 9% light
+at two outs; adding the two shipped constants back together gives 0.329 /
+0.338 / 0.476 against a measured 0.291 / 0.323 / 0.447. Within a few percent.
+
+`RUNNER_ADVANCES_ON_OUT` is LEGACY — only reached when
+`USE_MEASURED_ADVANCEMENT` is off, and it is on. Measuring it was wasted.
+
+**THE ONE REAL FINDING: SB_RATE AND CS_RATE WERE ON THE WRONG DENOMINATOR.**
+Derived from "1,301 steals over 23,338 TIMES ON BASE", but `baserunning`
+rolls only when first is occupied and SECOND IS EMPTY — a strictly smaller
+population, so a rate over all times on base is too low by the ratio between
+them. Same class of error as the wild-pitch rate.
+
+    season      SB       CS        n        (per opportunity, correct state)
+    2023    0.0672   0.0151   48,019
+    2024    0.0718   0.0169   46,985
+    2025    0.0681   0.0172   47,136
+    2026    0.0651   0.0175   36,722
+
+Era-gated and stable, so 2026 is used. Shipped 0.0557/0.0148 -> 0.0651/0.0175,
+both up ~17%.
+
+**RUN-NEUTRAL, AS THE ARITHMETIC SAID BEFORE THE RUN.** Attempts rise 17% and
+so do caught-stealings, so the net value per opportunity barely moves:
+
+    measured   CRPS 1.59885 +/-0.0035   sim 2.4143   gap +0.0565
+    old        CRPS 1.60186 +/-0.0015   sim 2.4187   gap +0.0521
+
+Both inside the error bars. Kept because it is measured replacing guessed
+and the denominator was simply wrong; what it changes is the SHAPE, 17% more
+runners moving into scoring position.
+
+**AND A MECHANISM GAP THAT BOUNDS ANY RATE HERE.** 14.5% of real steal
+events — 2,564 of 17,742 — happen in states this model cannot produce at
+all: steals of third, and double steals. `baserunning` only ever moves a man
+from first to second with second empty. No value of `SB_RATE` reaches them.
+Sized at ~0.13 per side-game, ~0.026 runs. Below the floor, so recorded
+rather than built.
+
+THREE FULL SCANS WERE SPENT ON EXTRACTION BUGS, both mine. `pbp.resolve`
+already collapses a runner's multiple movement records into where he ended
+up — its docstring says so — and the hand-rolled version that took the first
+record and broke reported 2 first-to-thirds in 557 singles, because a runner
+going first to third is written as 1B->2B then 2B->3B. The steal denominators
+were also mis-keyed so those rows silently did not print at all. When the
+codebase already has a function for the thing, use it.

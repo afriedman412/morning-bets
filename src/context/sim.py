@@ -418,7 +418,32 @@ HBP_RATE_SP = 0.01044
 HBP_RATE_RP = 0.01262
 #: Chance a runner on first is caught stealing, per plate appearance he is
 #: aboard for. Removes the runner AND records an out.
-CS_RATE = 0.0148
+#: RE-MEASURED 2026-08-27 ON THE DENOMINATOR IT IS ACTUALLY USED WITH. The
+#: 0.0148 came from "1,301 steals over 23,338 TIMES ON BASE" — but
+#: `baserunning` only rolls when first is occupied and SECOND IS EMPTY, a
+#: strictly smaller population, so a rate derived over all times on base is
+#: too low by the ratio between them. Same class of error as the wild-pitch
+#: rate, which was translated onto the wrong denominator too.
+#:
+#: Counted per opportunity in exactly that state (`scratchpad/role_audit.py`),
+#: and gated on era because the 2023 rule changes moved stealing:
+#:
+#:     season      SB       CS        n
+#:     2023    0.0672   0.0151   48,019
+#:     2024    0.0718   0.0169   46,985
+#:     2025    0.0681   0.0172   47,136
+#:     2026    0.0651   0.0175   36,722
+#:
+#: Stable, so the 2026 values are used rather than a pool. Both rise ~17%,
+#: which is why this is close to run-neutral: more attempts, same success
+#: ratio. What it changes is the SHAPE — 17% more runners moving into
+#: scoring position.
+#:
+#: NOT FIXED, and it bounds what any rate here can buy: 14.5% of real steal
+#: events happen in states this model cannot produce at all — steals of
+#: third and double steals. That is a missing mechanism, not a mistuned
+#: rate.
+CS_RATE = 0.0175
 #: Chance he steals second instead. Derived the same way: 1,301 steals over
 #: 23,338 times on base.
 #:
@@ -430,7 +455,7 @@ CS_RATE = 0.0148
 #: "scores from second on a single" to 0.75 against a published ~0.60 still
 #: left it 3.6% short. When a parameter cannot reach the target, the
 #: mechanism is missing rather than mistuned.
-SB_RATE = 0.0557
+SB_RATE = 0.0651
 
 #: Share of ball-in-play outs that become double plays when there is a
 #: runner on first and fewer than two out. Matters for outs props directly:
