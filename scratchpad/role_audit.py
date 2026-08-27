@@ -154,12 +154,23 @@ def _scan_year(arg):
 
 
 def main(argv):
+    """`--season 2026` for ITERATION, no argument for the era gate.
+
+    One season is ~2,000 games against 9,962 and runs in a quarter the time.
+    Three full four-season scans were spent debugging extraction on
+    2026-08-27; every one of those would have been a one-season run. Use the
+    full set only when the question is whether something moved between eras.
+    """
+    season = None
+    if argv and argv[0] == "--season":
+        season, argv = argv[1], argv[2:]
     workers = int(argv[0]) if argv else 8
     with db.connect() as c:
         dates = {r["game_id"]: r["date"] for r in
                  c.execute("select game_id, date from games"
                            " where sport = 'mlb'")}
-    todo = sorted(g for g in dates if pbp.have(g.split("-")[-1]))
+    todo = sorted(g for g in dates if pbp.have(g.split("-")[-1])
+                  and (season is None or dates[g].startswith(season)))
     print(f"  scanning {len(todo):,} games on {workers} workers ...",
           flush=True)
     acc = defaultdict(lambda: [0, 0])

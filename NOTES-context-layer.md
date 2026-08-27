@@ -3955,3 +3955,67 @@ record and broke reported 2 first-to-thirds in 557 singles, because a runner
 going first to third is written as 1B->2B then 2B->3B. The steal denominators
 were also mis-keyed so those rows silently did not print at all. When the
 codebase already has a function for the thing, use it.
+
+### Stealing in every base state, and the LEVEL vs SPREAD distinction
+
+`baserunning` rolled for a steal in ONE state — first occupied, second empty
+— and could only move that man to second. Counted on 2026
+(`scratchpad/steal_states.py`), that single state is 69.9% of real steals.
+
+    state    outs      opps   SB      CS      to2B  to3B
+    1B          0     9,099   .0497   .0138    445     7
+    1B          1    11,272   .0640   .0207    704    17
+    1B          2    11,445   .0664   .0195    742    18
+    2B          1     3,433   .0186   .0067      0    64
+    1B+2B       1     3,955   .0308   .0076     52    70
+    1B+3B       2     2,435   .1170   .0127    261     6
+
+Three things the flat rate could not express. Stealing is OUT-DEPENDENT
+(.0497 with nobody out against .066 with one or two). First-and-third at two
+outs runs at .1170, nearly double the flat rate, because the defence will
+not risk a throw with a man ninety feet away. And two states had no
+mechanism at all — a runner on second takes third at .0074-.0186 and is
+almost never caught, and first-and-second produces MORE steals of third than
+of second. Third alone, second-and-third and loaded produce ZERO steals in
+8,434 opportunities, so they are absent by measurement.
+
+`STEAL_TABLE` + `USE_STEAL_TABLE` ship it. Scored, it is MARGINAL: gap
++0.0530 against +0.0565, CRPS 1.60580 against 1.59885, both inside error
+bars. Kept on measured-replacing-absent, not on the score.
+
+### THE DISTINCTION THAT REFRAMES THE WHOLE SUB-FLOOR PILE
+
+Raised by the user: things keep getting discarded for missing the ~0.05-run
+leverage floor, and there are now about five of them. Do they add up?
+
+**They add up ONLY IF THEY ARE THE SAME KIND, and they are not.**
+
+  SPREAD effects — how game A differs from game B — combine in QUADRATURE.
+  Handedness 0.062, arsenal ~0.04, per-pitcher HBP 0.035, per-pitcher wild
+  pitch 0.020 make sqrt(sum of squares) = 0.08 runs, not 0.16. That is the
+  same arithmetic that killed stacking handedness with arsenal: two 1.5-cent
+  features make 2.3 cents, and it takes SIX to reach the bar.
+
+  LEVEL errors — the model systematically low or high — ADD LINEARLY.
+
+**EVERY WIN TODAY WAS THE SECOND KIND.** Hit-by-pitch, sacrifices and wild
+pitches were all level errors, all pointing the same way (the model held
+fewer baserunners than reality), and the wild-pitch fix alone closed a fifth
+of the F5 run gap. The remaining +0.052 is itself a level error.
+
+So the productive search is NOT more features. It is LEVEL ERRORS THAT POINT
+THE SAME DIRECTION, and both kinds were being sorted into one bucket and
+discarded together. Per-player refinements are genuinely dead — they are
+spreads and they quadrature away. Structural gaps in what the model can
+produce at all are not.
+
+### Diagnose with seeds, fix with n
+
+A loose sanity band failed at 2.42 against a 2.4 ceiling after the steal
+table changed the random stream. The right FIRST move is re-running the same
+small sample at a DIFFERENT SEED — cheap, and it separates "sampling" from
+"real" immediately. It did: four seed/size combinations landed at 1.82-2.15.
+
+But the right FIX is more samples, not a different seed. Changing the seed
+until a check passes is fitting the test to its outcome, which is the same
+error as widening the band. n went 400 -> 900 and the band stayed.

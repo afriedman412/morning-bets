@@ -2017,6 +2017,61 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random) -> None:
         _score(r, fr, _advance(bases, o, rng, outs_before))
 
 
+
+#: STEALING IN EVERY BASE STATE, counted rather than modelled in one.
+#:
+#: `baserunning` used to roll only when first was occupied and SECOND WAS
+#: EMPTY, advancing that man to second. Measured on 2026
+#: (`scratchpad/steal_states.py`), that single state covers 69.9% of real
+#: steals and leaves two others with no mechanism at all: a runner on second
+#: takes third at .0074-.0186 and is almost never caught, and first-and-second
+#: produces MORE steals of third than of second. No value of a rate reaches
+#: them — when a parameter cannot reach the target the mechanism is missing,
+#: which is the standing diagnostic here and has now been right five times.
+#:
+#: It also flattened two real structures. Stealing is OUT-DEPENDENT (.0497
+#: with nobody out against .066 with one or two), and first-and-third at two
+#: outs runs at .1170 — nearly double the flat rate — because the defence
+#: will not risk a throw with a man ninety feet away.
+#:
+#:     state    outs      opps   SB      CS      to2B  to3B
+#:     1B          0     9,099   .0497   .0138    445     7
+#:     1B          1    11,272   .0640   .0207    704    17
+#:     1B          2    11,445   .0664   .0195    742    18
+#:     2B          0     1,891   .0074   .0016      0    14
+#:     2B          1     3,433   .0186   .0067      0    64
+#:     2B          2     4,607   .0119   .0013      0    55
+#:     1B+2B       0     2,261   .0186   .0004     19    23
+#:     1B+2B       1     3,955   .0308   .0076     52    70
+#:     1B+2B       2     4,854   .0161   .0023     31    47
+#:     1B+3B       0       782   .0665   .0090     51     1
+#:     1B+3B       1     1,689   .0710   .0124    112     5
+#:     1B+3B       2     2,435   .1170   .0127    261     6
+#:
+#: Third occupied alone, second-and-third and bases loaded produce ZERO
+#: steals in 8,434 opportunities, so they are absent by measurement.
+#:
+#: (sb_rate, cs_rate, share of steals that take THIRD).
+STEAL_TABLE: dict = {
+    ((True, False, False), 0): (0.0497, 0.0138, 0.015),
+    ((True, False, False), 1): (0.0640, 0.0207, 0.024),
+    ((True, False, False), 2): (0.0664, 0.0195, 0.024),
+    ((False, True, False), 0): (0.0074, 0.0016, 1.0),
+    ((False, True, False), 1): (0.0186, 0.0067, 1.0),
+    ((False, True, False), 2): (0.0119, 0.0013, 1.0),
+    ((True, True, False), 0): (0.0186, 0.0004, 0.548),
+    ((True, True, False), 1): (0.0308, 0.0076, 0.574),
+    ((True, True, False), 2): (0.0161, 0.0023, 0.603),
+    ((True, False, True), 0): (0.0665, 0.0090, 0.019),
+    ((True, False, True), 1): (0.0710, 0.0124, 0.043),
+    ((True, False, True), 2): (0.1170, 0.0127, 0.022),
+}
+
+#: Off restores the single-state roll exactly, so the mechanism stays
+#: separately scoreable like everything else here.
+USE_STEAL_TABLE = True
+
+
 def baserunning(r: StartResult, fr: Frame, rng: random.Random) -> None:
     """Wild pitches, steals and caught stealing between plate appearances.
 
@@ -2030,17 +2085,46 @@ def baserunning(r: StartResult, fr: Frame, rng: random.Random) -> None:
             _score(r, fr, 1)
         bases[:] = [False, bases[0], bases[1]]
         r.wp_pb += 1
-    if bases[0] and not bases[1]:
-        roll = rng.random()
-        if roll < CS_RATE:
+    if not USE_STEAL_TABLE:
+        if bases[0] and not bases[1]:
+            roll = rng.random()
+            if roll < CS_RATE:
+                bases[0] = False
+                fr.outs += 1
+                r.outs += 1
+                r.caught_stealing += 1
+            elif roll < CS_RATE + SB_RATE:
+                bases[0], bases[1] = False, True
+                r.stolen_bases += 1
+        return
+    row = STEAL_TABLE.get((tuple(bases), fr.outs))
+    if row is None:
+        return
+    sb_r, cs_r, to_third = row
+    roll = rng.random()
+    if roll < cs_r:
+        # The LEAD eligible runner is the one going, so he is the one
+        # thrown out. Which base he was heading for does not matter: the
+        # out is recorded and he leaves the bases either way.
+        if bases[1] and not bases[2]:
+            bases[1] = False
+        else:
             bases[0] = False
-            fr.outs += 1
-            r.outs += 1
-            r.caught_stealing += 1
-        elif roll < CS_RATE + SB_RATE:
-            # Second base is open or he would not be going.
+        fr.outs += 1
+        r.outs += 1
+        r.caught_stealing += 1
+    elif roll < cs_r + sb_r:
+        # A steal of THIRD moves the man on second; anything else moves the
+        # man on first. With both aboard only one goes, which is what the
+        # to2B/to3B counts describe — 122 of them in 2026 and not one
+        # double advance recorded as a single event.
+        if bases[1] and not bases[2] and rng.random() < to_third:
+            bases[1], bases[2] = False, True
+        elif bases[0] and not bases[1]:
             bases[0], bases[1] = False, True
-            r.stolen_bases += 1
+        else:
+            return
+        r.stolen_bases += 1
 
 
 # ── THE ONE-SIDED ENGINE IS GONE ───────────────────────────────────────

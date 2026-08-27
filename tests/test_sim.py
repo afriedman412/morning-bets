@@ -1519,7 +1519,7 @@ def check_errors_raise_the_run_level():
     never = sim.Hook(intercept=-99.0, mid_intercept=-99.0,
                      hard_pitch_cap=100000)
 
-    def start(roe, n=400):
+    def start(roe, n=900):
         old = sim.ROE_PER_OUT
         sim.ROE_PER_OUT = roe
         try:
@@ -1544,6 +1544,12 @@ def check_errors_raise_the_run_level():
     assert per_on > 0.2, per_on
     # Twice the rate is roughly twice the errors. Loose, because reaching on
     # an error consumes an out that would otherwise have ended the inning.
+    #
+    # n RAISED FROM 400 rather than the band widened. At 400 the seeded draw
+    # sat at 2.42 once the steal table changed the random stream, while the
+    # same measurement over four independent seed/size combinations lands at
+    # 1.82-2.15. The behaviour was right and the sample was too small — the
+    # fix for that is more starts, not a softer standard.
     assert 1.6 < per_more / per_on < 2.4, (per_on, per_more)
     # And they reach base, rather than being counted and discarded.
     br = [sum(r.h + r.bb + r.roe for r in g) / len(g) for g in (off, on)]
