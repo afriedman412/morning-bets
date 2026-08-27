@@ -3806,9 +3806,22 @@ but not wrong. Clamping the walk to the remainder does NOT change it, because
 `bb / rest` is then exactly 1.0 and the walk still fires every time — proven
 by removing the clamp and watching the check pass anyway.
 
-So `min(..., rest)` on `bb` and `hr` is an INVARIANT guard (no negative
-probability mass) with no behavioural consequence and no test guarding it.
-Recorded as such rather than left looking like a fix.
+**AND THE CLAMP BECAME A RAISE**, which is what it should have been from
+the start. Clamping manufactures a plausible answer out of impossible
+inputs, which is precisely the failure mode this session spent all day
+unwinding — the clamp was itself an instance of the thing it was supposed to
+guard against. Rates that sum past one mean a CALLER handed the model
+numbers that cannot coexist: a bug upstream, not a runtime state to smooth
+over.
+
+`pa_outcome` now raises `ValueError` naming the offending rates. Free to be
+strict, because it is measured at ZERO occurrences in 529,581 plate
+appearances — nothing real trips it, and the next mechanism that inflates a
+rate finds out immediately instead of via a home run channel quietly going
+to zero and a fitted constant absorbing the difference.
+
+Mutation-verified (removing the raise fails the check) and still
+bit-identical: fingerprint 5bdcf78e9e70c3579220e55431c18aeb, unchanged.
 
 Second time in one session a story was fitted to a result before it was
 checked. Both times the mutation caught it.

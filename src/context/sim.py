@@ -715,27 +715,42 @@ def pa_outcome(
     # Remaining probabilities are conditional on not having struck out, so
     # each is rescaled by what is left rather than used as a raw PA rate.
     #
-    # ONE CLAMPING POLICY, APPLIED THE SAME WAY TO EVERY BRANCH: a rate may
-    # not exceed the probability mass still unallocated. Without it a walk
-    # rate above what remained fired every time AND drove `rest` negative,
-    # so the `rest > 0` guard below skipped home runs and balls in play
-    # entirely — the plate appearance could only return K, BB, SAC or HBP.
-    # No error, no clamp, no grid edge: a channel quietly went to zero,
-    # which is the one failure mode this project cannot detect downstream.
+    # THIS RAISES RATHER THAN CLAMPING, and the difference is the whole
+    # lesson of the day. Probabilities that sum past one mean a CALLER
+    # handed the model rates that cannot coexist — it is a bug upstream, not
+    # a runtime state to smooth over. Clamping produces a defined but
+    # meaningless answer: walks take the entire remainder and home runs and
+    # balls in play stop existing, which is the silent-channel-goes-to-zero
+    # failure this project cannot detect downstream, because a missing home
+    # run rate just looks like a low one and a fitted constant absorbs it.
     #
-    # It takes physically impossible inputs to reach (a .62 matchup
-    # strikeout rate alongside a .69 walk rate), which is why it never fired
-    # in 529,581 real plate appearances. Defined behaviour at impossible
-    # inputs still beats undefined behaviour at impossible inputs.
+    # Free to be strict: measured at ZERO occurrences in 529,581 plate
+    # appearances, so nothing real trips it. It takes a .62 matchup
+    # strikeout rate alongside a .69 walk rate. The next mechanism that
+    # inflates a rate will find out immediately instead of three weeks
+    # later.
     rest = 1.0 - k
-    bb = min(log5(b.bb_pct, p_bb, lgm["bb_pct"]) / cond, rest)
+    bb = log5(b.bb_pct, p_bb, lgm["bb_pct"]) / cond
+    if bb > rest:
+        raise ValueError(
+            f"walk probability {bb:.4f} exceeds the {rest:.4f} left after a "
+            f"{k:.4f} strikeout rate — these rates cannot coexist. "
+            f"batter bb {b.bb_pct:.4f} k {b.k_pct:.4f}, "
+            f"pitcher bb {p_bb:.4f} k {p_k:.4f}")
     if rest > 0 and rng.random() < bb / rest:
         return BB
 
     rest -= bb
-    hr = min(odds_mult(log5(b.hr_pct, p_hr, lgm["hr_pct"]),
-                       hr_park * pk["hr"] * b.arsenal_mult,
-                       lgm["hr_pct"]) / cond, rest)
+    hr = odds_mult(log5(b.hr_pct, p_hr, lgm["hr_pct"]),
+                   hr_park * pk["hr"] * b.arsenal_mult,
+                   lgm["hr_pct"]) / cond
+    if hr > rest:
+        raise ValueError(
+            f"home run probability {hr:.4f} exceeds the {rest:.4f} left "
+            f"after a {k:.4f} strikeout and {bb:.4f} walk rate — these "
+            f"rates cannot coexist. batter hr {b.hr_pct:.4f}, "
+            f"pitcher hr {p_hr:.4f}, multiplier "
+            f"{hr_park * pk['hr'] * b.arsenal_mult:.4f}")
     if rest > 0 and rng.random() < hr / rest:
         return HR
 

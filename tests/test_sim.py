@@ -1866,13 +1866,20 @@ def check_every_outcome_channel_survives_extreme_rates():
     for want in (sim.HR, sim.BB, sim.K, sim.OUT):
         assert want in seen, (want, seen)
 
-    # And impossible inputs must remain DEFINED rather than producing a
-    # negative probability mass. The outcome distribution is unchanged; the
-    # invariant is not.
+    # And impossible inputs must RAISE, not resolve. Clamping them produced
+    # a defined but meaningless answer — walks taking the whole remainder,
+    # home runs and balls in play gone — which is the silent failure this
+    # model cannot detect downstream. Rates that sum past one mean a CALLER
+    # bug, and it should surface where it happens.
     wild_b = sim.BatterRates(name="w", k_pct=0.40, bb_pct=0.30, hr_pct=0.12,
                              babip=0.40, pa=600)
     wild_p = sim.PitcherRates(name="v", k_pct=0.40, bb_pct=0.30, hr_pct=0.12,
                               babip=0.40, pa=600)
     rng = random.Random(11)
-    for _ in range(5000):
-        sim.pa_outcome(wild_b, wild_p, lg, rng)
+    try:
+        for _ in range(500):
+            sim.pa_outcome(wild_b, wild_p, lg, rng)
+    except ValueError as e:
+        assert "cannot coexist" in str(e), e
+    else:
+        raise AssertionError("impossible rates resolved silently")
