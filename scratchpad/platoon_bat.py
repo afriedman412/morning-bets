@@ -104,6 +104,7 @@ def scan(short: str):
     if not d:
         return None
     splits = defaultdict(lambda: [0, 0, 0, 0, 0])    # (bid, phand) -> counts
+    who = {}                                          # bid -> full name
     game = {}                                         # bid -> hand -> counts
     first = {}                                        # side -> pitcher id
     starts = {}                                       # side -> {...}
@@ -117,6 +118,7 @@ def scan(short: str):
         if not pid or not bid or ph not in ("L", "R"):
             continue
         ev = res.get("eventType") or ""
+        who[bid] = bat.get("fullName")
         side = "home" if ab.get("isTopInning") else "away"
         first.setdefault(side, pid)
         cells = [splits[(bid, ph)]]
@@ -148,7 +150,7 @@ def scan(short: str):
     # card is dead weight in the cache.
     for s in starts.values():
         s["game"] = {b: game[b] for b in s["faced"] if b in game}
-    return ({k: v for k, v in splits.items()}, starts)
+    return ({k: v for k, v in splits.items()}, starts, who)
 
 
 def collect(workers: int = 8):
@@ -166,12 +168,14 @@ def collect(workers: int = 8):
     #: built from years the scored starts are not in.
     by_year = defaultdict(lambda: defaultdict(lambda: [0, 0, 0, 0, 0]))
     starts = {}
+    names = {}                                        # batter id -> name
     with ProcessPoolExecutor(max_workers=workers) as ex:
         out = ex.map(scan, [g.split("-")[-1] for g, _ in todo], chunksize=32)
         for (full, date), got in zip(todo, out):
             if not got:
                 continue
-            splits, sides = got
+            splits, sides, who = got
+            names.update(who)
             yr = int(date[:4])
             tgt = by_year[yr]
             for k, v in splits.items():
@@ -183,13 +187,13 @@ def collect(workers: int = 8):
                 s["date"] = date
                 s["team"] = (home_ab if side == "away" else away_ab)
                 starts[(full, s["name"])] = s
-    return by_year, starts
+    return by_year, starts, names
 
 
 CACHE = pathlib.Path("scratchpad/bat_splits.json")
 
 
-def load(workers: int = 8):
+def load(workers: int = 8, with_names: bool = False):
     """`collect`, cached. Batter ids are normalised to STRINGS on both
     paths — a JSON round trip stringifies dict keys, and a cached run that
     silently matched nothing would look exactly like a null result."""
@@ -198,10 +202,12 @@ def load(workers: int = 8):
         by_year = {int(y): {tuple(k.split("|")): v for k, v in d.items()}
                    for y, d in raw["by_year"].items()}
         starts = {tuple(k.split("|")): s for k, s in raw["starts"].items()}
-        return by_year, starts
-    by_year, starts = collect(workers)
+        names = raw.get("names") or {}
+        return (by_year, starts, names) if with_names else (by_year, starts)
+    by_year, starts, names = collect(workers)
     by_year = {y: {(str(b), h): v for (b, h), v in d.items()}
                for y, d in by_year.items()}
+    names = {str(b): n for b, n in names.items() if n}
     for s in starts.values():
         # BOTH maps, or the strict arm looks up string ids in an int-keyed
         # dict, silently subtracts nothing, and reports the leak it exists
@@ -212,8 +218,9 @@ def load(workers: int = 8):
         "by_year": {str(y): {f"{b}|{h}": v for (b, h), v in d.items()}
                     for y, d in by_year.items()},
         "starts": {f"{g}|{n}": s for (g, n), s in starts.items()},
+        "names": names,
     }))
-    return by_year, starts
+    return (by_year, starts, names) if with_names else (by_year, starts)
 
 
 def _rate(cell, overall, num, den, k):

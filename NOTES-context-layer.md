@@ -3434,3 +3434,87 @@ cancelled by the artifact. The fix is to shrink the whole centred vector
 until nothing clamps, which preserves the mean exactly. The first version
 reported a 4x control at ZERO and would have been read as a broken screen
 rather than a broken perturbation.
+
+### Handedness, specified correctly — the fix is real, the gain is not
+
+The challenge that reopened this: we simulate every plate appearance in a
+league where the handedness effect is one of the best-established facts in
+baseball, so a null should be suspicious. It was. The implementation was
+wrong in a specific, identifiable way.
+
+**THE SPECIFICATION ERROR.** `rates.batter_rates_by_hand` shrinks each split
+toward the HITTER'S OWN OVERALL RATE, so a hitter with a thin split
+regresses to having NO platoon effect — the one answer known to be false.
+It keeps his PERSONAL DEVIATION, which is the noisy half that does not
+persist, and discards the STRUCTURAL half, which is reliable. Counted on
+9,962 games (`scratchpad/platoon_league.py`):
+
+    bat/pit        PA        K%      BB%      HR%    BABIP
+    R vs R    279,841    0.2296   0.0878   0.0298   0.2954
+    R vs L    143,592    0.2205   0.0954   0.0312   0.3027
+    L vs R    268,427    0.2187   0.1067   0.0325   0.2955
+    L vs L     62,122    0.2387   0.0939   0.0240   0.2973
+
+A left-handed bat loses 26% of its home run rate against a left-hander. A
+lefty takes 81% of his plate appearances against right-handers, so his
+blended HR rate is .0309 against a truth of .0240 vs LHP — 22% adrift.
+
+THE TELL, missed for a full day: "72 of 148 hitters have reversed splits"
+was reported as evidence of cancellation. It is not. That statistic pooled
+left- and right-handed batters, and a lefty's split has the OPPOSITE SIGN
+from a righty's by definition. Half reversed is what a large, real,
+one-directional effect looks like when nobody conditions on batter side.
+
+**THE CORRECTED CONSTRUCTION** (`scratchpad/platoon_fix.py`): shrink toward
+the league platoon cell for the side he bats from, scaled against the blend
+HIS OWN mix and sides produce. Switch hitters fall out for free — they take
+the advantage both ways, so their ratios come out ~1.0 rather than needing a
+special case. Verified before scoring anything:
+
+    group      n   HR vsL   HR vsR    delta
+    RHB      244   0.0325   0.0297    +9.4%
+    LHB      144   0.0239   0.0340   -29.7%
+    switch    48   0.0271   0.0273    -0.5%
+
+against the shipped spec's -16.2% for left-handed bats. Roughly twice the
+signal, and it matches the counted league truth.
+
+**SCORED ON THE DIRECT CHANNELS**, which is where a plate-appearance
+mechanism has power — runs are four steps downstream and F5 CRPS could not
+resolve it. 2026 starts, splits from 2023-25, leak-free, 20 sims x 6 salts
+paired (`scratchpad/hand_direct.py`). Positive is WORSE:
+
+    arm                  k       bb       hr        h
+    own-prior         +2.9     +9.9     +1.7     +1.6
+    league-prior      +0.0     -1.0     +0.8     +0.9
+    league+dev        +0.9     +4.7     +2.1     +1.3
+
+TWO FINDINGS AND ONLY ONE IS THE ONE WANTED.
+
+1. THE SHIPPED SPECIFICATION IS ACTIVELY HARMFUL — +9.9 sd worse than no
+   handedness on walks. `USE_HANDEDNESS` is off, so nothing ships broken,
+   but anyone flipping that flag makes the model worse and the docstring
+   does not say so. It does now.
+2. THE PERSONAL SPLIT IS NOISE. Adding each hitter's own deviation on top of
+   the league structure costs 5.7 sd on walks against the pure structural
+   arm. Only the structure carries anything.
+3. CORRECTLY SPECIFIED, HANDEDNESS IS A WASH. league-prior lands on top of
+   `off` in every channel. It repairs the damage; it does not beat baseline.
+
+**WHY, AND THIS IS THE EXPLANATION THAT FITS EVERYTHING.** The lineup card
+IS the handedness adjustment. The manager stacked his right-handed bats
+against the left-hander before first pitch, and the simulator is fed the
+lineup that actually played. The 26% home run gap is real and it is mostly
+already expressed in WHO IS BATTING. Re-expressing it per hitter double
+counts what the card already says.
+
+That also retires the two-channel framing from earlier in the day. There is
+a third channel — roster construction — and it is the big one, it is already
+an input, and it is why both measured channels come back at zero.
+
+**THREE SMALL-n FALSE POSITIVES IN ONE DAY.** The dispersion control read
++0.05 at 6,000 paired games and +0.014 at 20,000. The CRPS A/B read -3.5
+sigma in sample and +2.3 out of it. This screen read -2.0 and -2.1 on home
+runs and hits at 4 sims x 2 salts and +0.8 and +0.9 at 20 x 6. Every one of
+them had the shape the mechanism predicted, which is exactly why they were
+convincing. A cheap run is for finding bugs, never for deciding.

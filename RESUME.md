@@ -381,7 +381,48 @@ roster spots moved a headline edge by half. Worth building: treat the
 projected lineup as an uncertainty to be propagated rather than an input to
 be trusted, and flag any edge whose size depends on unconfirmed names.
 
-## HANDEDNESS, BOTH CHANNELS, SCREENED AND CLOSED (2026-08-27)
+## HANDEDNESS — CLOSED, AND THE SHIPPED FLAG IS HARMFUL (2026-08-27)
+
+**READ THIS BEFORE FLIPPING `calibrate.USE_HANDEDNESS`.** It is not a
+neutral null. Scored leak-free on the starters' own lines it costs +2.9 sd
+on strikeouts and +9.9 sd on WALKS against handedness off, because it
+shrinks each split toward the hitter's own overall rate — so a thin split
+regresses to NO platoon effect, which is the one answer known to be false.
+
+Shrinking toward the LEAGUE platoon cell for the side he bats from repairs
+it (`scratchpad/platoon_fix.py`, -29.7% home runs for left-handed bats
+against the shipped -16.2%, matching a counted league truth of -26%), and
+the repaired version scores FLAT on every channel:
+
+    arm                  k       bb       hr        h     (positive = worse)
+    own-prior         +2.9     +9.9     +1.7     +1.6
+    league-prior      +0.0     -1.0     +0.8     +0.9
+    league+dev        +0.9     +4.7     +2.1     +1.3
+
+The personal split is noise — adding it on top of the league structure costs
+5.7 sd on walks. Only the structure carries anything, and the structure
+scores zero.
+
+**WHY, AND IT RETIRES THE TWO-CHANNEL FRAMING BELOW.** There is a THIRD
+channel and it is the big one: ROSTER CONSTRUCTION. The manager stacked his
+right-handed bats against the left-hander before first pitch, and
+`opposing_lineups` feeds the simulator the nine that actually played. The
+26% home run gap is real and is already expressed in WHO IS BATTING.
+Applying it per hitter double counts the card.
+
+**THE DAY'S PROCESS LESSON, three for three.** Every cheap run today
+produced a false positive with exactly the shape the mechanism predicted:
+the dispersion control at 6,000 paired games (+0.05, went to +0.014 at
+20,000), the CRPS A/B in sample (-3.5 sd, went to +2.3 leak-free), and this
+screen at 4 sims x 2 salts (-2.0 on home runs, went to +0.8 at 20 x 6). A
+cheap run is for finding bugs, never for deciding.
+
+**BANKED REGARDLESS:** `game.simulate_game(stop_after=5)`. The whole F5
+objective — `side_rps` AND `total_rps` — reads nothing past the fifth, yet
+every fit was playing nine innings and discarding four. 1.66x on the entire
+F5 loop, verified exact by mutation, inside the noise floor at 6 salts.
+
+## THE EARLIER SCREENS, KEPT FOR THE MEASURED NEGATIVES (2026-08-27)
 
 The day-twelve screen measured ONE of handedness's two channels. The Toronto
 card exposed the other on a live board, so it was pre-registered and run.

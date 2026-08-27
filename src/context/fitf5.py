@@ -286,7 +286,12 @@ def evaluate(cases: list[dict], params: dict | None = None, n_sims=60,
                     home["pitcher"],
                     pens.get((home["team"] or "").upper(), []),
                     home["lineup"], base, rng)
-                game.simulate_game(A, H, lg, rng)
+                # STOP AT FIVE. Nothing in innings 6-9 can reach a
+                # first-five number, and this objective reads only
+                # `runs_f5` and `line.outs` — `total_rps` is the F5 GAME
+                # total, not the full-game one. Every fit was playing four
+                # innings a draw and discarding them.
+                game.simulate_game(A, H, lg, rng, stop_after=5)
                 # `Side.runs_f5` is runs ALLOWED through five by that
                 # pitching side, which is exactly what the side observation
                 # records. `GameResult.away_f5` is the opposite convention —

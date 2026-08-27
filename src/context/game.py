@@ -404,12 +404,26 @@ def simulate_game(away: Side, home: Side, lg: dict,
                   park: dict | None = None,
                   track: tuple = (),
                   regulation: int = 9,
-                  max_extra: int = 9) -> GameResult:
+                  max_extra: int = 9,
+                  stop_after: int | None = None) -> GameResult:
     """One full game, both sides advancing half-inning by half-inning.
 
     `away` and `home` are PITCHING sides. The away side's runs allowed are
     the HOME team's score — crossing those is the obvious way to build this
     exactly backwards.
+
+    `stop_after` ends the game after the BOTTOM of that inning and is EXACT,
+    not an approximation: nothing in innings 6-9 can reach a first-five
+    number, so a caller that only reads `runs_f5` gets identical answers and
+    skips roughly half the work. The whole F5 objective — both `side_rps`
+    and `total_rps` — is such a caller, so every fit was simulating four
+    innings per draw and discarding them.
+
+    It is deliberately NOT the same as passing `innings=5`. That would hand
+    5 to the extra-innings rule and keep playing a game tied after five, and
+    it would make `regulation` bite, so the home side would stop batting
+    when ahead. Both change the first five. This breaks unconditionally
+    after a bottom half that is always played.
     """
     rng = rng or random.Random()
     prefix: dict = {}
@@ -448,6 +462,10 @@ def simulate_game(away: Side, home: Side, lg: dict,
             # Runs ALLOWED by both sides is runs SCORED in the game.
             prefix[inning] = away.runs + home.runs
             prefix_side[inning] = (home.runs, away.runs)
+        # AFTER `track`, or a caller asking for both gets a prefix dict
+        # silently missing its last entry.
+        if stop_after is not None and inning >= stop_after:
+            break
         # After regulation, a decided game is over.
         if inning >= innings and away.runs != home.runs:
             break

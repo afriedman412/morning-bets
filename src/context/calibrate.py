@@ -222,8 +222,34 @@ _MIX: list = [None, None, None]
 #: rate. Testing statsapi's exact splits would separate the two — if those
 #: also fail, the averaging argument wins and the idea is dead.
 #:
-#: Kept rather than deleted so the next person with this instinct can flip
-#: one flag instead of rebuilding it.
+#: MEASURED AGAIN 2026-08-27, and the answer is worse than "it does
+#: nothing": FLIPPING THIS FLAG MAKES THE MODEL WORSE. Scored leak-free on
+#: the starters' own lines — 2026 starts, splits from 2023-25, 20 sims x 6
+#: salts paired — the shipped construction costs +2.9 sd on strikeouts and
+#: +9.9 sd on WALKS against handedness off.
+#:
+#: The reason is the shrink target, and it is a specification error rather
+#: than a fact about baseball. This shrinks each split toward the HITTER'S
+#: OWN OVERALL RATE, so a hitter with a thin split regresses to having NO
+#: platoon effect — the one answer known to be false. It keeps his personal
+#: deviation, which does not persist across seasons, and discards the
+#: structural effect, which is reliable and large: counted over 9,962 games,
+#: a left-handed bat loses 26% of its home run rate against a left-hander.
+#:
+#: Shrinking toward the LEAGUE platoon cell for the side he bats from
+#: instead repairs it — `scratchpad/platoon_fix.py` recovers -29.7% for
+#: left-handed bats where this gets -16.2% — and that version scores flat
+#: against handedness off on every channel. So the corrected mechanism is a
+#: WASH, not a gain, and the uncorrected one is a loss.
+#:
+#: Why flat rather than positive: THE LINEUP CARD IS ALREADY THE
+#: ADJUSTMENT. The manager stacked his right-handed bats against the
+#: left-hander before first pitch and `opposing_lineups` feeds the
+#: simulator the nine that actually played, so the effect is already
+#: expressed in who is batting. Applying it per hitter double counts it.
+#:
+#: Kept rather than deleted so the next person with this instinct can read
+#: the measurement instead of rebuilding it. Do not flip it.
 USE_HANDEDNESS = False
 
 #: Apply Savant park multipliers, keyed by the game's venue_id. An unrated

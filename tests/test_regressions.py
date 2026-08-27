@@ -510,3 +510,51 @@ def check_balls_in_play_are_counted_as_plays_not_as_outs():
     # Degenerate lines must not produce a negative or exploding denominator.
     assert rates.balls_in_play(10, 9, 1, 0) == 0.0
     assert rates.balls_in_play(0, 0, 0, 0) == 0.0
+
+
+def check_stopping_after_five_is_exact_not_an_approximation():
+    """`stop_after` must not change a single first-five number.
+
+    The F5 objective reads only `runs_f5` from each side, and `total_rps`
+    is also a first-five quantity, yet `simulate_game` played all nine
+    innings on every draw of every fit and discarded four of them. The
+    optimisation is only legitimate if it is EXACT, so this replays the same
+    seeds both ways and demands identical answers — not close ones.
+
+    It also guards the two ways of getting this wrong that look right.
+    Passing `innings=5` instead hands 5 to the extra-innings rule, so a game
+    tied after five keeps playing; and it makes `regulation` bite, so a home
+    side that is ahead stops batting in the fifth. Either one changes the
+    quantity being scored.
+    """
+    import random
+    from src.context import game, sim
+
+    lg = sim.league()
+    bats = [sim.BatterRates(name=f"b{i}", k_pct=lg["k_pct"],
+                            bb_pct=lg["bb_pct"], hr_pct=lg["hr_pct"],
+                            babip=lg["babip"], pa=600) for i in range(9)]
+    sp = sim.PitcherRates(name="sp", k_pct=lg["k_pct"], bb_pct=lg["bb_pct"],
+                          hr_pct=lg["hr_pct"], babip=lg["babip"], pa=600)
+    pen = [{"name": f"r{i}", "k_pct": lg["k_pct"], "bb_pct": lg["bb_pct"],
+            "hr_pct": lg["hr_pct"], "babip": lg["babip"], "apps": 40}
+           for i in range(8)]
+
+    def play(seed, stop):
+        rng = random.Random(seed)
+        A = game.build_side(sp, pen, bats, None, rng)
+        H = game.build_side(sp, pen, bats, None, rng)
+        r = game.simulate_game(A, H, lg, rng, track=(5,), stop_after=stop)
+        return A.runs_f5, H.runs_f5, A.line.outs >= 15, r.prefix.get(5)
+
+    same = 0
+    for seed in range(60):
+        full = play(seed, None)
+        early = play(seed, 5)
+        assert full == early, (seed, full, early)
+        same += 1
+    assert same == 60, same
+
+    # And the prefix record survives the early break — putting it before
+    # the `track` block drops inning five from the dict it just filled.
+    assert play(3, 5)[3] is not None

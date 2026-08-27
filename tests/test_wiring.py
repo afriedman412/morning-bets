@@ -704,3 +704,32 @@ def check_relievers_shrink_toward_the_reliever_league():
     lg = sim.league(2026)
     assert lg["hr_pct"] > 0.031, lg
     assert lg["bb_pct"] < 0.090, lg
+
+
+def check_the_handedness_flag_stays_off_because_it_makes_things_worse():
+    """MEASURED 2026-08-27, and this is not the usual "it does nothing".
+
+    The shipped `batter_rates_by_hand` shrinks each split toward the
+    hitter's OWN OVERALL RATE, so a thin split regresses to no platoon
+    effect at all — the one answer known to be false. Scored leak-free on
+    the starters' own lines it costs +2.9 sd on strikeouts and +9.9 sd on
+    walks against handedness off.
+
+    Pinned rather than deleted because the flag is one line and the instinct
+    to flip it is correct-sounding. The correct prior is the LEAGUE platoon
+    cell for the side he bats from, and even that scores flat, because the
+    lineup card is already the adjustment.
+    """
+    from src.context import calibrate as cal
+    from src.context.sources import rates as rate_src
+
+    assert cal.USE_HANDEDNESS is False
+    # The constant that defines the broken prior. If someone rebuilds the
+    # split path, this name should go with it.
+    assert rate_src.SPLIT_STABILISE == 120, rate_src.SPLIT_STABILISE
+    doc = cal.__doc__ or ""
+    import inspect
+    src = inspect.getsource(cal)
+    i = src.index("USE_HANDEDNESS = False")
+    assert "MAKES THE MODEL WORSE" in src[:i], \
+        "the measurement must stay next to the flag"
