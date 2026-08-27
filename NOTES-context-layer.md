@@ -4108,3 +4108,45 @@ Note also `early_exit_p`, the mixture already built and shipped inert, which
 was aimed at the same tail from the hook side and whose numbers were voided
 when the boundary bug was fixed. Two mechanisms pointing at one measured
 defect, neither currently on.
+
+### A per-start dispersion term: closes the SHAPE, neutral on the SCORE
+
+Following the under-dispersion diagnosis. One latent draw per start scaling
+the pitcher's four rates the way they travel on a bad night — strikeouts
+down, walks, home runs and contact up. NOT a prediction: nothing knows which
+start blows up, and it does not need to, it needs the right RATE of blowups.
+`scratchpad/dispersion.py`.
+
+    sigma  mean runs  vs actual    P(0)   P(6+)  shape err
+   actual     2.1905              23.24    7.32
+     0.00     2.1477    -0.0428   22.59    6.16       4.29
+     0.10     2.1843    -0.0062   23.05    6.97       2.39
+     0.15     2.2211    +0.0306   23.60    7.81       2.54
+     0.20     2.2933    +0.1028   23.85    9.09       5.54
+     0.30     2.4381    +0.2476   25.17   11.96      13.79
+
+**ONE SIGMA CLOSES BOTH GAPS**, which was pre-registered as the test of
+whether shape and level are one defect or two: 44% off the shape error and
+86% of the run-level gap at sigma 0.10. Two defects would need the shape
+overshot to fix the level. They are one defect.
+
+**BUT IT DOES NOT IMPROVE F5 CRPS.** Held out on July-onward sides:
+
+    60 sims x 4 salts    sigma 0.10 BETTER  (1.61607 against 1.62187)
+    100 sims x 6 salts   sigma 0.10 WORSE   (+0.00313 +/- 0.00315, +1.0 sd)
+
+It FLIPPED with sample size — the fourth small-n reversal of the day, and it
+was one report away from being written up as a win.
+
+WHY NEUTRAL IS THE RIGHT ANSWER AND NOT A DISAPPOINTMENT. The term adds the
+SAME dispersion to every start, so it makes the MARGINAL distribution righter
+without making any individual game's prediction better. Calibration improves,
+discrimination does not, and CRPS on this objective is dominated by telling
+games apart. NOT SHIPPED: a fitted parameter that does not earn on the
+settlement quantity stays out, however good the marginal looks.
+
+WHAT WOULD BE DIFFERENT. The defect is real and measured. A dispersion that
+VARIES — by pitcher, by workload, by anything with a measurable spread —
+would move discrimination as well as calibration, and that is the version
+worth building. A flat one was the cheapest test of the diagnosis and it
+confirmed the diagnosis without earning its place.

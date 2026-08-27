@@ -1,112 +1,129 @@
-"""Are the simulated run distributions too WIDE or too NARROW?
+"""Does a per-start DISPERSION term close the shape gap?
 
-The eye-test on six games says too wide — no resolution around the likely
-numbers. The notes say the opposite, that the run distribution is COMPRESSED
-(too many shutouts and too few crooked numbers at once). One of them is
-wrong and six games cannot settle it.
+    venv/bin/python -m scratchpad.dispersion [n_sims]
 
-THE TEST. For each real game, simulate it and ask where the actual total
-lands inside the predicted distribution — the probability integral
-transform. Across many games those should be UNIFORM if the widths are
-right. Too wide and they pile up in the MIDDLE, because a distribution
-hedging over everything makes the real answer look unremarkable. Too narrow
-and they pile up at the ENDS.
+THE DIAGNOSIS IT FOLLOWS FROM (`scratchpad/f5_decomp.py`): the model puts
+exactly the right men on base (+0.0%), every event channel is inside 1.4%,
+and it is 1.7% short on runs. The shape says why — reality has MORE shutouts
+AND MORE blowups, and the model is bunched in the middle. Both tails thin at
+once is clustering: plate appearances are resolved independently and real
+ones arrive in bunches.
 
-Reported alongside: the sim's own average per-game standard deviation
-against the standard deviation of the actual totals. The second contains
-game-to-game differences in the true mean and so must be the LARGER of the
-two; if the sim's per-game sd approaches or exceeds it, the sim is spending
-spread on within-game noise that reality spends on matchups.
+THE MECHANISM. One latent draw per start, scaling the pitcher's four rates
+in the directions that travel together on a bad night: strikeouts down,
+walks, home runs and contact up. It is NOT a prediction — nothing here knows
+which start blows up, and it does not need to. It needs the right RATE of
+blowups.
 
-    venv/bin/python -m scratchpad.dispersion [n_games]
+WHY THIS IS NOT `form.py`, WHICH IS PARKED. That asked whether nightly form
+is PREDICTABLE IN ADVANCE and answered no, three ways. This asks whether the
+model GENERATES ENOUGH BAD NIGHTS, which an unpredictable term answers just
+as well. The dead list records HOW a thing was tried: form was tried as a
+predictor. It has never been tried as a dispersion.
+
+MEAN-PRESERVING ON THE RATES, NOT ON RUNS — and that is the point. Runs are
+CONVEX in the rates, so a symmetric spread on the inputs RAISES mean runs.
+If the shape gap and the level gap are one defect, one sigma should close
+both at once. If sigma has to be pushed past what closes the shape in order
+to close the level, they are two defects and this is the wrong fix.
 """
+from __future__ import annotations
+
+import math
 import random
-import statistics as st
 import sys
+from collections import defaultdict
+from concurrent.futures import ProcessPoolExecutor
 
-from src.context import calibrate as cal
-from src.context import game, sim
-from src.context.sources import innings as inn_src
+from dataclasses import replace
+
+from src.context import fitf5, game, sim
 from src.context.sources import rates as rate_src
+from scratchpad.f5_decomp import actual_f5
 
-N_SIMS = 300
-
-
-def pit(vals, x):
-    n = len(vals)
-    below = sum(1 for v in vals if v < x)
-    at = sum(1 for v in vals if v == x)
-    return (below + at / 2) / n
+#: How the four rates move together on a bad night, as multiples of the
+#: latent draw. Signs are not fitted — they are which way a pitcher who does
+#: not have it is worse. The magnitudes are equal because nothing measured
+#: says otherwise and inventing a shape would be fitting.
+LOAD = {"k_pct": -1.0, "bb_pct": 1.0, "hr_pct": 1.0, "babip": 1.0}
 
 
-def main():
-    limit = int(sys.argv[1]) if len(sys.argv) > 1 else 500
+def perturb(p: sim.PitcherRates, z: float, sigma: float) -> sim.PitcherRates:
+    """One start's latent quality, applied multiplicatively."""
+    if not sigma:
+        return p
+    return replace(
+        p,
+        k_pct=p.k_pct * math.exp(LOAD["k_pct"] * sigma * z),
+        bb_pct=p.bb_pct * math.exp(LOAD["bb_pct"] * sigma * z),
+        hr_pct=p.hr_pct * math.exp(LOAD["hr_pct"] * sigma * z),
+        babip=min(0.6, p.babip * math.exp(LOAD["babip"] * sigma * z)))
+
+
+def main(argv):
+    n_sims = int(argv[0]) if argv else 30
     lg = sim.league()
+    cases = fitf5.side_cases()
+    by_game = defaultdict(dict)
+    for c in cases:
+        by_game[c["game_id"]][("home" if c["is_home"] else "away")] = c
+    gids = [g for g, v in by_game.items() if len(v) == 2]
+    shorts = [g.split("-")[-1] for g in gids]
+    act = {}
+    with ProcessPoolExecutor(max_workers=8) as ex:
+        for g, got in zip(gids, ex.map(actual_f5, shorts, chunksize=32)):
+            if got and "away" in got and "home" in got:
+                act[g] = got
+    print(f"  {len(act):,} games, {n_sims} sims\n", flush=True)
+
+    act_hist = defaultdict(int)
+    act_runs = n_act = 0
+    for g in act:
+        for tag in ("away", "home"):
+            a = act[g][tag]
+            act_hist[min(a.get("runs", 0), 6)] += 1
+            act_runs += a.get("runs", 0)
+            n_act += 1
+    ad = sum(act_hist.values())
+    a_pct = {k: 100 * v / ad for k, v in act_hist.items()}
+
     pens = rate_src.bullpens(lg)
-    by = {}
-    for s, p, l in cal.build_cases():
-        by.setdefault(s["game_id"], []).append((s, p, l))
-    by = {g: v for g, v in by.items()
-          if len(v) == 2 and sum(bool(x[0]["is_home"]) for x in v) == 1}
-    actual = {n: inn_src.prefix_totals(n) for n in (3, 5, 7)}
-    ok = [g for g in by if all(g in actual[n] for n in (3, 5, 7))]
-    by = {g: by[g] for g in ok[:limit]}
-    print(f"{len(by)} games x {N_SIMS} draws", flush=True)
-
-    rows = {n: [] for n in (3, 5, 7)}
-    sd_sim = {n: [] for n in (3, 5, 7)}
-    act = {n: [] for n in (3, 5, 7)}
-    for i, (gid, v) in enumerate(by.items()):
-        home = next(x for x in v if x[0]["is_home"])
-        away = next(x for x in v if not x[0]["is_home"])
-        an = cal.adjust_lineup(away[2], False)
-        hn = cal.adjust_lineup(home[2], True)
-        tot = {n: [] for n in (3, 5, 7)}
-        for draw in range(N_SIMS):
-            rng = random.Random(11 + i * 100003 + draw)
-            A = game.build_side(
-                away[1], pens.get((away[0]["team"] or "").upper(), []),
-                hn, None, rng)
-            H = game.build_side(
-                home[1], pens.get((home[0]["team"] or "").upper(), []),
-                an, None, rng)
-            r = game.simulate_game(A, H, lg, rng, track=(3, 5, 7))
-            for n in (3, 5, 7):
-                if n in r.prefix:
-                    tot[n].append(r.prefix[n])
-        for n in (3, 5, 7):
-            if len(tot[n]) < N_SIMS // 2:
-                continue
-            a = actual[n][gid]["total"]
-            rows[n].append(pit(tot[n], a))
-            sd_sim[n].append(st.pstdev(tot[n]))
-            act[n].append(a)
-        if (i + 1) % 100 == 0:
-            print(f"  {i + 1} games", flush=True)
-
-    for n in (3, 5, 7):
-        p = rows[n]
-        if not p:
-            continue
-        print(f"\n  F{n} TOTAL RUNS — {len(p)} games")
-        print(f"    where the actual landed in the predicted distribution")
-        exp = len(p) / 10
-        for lo in range(10):
-            c = sum(1 for x in p if lo / 10 <= x < (lo + 1) / 10)
-            bar = "#" * round(c / max(exp, 1) * 14)
-            print(f"      {lo / 10:.1f}-{(lo + 1) / 10:.1f}{c:>6}"
-                  f"{c / len(p):>8.1%}  {bar}")
-        mid = sum(1 for x in p if 0.25 <= x < 0.75) / len(p)
-        ends = sum(1 for x in p if x < 0.1 or x >= 0.9) / len(p)
-        print(f"    middle half 0.25-0.75: {mid:.1%}   (uniform = 50.0%)")
-        print(f"    outer tenths:          {ends:.1%}   (uniform = 20.0%)")
-        v = "TOO WIDE" if mid > 0.56 else ("TOO NARROW" if mid < 0.44
-                                           else "about right")
-        print(f"    -> {v}")
-        print(f"    sim per-game sd {st.mean(sd_sim[n]):.2f}   "
-              f"actual across games sd {st.pstdev(act[n]):.2f}"
-              f"   (the second MUST be larger)")
+    print(f"  {'sigma':>7}{'mean runs':>11}{'vs actual':>11}"
+          f"{'P(0)':>8}{'P(6+)':>8}{'shape err':>11}")
+    print(f"  {'actual':>7}{act_runs / n_act:>11.4f}{'':>11}"
+          f"{a_pct.get(0, 0):>8.2f}{a_pct.get(6, 0):>8.2f}{'':>11}")
+    for sigma in (0.0, 0.10, 0.15, 0.20, 0.25, 0.30):
+        hist = defaultdict(int)
+        tot = n = 0
+        for g in sorted(act):
+            away, home = by_game[g]["away"], by_game[g]["home"]
+            rng = random.Random(away["seed"])
+            for _ in range(n_sims):
+                za, zh = rng.gauss(0, 1), rng.gauss(0, 1)
+                A = game.build_side(
+                    perturb(away["pitcher"], za, sigma),
+                    pens.get((away["team"] or "").upper(), []),
+                    away["lineup"], None, rng)
+                H = game.build_side(
+                    perturb(home["pitcher"], zh, sigma),
+                    pens.get((home["team"] or "").upper(), []),
+                    home["lineup"], None, rng)
+                game.simulate_game(A, H, lg, rng, stop_after=5)
+                for sd in (A, H):
+                    hist[min(sd.line.runs, 6)] += 1
+                    tot += sd.line.runs
+                    n += 1
+        s_pct = {k: 100 * v / n for k, v in hist.items()}
+        # Total absolute deviation across the seven buckets: one number for
+        # "is the SHAPE right", which the mean cannot say.
+        err = sum(abs(s_pct.get(k, 0) - a_pct.get(k, 0)) for k in range(7))
+        gap = tot / n - act_runs / n_act
+        print(f"  {sigma:>7.2f}{tot / n:>11.4f}{gap:>+11.4f}"
+              f"{s_pct.get(0, 0):>8.2f}{s_pct.get(6, 0):>8.2f}{err:>11.2f}")
+    print("\n  `shape err` is total absolute deviation over the seven run")
+    print("  buckets. If one sigma minimises it AND zeroes the mean gap,")
+    print("  the shape and level defects are the same thing.")
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
