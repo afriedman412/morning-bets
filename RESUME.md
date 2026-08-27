@@ -1,3 +1,119 @@
+# Resume here — state as of 2026-08-26 (day ten)
+
+## WHAT CHANGED TODAY, IN ONE LINE
+
+Three prior seasons loaded, and the split it exposed is the finding: MORE
+DATA HELPS STRIKEOUTS, DOES NOTHING FOR OUTS, AND DOES NOT REACH TOTALS.
+
+## THE ONE THING TO SHIP
+
+**Last season as the PRIOR, not as pooled data.** Built, measured, and OFF
+behind `rates.USE_PRIOR_SEASON`. It needs one number — the decay weight —
+and 2024/2023 are loading to measure it.
+
+    cut 2026-05-01        none      pool     prior
+      K correlation     0.3342    0.3956    0.3843
+      K bias            0.0867    0.2643    0.1360
+
+Pooling buys +0.061 of correlation for +0.178 of bias; the prior buys +0.050
+for +0.049. About 80% of the gain for under 30% of the cost, and at the July
+cut the prior has the best K CRPS of the three outright.
+
+IT IS NOT A NEW MECHANISM. `_shrink` already blends a thin line toward the
+league; this aims it at the pitcher's own last season. Chapman at 39 batters
+faced was being dragged to 0.2539, near league average; his own prior puts
+him at 0.3220. It decays on the calendar for free — April leans on the
+prior, August swamps it — which is the same May-to-July decay the pooled
+test found from the other side. Two stages, so a thin prior cannot shout
+down the evidence behind it, and league-adjusted first because home runs are
+up 7% between the seasons.
+
+## WHAT THE DATA DID NOT FIX
+
+**OUTS. Sixth mechanism to bounce off it.** Memory: +0.001 and -0.009 on
+correlation. And the pooled hook refit on **89,983 boundary decisions** —
+2.3x every fit this project has ever done — moved the coefficients almost
+nowhere (`pitch_scale` 10.897 -> 10.671) and reproduced the identical
+failure: 0.114 fired where reality is 0.081 at 70-80, 0.610 against 0.734 at
+100-110. SAMPLE IS NOW ELIMINATED as the explanation for the tail
+undershoot. The linear form's failure is structural.
+
+**TOTALS.** game RMSE 4.556 / 4.560 / 4.602 across the three arms, F5 3.278
+/ 3.236 / 3.274. Inside noise. A team total is two bullpens and eighteen
+half-innings, so a sharper starter K rate cannot reach it.
+
+## THE TRAFFIC DEFICIT NOW HAS TWO SIGNATURES
+
+Starter outs run about **+1.0 high** and total runs about **-0.5 light**, at
+every cut under every arm. One defect from both ends: too few men reach
+base, innings end too cleanly, so starters last longer AND fewer runs score.
+This is the live hypothesis for outs, and it is not a data-volume problem.
+
+## SEASONS: HOW THEY ARE TREATED
+
+`context/scope.py`. Default is THIS season; `scope.ALL_SEASONS` pools on
+purpose. Player-indexed things are scoped (rates, leash, lineups, park,
+league baselines — the ball changes: HR 3.17% in 2026 against 2.96% in
+2025). League-behaviour things may pool, AFTER a gate.
+
+**The hook passed its gate on full seasons**: 40,279 decisions in 2025
+against 38,949 in 2026, pull rates 0.0645 / 0.0656, only the 0-60 bucket
+flagging at +0.0018 on 26,000 rows.
+
+## LOADING 2025 FOUND THREE SILENT LEAKS
+
+Only catchable because the scoping went in FIRST with exact digests to
+compare against. The rotation gate counted starts across seasons (2026 case
+count moved 3,629 -> 3,709 with no code change); `sim._starter_league` took
+no season argument at all while setting the anchor every rate is log5'd
+against; and `resolve` applied twice turned ALL_SEASONS back into the current
+season. All fixed, all digests restored, tests added.
+
+## WHAT TO DO NEXT
+
+1. **Split-season boundary fit.** 2025 alone against 2026 alone, comparing
+   FITTED COEFFICIENTS rather than bucket hazards. The gate compared hazards,
+   which is one step removed. If the two independent fits land on each other
+   the stability is real; if not, the pooled fit is averaging something away.
+   User flagged the stability as "almost concerning" and that is the check.
+2. **Measure the decay** across four seasons, then ship the K prior. It is
+   the only measured gain of the day and it is still behind a flag.
+3. **The traffic deficit.** Two signatures now, five failed mechanisms.
+4. **Arsenal, PRE-REGISTERED ON STRIKEOUTS ONLY.** Re-openable: it was
+   scored on the two-engine setup on half a season, and the recorded
+   sub-pattern — every high-K line improved, k7.5 +0.67pp — fits today's
+   split exactly. Commit to the hypothesis before looking.
+5. **`fitf5`** still has never been re-run.
+
+## RETRACTED TODAY
+
+* The preseason-rank GRADIENT. Died on 2025 — the strongest cell there is
+  the 17+ bucket, the opposite of the callup story. The headline correlation
+  DOES replicate (-0.287 / -0.268) and is redundant against prior outs in
+  both seasons (+0.002, +0.011).
+* The boundary KNEE fixing the 18.5 line. It moved it by zero.
+* Archetype as evidence about matchups. It measured whether arsenals form
+  CLUSTERS; they cluster for nobody. Matchups are a separate, re-openable
+  question.
+
+## TRAPS ADDED ON DAY TEN
+
+**A DIGEST BEFORE A DATA LOAD IS WORTH MORE THAN ANY REASONING AFTER IT.**
+All three leaks were found by fingerprints moving, not by reading code.
+
+**COVERAGE IS NOT ACCURACY.** Memory makes 117 more early-season games
+priceable. Scored unpaired that reads as skill; it is not. Intersect first.
+
+**HISTORY SUPERSEDES TYPING.** Typing was a stand-in for not having enough
+of the man himself. `bytype.py` found the defects global; `archetype.py`
+found typing absent for starters. Both were saying this.
+
+**MATCH THE CALENDAR WHEN COMPARING SEASONS ON PARTIAL DATA.** The first
+stability run showed 2026 pulling less at eleven of eleven buckets. It was
+two months of 2025 against six of 2026.
+
+---
+
 # Resume here — state as of 2026-08-26 (day nine)
 
 ## WHAT CHANGED TODAY, IN ONE LINE

@@ -1,0 +1,43 @@
+    400/4663 games, 7,675 decisions
+    800/4663 games, 15,554 decisions
+    1200/4663 games, 23,420 decisions
+    1600/4663 games, 31,310 decisions
+    2000/4663 games, 39,439 decisions
+    2400/4663 games, 47,385 decisions
+    2800/4663 games, 54,221 decisions
+    3200/4663 games, 62,105 decisions
+    3600/4663 games, 69,771 decisions
+    4000/4663 games, 77,500 decisions
+    4400/4663 games, 85,128 decisions
+
+  89,983 BOUNDARY decisions (end-of-inning, starter still in)
+  pull rate 0.0655
+  in-sample AUC 0.8975   log loss 0.1603
+
+  parameter            shipped    fitted
+  intercept            -4.2384   -4.3350
+  pitch_center         47.6812   47.6084
+  pitch_scale          10.8972   10.6712
+  per_run               0.0089    0.0412
+  per_baserunner        0.0379    0.0288
+  per_inning           -0.1087   -0.1027
+  per_margin            0.0000   -0.0076
+
+  HAZARD BY PITCH COUNT — the curve has to reproduce this
+  bucket            n   actual  shipped   fitted
+  0-60          58318    0.009    0.007    0.006
+  60-70         10193    0.032    0.051    0.050
+  70-80          9167    0.081    0.113    0.114
+  80-90          7320    0.215    0.231    0.235
+  90-100         4064    0.505    0.406    0.414
+  100-110         879    0.734    0.599    0.610
+  110-999          42    0.762    0.769    0.778
+
+  HAZARD BY INNING
+  inning            n   actual  shipped   fitted
+  3             16719    0.015    0.019    0.019
+  4             15592    0.041    0.063    0.063
+  5             12762    0.135    0.150    0.152
+  6              7082    0.286    0.248    0.251
+  7              2145    0.377    0.307    0.309
+  8               344    0.343    0.350    0.352
