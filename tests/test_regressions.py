@@ -395,3 +395,60 @@ def check_kalshi_matches_the_surname_not_just_any_shared_token():
         assert "names_match(" in src, f"{fn.__name__} bypasses the matcher"
         assert "_name_key(" not in src, \
             f"{fn.__name__} is back on token-intersection matching"
+
+
+def check_the_second_out_of_an_inning_is_not_a_boundary_decision():
+    """`count.outs` is the outs AFTER the play, and reading it as BEFORE put
+    every second out into the end-of-inning training set.
+
+    Measured over 3,000 games on 2026-08-26: of 56,848 rows labelled
+    `ends_inning`, only 29,447 ended an inning. The 27,401 impostors were
+    second outs, and they are not the same decision — a true boundary row is
+    a removal 11.88% of the time and a second-out row 1.28%, nine times
+    lower. Pooled, the set reported a 6.55% boundary pull rate against a
+    real 11.88%, and every hook fitted on it inherited the dilution.
+
+    This is `CLAUDE.md`'s pooling rule reached through the LABELS rather than
+    through the fit. Guarding the fitting call is not enough when the rows
+    arrive already mislabelled.
+
+    The fixture that should have caught it encoded the same misunderstanding
+    — see the note at the top of `tests/test_boundary.py` — so this check
+    builds its plays from the real convention explicitly and does not use
+    that helper.
+    """
+    from src.context import boundary
+
+    def play(inning, pid, event, outs_after):
+        return {
+            "about": {"inning": inning, "isTopInning": True},
+            "matchup": {"pitcher": {"id": pid}, "batter": {"id": 9}},
+            "result": {"eventType": event, "awayScore": 0, "homeScore": 0},
+            "count": {"outs": outs_after},
+            "playEvents": [{"isPitch": True}] * 3,
+            "runners": [],
+        }
+
+    # A clean inning: the three outs read 1, 2, 3 in the feed. Only the
+    # third is a boundary decision.
+    plays = [play(1, 1, "strikeout", 1),
+             play(1, 1, "field_out", 2),
+             play(1, 1, "field_out", 3),
+             play(2, 1, "strikeout", 1),
+             play(2, 1, "field_out", 2)]
+    rows = boundary.decisions("g", {"allPlays": plays})
+    got = [(r["inning"], r["outs_before"], r["ends_inning"]) for r in rows]
+    assert got[0] == (1, 0, False), got
+    assert got[1] == (1, 1, False), got
+    assert got[2] == (1, 2, True), got      # the third out, and only it
+    assert got[3] == (2, 0, False), got
+    assert sum(1 for r in rows if r["ends_inning"]) == 1, got
+
+    # A double play jumps the count by two and still ends the inning at
+    # three. The old event table had to know that; reading the feed does not.
+    dp = [play(1, 1, "strikeout", 1),
+          play(1, 1, "grounded_into_double_play", 3),
+          play(2, 1, "field_out", 1)]
+    rows = boundary.decisions("g", {"allPlays": dp})
+    assert [r["ends_inning"] for r in rows] == [False, True], rows
+    assert rows[1]["outs_before"] == 1, rows[1]

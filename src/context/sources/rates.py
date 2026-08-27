@@ -112,6 +112,59 @@ group by mb.player_name
 """
 
 
+#: Drop postseason games from every rate aggregate. OFF until measured.
+#:
+#: THE ASYMMETRY IS THE REASON THIS EXISTS. The current season has no
+#: postseason yet and every prior season has a complete one, so October
+#: innings enter the PRIOR and never the current line it is shrunk against.
+#: They are also not like the rest: a playoff pitcher faces playoff lineups,
+#: which drags his rates the same way every time. Measured 2026-08-26,
+#: excluding October moves K% by more than half a point for about 8% of
+#: arms, up to 3.1 points, and always in the same direction:
+#:
+#:     Aroldis Chapman 2023   0.3833 -> 0.4143
+#:     Kris Bubic 2024        0.2917 -> 0.3197
+#:     Daniel Palencia 2025   0.2667 -> 0.2913
+#:
+#: `_prior_adjusted` scales by the league, which absorbs SOME of this — but
+#: only some, because the league's postseason share is ~2% while a
+#: contender's ace runs 10%+. It lands hardest on exactly the arms worth
+#: pricing.
+EXCLUDE_POSTSEASON = False
+
+#: First and last postseason date per season, inclusive. TRANSCRIBED rather
+#: than inferred, because a rule that looked right was wrong at the edges.
+#:
+#: The rule tried first — "October onward, a day with fewer than eight
+#: games" — fails in both directions and the failures are invisible:
+#:
+#:   * 2025's Wild Card round opened on SEPTEMBER 30. A month test misses
+#:     four postseason days entirely.
+#:   * 2024-09-30 carries two games and they are REGULAR SEASON, a rained-out
+#:     doubleheader that decided a playoff place. A game-count test applied
+#:     in September throws them away.
+#:   * 2023-10-01 carries fifteen games and is the last regular-season day,
+#:     so a bare month test throws away a full slate.
+#:
+#: DERIVED FROM THE SCHEDULE AND CHECKED AGAINST IT: the last regular-season
+#: day is the final full slate (14-16 games) and the postseason opens at the
+#: next date, which is 2 to 4 games. Verified per season against the day
+#: counts around the boundary. 2026 has no postseason on record — the season
+#: is in progress, which is the entire reason this filter matters.
+POSTSEASON_RANGE = {
+    2023: ("2023-10-03", "2023-11-01"),
+    2024: ("2024-10-01", "2024-10-30"),
+    2025: ("2025-09-30", "2025-11-01"),
+}
+
+
+def postseason_clause(alias: str = "g") -> str:
+    """SQL excluding every postseason date, as inclusive ranges."""
+    return " ".join(
+        f"and not ({alias}.date >= '{a}' and {alias}.date <= '{b}')"
+        for a, b in POSTSEASON_RANGE.values())
+
+
 def _where(season: int | None, before: str | None) -> str:
     bits = []
     # None means THIS SEASON, not every season — see `context.scope`. Pass
@@ -122,27 +175,193 @@ def _where(season: int | None, before: str | None) -> str:
     if before:
         # Strictly before, so a brief never sees the game being bet on.
         bits.append(f"and g.date < '{before}'")
+    if EXCLUDE_POSTSEASON:
+        bits.append(postseason_clause("g"))
     return " ".join(bits)
 
 
-#: Shrink a thin current-season line toward the pitcher's OWN LAST SEASON
-#: instead of toward the league. OFF until measured.
-#:
-#: The case, measured 2026-08-26: pooling 2025 and 2026 flat lifts strikeout
-#: discrimination from 0.334 to 0.392 at a May cut and 0.391 to 0.432 at a
-#: July one — roughly half the headroom left on the stat that has any — and
-#: costs calibration, K bias going +0.087 to +0.286, because a flat pool
-#: weights an April 2025 inning exactly like an August 2026 one.
+#: Shrink a thin current-season line toward the pitcher's OWN PAST SEASONS
+#: instead of toward the league. ON since 2026-08-26, over `PRIOR_SEASONS`
+#: seasons at `PRIOR_DECAY`.
 #:
 #: This is the same arithmetic `_shrink` already does, aimed at a better
 #: target. A man with 180 innings last year is a far better guess for what
-#: he is than "average major league starter", and the current code throws
-#: that away in favour of the worse guess. It also decays on the calendar
-#: for free: in April his prior dominates because he has nothing else, by
-#: August his own numbers swamp it. That is exactly the May-to-July decay
-#: the pooled test measured, which is why the mechanism is believable and
-#: not just the number.
-USE_PRIOR_SEASON = False
+#: he is than "average major league starter", and the code used to throw
+#: that away in favour of the worse guess. It decays on the calendar for
+#: free: in April his prior dominates because he has nothing else, by
+#: August his own numbers swamp it — which is why the mechanism is
+#: believable and not just the number.
+#:
+#: SCORED ON OUTCOMES, `scratchpad.memory`, paired on identical games and
+#: seeds, against simulating from this season alone:
+#:
+#:     cut 2026-05-01       none    prior(1)   prior(3)
+#:       K correlation    0.3342     0.3843     0.3854
+#:       K CRPS           1.3467     1.3195     1.3117
+#:       outs CRPS        2.1667     2.1799     2.1620
+#:       K bias          +0.0867    +0.1360    +0.1348
+#:
+#: The May cut is where it is worth having and July is nearly a wash, which
+#: is the mechanism arguing for itself: a prior can only matter while the
+#: current line is thin.
+#:
+#: THE COST IS K BIAS, +0.087 to +0.135, and it is accepted rather than
+#: unnoticed. A flat POOL of the same seasons buys slightly more correlation
+#: for +0.308 of bias — over twice the error for a fraction more discrimination
+#: — and gets WORSE as seasons are added, because it weights an April 2023
+#: inning exactly like an August 2026 one. The prior does not.
+USE_PRIOR_SEASON = True
+
+
+#: How many prior seasons the shrink target may draw on, and how fast one
+#: fades. Season S-k enters at weight `PRIOR_DECAY[stat] ** (k-1)` times its
+#: own batters faced, so 1 season back is always full weight and the decay
+#: only governs what the ones behind it are worth.
+PRIOR_SEASONS = 3
+
+#: MEASURED by `scratchpad.decay` on 2023-2026, and per stat because the
+#: stats differ enormously in how long a pitcher stays himself. Each is the
+#: weight at which the blended prior best predicts the season it is aimed
+#: at — a property of the PREDICTOR, scored against the pitcher's next-season
+#: rate. Nothing that settles is anywhere near it.
+#:
+#:     stat      w=0     best   at w    n
+#:     k_pct    0.645   0.651   0.3   1,077
+#:     bb_pct   0.523   0.542   0.5   1,077
+#:     hr_pct   0.236   0.247   0.7   1,077
+#:     babip    0.142   0.142   0.0     868
+#:
+#: The maxima are BROAD and the gains are small — this is not a knife edge
+#: and it should not be re-tuned to a third decimal. BABIP is 0.0 because it
+#: falls monotonically: a pitcher's balls-in-play rate barely persists one
+#: year (true correlation 0.43 after correcting for sampling noise) and is
+#: indistinguishable from noise at two.
+#:
+#: THE OTHER GAIN, AND IT IS NOT COVERAGE OF GAMES. 7.6% of pitcher-seasons
+#: have NO last season at all — an elbow, a year in the minors — and today
+#: they shrink to league average. For them a two-year-old K rate predicts at
+#: 0.587 against the 0.645 a one-year-old one manages for everybody else:
+#: nearly the full signal, for a population currently getting none of it.
+#: On the 2026 board that is 22 of the 467 arms with 100+ batters faced and
+#: 77 of the thin ones. It does NOT make a single extra game priceable —
+#: whether a game can be priced turns on both starters having a
+#: current-season line, which the prior does not touch — so it shows up as
+#: a better number on those arms and nowhere in the case counts.
+PRIOR_DECAY = {"k_pct": 0.3, "bb_pct": 0.5, "hr_pct": 0.7, "babip": 0.0}
+
+
+#: Shrink a thin pitcher's BABIP toward HIS CLUB'S defence rather than
+#: toward a neutral league. OFF until measured.
+#:
+#: THE GAP IT FILLS. There is no team defence anywhere in this simulator.
+#: Balls in play become outs at one league rate, double plays turn at one
+#: league rate, and a club with the best infield in baseball is
+#: indistinguishable from the worst. Savant's team Outs Above Average has
+#: been fetched and cached by `sources/defense.py` for months and nothing
+#: has ever read it into the model.
+#:
+#: IT PROJECTS, which is the gate that matters — a club number that does not
+#: persist cannot be used to price tomorrow. Team OAA correlates +0.632
+#: between 2025 and 2026 across all thirty clubs, comparable to the bullpen
+#: role split-half (+0.55..+0.78) that passed, and far above per-club
+#: advancement (+0.11..+0.38) which failed.
+#:
+#: AND IT IS BIG ENOUGH TO MATTER. OAA runs -54 to +64 with an sd of 23
+#: across clubs, against roughly 4,100 balls in play a club fields in a
+#: season. One sd is therefore ~0.0056 of BABIP against a league 0.2778,
+#: and best-to-worst is ~0.029 — about 0.07 runs a game per side for one sd,
+#: which clears the ~0.05 leverage bar.
+#:
+#: WHY IT IS A SHRINK TARGET AND NOT A MULTIPLIER, which is the whole design
+#: and the reason this is not the park mistake again. A pitcher's OWN
+#: measured BABIP already contains his own defence — he has been throwing in
+#: front of those gloves all season — so layering OAA on top would count it
+#: twice, exactly as `NEUTRALISE_PARK` being off counted park 1.5x. What is
+#: actually lost is in the SHRINKAGE: a thin line pulled toward the league
+#: is handed a NEUTRAL defence it does not have. So the defence moves the
+#: target, never the observation, and a pitcher with a full season of his
+#: own is untouched.
+USE_TEAM_DEFENCE = False
+
+#: Balls in play a club fields in a full season, the denominator that turns
+#: an OAA count into a rate. Counted from the pitching table rather than
+#: assumed; see `_defence_targets`.
+_DEFENCE_CACHE: dict = {}
+
+
+def _defence_targets(season) -> dict[str, float]:
+    """{team abbr: BABIP this club's gloves SAVE against a neutral defence}.
+
+    Positive means a good defence: balls that would have been hits become
+    outs, so the BABIP allowed in front of it is LOWER by this much.
+
+    OAA is a COUNT of outs above average, so it becomes a rate by dividing
+    by the balls in play that club actually fielded. A positive OAA means
+    more balls became outs, which is a LOWER BABIP allowed — hence the sign.
+
+    Returns {} on any failure, and an unmapped club falls through to the
+    league. That is deliberate and follows the standing rule: a guessed
+    value must not move the estimate in the wrong direction, so a club with
+    no OAA row gets league-neutral rather than a neighbour's number. The 17
+    unmapped clubs in the pitching table are exhibition, international-series
+    and rehab affiliates, not major-league defences.
+    """
+    from src.context import scope
+    yr = scope.resolve(season) or scope.CURRENT_SEASON
+    if yr in _DEFENCE_CACHE:
+        return _DEFENCE_CACHE[yr]
+    try:
+        from src.context import sim
+        from src.context.sources import defense, statsapi
+        oaa = defense.team_defense(year=yr)
+        abbr = statsapi.team_abbrs(yr)
+        sim.league(yr)          # fail fast if the season has no rows
+    except Exception:
+        _DEFENCE_CACHE[yr] = {}
+        return {}
+
+    def _bip(c):
+        return {r["team"]: r["bip"] for r in c.execute(
+            "select p.team team,"
+            " sum(p.outs_recorded + p.h + p.bb - p.k - p.bb - p.hr) bip"
+            " from mlb_pitching p join games g on g.game_id = p.game_id"
+            " where g.sport = 'mlb' and g.status = 'Final'"
+            f" and g.date like '{yr}%' group by p.team") if r["team"]}
+
+    bip = _with(_bip)
+    out = {}
+    for tid, row in oaa.items():
+        team = abbr.get(tid)
+        n = bip.get(team) or 0
+        if not team or n < 500:
+            continue
+        out[team] = (row.get("oaa") or 0) / n
+    _DEFENCE_CACHE[yr] = out
+    return out
+
+
+def _pitcher_teams(season, before, conn=None) -> dict[str, str]:
+    """{player_name: the club he threw the most innings for}.
+
+    By outs rather than appearances so a rehab stint or a September cameo
+    does not outvote the season, and it is the club whose gloves were behind
+    him for most of the line being shrunk.
+    """
+    q = ("select p.player_name name, p.team team,"
+         " sum(p.outs_recorded) o"
+         " from mlb_pitching p join games g on g.game_id = p.game_id"
+         f" where g.sport = 'mlb' and g.status = 'Final' {_where(season, before)}"
+         " group by p.player_name, p.team")
+
+    def _run(c):
+        return c.execute(q).fetchall()
+
+    best: dict[str, tuple[int, str]] = {}
+    for r in (_run(conn) if conn is not None else _with(_run)):
+        o = r["o"] or 0
+        if r["team"] and o > best.get(r["name"], (-1, ""))[0]:
+            best[r["name"]] = (o, r["team"])
+    return {n: t for n, (_o, t) in best.items()}
 
 
 #: Set by `set_prior`. Held at module level rather than threaded through
@@ -151,26 +370,219 @@ USE_PRIOR_SEASON = False
 #: flag that will be forgotten at one of them.
 _PRIOR: dict = {}
 
+#: Which season `_PRIOR` was built to serve, so a prior aimed at 2026 is not
+#: silently reused while building 2025's rates. Both happen in one process
+#: — `set_prior` itself walks back through the seasons.
+_PRIOR_FOR: int | None = None
 
-def set_prior(season: int | None, lg_now: dict | None = None) -> int:
-    """Load and league-adjust `season`'s pitcher rates as the shrink target.
+#: Re-entrancy guard. `set_prior` builds the prior by calling
+#: `pitcher_rates`, which is the function that asks for the prior.
+_LOADING = False
+
+
+def _ensure_prior(season) -> dict:
+    """The prior for `season`, loaded on first use.
+
+    WITHOUT THIS THE FLAG REACHES NOTHING. Only the experiment ever called
+    `set_prior`, so `USE_PRIOR_SEASON = True` on its own would leave `_PRIOR`
+    empty and every rate would shrink to the league exactly as before — a
+    shipped mechanism that is switched on and not wired, which is a failure
+    mode this project has hit twice and can only detect by asserting on it.
+    See `tests/test_wiring.py`.
+
+    Returns {} rather than loading when the caller asked for pooled history:
+    a pooled query already contains the prior seasons, and shrinking pooled
+    rates toward a prior built from the same rows would count them twice.
+    """
+    global _PRIOR, _PRIOR_FOR
+    if _LOADING:
+        return {}
+    resolved = scope.resolve(season)
+    if resolved is None:
+        return {}
+    if _PRIOR and _PRIOR_FOR == resolved:
+        return _PRIOR
+    set_prior(resolved - 1)
+    _PRIOR_FOR = resolved
+    return _PRIOR
+
+
+def defence_delta(team: str | None, season=None) -> float:
+    """BABIP this club's gloves save against a neutral defence.
+
+    ONE ENTRY POINT, used in two OPPOSITE directions and that is the whole
+    design:
+
+      * `rates` NEUTRALISES — a pitcher's observed BABIP was earned in front
+        of his own club, so the delta is added back to recover what he would
+        have allowed behind an average defence. That is his talent.
+      * `game.build_side` APPLIES — whoever takes the mound tonight has
+        TONIGHT'S defence behind him, so the delta comes back off.
+
+    Splitting it this way is what makes relievers free: the defence belongs
+    to the SIDE, not to the pitcher, so every arm that enters gets it without
+    a second code path. It also fixes the traded pitcher, who carries his old
+    club's gloves in his rates and pitches in front of new ones.
+
+    This is the `NEUTRALISE_PARK` lesson applied before it cost anything: a
+    factor that is already inside the observed rate must be removed before it
+    is applied, or it is counted twice.
+    """
+    if not USE_TEAM_DEFENCE or not team:
+        return 0.0
+    return _defence_targets(season).get(team.upper(), 0.0)
+
+
+def shrink_target(name: str, team: str | None, stat: str, lg: dict,
+                  prior: dict, dfn: dict) -> float:
+    """What a PITCHER's rate is pulled toward. One function, both callers.
+
+    THIS EXISTS BECAUSE THERE WERE TWO. `pitcher_rates` had a `_t` closure
+    that consulted the prior and the club's defence; `bullpens` carried a
+    copy of the same shrink block with `lg[stat]` hardcoded. So every
+    improvement to the target reached STARTERS ONLY — including the
+    multi-season prior shipped the same day — and reached them in the
+    population where it matters least. A reliever's median line is 106
+    batters faced against a starter's 480, so 38% of a reliever's strikeout
+    rate IS this target against 11% of a starter's.
+
+    Two stages, in this order:
+
+      1. His CLUB'S defence replaces the league for BABIP, because a thin
+         line pulled toward the league is handed a NEUTRAL defence it does
+         not have. Never applied to his own observed rate — that already
+         contains his own gloves, and layering it on is the park mistake.
+      2. His OWN past seasons replace whatever that came to, shrunk by their
+         own effective sample so a thin prior cannot shout down the evidence
+         behind it.
+    """
+    base = lg[stat]
+    p = prior.get(name)
+    if not p:
+        return base
+    return _shrink(p[stat], base, p.get("pa", 0), stat, who="pit")
+
+
+def set_prior(season: int | None, lg_now: dict | None = None,
+              seasons: int | None = None) -> int:
+    """Load and league-adjust the seasons BEFORE `season` as the shrink target.
+
+    `season` is the most recent prior season — pass 2025 while pricing 2026.
+    `seasons` is how many to walk back from it, defaulting to
+    `PRIOR_SEASONS`; 1 restores the single-season behaviour exactly.
 
     Returns how many pitchers are in it. Passing None clears it, which is
     what every caller that is not testing this should do.
     """
-    global _PRIOR
+    global _PRIOR, _PRIOR_FOR, _LOADING
+    _PRIOR = {}
+    _PRIOR_FOR = None
     if season is None:
-        _PRIOR = {}
         return 0
     from src.context import sim
     lg_now = lg_now or sim.league()
-    lg_prior = sim.league(season)
-    # No `before` on purpose: last season is COMPLETE by the time any of
-    # this season is being priced, so there is no cutoff to respect and
-    # using a partial one would throw away the reason to have it.
-    raw = pitcher_rates(lg_prior, season)
-    _PRIOR = _prior_adjusted(raw, lg_prior, lg_now)
+    back = PRIOR_SEASONS if seasons is None else seasons
+    parts = []
+    _LOADING = True
+    try:
+        parts = _load_seasons(season, back, lg_now)
+    finally:
+        _LOADING = False
+    _PRIOR = _blend_priors(parts)
+    _PRIOR_FOR = season + 1
     return len(_PRIOR)
+
+
+def _load_seasons(season: int, back: int, lg_now: dict) -> list:
+    from src.context import sim
+    parts = []
+    for k in range(back):
+        yr = season - k
+        # `sim.league` RAISES for a season with no rows rather than
+        # returning empty, so walking back past the history on disk is an
+        # exception and not a short list. Found by asking for 2023's rates
+        # with the prior on, which reached for 2022.
+        try:
+            lg_prior = sim.league(yr)
+        except Exception:
+            continue
+        if not lg_prior:
+            continue
+        # No `before` on purpose: a prior season is COMPLETE by the time any
+        # of this one is being priced, so there is no cutoff to respect and
+        # using a partial one would throw away the reason to have it.
+        #
+        # `prior={}` is not enough to stop this recursing — `pitcher_rates`
+        # reads `prior or _ensure_prior(...)` — so `_PRIOR` is cleared by the
+        # caller and `_LOADING` blocks the lazy path for the duration.
+        # Otherwise a season's prior would be built out of the previous
+        # prior, compounding three seasons into nine.
+        raw = pitcher_rates(lg_prior, yr)
+        if raw:
+            parts.append((k + 1, _prior_adjusted(raw, lg_prior, lg_now)))
+    return parts
+
+
+def _blend_priors(parts: list[tuple[int, dict]]) -> dict:
+    """Combine prior seasons into one target, older ones discounted.
+
+    Weight is `PRIOR_DECAY[stat] ** (lag - 1)` times that season's batters
+    faced, so a pitcher who threw 180 innings two years ago and 20 last year
+    is not represented mainly by the 20. `pa` comes out as the EFFECTIVE
+    sample — the sum of the discounted weights — which is what the second
+    shrink stage in `pitcher_rates` then reads, so an older prior is treated
+    as the thinner evidence it is rather than as a full season.
+
+    THE LAG IS RELATIVE TO THE PITCHER'S OWN MOST RECENT SEASON, not to the
+    calendar, and that is the whole point rather than a detail. A man back
+    from an elbow has no last season; his 2024 is the freshest thing that
+    exists about him and it enters at full weight. Discounting it by the
+    calendar instead drops him out of the prior altogether whenever a decay
+    is 0.0 — which is what BABIP's is — and it is exactly this population,
+    7.6% of pitcher-seasons, that the prior was built to reach. Measured,
+    their two-year-old K rate predicts at 0.587 where a one-year-old one
+    manages 0.645 for everybody else.
+    """
+    if not parts:
+        return {}
+    if len(parts) == 1:
+        return parts[0][1]
+    stats = ("k_pct", "bb_pct", "hr_pct", "babip")
+    names = {n for _, p in parts for n in p}
+    out = {}
+    for name in names:
+        acc = {s: [0.0, 0.0] for s in stats}
+        # Per stat, because availability differs: a pitcher can have a
+        # strikeout rate in a season and no balls in play worth a BABIP.
+        base = {}
+        for lag, pop in sorted(parts):
+            r = pop.get(name)
+            if not r:
+                continue
+            for s in stats:
+                if r.get(s) is not None:
+                    base.setdefault(s, lag)
+        for lag, pop in parts:
+            r = pop.get(name)
+            if not r:
+                continue
+            for s in stats:
+                if r.get(s) is None:
+                    continue
+                w = PRIOR_DECAY.get(s, 0.0) ** (lag - base[s])
+                wt = w * (r.get("pa") or 0)
+                acc[s][0] += wt * r[s]
+                acc[s][1] += wt
+        blended = {s: (v[0] / v[1]) for s, v in acc.items() if v[1] > 0}
+        if len(blended) < len(stats):
+            continue
+        # `pa` is per stat in principle — the decay differs — but the second
+        # shrink stage takes one number, so the K weighting leads. It is the
+        # stat the prior exists for and the one with the most at stake.
+        blended["pa"] = acc["k_pct"][1]
+        blended["name"] = name
+        out[name] = blended
+    return out
 
 
 def _prior_adjusted(prior: dict, lg_prior: dict, lg_now: dict) -> dict:
@@ -214,23 +626,19 @@ def pitcher_rates(
             _PITCHER_Q.format(where=_where(season, before))).fetchall()
 
     rows = _run(conn) if conn is not None else _with(_run)
-    prior = (prior or _PRIOR) if USE_PRIOR_SEASON else {}
+    prior = (prior or _ensure_prior(season)) if USE_PRIOR_SEASON else {}
     # These are already per BATTER FACED, which is the footing the league
     # baselines now use (see sim._starter_league). It is the BATTER rates
     # that get scaled onto it, not these. Scaling the pitchers was tried
     # first and made walks worse — their denominator was never the problem.
-    def _t(row, stat):
-        """The shrink TARGET: his own last season if we have it, else league.
+    dfn = _defence_targets(season) if USE_TEAM_DEFENCE else {}
+    _team_of = (_pitcher_teams(season, before, conn)
+                if USE_TEAM_DEFENCE else {})
 
-        His prior is itself a finite sample, so it is not used raw — a
-        pitcher with 30 innings last year gets a prior already pulled most
-        of the way back to the league by the same `_shrink`. Two stages, so
-        a thin prior cannot speak louder than the evidence behind it.
-        """
-        p = prior.get(row["name"])
-        if not p:
-            return lg[stat]
-        return _shrink(p[stat], lg[stat], p.get("pa", 0), stat, who="pit")
+    def _t(row, stat):
+        """Delegates to `shrink_target` — see there for why this is shared."""
+        return shrink_target(row["name"], _team_of.get(row["name"]), stat,
+                             lg, prior, dfn)
 
     out = {}
     for r in rows:
@@ -248,8 +656,12 @@ def pitcher_rates(
                               "bb_pct", who="pit"),
             "hr_pct": _shrink((r["hr"] or 0) / bf, _t(r, "hr_pct"), bf,
                               "hr_pct", who="pit"),
+            # NEUTRALISED: what he would have allowed behind an average
+            # defence. `game.build_side` puts tonight's defence back on.
             "babip": _shrink(
-                (((r["h"] or 0) - (r["hr"] or 0)) / bip) if bip > 0 else None,
+                ((((r["h"] or 0) - (r["hr"] or 0)) / bip)
+                 + defence_delta(_team_of.get(r["name"]), season))
+                if bip > 0 else None,
                 _t(r, "babip"), max(bip, 0), "babip", who="pit"),
             "raw_k_pct": (r["k"] or 0) / bf,
         }
@@ -644,25 +1056,36 @@ def bullpens(lg: dict, season: int | None = None, before: str | None = None,
         return c.execute(_PEN_Q.format(where=_where(season, before))).fetchall()
 
     rows = _run(conn) if conn is not None else _with(_run)
+    # THE SAME TARGET STARTERS GET. Until 2026-08-26 this block hardcoded
+    # `lg[stat]`, so no reliever ever saw the multi-season prior or his
+    # club's defence — in the population where the target carries 38% of the
+    # rate rather than 11%.
+    prior = _ensure_prior(season) if USE_PRIOR_SEASON else {}
+    dfn = _defence_targets(season) if USE_TEAM_DEFENCE else {}
     out: dict[str, list[dict]] = {}
     for r in rows:
         bf = (r["o"] or 0) + (r["h"] or 0) + (r["bb"] or 0)
         if bf < 1 or (r["apps"] or 0) < MIN_PEN_APPS:
             continue
         bip = bf - (r["k"] or 0) - (r["bb"] or 0) - (r["hr"] or 0)
+
+        def _t(stat, _r=r):
+            return shrink_target(_r["name"], _r["team"], stat, lg, prior, dfn)
+
         out.setdefault((r["team"] or "").upper(), []).append({
             "name": r["name"],
             "pa": bf,
             "apps": r["apps"],
-            "k_pct": _shrink((r["k"] or 0) / bf, lg["k_pct"], bf,
+            "k_pct": _shrink((r["k"] or 0) / bf, _t("k_pct"), bf,
                              "k_pct", who="pit"),
-            "bb_pct": _shrink((r["bb"] or 0) / bf, lg["bb_pct"], bf,
+            "bb_pct": _shrink((r["bb"] or 0) / bf, _t("bb_pct"), bf,
                               "bb_pct", who="pit"),
-            "hr_pct": _shrink((r["hr"] or 0) / bf, lg["hr_pct"], bf,
+            "hr_pct": _shrink((r["hr"] or 0) / bf, _t("hr_pct"), bf,
                               "hr_pct", who="pit"),
-            "babip": _shrink((((r["h"] or 0) - (r["hr"] or 0)) / bip)
+            "babip": _shrink(((((r["h"] or 0) - (r["hr"] or 0)) / bip)
+                              + defence_delta(r["team"], season))
                              if bip > 0 else None,
-                             lg["babip"], bip, "babip", who="pit"),
+                             _t("babip"), bip, "babip", who="pit"),
         })
     for arms in out.values():
         arms.sort(key=lambda a: -a["apps"])

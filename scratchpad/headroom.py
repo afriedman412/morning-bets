@@ -68,12 +68,16 @@ def anova(by: dict) -> tuple:
 def main(argv):
     n_draws = int(argv[0]) if argv else 30
     cutoff = argv[1] if len(argv) > 1 else "2026-07-01"
-    sim.USE_LEASH = False
+    # Leash OFF by default and that is deliberate — day nine found the
+    # per-pitcher offsets leaking, so the floor is measured without them.
+    # `--leash` measures the SHIPPED configuration instead, which is the
+    # number to quote when asking where the model actually stands.
+    sim.USE_LEASH = "--leash" in argv
     lg = sim.league()
     keep = leash.intended_starters(before=cutoff)
 
     print(f"  holdout: rates before {cutoff}, starts on or after it, "
-          f"leash OFF")
+          f"leash {'ON' if sim.USE_LEASH else 'OFF'}")
     pairs = cal.paired_cases(since=cutoff, rates_before=cutoff)
     pens = rate_src.bullpens(lg)
     # {(game_id, pitcher): (actual_row, [predicted outs], [predicted k])}
@@ -112,7 +116,12 @@ def main(argv):
     print("\n  'our spread' is the sd of our per-start predicted means. It is")
     print("  the model's own differentiation, and it caps `our corr` however")
     print("  well aimed the predictions are.")
-    print("  Leash OFF and rates frozen, so outs is a LOWER bound.")
+    # This line USED TO BE UNCONDITIONAL and printed "Leash OFF" under a
+    # leash-on run. A footer that describes the wrong configuration is how a
+    # lower bound gets quoted as the model's standing.
+    tail = ("ON — the SHIPPED configuration" if sim.USE_LEASH
+            else "OFF, so outs is a LOWER bound")
+    print(f"  Leash {tail}, and rates frozen.")
 
 
 if __name__ == "__main__":

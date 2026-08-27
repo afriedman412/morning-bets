@@ -1,0 +1,31 @@
+  4,663 games in 2025/2026
+
+  boundary       45,644 rows  pull 0.1167  AUC 0.9132  logloss 0.2122
+  mid-inning    155,373 rows  pull 0.0259  AUC 0.8894  logloss 0.0888
+
+  parameter                   shipped  pitch-only
+  intercept                   -5.1370     -3.9240
+  pitch_center                49.5493     49.5493
+  pitch_scale                 12.1293      9.7722
+  per_run                      0.1097      0.0000
+  per_baserunner               0.0555      0.0000
+  per_inning                   0.2515      0.0000
+  per_margin                   0.0000      0.0000
+  late_mid_offset             -5.5145     -4.0799
+  late_mid_per_pitch           0.0839      0.0821
+  late_mid_per_inning_br       0.5269      0.0000
+  late_mid_per_run             0.1165      0.0000
+  late_mid_per_onbase          0.3002      0.0000
+  mid_per_margin               0.0000      0.0000
+  mid_per_inning_run           0.0000      0.0000
+
+  -> scratchpad/pitchonly_hook.json
+
+  HAZARD BY PITCH COUNT — boundary, counted against both curves
+  bucket             n   actual  shipped  pitch-only
+  0-60          28,719    0.015    0.009       0.010
+  60-70          5,276    0.056    0.087       0.086
+  70-80          4,798    0.137    0.208       0.204
+  80-90          3,894    0.367    0.413       0.409
+  90-100         2,324    0.812    0.638       0.644
+  100-110          606    0.972    0.803       0.818

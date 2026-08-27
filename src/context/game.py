@@ -41,9 +41,10 @@ over intact.
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from src.context import relief, removal, sim
+from src.context.sources import rates as rate_src
 
 #: How many relief arms a club is assumed to have available. Real bullpens
 #: carry 8, and a nine-inning game essentially never needs more than four
@@ -119,6 +120,11 @@ class Side:
     #: just been hit for four is a different decision from one who set them
     #: down in order.
     last_inning_runs: int = 0
+    #: Set when this start was drawn as an EARLY EXIT — the outs total at
+    #: which the starter comes out regardless of what the hook says. None is
+    #: an ordinary start. Drawn once in `build_side`, before a pitch, because
+    #: it is a mode of the start rather than a decision inside it.
+    forced_exit_outs: int | None = None
     #: The starter's own line, so props and F5 still read off one pitcher.
     line: sim.StartResult = field(default_factory=sim.StartResult)
     #: Whoever is on now, and his line (the starter's IS `line`).
@@ -220,10 +226,12 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
                 side.next_arm(fr.outs)
         elif not side.starter_out:
             ln = side.line
-            if (rng.random() < side.hook.mid_removal_p(
-                    ln.pitches, ln.runs, fr.on_base, fr.damage, margin,
-                    inning_runs=fr.runs, inning=inning,
-                    inning_br=fr.br)
+            if (_forced_out(side, ln)
+                    or (_hook_may_pull(side, ln)
+                        and rng.random() < side.hook.mid_removal_p(
+                            ln.pitches, ln.runs, fr.on_base, fr.damage,
+                            margin, inning_runs=fr.runs, inning=inning,
+                            inning_br=fr.br))
                     or ln.pitches >= side.hook.hard_pitch_cap):
                 ln.pulled_mid_inning = True
                 ln.left_on_base, ln.outs_when_pulled = fr.on_base, fr.outs
@@ -305,6 +313,26 @@ def _state(side: "Side", fr, inning: int, margin: int) -> dict:
     }
 
 
+def _forced_out(side: Side, ln: sim.StartResult) -> bool:
+    """Has this start reached the outs total it was drawn to end at?"""
+    return (side.forced_exit_outs is not None
+            and ln.outs >= side.forced_exit_outs)
+
+
+def _hook_may_pull(side: Side, ln: sim.StartResult) -> bool:
+    """The floor, and it is what keeps the two modes from overlapping.
+
+    In the mixture the hook owns starts that were NOT drawn as early exits,
+    and it owns them only above the floor. Letting it fire below would put
+    its own short starts on top of the lump and count them twice — the
+    mixture would then produce more early exits than the league does, which
+    is the failure mode this guard exists for rather than a tidiness rule.
+    """
+    if side.forced_exit_outs is not None:
+        return False
+    return ln.outs >= side.hook.early_exit_floor
+
+
 def _end_of_inning(side: Side, rng: random.Random, inning: int,
                    margin: int) -> None:
     """The between-innings decision, starter only."""
@@ -329,9 +357,11 @@ def _end_of_inning(side: Side, rng: random.Random, inning: int,
         # spans the inning boundary. Rolling again here would hook the same
         # decision twice.
         return
-    if (rng.random() < side.hook.removal_p(
-            ln.pitches, ln.runs, inning, ln.h + ln.bb, margin,
-            inning_runs=side.last_inning_runs)
+    if (_forced_out(side, ln)
+            or (_hook_may_pull(side, ln)
+                and rng.random() < side.hook.removal_p(
+                    ln.pitches, ln.runs, inning, ln.h + ln.bb, margin,
+                    inning_runs=side.last_inning_runs))
             or ln.pitches >= side.hook.hard_pitch_cap):
         if not ln.covered_f5:
             ln.runs_f5, ln.outs_f5 = ln.runs, ln.outs
@@ -476,7 +506,39 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
     h = hook or sim.Hook()
     if apply_leash:
         h = sim.for_start(h, team, starter.name)
-    return Side(starter=starter, pen=arms, lineup=lineup, hook=h)
+    d = rate_src.defence_delta(team)
+    if d:
+        # TONIGHT'S GLOVES, applied to the SIDE and therefore to every arm
+        # that takes the mound — starter, long man, closer. Rates arrive
+        # NEUTRALISED (see `rates.defence_delta`), so this is putting a
+        # defence back on rather than layering a second one over the top.
+        #
+        # It belongs here and not in the rates because defence is a property
+        # of the club in the field, not of the pitcher's history: a man
+        # traded in July carries his old infield in his line and pitches in
+        # front of his new one.
+        starter = replace(starter, babip=max(starter.babip - d, 0.0))
+        arms = [replace(a, babip=max(a.babip - d, 0.0)) for a in arms]
+    return Side(starter=starter, pen=arms, lineup=lineup, hook=h,
+                forced_exit_outs=_draw_early_exit(h, rng))
+
+
+def _draw_early_exit(h: sim.Hook, rng: random.Random) -> int | None:
+    """Is this start one of the ones that falls apart, and how short?
+
+    Drawn HERE, before a pitch, because it is a mode of the start rather
+    than a decision inside it — the point of the mixture is to take the
+    unpredictable short starts out of the length estimate, not to model
+    them. The outs total is sampled from what actually happens rather than
+    from any curve.
+    """
+    if not h.early_exit_p or rng.random() >= h.early_exit_p:
+        return None
+    outs = list(sim.EARLY_EXIT_DIST)
+    if not outs:
+        return None
+    return rng.choices(outs, weights=[sim.EARLY_EXIT_DIST[o]
+                                      for o in outs], k=1)[0]
 
 
 def _arm(row: dict) -> sim.PitcherRates:

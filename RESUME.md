@@ -3,6 +3,7 @@
 ## WHAT IS RUNNING RIGHT NOW
 
 NOTHING. The history load finished at the end of day ten:
+(day eleven added no long jobs; everything below completed.)
 
     scratchpad/load_rest.out ends "=== HISTORY LOAD COMPLETE ==="
 
@@ -74,6 +75,759 @@ Fork, never spawn. A spawned child re-imports at DEFAULT globals and every
 * Preseason rank gradient? DEAD on 2025. Headline correlation replicates.
 * Boundary knee? Better per decision, worse on what settles. Ships inert.
 * K% shrinkage constants? Tested, no change needed.
+
+---
+
+# Resume here — state as of 2026-08-26 (day eleven)
+
+## WHAT CHANGED TODAY, IN ONE LINE
+
+**A LABELLING BUG PUT 48.2% OF THE WRONG ROWS INTO THE BOUNDARY HOOK'S
+TRAINING SET.** Fixed, both curves refitted, the leash rebuilt on top — and
+the mean-outs defect that had been open since day six and had bounced six
+mechanisms closed from 1.02 outs to 0.22.
+
+## THE BUG, AND READ THIS BEFORE ANYTHING ELSE
+
+`count.outs` on a play in the MLB feed is the outs AFTER it. The first play
+of a game, a strikeout, reads 1. `boundary.decisions` read it as the outs
+BEFORE and added one for an out event, so the SECOND OUT of every inning
+came out at three and was labelled `ends_inning`.
+
+    over 3,000 games, 129,883 starter decisions
+      labelled ends_inning          56,848
+      actually ends the inning      29,447
+      second outs wrongly included  27,401   = 48.2%
+      true boundary rows missed          0
+
+The two populations are nothing alike. A true boundary row is a removal
+11.88% of the time; a second-out row 1.28%, nine times lower. Pooled, the
+set reported 6.55% — about half the real rate — and every hook ever fitted
+here inherited that dilution. The mid-inning curve was missing the same
+27,401 rows from the other side.
+
+**IT IS THE POOLING RULE ARRIVING THROUGH THE LABELS.** `CLAUDE.md` already
+says a hook curve must be fitted on the population it fires in and that
+pooling is the default mistake — and that rule was being enforced, at the
+FIT. The pooling had already happened one step earlier, in which rows were
+called which. A fitted-on-the-right-population check cannot see it, because
+the fit is faithfully obeying labels that are wrong.
+
+## WHAT THE CORRECTION CHANGED
+
+The real hazard is far steeper than anything fitted before it:
+
+    pitches      real   pre-fix   shipped now
+    60-70       0.050     0.052         0.094
+    70-80       0.130     0.116         0.212
+    80-90       0.353     0.235         0.400
+    90-100      0.790     0.412         0.609
+    100-110     0.972     0.607         0.764
+
+Past 100 pitches managers pull 97% of the time and the old curve thought
+61%. Two coefficients were not merely mis-tuned:
+
+    parameter        pre-fix   shipped now
+    per_inning       -0.1087       +0.2515   <- SIGN FLIP
+    per_run          +0.0089       +0.1097   <- 12x
+    per_baserunner   +0.0379       +0.0555
+    pitch_scale      10.8972       12.1293
+
+`per_inning` NEGATIVE said a manager grows LESS likely to pull as the game
+goes on. That is backwards baseball, it shipped, and it survived because
+half the training rows were decisions where nobody is ever pulled.
+
+**SCORED ON OUTCOMES**, 1,040 holdout starts, leash rebuilt against the new
+curves (`scratchpad/score_boundary.py`, columns legacy / shipped / pre-fix):
+
+    RMS err on P(over), 14.5-17.5     0.0585 -> 0.0242
+    RMS err on P(over), 12.5-20.5     0.0810 -> 0.0332
+    discrete CRPS                     2.1760 -> 2.1013
+    mean outs                          16.87 -> 16.03   (real 15.81)
+    SD outs                             3.92 ->  4.03   (real 4.05)
+    boundary share                     0.478 -> 0.603   (real 0.671)
+
+Everything moved the right way at once, which almost nothing here ever does.
+**The mean-outs error went 1.06 -> 0.22 and the under-dispersion is
+essentially gone.** Both were on the "structural, unfixable at this form"
+list as of this morning.
+
+WITH THE LEASH OFF the band metric still prefers the pre-fix curve (0.0267
+against 0.0632). That configuration is not what ships and is no longer a
+clean test either way: the leash offsets are residuals against whatever hook
+they were built on, so the old leash was quietly absorbing 0.4 outs of
+under-pulling. Rebuild the leash whenever the hook moves.
+
+## WHAT THIS RETRACTS
+
+* **The whole "boundary curve under-pulls because the LINEAR FORM is wrong"
+  line, days nine through eleven.** It under-pulled because it was fitted on
+  diluted rows. A non-linear pitch term may still help — the corrected curve
+  still gives 0.609 where reality is 0.790 at 90-100 — but the premise that
+  sample size was eliminated and the form was the culprit is void.
+* **"The hook is just pitch count."** Measured this morning on the bad rows,
+  where `per_run` came out +0.008. On correct rows it is +0.110. The
+  pitch-only experiment (`scratchpad/fit_pitchonly.py`) and everything said
+  about those terms being inert are withdrawn.
+* **The early-exit mixture** (`scratchpad/fit_survivors.py`, `Hook.
+  early_exit_p`, `EARLY_EXIT_DIST`) was fitted on the same bad rows. The
+  MECHANISM is built, wired and guarded; the NUMBERS are void. It ships
+  inert. Re-run the fit before believing anything about it.
+* Day eleven's first boundary table and its "model-free confirmation" — both
+  counted on mislabelled rows.
+
+## PITCH COUNT ALONE, RE-TESTED ON CORRECT ROWS — AND IT SPLITS BY CURVE
+
+This morning's pitch-only test was withdrawn because it ran on the bad rows.
+Re-run on correct ones it comes back, but with a different and much more
+useful answer: **the two curves disagree about whether the extra features
+matter.**
+
+    per-decision AUC        full   pitch-only
+      boundary            0.9135       0.9132   <- the same decision
+      mid-inning          0.9151       0.8894   <- not remotely
+
+The END-OF-INNING decision is essentially pure workload. The MID-INNING
+decision is a rescue and traffic genuinely predicts it. That is the two-hook
+split arguing for itself from a direction nobody looked from.
+
+On OUTCOMES, leash on, 1,040 holdout starts:
+
+                          legacy    full  pitch-only  pre-fix   real
+    band RMS 14.5-17.5    0.0493  0.0242      0.0081   0.0585
+    band RMS 12.5-20.5    0.0503  0.0332      0.0239   0.0810
+    discrete CRPS         2.1212  2.1013      2.0831   2.1760
+    mean outs              15.77   16.03       16.18    16.87  15.81
+    SD outs                 4.21    4.03        3.72     3.92   4.05
+
+Pitch-only is near-exact at the lines that carry 91% of the board and too
+NARROW — 3.72 against a real 4.05. The likely mechanism is visible in the
+AUC table: zeroing the mid-inning traffic terms means nobody gets yanked in
+a blow-up, so the short tail thins out.
+
+**THE HYBRID — pitch-only boundary, full mid-inning — WAS RUN AND IS A
+NULL.** Half the prediction held and the informative half did not:
+
+                          full  pitch-only  hybrid   real
+    band RMS 14.5-17.5  0.0242      0.0081  0.0239
+    discrete CRPS       2.1013      2.0831  2.0932
+    SD outs               4.03        3.72    4.04   4.05
+
+The SPREAD came back exactly as predicted (3.72 -> 4.04), which CONFIRMS the
+mechanism: the mid-inning traffic terms are what produce the short tail, and
+without them nobody gets yanked in a blow-up. Worth keeping as a mechanism
+finding even though the arm loses.
+
+But the hybrid did NOT inherit pitch-only's 0.0081 band accuracy — it lands
+on the full curve's 0.0239. So that number was a property of the whole
+configuration and NOT of the boundary curve, which is what the hybrid was
+built to test. It is a wash against the full hook on every column.
+
+**AND PITCH-ONLY'S HEADLINE IS BOUGHT WITH DISPERSION.** SD 3.72 against a
+real 4.05 is an overconfident distribution, and its CRPS advantage REVERSES
+with the leash off (2.2195 against the full curve's 2.2149) while the full
+and hybrid curves hold. A near-exact P(over) at central lines is achievable
+from a distribution that is too narrow and correctly centred — aggregate
+calibration at four lines is a weak constraint on shape.
+
+**VERDICT: nothing ships. The full corrected hook stands.**
+
+## THE EARLY-EXIT MIXTURE, REFITTED AND SCORED — NULL, AND IT REPEATS DAY SEVEN
+
+Re-fitted on correct rows (14.45% of starts end under 12 outs; the lump now
+peaks at 3, 6 and 9 outs — whole innings — where the pre-fix version peaked
+at 4, 7 and 10, which is the off-by-one showing through). Scored, leash on:
+
+                          full  mixture   real
+    band RMS 14.5-17.5  0.0242   0.0270
+    band RMS 12.5-20.5  0.0332   0.0262
+    discrete CRPS       2.1013   2.1555
+    mean outs            16.03    15.55  15.81
+    SD outs               4.03     4.45   4.05
+    boundary share       0.603    0.640  0.671
+
+It wins on boundary share and on the WIDE band, and loses on CRPS and on
+dispersion — SD 4.45 against a real 4.05.
+
+**THAT IS DAY SEVEN'S FAILURE MODE TO TWO DECIMAL PLACES.** The
+`early_innings` branches fixed the disaster tail and pushed SD to 4.47
+against a real 3.99, and ship off for exactly that reason. A different
+mechanism aimed at the same target has now bought the same thing with the
+same currency.
+
+**THE DIAGNOSIS, and it is what makes this informative rather than another
+null.** The lump is drawn UNCONDITIONALLY — every start gets the same 14.45%
+chance of falling apart — so a good pitcher is handed a three-out disaster at
+random. That adds variance without adding information, which is precisely
+dispersion bought for nothing.
+
+And it cannot fix the defect that motivated it. Item 0 says the SHORT end is
+over-predicted by half an out; a uniform lump shortens EVERYBODY equally. The
+quantity actually needed is more short starts for the pitchers who really
+have them — conditional on the pitcher, not on the league.
+
+**SO THE NEXT MOVE IS THE PER-PITCHER ONE.** The leash already carries
+per-pitcher length, is already fitted as a residual, and is already shrunk —
+`MIN_PRIOR` 5, K ~14.8 starts. If the short end is over-predicted while the
+top two quintiles are exact, the suspect is asymmetric shrinkage at the
+bottom rather than a missing mechanism. That is measurable the way
+`stabilise.py` measures anything, and it needs no new data.
+
+## THE ERA FINDING SURVIVES, and is cleaner
+
+Refitted per season on correct rows, the boundary curve is still not one
+curve across four seasons:
+
+    parameter        2023     2024     2025     2026
+    pitch_scale    22.449   16.187   11.763   12.614
+    per_inning     +0.486   +0.434   +0.270   +0.230
+
+Counted hazard, per season, and the trend is in the data not the fit:
+
+    bucket      2023    2024    2025    2026
+    0-60       0.025   0.018   0.014   0.017
+    90-100     0.753   0.792   0.811   0.814
+    100-110    0.970   0.976   0.962   0.985
+
+2025 against 2026 still agrees (mean |z| 1.48 over six terms). 2023 and 2024
+are a different manager: softer early, softer at 90-100. Note 100-110 is
+FLAT across all four — everybody pulls past 100 now, and always did.
+
+And the sign flip I attributed to collinearity this morning was the bug:
+`per_inning` is positive in every season once the rows are right.
+
+**THE TRAP THIS STILL CREATES.** `fit_boundary.collect()` takes everything in
+`.cache/pbp`, which is now four seasons. Re-running it pools two eras and
+flattens `pitch_scale` to 15.30. What ships is the 2025+2026 fit.
+
+## ALSO SHIPPED TODAY — THE K PRIOR
+
+`rates.USE_PRIOR_SEASON = True`, `PRIOR_SEASONS = 3`, `PRIOR_DECAY` per stat
+(k 0.3, bb 0.5, hr 0.7, babip 0.0). Untouched by the hook bug — it is rates,
+nowhere near play-by-play outs. Full detail below under SHIPPED — THE PRIOR.
+
+## SHIPPED — THE PRIOR IS ON
+
+`rates.USE_PRIOR_SEASON = True`, `PRIOR_SEASONS = 3`, `PRIOR_DECAY` per stat.
+This was day ten's "ONE THING TO SHIP" and it was blocked on one number.
+
+    THE DECAY, measured by `scratchpad.decay`, three readings that disagree:
+
+    1. LAG CORRELATION, disattenuated for sampling noise with the counted
+       STABILISE constants. K% carries 0.773 / 0.661 / 0.599 at one, two and
+       three years — a slow fade, about 0.88 a year on the talent itself.
+    2. JOINT REGRESSION on arms with all three lags: 0.78 / 0.10 / 0.12.
+       Last season dominates once you condition on it.
+    3. THE BLEND SWEEP, which is the estimator itself and the one to trust:
+       K 0.645 -> 0.651 at w=0.3, BB 0.523 -> 0.542 at w=0.5, HR 0.236 ->
+       0.247 at w=0.7, BABIP monotonically down so it gets 0.0.
+
+Readings 1 and 3 disagree because they ask different questions — how much a
+season carries ALONE, against how much it adds ON TOP of a fresher one. Both
+are true. The shipped weights come from 3.
+
+**SCORED ON OUTCOMES, paired, `scratchpad.memory` with a fourth arm:**
+
+    cut 2026-05-01       none    prior(1)   prior(3)
+      K correlation    0.3342     0.3843     0.3854
+      K CRPS           1.3467     1.3195     1.3117
+      outs CRPS        2.1667     2.1799     2.1620
+      K bias          +0.0867    +0.1360    +0.1348
+
+Three seasons beat one on OUTS, which is the surprise: outs CRPS is better on
+all five runs (both cuts, four July seeds) and outs correlation on four of
+five, while K is a wash beyond what one prior season already gives. **This
+corrects day ten's "more data helps strikeouts, does nothing for outs" —
+more DEPTH of prior helps outs; it was flat POOLING that did not.**
+
+THE COST IS ACCEPTED, NOT UNNOTICED: K bias +0.087 -> +0.135, and mean outs
+about +0.04 in the wrong direction against a defect already 0.7 too high.
+
+**THE FLAG ON ITS OWN REACHED NOTHING, and that is the third time.** Only the
+experiment ever called `set_prior`, so `USE_PRIOR_SEASON = True` would have
+left `_PRIOR` empty and every rate shrinking to the league exactly as before.
+`pitcher_rates` now loads it lazily through `_ensure_prior`, with a
+re-entrancy guard because `set_prior` builds the prior by calling
+`pitcher_rates`. Guarded by two checks in `test_wiring.py`, not one — see the
+traps.
+
+## POOLING GOT WORSE WHEN THE SEASONS ARRIVED
+
+Unplanned, and it corroborates both results above. `memory.py`'s `pool` arm
+degraded against its own day-ten record with no code change — K correlation
+0.3956 -> 0.3679, K bias 0.2643 -> 0.3081. `scope.ALL_SEASONS` is an
+unfiltered query, so on day ten it pooled two seasons and today it pools
+four. `none` and `prior` reproduce to four decimals across the two runs,
+which is what makes the attribution safe.
+
+**Flat pooling degrades as history is added; a decayed prior does not.** Same
+statement the decay makes from one side and the era shift from the other.
+
+## PLAYOFF GAMES — CHECKED, AND ONE PLACE THEY DO BITE
+
+User's flag, and the asymmetry is real: 2023 has 56 October-or-later games,
+2024 and 2025 have 43, 2026 in progress has none.
+
+RULED OUT for the boundary result — 2,375 of 192,347 rows, and every
+coefficient holds (`--regular`): 2023 `pitch_scale` 17.21 -> 17.31, 2025
+10.54 -> 10.53.
+
+NOT RULED OUT for the rates the prior is built from. Excluding October moves
+K% by more than half a point for about 8% of arms, up to 3.1pp, and always
+the same way — a playoff pitcher's season K% is DRAGGED DOWN by facing
+playoff lineups:
+
+    Aroldis Chapman 2023   0.3833 -> 0.4143
+    Kris Bubic 2024        0.2917 -> 0.3197
+    Daniel Palencia 2025   0.2667 -> 0.2913
+
+The league adjustment in `_prior_adjusted` partly absorbs this because
+`sim.league(yr)` carries the same drag, but only partly: the league's
+postseason share is ~2% while a contender's ace runs 10%+. So it lands
+hardest on exactly the arms worth pricing. **The current season has no
+postseason, so this biases the PRIOR against the CURRENT line, one
+direction.** Unfixed — a `game_type` filter in `_where` would do it, and it
+changes shipped rates globally, so it wants its own before/after digest.
+
+## WHAT TO DO NEXT
+
+0. **THE SHORT END IS OVER-PREDICTED.** New today. The slope of actual on
+   predicted outs is 1.181 (z 3.4), which reads as compression — but the
+   quintile breakdown says it is one-sided and it is NOT at the top:
+
+       quintile   predicted   actual     gap
+       1              14.20    13.75   -0.45
+       2              15.25    14.74   -0.52
+       3              15.92    15.71   -0.21
+       4              16.59    16.65   +0.06
+       5              17.63    17.57   -0.05
+
+   The top two quintiles are exact. The bottom two run half an out long.
+   **We do not produce enough genuinely short starts for the pitchers who
+   have them**, which is the same conclusion the bimodality argument reaches
+   from the other side, and it makes the EARLY-EXIT MIXTURE the best-aimed
+   unfinished thing in the project rather than a nice idea.
+
+   NOTE THE FIRST READING OF THIS WAS WRONG IN A WAY THAT WOULD HAVE COST A
+   DAY. `between.py` reports a POSITIVE correlation between predicted outs
+   and its own residual, which reads naturally as "the arms we think go deep
+   go deeper still". The correlation is positive under either shape; only
+   the quintile table says which end carries it. **A signed correlation
+   does not locate an error. Bucket it before believing you know where it
+   lives.**
+
+   Other stats for reference: k slope 1.074 (z 2.3, mild), er 0.775
+   (z -2.5, predictions too WIDE), h 0.991 and bb 0.914 both fine.
+1. **RE-MEASURE EVERYTHING.** The hook moved further today than on any day
+   of this project, and the prior went on underneath it. Every baseline in
+   this file predates both. `scope_baseline.py` and `scratchpad/battery.sh`
+   exist for exactly this and nothing else should be trusted until they run.
+2. **Re-run the early-exit mixture fit** on correct rows and score it. The
+   mechanism is built, wired and guarded; only the numbers are void. It is
+   the best-motivated idea currently unscored — real starts are bimodal, one
+   logistic cannot be, and the corrected curve STILL gives 0.609 where
+   reality is 0.790 at 90-100.
+3. **Re-open the non-linear pitch term** against corrected rows. The old
+   conclusion is void but the residual it was aimed at is still there.
+4. **Scope the hook fit to 2025+2026 in code** so a future run cannot pool
+   the older era by accident.
+5. **The traffic deficit.** Note the mean-outs half of it may have just been
+   this bug — re-measure before spending another day on it.
+6. **`fitf5`** still has never been re-run. Now genuinely unblocked and the
+   engine underneath it has changed twice.
+7. **The postseason filter on rates**, with a digest either side.
+
+## DOES THE HOOK BUG RE-OPEN THE DEAD LIST? MOSTLY NO, AND SAY WHY
+
+The question is the right one to ask and the blanket answer is wrong, so the
+distinction is recorded here rather than left to judgement.
+
+**NO for most of the list.** The bug corrupted WHEN A STARTER IS REMOVED.
+Handedness, park, day/night and arsenal change how BATTERS DO against him,
+not what the manager decides, so a broken hook was never hiding them. More
+decisively, six of the nine were scored against GAME TOTALS, where ~96% of
+the variance is irreducible and the ceiling on correlation is about 0.19 —
+those nulls were uninformative before today and are equally uninformative
+now. Re-running park factors against a game total will waste a day.
+
+**YES for anything judged on STARTER LENGTH.** The mean was a full out high
+and the curve under-pulled badly past 90 pitches, so any feature scored on
+"did outs improve" was measured against a broken yardstick. Two specific
+candidates, both with a real mechanism:
+
+  * **CLUB PATIENCE.** Dead six times, every time as a residual against a
+    hook whose inning coefficient had the WRONG SIGN. A manager effect is
+    exactly the shape of thing that hides inside that error.
+  * **BULLPEN AVAILABILITY.** Hook-adjacent by construction. Removals now
+    happen at the right rate and the right time, so "who is rested" reaches
+    the game in a different state than it ever has.
+
+The standing rule already covers this — the dead list records HOW a thing
+was tried, not that it is unknowable, and re-opening is legitimate when the
+APPROACH or the DATA changes. Today the data changed for one subset of it.
+
+## CLUB PATIENCE, RE-OPENED AGAINST THE CORRECTED HOOK — STILL MARGINAL
+
+Seventh look. Residuals regenerated on the corrected engine
+(`scratchpad.ceiling - 40`), then `scratchpad.between outs`:
+
+    group             LOO r   outs it could remove   split-half   z
+    pitcher          +0.141                  0.52*       -0.533  -6.1
+    club (manager)   +0.078                  0.29*       +0.318  +1.7
+    venue            +0.006                  0.02        -0.595  -3.6
+
+The club clears the build bar on leave-one-out (0.29 against the ~0.20 rule
+of thumb) and its split-half is POSITIVE for the first time — but at z 1.7
+on thirty clubs, which is not a result. **Verdict: not resurrected, not
+dead. It is the one dead-list item the hook fix genuinely changed the
+evidence for, and it deserves a proper nested fit rather than another
+screen.**
+
+NOTE THE PITCHER SPLIT-HALF IS -0.533. That is not a finding about
+pitchers, it is the LEASH: these residuals have full-season per-pitcher
+offsets already applied, so the pitcher signal is absorbed and slightly
+over-absorbed. It is the right conditioning for asking what the CLUB adds on
+top, and the wrong number to quote for anything else.
+
+## THE CONTROL IS FAILING, AND THAT IS THE BIGGER FINDING HERE
+
+`between.py` carries `predicted outs` as a CONTROL: it already feeds the
+simulation, so a large correlation with its own residual means the model is
+mis-using what it already has.
+
+    predicted outs    r +0.060   z +3.4   0.22 outs
+
+Above the 0.20 bar, and POSITIVE — when the model predicts a longer start,
+the actual comes in longer still. **Our predictions are compressed at the
+top end: the arms we already think go deep, go deeper than we say.** That is
+consistent with the headroom table (our spread 1.31 against 1.60 of real
+between-start variation) and it is a shape defect in the predictions
+themselves rather than a missing feature. Nothing on the dead list can fix
+it and no new data is needed.
+
+`opp K% (model)` fails the same way at 0.21, and it is also an input we
+already have.
+
+## THE SHRINKAGE CONSTANTS ON FOUR SEASONS — NO CHANGE, AND A TRAP
+
+`src.context.stabilise` has no season filter, so with four seasons on disk
+it now pools them. Its output looks like a legitimate re-measurement on more
+data and it is not the same quantity:
+
+    pitcher    k_pct   bb_pct   hr_pct        batter    k_pct   bb_pct
+    2023          85      147      677        2023          34       65
+    2024          73      133      647        2024          33       96
+    2025          59      174      713        2025          33       70
+    2026          57      116     1086        2026          32       80
+    SHIPPED       57      138      934        SHIPPED       32       80
+    POOLED       132      167     2363        POOLED        51      121
+
+The pooled numbers are inflated across the board because the ODD/EVEN SPLIT
+NOW SPANS YEARS: a player who changes between seasons reads as unreliable,
+and the method cannot tell that from noise. The code shrinks a
+CURRENT-SEASON rate, so the reliability has to be measured within a season.
+Conditioning must match the code path — the rule was already written down;
+this is what violating it looks like when nothing errors.
+
+**Had this been taken at face value it would have over-shrunk every player
+rate in the model — batter k 32 -> 51, pitcher k 57 -> 132 — and separation
+is the only thing generating differences between clubs.**
+
+MEASURED PER SEASON, THE SHIPPED VALUES STAND. Batter constants are
+strikingly stable (34/33/33/32 on k) and 2026 sits on the mode. Pitcher
+k_pct carries a real downward trend, 85 -> 57, which is worth knowing and
+does not change what to ship: 2026 is the season being priced.
+
+## THE ERA GATE, RUN ON TWO MORE CONSTANTS — AND THEY DISAGREE
+
+`scratchpad/season_gate.py` — one single-core pass over 9,962 games doing
+both, because neither module forks and two walks would be two walks for
+nothing.
+
+**TTO PASSES. Pooling is allowed.** K% at the third pass relative to the
+first: 0.852 / 0.837 / 0.848 / 0.812 across 2023-2026. The 2026 figure is the
+steepest and sits about 1.5 sigma from the other three on ~17,000 plate
+appearances — not a distinguishable season. So the shipped multipliers, which
+were measured on 2026 ALONE, are the noisiest of the four estimates of a
+quantity that holds still.
+
+NOT UPDATED, deliberately. The shipped constants are RE-CENTRED to a
+PA-weighted mean of 1.0 and the module prints multipliers relative to pass 1.
+Converting between the two by hand is exactly the arithmetic that
+`int(round(PITCH_COST))` was lost in — a constant can be right, reached, and
+destroyed in transit. Take the re-centred form from the module's own code
+path, not from a calculator.
+
+**THE DOUBLE-PLAY RATE FAILS. Pooling is not allowed**, and `GIDP_RATE` is
+now 2025+2026 only — 0.2131 and 0.2305 against the 0.209/0.224 measured on
+2026 alone. Full table in `sim.GIDP_RATE`'s docstring. The 0-out rate steps
+0.230 -> 0.213 between 2024 and 2025, about 3.3 sigma.
+
+**NOTHING GUARDED `GIDP_RATE`.** It was changed and all 360 checks stayed
+green. `check_the_double_play_rate_is_the_current_era_not_the_pooled_one`
+now pins it as a BAND — wide enough that a genuine re-measurement is free,
+narrow enough to exclude the pooled and legacy values. Mutation-verified
+against the 2023/24 rate.
+
+## THE POSTSEASON FILTER — BUILT, MEASURED, DEAD
+
+The hypothesis was right and the correction still loses. A playoff pitcher
+faces playoff lineups, so excluding October moves his K% by up to 5.3 points
+and always the same way; and because the CURRENT season has no postseason,
+that bias enters the prior and never the line it is shrunk against. A real
+asymmetry, correctly identified.
+
+Scored on whether a prior season predicts the NEXT season, 150+ batters
+faced in both:
+
+    lag  stat      n    with post   without     delta
+    1    k_pct   275       0.7536    0.7491    -0.0045
+    1    bb_pct  275       0.7048    0.6960    -0.0088
+    1    babip   275       0.4805    0.4761    -0.0044
+    2    k_pct   209       0.6494    0.6490    -0.0004
+    2    bb_pct  209       0.6108    0.6066    -0.0042
+    2    babip   209       0.1784    0.1603    -0.0181
+
+**Six for six against.** Removing a real bias costs more than it saves when
+the bias is small and lives in 10% of the record — playoff innings are still
+innings against major-league hitters, and dropping them just makes the line
+noisier. `EXCLUDE_POSTSEASON` ships OFF and is pinned with the table.
+
+**THE DATES ARE TRANSCRIBED, NOT INFERRED, and that is the durable part.**
+The obvious rule — "October onward, fewer than eight games that day" — is
+wrong at both edges, invisibly:
+
+    2025-09-30   the WILD CARD ROUND, and a month test misses it entirely
+    2024-09-30   two REGULAR-season makeup games deciding a playoff place,
+                 which a game-count test throws away
+    2023-10-01   a fifteen-game regular-season slate sitting in October
+
+`POSTSEASON_RANGE` carries the boundaries per season, checked against the
+day-count shape either side. 131 games, 1.31%. **2026 is untouched by the
+filter, which is the asymmetry stated as a measurement.**
+
+## TEAM DEFENCE — BUILT, RESTRUCTURED, AND A NULL. READ THE RETRACTION.
+
+**RETRACTED: an earlier version of this section reported team defence as the
+first thing in days to move the runs, CRPS 1.66361 -> 1.65541. That number
+was a DOUBLE-COUNTING BUG.** Correctly implemented the sign flips:
+
+                     CRPS   runs     sd  shutout  5+ runs  covered5
+    defence OFF   1.63913   2.34   2.21    22.6%    15.5%     69.3%
+    defence ON    1.64324   2.35   2.21    22.2%    15.4%     69.5%
+    ACTUAL                  2.44   2.32    21.9%    17.6%     74.0%
+
+`USE_TEAM_DEFENCE` ships OFF.
+
+**WHY IT CANNOT WORK THE WAY IT WAS SOLD, and this is the durable lesson.**
+Defence has two jobs and they are opposite:
+
+    rates       NEUTRALISE his own club's gloves out of his observed BABIP
+    build_side  APPLY tonight's club, once, to the whole pitching side
+
+For a pitcher who stays with his club that is a ROUND TRIP — add the defence
+out, put the same defence back, cancel. The mechanism only bites through the
+SHRINKAGE (a thin line is neutralised, pulled toward the league, then has
+defence re-applied, which is not the same as shrinking the raw rate) and on
+TRADED pitchers. Both are small.
+
+So the 0.034 of BABIP between the best and worst defence is real and is
+ALREADY IN THE PITCHERS' OWN RATES. They have been throwing in front of those
+gloves all season. **An OAA spread is not headroom; it is mostly a
+description of something the model already has.** The same logic will apply
+to any club-level factor a player's own line already absorbs — ask what is
+LEFT after the player's rate before sizing the prize.
+
+**THE STRUCTURE IS STILL RIGHT AND STAYS.** Defence belongs to the SIDE IN
+THE FIELD, not to the pitcher's history — attached per pitcher it had to be
+applied once per code path and reached starters only. `defence_delta` is now
+one function used in both directions, and `build_side` applies it to every
+arm that takes the mound.
+
+**TWO BUGS FOUND BY MUTATION IN ONE HOUR, both in code written that hour:**
+
+  * Deleting the NEUTRALISATION left every check green while `build_side`
+    applied a defence on top of a rate that already contained one — the
+    `NEUTRALISE_PARK` error reproduced within a day of it being quoted as a
+    cautionary tale. Now guarded.
+  * The `rate_src` import into `game.py` silently did not land, because the
+    pattern matched did not exist in the file. 53 checks failed at once,
+    which is the good failure.
+
+## WHAT DID SURVIVE FROM THIS — THE BULLPEN GOT THE SHRINK TARGET
+
+Separate from the defence result and NOT retracted. `bullpens()` carried a
+COPY of the rate block with `lg[stat]` hardcoded, so no reliever ever saw the
+multi-season prior — including the one shipped the same day. Relievers are
+the population where it matters most:
+
+                        median BF   weight on his own K%   from the target
+    relievers                 106                   0.62               38%
+    starters (300+ BF)        480                   0.89               11%
+
+401 of 435 relievers move once the shared target reaches them — Mason Miller
+0.4091 -> 0.4418, Edwin Diaz 0.2454 -> 0.2923, elite arms that were being
+dragged to league average on thin current lines. `shrink_target` is now one
+function serving both populations so the next improvement cannot reach half
+the pitchers.
+
+**AND THE STABILISE CONSTANTS HAVE THE SAME DEFECT ONE LEVEL DOWN.**
+`stabilise._PIT` filters `is_starter = 1`, so every pitcher constant was
+measured on STARTERS and is applied to relievers. Measured separately, k and
+bb agree between the populations; HR looks very different (relievers 241-460
+against starters 713-1086) but the reliever reading is not trustworthy — 219
+players, r_half 0.168, and it swings 2x between seasons. Identified,
+unresolved, and it needs per-season measurement within population.
+
+## POOL WITH A YEAR TERM, OR CUT? TESTED — IT DEPENDS ON THE SHAPE
+
+The gate as applied above says "if the seasons differ, use only the recent
+ones", which spends data to avoid a bias. The alternative is to keep every
+season and model the drift. `scratchpad/pool_year.py` tests it on the
+boundary curve, held out on the last 30% of 2026:
+
+    arm                train n   log loss      AUC
+    pooled+year         91,475    0.20544   0.9192
+    era (25+26)         39,565    0.20559   0.9191
+    recent (26 only)    13,678    0.20636   0.9190
+    pooled, NO year     91,475    0.20706   0.9182
+
+**IF YOU POOL, YOU MUST MODEL THE DRIFT.** The year term moves naive pooling
+from worst to best, 0.20706 -> 0.20544, and that gap is ten times the gap
+between the winner and the era cut. Naive pooling is the mistake; the year
+term is the fix.
+
+**BUT IT BUYS ~NOTHING OVER THE ERA CUT** — 0.00015 on 6,079 test rows is
+noise. Not re-shipped: it would cost a refit and another leash rebuild for a
+gain inside the error bar. Note also that cutting to 2026 ALONE is worse
+than 25+26, so 2025 genuinely earns its place.
+
+A YEAR DUMMY WOULD NOT HAVE WORKED. The drift is in the SLOPE —
+`pitch_scale` 22.4 / 16.2 / 11.8 / 12.6 — so year is interacted with every
+term and centred on 2026, which makes the interactions vanish at prediction
+time and the main effects ARE the 2026 curve.
+
+**AND IT REVERSES FOR THE DOUBLE-PLAY RATE, because that drift is a STEP
+rather than a trend**: 0.230 / 0.230 / 0.213 / 0.213. A linear year term
+predicts 2026 at 0.2112 against an actual 0.2129, while the era mean gives
+0.2131 — a straight line through a step lands between the two levels and
+does worse than simply using the current one.
+
+    gradual drift  -> pool everything, interact with year
+    step change    -> cut, and use the current era
+    method breaks  -> neither (see the shrinkage constants)
+
+**THE GENERAL RESULT IS THAT THERE IS NO GENERAL RESULT.** Three quantities
+gated today: the hook FAILS (2023/24 is a different manager), the double-play
+rate FAILS, TTO PASSES, and the shrinkage constants cannot be pooled at all
+because the method changes meaning. Each has to be asked separately.
+
+## THE REFITS THAT ARE NOW OUTSTANDING
+
+Everything below was measured on an engine that no longer exists. Grouped by
+why, because the reasons differ and so does the urgency.
+
+    INVALIDATED BY THE HOOK FIX
+      calibrate --tune            fitted against the old curves
+      the early-exit mixture      built today, fitted on the bad rows
+      the non-linear knee         now BETTER motivated, see the hazard table
+      hook_leash.json             rebuilt once today; rebuild after ANY
+                                  hook change, it is a residual
+
+    NEVER RE-RUN SINCE THE CROSSED-LINEUP FIX, TWO ENGINES AGO
+      fitf5                       the actual product, and still unmeasured
+
+    MEASURED ON 2026 ALONE, FOUR SEASONS NOW ON DISK
+      stabilise  DONE — no change, and running it naively is a TRAP. See
+                 below.
+      tto, advance, inherit, relief, deploy
+      -> UNRUN, and do NOT run them naively either. Every one of these
+         queries "all games on disk" with no season filter, so what they
+         measure changed silently when the history landed. Establish what
+         the pooled version is actually measuring BEFORE reading its
+         output.
+
+    NEVER DONE
+      (the postseason filter is DONE and DEAD — see below)
+
+## TRAPS ADDED ON DAY ELEVEN
+
+**A FIXTURE THAT SHARES THE CODE'S MISUNDERSTANDING GUARDS NOTHING.**
+`tests/test_boundary.py` built its plays with `count.outs` set to the outs
+BEFORE the play, exactly as the module read it. Twelve checks agreed with
+each other and none with the feed, and they all passed for the life of the
+bug. `tests/test_pbp.py` and `tests/test_inherit.py` had it right the whole
+time — their fixtures name the field `outs_after`. **When two test files
+disagree about what a field MEANS, that is a finding, not a style
+difference.**
+
+**A CHECK CAN PIN A CONTAMINATED FACT.** `check_the_boundary_curve_is_the_
+fitted_one` asserted the shipped curve against a "real 70-80 rate of 0.074".
+Counted correctly it is 0.130. The check was doing its job perfectly against
+a number that was wrong. Pins are only as good as the measurement behind
+them; when a measurement is corrected, re-read every check that quotes it
+rather than just the ones that fail.
+
+**AN AGGREGATE THAT MATCHES REALITY CAN STILL COME FROM THE WRONG ROWS.**
+The simulated boundary SHARE was validated at 66.3% against a real 65.7% on
+day seven and that agreement was real — it just said nothing about whether
+the right decisions were in the right bucket. The share is a ratio the
+engine produces; the labels are an input to the fit.
+
+**A MARGINAL RATE CAN BE STABLE WHILE THE CURVE UNDER IT IS NOT.** Four
+seasons agree on the boundary pull rate to within 0.0013 and disagree on
+`pitch_scale` by 63%. Compare the parameters that ship, with standard errors,
+not the aggregate they produce.
+
+**AN AGREEMENT TOO CLOSE FOR THE STANDARD ERRORS IS PLUMBING, NOT
+STABILITY.** Pre-registered in `split_boundary.py` as the third possible
+outcome, alongside agree and disagree, so a suspiciously clean result is loud
+instead of reassuring. It did not fire, but it is the reason the standard
+errors are computed at all.
+
+**THE COVERAGE TRAP IS EASY TO REBUILD INSIDE A NEW SCRIPT.** Day ten
+recorded it; day eleven put it straight into `decay.py`'s sweep, where w=0
+zeroes every weight for a pitcher with no last season and silently drops him
+from that arm alone. It reversed the answer — unpaired said w=0 for
+everything, paired says 0.3/0.5/0.7. Intersect first, every time.
+
+**A DECAY APPLIED AGAINST THE CALENDAR DELETES THE PEOPLE IT IS FOR.** The
+lag must be relative to the PITCHER'S OWN most recent season. Against the
+calendar, a man back from an elbow gets weight 0 on every stat whose decay is
+0.0 — BABIP's is — and drops out of the prior entirely. Caught by mutation,
+not by reading.
+
+**TWO CHECKS I WROTE TODAY GUARDED NOTHING**, both found by mutation and both
+in the same shape: they asserted the thing they set up. One compared source
+LINE ORDER for the `_PRIOR` clearing and passed with the bug reintroduced;
+one populated `_PRIOR` by hand and passed with the lazy load torn out. Each
+was replaced with a behavioural check that stubs the collaborator and asserts
+what it was ASKED, and only then did the mutations fail.
+
+**A MUTATION LOOP NEEDS A TIMEOUT LONGER THAN THE SUITE.** Five mutations x a
+38s suite exceeded a two-minute limit and the loop was killed with `rates.py`
+still mutated — the SIGKILL-between-mutate-and-restore case already recorded
+in the notes, reproduced by a tool limit rather than a signal. The backup was
+outside the tree, so recovery was clean. Verify the restore by grepping for
+the shipped value, not by re-running the suite.
+
+## STATE
+
+* 358 checks, `make test`, ~36s. `tests/test_prior.py` is new (10),
+  `test_wiring.py` gains 4 and `test_regressions.py` 1. Thirteen
+  mutation-verified — five against `_blend_priors`, five against the prior's
+  wiring and flags, and the `count.outs` regression, whose first mutation
+  CRASHED rather than mislabelled and had to be rewritten to reintroduce the
+  original bug faithfully. A mutation that errors is not a mutation that
+  proves the check.
+* New tools: `scratchpad/split_boundary.py` (per-season boundary fit with
+  standard errors, out-of-sample cross-scoring, `--regular` to drop the
+  postseason) and `scratchpad/decay.py` (three readings of how long a
+  pitcher stays himself). `memory.py` gains a `prior3` arm, `--seed=` and
+  `--cut=`.
+* `/tmp/boundary_rows_by_season.json` caches 192,347 season-tagged boundary
+  decisions over 9,962 games. `/tmp/boundary_rows.json` is the STALE
+  day-ten cache — 4,663 games, 2025+2026 only.
 
 ---
 

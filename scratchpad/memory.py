@@ -70,10 +70,16 @@ def corr(xs, ys) -> float:
     return sum((a - mx) * (b - my) for a, b in zip(xs, ys)) / (n * sx * sy)
 
 
+#: Shifts every game's seed together. The arms stay PAIRED whatever it is —
+#: they share the seed, so a re-run answers "is this difference bigger than
+#: the simulation noise" rather than re-rolling one arm against another.
+SEED = 11
+
+
 def _one(args):
     i, gid = args
     pair = _CASES[gid]
-    rng = random.Random(11 + i * 100003)
+    rng = random.Random(SEED + i * 100003)
     draws = [cal.replay(pair, _LG, _PENS, rng, track=(5,)) for _ in range(_SIMS)]
     # THE STATED PRODUCT. Starter lines are diagnostics; F5 and full team
     # totals are what settles. A gain on strikeouts that does not reach the
@@ -116,19 +122,28 @@ def score(rows):
     }
 
 
-#: The three ways to treat a previous season, which is the actual question:
-#:   none   each season is a different person          (what ships)
-#:   pool   flat, an April 2025 inning = an August 2026 one
-#:   prior  last season is the PRIOR his thin line shrinks toward
-ARMS = ("none", "pool", "prior")
+#: The four ways to treat a previous season, which is the actual question:
+#:   none    each season is a different person          (what ships)
+#:   pool    flat, an April 2025 inning = an August 2026 one
+#:   prior   last season is the PRIOR his thin line shrinks toward
+#:   prior3  the same, over three prior seasons at the MEASURED decay
+#:
+#: `prior3` is the arm added on day eleven. `scratchpad.decay` counted how
+#: far a season carries — k_pct 0.3, bb_pct 0.5, hr_pct 0.7, babip 0.0 —
+#: and the gain it predicts is mostly COVERAGE rather than sharpness: 22
+#: more of the 467 meaningful 2026 arms get a prior at all, and 77 more of
+#: the thin ones. Note which way that cuts here. Coverage is not accuracy,
+#: and `run_variant`'s `restrict` is what keeps this honest.
+ARMS = ("none", "pool", "prior", "prior3")
 
 
 def cases_for(cut, arm):
     cal._CASES.clear()
     sim._LEAGUE_CACHE.clear()
-    rate_src.USE_PRIOR_SEASON = (arm == "prior")
-    if arm == "prior":
-        rate_src.set_prior(scope.CURRENT_SEASON - 1)
+    rate_src.USE_PRIOR_SEASON = arm.startswith("prior")
+    if arm.startswith("prior"):
+        rate_src.set_prior(scope.CURRENT_SEASON - 1,
+                           seasons=1 if arm == "prior" else None)
     else:
         rate_src.set_prior(None)
     kw = {"rates_season": scope.ALL_SEASONS} if arm == "pool" else {}
@@ -219,9 +234,14 @@ def actual_totals(cut):
 
 
 def main(argv):
-    global _SIMS
-    _SIMS = int(argv[0]) if argv else 30
-    for cut in CUTS:
+    global _SIMS, SEED
+    pos = [a for a in argv if a.isdigit()]
+    _SIMS = int(pos[0]) if pos else 30
+    for a in argv:
+        if a.startswith("--seed="):
+            SEED = int(a.split("=", 1)[1])
+    cuts = [a.split("=", 1)[1] for a in argv if a.startswith("--cut=")] or CUTS
+    for cut in cuts:
         print(f"\n  CUT {cut} — rates frozen before it, starts scored after")
         sets = {a: set(cases_for(cut, a)) for a in ARMS}
         common = set.intersection(*sets.values())
@@ -232,16 +252,19 @@ def main(argv):
         sc = {a: score(v) for a, v in got.items()}
         _totals(cut, got)
         print(f"    {'metric':<14}" + "".join(f"{a:>12}" for a in ARMS)
-              + f"{'prior-none':>12}")
+              + f"{'prior3-prior':>14}")
         for k in sc["none"]:
             row = f"    {k:<14}" + "".join(f"{sc[a][k]:>12.4f}" for a in ARMS)
-            d = sc["prior"][k] - sc["none"][k]
+            # The comparison that decides whether the extra seasons ship.
+            # `prior` against `none` is day ten's question and is already
+            # answered; what is open is whether three beat one.
+            d = sc["prior3"][k] - sc["prior"][k]
             better = ""
             if "CRPS" in k:
                 better = "  better" if d < 0 else ""
             elif "corr" in k:
                 better = "  better" if d > 0 else ""
-            print(row + f"{d:>+12.4f}{better}")
+            print(row + f"{d:>+14.4f}{better}")
     print("\n  CRPS lower is better; corr higher is better. Bias is reported")
     print("  and NOT optimised — it is the known mean-outs defect and it")
     print("  should not decide a question about memory.")

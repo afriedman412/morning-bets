@@ -244,6 +244,125 @@ def check_the_measured_mechanisms_are_switched_on_by_default():
     assert sim.Hook().mid_per_inning_run == 0.0
     # A start has to be bounded from above by something.
     assert 95 <= sim.Hook().hard_pitch_cap <= 130, sim.Hook().hard_pitch_cap
+    from src.context.sources import rates as rate_src
+    assert rate_src.USE_PRIOR_SEASON is True
+    assert rate_src.PRIOR_SEASONS == 3, rate_src.PRIOR_SEASONS
+
+
+def check_the_prior_season_reaches_a_thin_pitchers_rate():
+    """THE FLAG DOES NOTHING ON ITS OWN, and that is the point of this check.
+
+    `_PRIOR` is a module global that only the experiment ever populated, so
+    `USE_PRIOR_SEASON = True` without the lazy load in `_ensure_prior` leaves
+    it empty and every rate shrinks to the league exactly as before. A flag
+    that is switched on and reaches nothing is the failure mode this file was
+    created for, and it has now happened three times in this project.
+
+    Asserted on a THIN line, because that is the only place a shrink target
+    can show: a pitcher with a full season of his own barely moves whatever
+    he is shrunk toward.
+    """
+    from src.context.sources import rates as rate_src
+    was, prior, for_ = (rate_src.USE_PRIOR_SEASON, dict(rate_src._PRIOR),
+                        rate_src._PRIOR_FOR)
+    thin = [{"name": "A", "o": 30, "h": 12, "bb": 6, "k": 8, "hr": 2,
+             "apps": 4}]
+    lg = {"k_pct": 0.22, "bb_pct": 0.08, "hr_pct": 0.03, "babip": 0.29}
+    # A prior with a strikeout rate nothing like the league's, so the two
+    # targets cannot be confused for one another.
+    fake = {"A": {"name": "A", "pa": 700, "k_pct": 0.40, "bb_pct": 0.08,
+                  "hr_pct": 0.03, "babip": 0.29}}
+    try:
+        rate_src.USE_PRIOR_SEASON = False
+        rate_src._PRIOR, rate_src._PRIOR_FOR = {}, None
+        off = rate_src.pitcher_rates(lg, 2026, conn=_FakeConn(thin))
+        rate_src.USE_PRIOR_SEASON = True
+        rate_src._PRIOR, rate_src._PRIOR_FOR = fake, 2026
+        on = rate_src.pitcher_rates(lg, 2026, conn=_FakeConn(thin))
+    finally:
+        rate_src.USE_PRIOR_SEASON = was
+        rate_src._PRIOR, rate_src._PRIOR_FOR = prior, for_
+    assert on["A"]["k_pct"] > off["A"]["k_pct"] + 0.01, (off, on)
+
+
+def check_the_prior_is_loaded_without_anyone_calling_set_prior():
+    """The half the check above does NOT cover, and it took a mutation to
+    see that: it populates `_PRIOR` by hand, so it passes with the lazy load
+    torn out and the flag reaching nothing.
+
+    In production NOTHING calls `set_prior` — only the memory experiment
+    ever did — so `pitcher_rates` has to load it itself on first use. This
+    asserts the trigger fires, and that it fires for the RIGHT season: the
+    prior for 2026 is built from 2025 back, and an off-by-one here would
+    quietly shrink this season toward itself.
+    """
+    from src.context.sources import rates as rate_src
+    was, prior, for_ = (rate_src.USE_PRIOR_SEASON, dict(rate_src._PRIOR),
+                        rate_src._PRIOR_FOR)
+    real = rate_src.set_prior
+    called = []
+
+    def fake_set_prior(season, lg_now=None, seasons=None):
+        called.append(season)
+        rate_src._PRIOR = {"A": {"name": "A", "pa": 700, "k_pct": 0.40,
+                                 "bb_pct": 0.08, "hr_pct": 0.03,
+                                 "babip": 0.29}}
+        return 1
+
+    rows = [{"name": "A", "o": 30, "h": 12, "bb": 6, "k": 8, "hr": 2,
+             "apps": 4}]
+    lg = {"k_pct": 0.22, "bb_pct": 0.08, "hr_pct": 0.03, "babip": 0.29}
+    try:
+        rate_src.set_prior = fake_set_prior
+        rate_src.USE_PRIOR_SEASON = True
+        rate_src._PRIOR, rate_src._PRIOR_FOR = {}, None
+        got = rate_src.pitcher_rates(lg, 2026, conn=_FakeConn(rows))
+    finally:
+        rate_src.set_prior = real
+        rate_src.USE_PRIOR_SEASON = was
+        rate_src._PRIOR, rate_src._PRIOR_FOR = prior, for_
+    assert called == [2025], called
+    assert got["A"]["k_pct"] > 0.23, got["A"]
+
+
+def check_building_the_prior_does_not_recurse_into_the_prior():
+    """`set_prior` builds the prior by calling `pitcher_rates`, which is the
+    function that asks for one. Without the re-entrancy guard that is either
+    infinite or, worse, finite and wrong — each season's rates shrunk toward
+    the seasons behind it before being blended, compounding three seasons
+    into nine.
+    """
+    from src.context.sources import rates as rate_src
+    was, prior, for_ = (rate_src.USE_PRIOR_SEASON, dict(rate_src._PRIOR),
+                        rate_src._PRIOR_FOR)
+    seen = []
+    rows = [{"name": "A", "o": 30, "h": 12, "bb": 6, "k": 8, "hr": 2,
+             "apps": 4}]
+    lg = {"k_pct": 0.22, "bb_pct": 0.08, "hr_pct": 0.03, "babip": 0.29}
+    try:
+        rate_src.USE_PRIOR_SEASON = True
+        rate_src._PRIOR, rate_src._PRIOR_FOR = {}, None
+        rate_src._LOADING = True
+        seen.append(rate_src._ensure_prior(2026))
+    finally:
+        rate_src._LOADING = False
+        rate_src.USE_PRIOR_SEASON = was
+        rate_src._PRIOR, rate_src._PRIOR_FOR = prior, for_
+    assert seen == [{}], seen
+    assert lg and rows
+
+
+class _FakeConn:
+    """Just enough connection to feed `pitcher_rates` its rows offline."""
+
+    def __init__(self, rows):
+        self._rows = rows
+
+    def execute(self, *a, **k):
+        return self
+
+    def fetchall(self):
+        return self._rows
 
 
 def check_the_leash_reaches_a_full_game_and_not_only_a_start():
@@ -363,3 +482,200 @@ def check_the_hook_argument_reaches_the_replayed_game():
 
     a, b = mean_outs(never), mean_outs(quick)
     assert a > b + 10, (a, b)
+
+
+def check_the_early_exit_mixture_is_off_by_default():
+    """Built on day eleven, UNSCORED, and inert until it is.
+
+    Its fitting script (`scratchpad/fit_survivors.py`) ran on the mislabelled
+    boundary rows and has to be re-run before any of it means anything, so
+    the mechanism ships switched off rather than half-trusted.
+    """
+    h = sim.Hook()
+    assert h.early_exit_p == 0.0, h.early_exit_p
+    assert h.early_exit_floor == 0, h.early_exit_floor
+    assert sim.EARLY_EXIT_DIST == {}, sim.EARLY_EXIT_DIST
+
+
+def check_the_early_exit_mixture_reaches_a_simulated_start():
+    """Both halves: the forced exit fires, and the floor suppresses the hook.
+
+    The floor is the half that is easy to get wrong and invisible if you do —
+    without it the hook keeps making its own short starts on top of the lump
+    and the mixture produces more early exits than the league does.
+    """
+    was = dict(sim.EARLY_EXIT_DIST)
+    try:
+        sim.EARLY_EXIT_DIST.clear()
+        sim.EARLY_EXIT_DIST[7] = 1          # every early exit lands on 7
+        # p=1.0: every start is an early exit, so every starter must stop at
+        # 7 outs however well he is pitching.
+        hook = sim.Hook(early_exit_p=1.0, early_exit_floor=12)
+        outs = []
+        for seed in range(6):
+            rng = random.Random(seed)
+            side = game.build_side(_pitcher(), _pen(), _nine(), hook, rng,
+                                   apply_leash=False)
+            assert side.forced_exit_outs == 7, side.forced_exit_outs
+            other = game.build_side(_pitcher(), _pen(), _nine(), hook, rng,
+                                    apply_leash=False)
+            game.simulate_game(side, other, LG, rng)
+            outs.append(side.line.outs)
+        assert all(7 <= o <= 9 for o in outs), outs
+
+        # p=0.0 with a floor: no start is drawn as an early exit, and the
+        # hook may not pull anybody before the floor.
+        hook = sim.Hook(early_exit_p=0.0, early_exit_floor=12)
+        outs = []
+        for seed in range(8):
+            rng = random.Random(100 + seed)
+            side = game.build_side(_pitcher(), _pen(), _nine(), hook, rng,
+                                   apply_leash=False)
+            assert side.forced_exit_outs is None
+            other = game.build_side(_pitcher(), _pen(), _nine(), hook, rng,
+                                    apply_leash=False)
+            game.simulate_game(side, other, LG, rng)
+            outs.append(side.line.outs)
+        assert min(outs) >= 12, outs
+    finally:
+        sim.EARLY_EXIT_DIST.clear()
+        sim.EARLY_EXIT_DIST.update(was)
+
+
+def check_the_bullpen_gets_the_same_shrink_target_as_the_rotation():
+    """`bullpens` CARRIED A COPY of the rate block with `lg[stat]` hardcoded.
+
+    Every improvement to the shrink target therefore reached starters only —
+    including the multi-season prior shipped on 2026-08-26 — and reached them
+    in the population where the target matters least. A reliever's median
+    line is 106 batters faced against a starter's 480, so 38% of a reliever's
+    strikeout rate IS the target against 11% of a starter's.
+
+    Both call `rates.shrink_target` now. This asserts the reliever path
+    actually consults it, because two code paths for one concept is the
+    failure this whole file exists for.
+    """
+    from src.context.sources import rates as rate_src
+
+    rows = [{"name": "Elite Arm", "team": "NYY", "o": 90, "h": 20, "bb": 10,
+             "k": 30, "hr": 3, "apps": 40}]
+    lg = {"k_pct": 0.22, "bb_pct": 0.08, "hr_pct": 0.03, "babip": 0.29}
+    # A prior nothing like the league, so the two targets cannot be confused.
+    fake = {"Elite Arm": {"name": "Elite Arm", "pa": 700, "k_pct": 0.42,
+                          "bb_pct": 0.08, "hr_pct": 0.03, "babip": 0.29}}
+    was, prior, for_ = (rate_src.USE_PRIOR_SEASON, dict(rate_src._PRIOR),
+                        rate_src._PRIOR_FOR)
+    try:
+        rate_src.USE_PRIOR_SEASON = False
+        rate_src._PRIOR, rate_src._PRIOR_FOR = {}, None
+        off = rate_src.bullpens(lg, conn=_FakeConn(rows))
+        rate_src.USE_PRIOR_SEASON = True
+        rate_src._PRIOR, rate_src._PRIOR_FOR = fake, 2026
+        on = rate_src.bullpens(lg, conn=_FakeConn(rows))
+    finally:
+        rate_src.USE_PRIOR_SEASON = was
+        rate_src._PRIOR, rate_src._PRIOR_FOR = prior, for_
+    a = off["NYY"][0]["k_pct"]
+    b = on["NYY"][0]["k_pct"]
+    assert b > a + 0.01, (a, b)
+
+
+def check_defence_is_neutralised_out_and_applied_back_once():
+    """Defence belongs to the SIDE IN THE FIELD, not to the pitcher.
+
+    `rates` removes his own club's gloves from his observed BABIP to recover
+    what he would allow behind an average defence; `build_side` puts
+    TONIGHT'S club back on, for every arm that takes the mound. Two opposite
+    uses of one number.
+
+    Getting this wrong in the obvious way — applying without neutralising —
+    counts defence twice, which is exactly what `NEUTRALISE_PARK` being off
+    did to park factors. Getting it wrong the other way silently drops the
+    mechanism.
+
+    A round trip therefore has to return the original: neutralise, apply,
+    and a pitcher who stays with his own club is unchanged.
+    """
+    from src.context.sources import rates as rate_src
+
+    was = rate_src.USE_TEAM_DEFENCE
+    real = rate_src._defence_targets
+    try:
+        rate_src.USE_TEAM_DEFENCE = True
+        rate_src._defence_targets = lambda season=None: {"NYY": 0.012}
+        d = rate_src.defence_delta("NYY")
+        assert abs(d - 0.012) < 1e-9, d
+        observed = 0.280
+        neutral = observed + d          # what `rates` stores
+        tonight = neutral - d           # what `build_side` puts back
+        assert abs(tonight - observed) < 1e-12, (neutral, tonight)
+        # A club with no OAA row gets league-neutral, never a neighbour's.
+        assert rate_src.defence_delta("ZZZ") == 0.0
+        assert rate_src.defence_delta(None) == 0.0
+        # And the flag genuinely gates it.
+        rate_src.USE_TEAM_DEFENCE = False
+        assert rate_src.defence_delta("NYY") == 0.0
+    finally:
+        rate_src.USE_TEAM_DEFENCE = was
+        rate_src._defence_targets = real
+
+
+def check_the_rates_neutralise_defence_out_of_the_observed_babip():
+    """THE HALF A MUTATION FOUND UNGUARDED, and it is the expensive half.
+
+    Deleting the neutralisation leaves `build_side` applying a defence on top
+    of a rate that already contains one — counted twice, silently, exactly as
+    `NEUTRALISE_PARK` being off counted park 1.5x. Every check still passed.
+
+    Asserted on the STORED rate: two arms with identical counting lines, one
+    on a good defence and one on an unmapped club, must NOT come out equal.
+    The good-defence arm stores a HIGHER BABIP, because those gloves are
+    being removed to recover what he would allow behind an average one.
+    """
+    from src.context.sources import rates as rate_src
+
+    def rows(team):
+        return [{"name": "A", "team": team, "o": 90, "h": 20, "bb": 10,
+                 "k": 30, "hr": 3, "apps": 40}]
+
+    lg = {"k_pct": 0.22, "bb_pct": 0.08, "hr_pct": 0.03, "babip": 0.29}
+    was, real = rate_src.USE_TEAM_DEFENCE, rate_src._defence_targets
+    try:
+        rate_src.USE_TEAM_DEFENCE = True
+        rate_src._defence_targets = lambda season=None: {"NYY": 0.020}
+        good = rate_src.bullpens(lg, conn=_FakeConn(rows("NYY")))
+        none = rate_src.bullpens(lg, conn=_FakeConn(rows("ZZZ")))
+    finally:
+        rate_src.USE_TEAM_DEFENCE = was
+        rate_src._defence_targets = real
+    a = good["NYY"][0]["babip"]
+    b = none["ZZZ"][0]["babip"]
+    assert a > b + 0.002, (a, b)
+
+
+def check_the_side_applies_defence_to_the_bullpen_too():
+    """THE POINT OF MOVING IT. A defence attached to each pitcher's rates has
+    to be applied once per code path and was therefore applied to starters
+    only. Attached to the SIDE it reaches every arm for free.
+    """
+    from src.context.sources import rates as rate_src
+
+    was = rate_src.USE_TEAM_DEFENCE
+    real = rate_src._defence_targets
+    try:
+        rate_src.USE_TEAM_DEFENCE = True
+        rate_src._defence_targets = lambda season=None: {"NYY": 0.020}
+        rng = random.Random(4)
+        good = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                               team="NYY", apply_leash=False)
+        rng = random.Random(4)
+        neutral = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                                  team="ZZZ", apply_leash=False)
+    finally:
+        rate_src.USE_TEAM_DEFENCE = was
+        rate_src._defence_targets = real
+    assert good.starter.babip < neutral.starter.babip - 0.01, (
+        good.starter.babip, neutral.starter.babip)
+    assert good.pen and len(good.pen) == len(neutral.pen)
+    for a, b in zip(good.pen, neutral.pen):
+        assert a.babip < b.babip - 0.01, (a.babip, b.babip)

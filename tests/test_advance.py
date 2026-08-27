@@ -187,3 +187,40 @@ def check_advance_means_forward_only():
     assert not advance._adv("1B", "1B")
     assert not advance._adv("out", "2B")
     assert not advance._adv(None, "2B")
+
+
+def check_the_double_play_rate_is_the_current_era_not_the_pooled_one():
+    """`GIDP_RATE` is the one measured constant whose ERA GATE FAILED.
+
+    Counted per season, man on first, under two out, in the model's own
+    denominator (`scratchpad/season_gate.py`, one pass over 9,962 games):
+
+        season    0 out     1 out
+        2023     0.2307    0.2531
+        2024     0.2303    0.2300
+        2025     0.2132    0.2327
+        2026     0.2129    0.2276
+
+    The 0-out rate steps between 2024 and 2025, about 3.3 sigma on ~6,900
+    rows a season, so pooling all four imports a rate the league no longer
+    has. What ships is 2025+2026.
+
+    NOTHING GUARDED THIS VALUE UNTIL NOW — it was changed from 0.209 and the
+    whole suite stayed green, which is how a measured constant drifts back
+    to a guess. Pinned as a BAND rather than to four decimals, so a genuine
+    re-measurement is free and a pooled or legacy value is not.
+    """
+    from src.context import sim
+
+    assert sim.USE_MEASURED_GIDP is True
+    for outs, lo, hi in ((0, 0.205, 0.222), (1, 0.222, 0.240)):
+        got = sim.GIDP_RATE[outs]
+        assert lo < got < hi, (outs, got)
+    # Two out is not a double-play state in this model: the inning ends.
+    assert sim.GIDP_RATE[2] == 0.0, sim.GIDP_RATE
+    # The 2023/24 rate is OUTSIDE the 0-out band, which is what makes the
+    # band meaningful rather than decorative.
+    assert not (0.205 < 0.2305 < 0.222)
+    # And the published per-opportunity figure is on the wrong denominator.
+    assert sim.LEGACY_GIDP_RATE < 0.15, sim.LEGACY_GIDP_RATE
+    assert sim.gidp_rate(0) == sim.GIDP_RATE[0], "the accessor is bypassed"

@@ -1672,31 +1672,74 @@ def check_the_pitch_table_reproduces_the_real_pitch_count():
 def check_the_boundary_curve_is_the_fitted_one():
     """The between-innings curve is fitted on real decisions, not imported.
 
-    Pinned because it SHIPPED WHILE SCORING WORSE on `calibrate.loss`, the
-    mean and the boundary share, and a future session reading only those
-    would revert it. The justification is value-weighted and is the whole
-    point:
+    REFITTED 2026-08-26 on CORRECTLY LABELLED rows. `boundary.decisions` read
+    `count.outs` as the outs BEFORE a play when it is the outs AFTER, so
+    every second out of an inning was labelled `ends_inning` and 48.2% of
+    this curve's training set was decisions where a manager essentially never
+    pulls anybody (1.28% against a true boundary rate of 11.88%).
 
-        RMS error on P(over), outs lines 14.5-17.5   0.0546 -> 0.0346
-        RMS error on P(over), outs lines 12.5-20.5   0.0452 -> 0.0513
+    The correction is not a re-tune, it changes what the curve SAYS:
 
-    Books hang outs lines in the first band. The old curve was also BIASED —
-    negative at every line from 12.5 to 17.5, -0.043 to -0.067 — so it
-    systematically under-priced the over where it matters most. The
-    aggregate favours it only through 18.5 and 20.5, six-plus innings.
+        parameter        before     after
+        per_inning       -0.1087   +0.2515   <- sign flip
+        per_run          +0.0089   +0.1097   <- 12x
+        per_baserunner   +0.0379   +0.0555
+        pitch_scale      10.8972   12.1293
 
-    `sim.LEGACY_BOUNDARY` restores the old values for scoring.
+    `per_inning` negative meant the model believed a manager grows LESS
+    likely to pull a starter as the game goes on. The real hazard past 100
+    pitches is 0.972 and the old curve fired at 0.607.
+
+    Scored on 1,040 holdout starts with the leash rebuilt against it:
+
+        RMS error on P(over), outs 14.5-17.5   0.0585 -> 0.0242
+        RMS error on P(over), outs 12.5-20.5   0.0810 -> 0.0332
+        mean outs                               16.87 -> 16.03  (real 15.81)
+        SD outs                                  3.92 ->  4.03  (real 4.05)
+        boundary share                           0.478 -> 0.603 (real 0.671)
+
+    That mean-outs error had been open since day six and six mechanisms had
+    failed on it.
+
+    `sim.PRE_OUTS_FIX_BOUNDARY` restores the old values for scoring, and
+    `sim.LEGACY_BOUNDARY` the imported ones before those.
     """
     h = sim.Hook()
-    assert abs(h.pitch_center - 47.6812) < 1e-6, h.pitch_center
-    assert abs(h.pitch_scale - 10.8972) < 1e-6, h.pitch_scale
-    assert abs(h.intercept - (-4.2384)) < 1e-6, h.intercept
+    assert abs(h.pitch_center - 49.5493) < 1e-6, h.pitch_center
+    assert abs(h.pitch_scale - 12.1293) < 1e-6, h.pitch_scale
+    assert abs(h.intercept - (-5.1370)) < 1e-6, h.intercept
+    # THE SIGN IS THE FINDING, not the digits. A manager gets MORE likely to
+    # pull as the game goes on, and a negative value here is the signature of
+    # the labelling bug rather than a tuning choice.
+    assert h.per_inning > 0, h.per_inning
+    assert h.per_run > 0.05, h.per_run
+    for k in ("intercept", "per_inning", "per_run"):
+        assert k in sim.PRE_OUTS_FIX_BOUNDARY, k
     # The legacy record has to stay complete enough to restore the curve.
     for k in ("intercept", "pitch_center", "pitch_scale", "per_run",
               "per_inning", "per_baserunner"):
         assert k in sim.LEGACY_BOUNDARY, k
-    old = sim.Hook(**sim.LEGACY_BOUNDARY)
-    # The old curve's defining defect: far too eager in the 70-80 band,
-    # where it fires at 0.293 against a real 0.074.
-    assert old.removal_p(75, 2, 5, 4) > h.removal_p(75, 2, 5, 4) * 2, \
-        "the fitted curve should be much less trigger-happy at 75 pitches"
+    # THIS ASSERTION USED TO ENCODE A CONTAMINATED FACT and is the reason to
+    # re-read every number a check pins, not just the ones that fail. It
+    # required the legacy curve to be twice as eager as the shipped one at 75
+    # pitches, on the grounds that the real 70-80 rate is 0.074. Counted on
+    # correctly labelled rows that rate is 0.130, and the whole hazard is far
+    # steeper than anything fitted before the fix believed.
+    #
+    # So the curve is now pinned against the COUNTED hazard instead of
+    # against another curve. Real rates, 2025+2026 boundary decisions:
+    #
+    #     60-70  0.050    80-90   0.353    100-110  0.972
+    #     70-80  0.130    90-100  0.790
+    #
+    # evaluated at a mid-range state, so exact agreement is not expected —
+    # the bands are wide enough to catch a curve that is out by a factor,
+    # which is what every version of this defect has been.
+    pre = sim.Hook(**sim.PRE_OUTS_FIX_BOUNDARY)
+    for pitches, lo, hi in ((75, 0.08, 0.35), (105, 0.55, 0.95)):
+        got = h.removal_p(pitches, 2, 5, 4)
+        assert lo < got < hi, (pitches, got)
+    # And the pre-fix curve's defining defect: it under-pulls deep, which is
+    # what left starters a full out too long.
+    assert pre.removal_p(105, 2, 5, 4) < h.removal_p(105, 2, 5, 4), \
+        "the corrected curve must pull harder at 105 pitches"

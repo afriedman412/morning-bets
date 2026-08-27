@@ -1,0 +1,42 @@
+  4,663 games in 2025/2026
+
+  9,326 starts, floor 12 outs
+  early exits 1,348 = 0.1445
+  mean outs   all 15.25   early 7.35   survivors 16.59
+
+  OUTS | EARLY EXIT — the lump, sampled not modelled
+      0 outs      4   0.003
+      1 outs     14   0.010
+      2 outs     42   0.031
+      3 outs    184   0.136
+      4 outs     62   0.046
+      5 outs     70   0.052
+      6 outs    145   0.108
+      7 outs     76   0.056
+      8 outs     93   0.069
+      9 outs    287   0.213
+     10 outs    153   0.114
+     11 outs    218   0.162
+
+  REFIT ON SURVIVORS ONLY
+  boundary (survivors)     42,746 rows  pull 0.1127  AUC 0.9590
+  mid-inning (survivors)  140,490 rows  pull 0.0226  AUC 0.9492
+
+  parameter                   shipped   survivor
+  intercept                   -5.1370    -8.2590
+  pitch_center                49.5493    50.5138
+  pitch_scale                 12.1293     8.1193
+  per_run                      0.1097     0.1192
+  per_baserunner               0.0555     0.0980
+  per_inning                   0.2515     0.5464
+  per_margin                   0.0000    -0.0041
+  late_mid_offset             -5.5145    -8.6801
+  late_mid_per_pitch           0.0839     0.1207
+  late_mid_per_inning_br       0.5269     0.4388
+  late_mid_per_run             0.1165     0.0800
+  late_mid_per_onbase          0.3002     0.3917
+  mid_per_margin               0.0000    -0.0100
+  early_exit_p                 0.0000     0.1445
+  early_exit_floor             0.0000    12.0000
+
+  -> scratchpad/survivor_hook.json

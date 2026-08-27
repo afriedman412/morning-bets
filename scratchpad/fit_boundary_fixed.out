@@ -1,0 +1,56 @@
+    400/9962 games, 3,762 decisions
+    800/9962 games, 7,730 decisions
+    1200/9962 games, 11,729 decisions
+    1600/9962 games, 15,776 decisions
+    2000/9962 games, 19,821 decisions
+    2400/9962 games, 23,827 decisions
+    2800/9962 games, 27,400 decisions
+    3200/9962 games, 31,512 decisions
+    3600/9962 games, 35,564 decisions
+    4000/9962 games, 39,512 decisions
+    4400/9962 games, 43,583 decisions
+    4800/9962 games, 47,486 decisions
+    5200/9962 games, 51,105 decisions
+    5600/9962 games, 54,830 decisions
+    6000/9962 games, 58,818 decisions
+    6400/9962 games, 62,810 decisions
+    6800/9962 games, 66,821 decisions
+    7200/9962 games, 70,927 decisions
+    7600/9962 games, 74,966 decisions
+    8000/9962 games, 78,421 decisions
+    8400/9962 games, 82,463 decisions
+    8800/9962 games, 86,363 decisions
+    9200/9962 games, 90,295 decisions
+    9600/9962 games, 94,100 decisions
+
+  97,554 BOUNDARY decisions (end-of-inning, starter still in)
+  pull rate 0.1175
+  in-sample AUC 0.9068   log loss 0.2170
+
+  parameter            shipped    fitted
+  intercept            -4.2384   -5.4980
+  pitch_center         47.6812   49.4315
+  pitch_scale          10.8972   15.3048
+  per_run               0.0089    0.1147
+  per_baserunner        0.0379    0.0950
+  per_inning           -0.1087    0.3697
+  per_margin            0.0000    0.0059
+
+  HAZARD BY PITCH COUNT — the curve has to reproduce this
+  bucket            n   actual  shipped   fitted
+  0-60          61478    0.019    0.007    0.011
+  60-70         11074    0.050    0.052    0.094
+  70-80         10123    0.130    0.116    0.212
+  80-90          8223    0.353    0.235    0.400
+  90-100         5131    0.790    0.412    0.609
+  100-110        1451    0.972    0.607    0.764
+  110-999          74    0.919    0.768    0.860
+
+  HAZARD BY INNING
+  inning            n   actual  shipped   fitted
+  3             18370    0.028    0.023    0.032
+  4             16871    0.072    0.075    0.113
+  5             13525    0.245    0.174    0.278
+  6              7368    0.531    0.281    0.468
+  7              2236    0.748    0.354    0.617
+  8               328    0.625    0.395    0.723

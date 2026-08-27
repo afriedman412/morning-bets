@@ -71,14 +71,77 @@ HOLDOUT = "2026-07-01"
 
 DUMP = "scratchpad/bnd_curves.json"
 
+def _load(f):
+    import json as _json
+    import os as _os
+    if not _os.path.exists(f):
+        raise SystemExit(f"missing {f}")
+    return _json.load(open(f))
+
+
+def _pitchonly():
+    """The pitch-count-only hook, REFITTED rather than zeroed.
+
+    Zeroing the other terms would delete part of the LEVEL, not just the
+    shape, so the curve would stop firing at the right rate and pitch count
+    would lose on a technicality. `scratchpad.fit_pitchonly` refits both
+    curves on their own 2025+2026 rows with the pitch term alone; this only
+    loads the result.
+    """
+    import json as _json
+    import os as _os
+    f = "scratchpad/pitchonly_hook.json"
+    if not _os.path.exists(f):
+        raise SystemExit("run scratchpad.fit_pitchonly first")
+    return _json.load(open(f))
+
+
 VARIANTS = {
     "legacy": sim.LEGACY_BOUNDARY,
-    "linear": sim.LINEAR_BOUNDARY,
     # NOT `{}`. The shipped defaults reverted to linear in 330d816, so an
     # empty dict silently made this column a duplicate of the one above it
     # — which is exactly what the 2026-08-26 battery printed.
-    "knee": sim.KNEE_BOUNDARY,
     "shipped": {},
+    # The 2025+2026 refit on CORRECTLY LABELLED rows. `boundary.decisions`
+    # read `count.outs` as the outs before the play when it is the outs
+    # after, so 48.2% of every previous boundary fit was second outs.
+}
+
+#: The hook as it stood BEFORE the `count.outs` fix — kept so the change is
+#: still scoreable now that the corrected curves are the defaults.
+#: Pitch count ALONE, both curves refitted on correct 2025+2026 rows so the
+#: level is right — zeroing the terms would lose on a technicality.
+VARIANTS["pitch-only"] = _pitchonly()
+
+#: Pitch-only BOUNDARY, full MID-INNING. Motivated by the per-decision AUCs:
+#: the two curves disagree about whether the extra features matter, so
+#: zeroing both throws away the half that works.
+VARIANTS["hybrid"] = _load("scratchpad/hybrid_hook.json")
+
+def _mixture():
+    """The early-exit mixture: a lump of short starts drawn up front, plus a
+    hook refitted on the starts that survive.
+
+    `EARLY_EXIT_DIST` is a module global and is set HERE, in the parent,
+    before any fork — a spawned child would re-import at defaults and the
+    lump would silently be empty. Same trap as every `USE_*` flag.
+    """
+    import json as _json
+    d = _json.load(open("scratchpad/survivor_hook.json"))
+    sim.EARLY_EXIT_DIST.clear()
+    sim.EARLY_EXIT_DIST.update({int(k): v
+                                for k, v in d["early_dist"].items()})
+    return d["fields"]
+
+
+VARIANTS["mixture"] = _mixture()
+
+VARIANTS["pre-fix"] = {
+    "intercept": -4.2384, "pitch_center": 47.6812, "pitch_scale": 10.8972,
+    "per_run": 0.0089, "per_baserunner": 0.0379, "per_inning": -0.1087,
+    "late_mid_offset": -7.9718, "late_mid_per_pitch": 0.11508,
+    "late_mid_per_inning_br": 0.4173, "late_mid_per_run": 0.1366,
+    "late_mid_per_onbase": 0.2895,
 }
 
 _CASES: dict = {}
@@ -161,7 +224,7 @@ def main(argv):
             if n % 100 == 0:
                 print(f"    {n}/{len(gids)} games", flush=True)
 
-    real = [r["actual"] for r in rows["knee"]]
+    real = [r["actual"] for r in rows["shipped"]]
     n = len(real)
     # Seven minutes of simulation. Every later question about these three
     # curves reads this instead of re-running.

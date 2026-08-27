@@ -384,7 +384,26 @@ SB_RATE = 0.0557
 #: `GIDP_RATE` wired to nothing, so the fit would have explored a parameter
 #: that no longer reached the model. `check_evaluate_applies_its_parameters`
 #: caught it, which is the entire reason that check exists.
-GIDP_RATE = {0: 0.209, 1: 0.224, 2: 0.0}
+#:
+#: RE-MEASURED 2026-08-26 ON 2025+2026 ONLY, and the season restriction is
+#: the finding rather than a detail. Counted per season, man on first, under
+#: two out, in the model's own denominator:
+#:
+#:     season    0 out     1 out
+#:     2023     0.2307    0.2531
+#:     2024     0.2303    0.2300
+#:     2025     0.2132    0.2327
+#:     2026     0.2129    0.2276
+#:
+#: The 0-out rate STEPS between 2024 and 2025 — 0.230 to 0.213, about 3.3
+#: sigma on ~6,900 rows a season — so the era gate FAILS and pooling four
+#: seasons would import a rate this league no longer has. 2025+2026 pooled
+#: gives 0.2131 and 0.2305, against the 0.209/0.224 measured on 2026 alone.
+#:
+#: Note TTO passed the same gate on the same pass over the same games
+#: (`scratchpad/season_gate.py`), so this is not a blanket "history is
+#: different" result — the two quantities genuinely differ.
+GIDP_RATE = {0: 0.2131, 1: 0.2305, 2: 0.0}
 USE_MEASURED_GIDP = True
 #: The published per-opportunity number, on the wrong denominator.
 LEGACY_GIDP_RATE = 0.11
@@ -654,9 +673,9 @@ class Hook:
     #: A KNEE WAS FITTED AND NOT SHIPPED. See `KNEE_BOUNDARY` — it is a
     #: better description of what managers do and a worse description of
     #: what we price, which is the sharpest case of that split so far.
-    pitch_center: float = 47.6812
+    pitch_center: float = 49.5493
     #: How sharply the pitch-count term turns on. Larger is a softer curve.
-    pitch_scale: float = 10.8972
+    pitch_scale: float = 12.1293
     #: Where the pitch term would turn on, if `per_pitch_over` were non-zero.
     #: SHIPS INERT — the mechanism exists and the coefficient is 0.0, so the
     #: curve is linear. `KNEE_BOUNDARY` turns it on.
@@ -664,14 +683,14 @@ class Hook:
     #: Log-odds per pitch beyond `pitch_knee`. Zero ships a linear logit.
     per_pitch_over: float = 0.0
     #: Added to the removal log-odds per run allowed so far.
-    per_run: float = 0.0089
+    per_run: float = 0.1097
     #: Added per inning completed. Small and NEGATIVE once pitches are in
     #: the same model: inning and pitch count carry the same information and
     #: the fit gives it to pitches. Not evidence that late innings shorten a
     #: leash — evidence that pitches already say so.
-    per_inning: float = -0.1087
+    per_inning: float = 0.2515
     #: Baseline log-odds before any of the above.
-    intercept: float = -4.2384
+    intercept: float = -5.1370
     # -- mid-inning removal --
     #
     # A third of real starts end mid-inning, and the first version of this
@@ -702,7 +721,7 @@ class Hook:
     #: is NOT shipped — so the shipped boundary curve is the fitted one with
     #: the margin column zeroed. Deliberate: margin is worth its own
     #: measurement rather than arriving as a passenger on a shape change.
-    per_baserunner: float = 0.0379
+    per_baserunner: float = 0.0555
     #: Manager patience, as a log-odds offset applied to BOTH removal
     #: decisions. Negative means a longer leash.
     #:
@@ -754,16 +773,16 @@ class Hook:
     #: team_offset, the patience fits and the never-pull tests all use that
     #: idiom — and a branch carrying its own absolute intercept goes on
     #: pulling people regardless.
-    late_mid_offset: float = -7.9718
-    late_mid_per_pitch: float = 0.11508
-    late_mid_per_inning_br: float = 0.4173
-    late_mid_per_run: float = 0.1366
+    late_mid_offset: float = -5.5145
+    late_mid_per_pitch: float = 0.0839
+    late_mid_per_inning_br: float = 0.5269
+    late_mid_per_run: float = 0.1165
     #: Bases OCCUPIED, distinct from baserunners allowed this inning. Both
     #: are in the decision — bases loaded having scored nobody is a hook,
     #: and so is a five-run inning that ended with the bases empty. Dropping
     #: it lost 2.71 -> 18.05% of real discrimination and broke two checks
     #: that correctly guard the hook responding to traffic on the bases.
-    late_mid_per_onbase: float = 0.2895
+    late_mid_per_onbase: float = 0.3002
     #: Multiplies `MID_INNING_RUN_OFFSET`. DEFAULT OFF — the mechanism is
     #: real and correctly measured, but switching it on makes
     #: `calibrate.loss` worse (0.206 -> 0.221) because the model has a
@@ -829,6 +848,27 @@ class Hook:
     early_bnd_per_pitch: float = 0.01616
     early_bnd_per_run_offset: float = 0.2278
     early_bnd_per_run: float = 0.1859
+
+    #: THE EARLY-EXIT MIXTURE. Off at 0.0, which is the shipped state.
+    #:
+    #: A start is drawn as one of two kinds before it is simulated. With
+    #: probability `early_exit_p` it is an EARLY EXIT and ends at an outs
+    #: total sampled from `EARLY_EXIT_DIST`; otherwise the hook runs and
+    #: cannot pull before `early_exit_floor`.
+    #:
+    #: WHY A MIXTURE AND NOT A STEEPER CURVE. Real starts are bimodal and a
+    #: single logistic cannot be — see `pitch_center`, where a scan over the
+    #: whole parameter space failed to reach the mean, the median and the
+    #: 100-pitch share together. Day seven's `early_innings` branches chased
+    #: the same tail inside the curves and bought it with spread (SD 4.47
+    #: against a real 3.99), which is why they ship off.
+    #:
+    #: THE FLOOR DOES TWO JOBS and the second is the one that is easy to
+    #: miss: it suppresses the hook below itself. Without that the two modes
+    #: overlap — the hook would keep producing its own short starts on top
+    #: of the lump — and short starts would be counted twice.
+    early_exit_p: float = 0.0
+    early_exit_floor: int = 0
 
     def removal_p(self, pitches: int, runs: int, innings: int,
                   baserunners: int = 0, margin: int = 0,
@@ -1222,9 +1262,32 @@ LEGACY_BOUNDARY = {
     "per_pitch_over": 0.0,
 }
 
+#: {outs: count} for starts that ended below the mixture's floor — the
+#: EARLY-EXIT LUMP, sampled rather than modelled. Empty until
+#: `Hook.early_exit_p` is non-zero, and populated by whoever sets it
+#: (`scratchpad.fit_survivors` writes both together).
+#:
+#: COUNTED, NOT FITTED. These starts are the ones nobody can call in
+#: advance, so the mixture's job is to remove them from the length estimate
+#: rather than to explain them. Sampling the shape from what actually
+#: happened is the whole mechanism.
+EARLY_EXIT_DIST: dict[int, int] = {}
+
 #: What ships, named so `scratchpad/score_boundary.py` can hold all three
 #: side by side. Identical to the defaults above.
 LINEAR_BOUNDARY = {
+    "intercept": -5.1370, "pitch_center": 49.5493, "pitch_scale": 12.1293,
+    "per_run": 0.1097, "per_inning": 0.2515, "per_baserunner": 0.0555,
+    "per_pitch_over": 0.0,
+}
+
+#: The curve as it stood before the `count.outs` fix of 2026-08-26, when
+#: 48.2% of its training rows were second outs rather than inning ends.
+#: Kept ONLY so the correction stays scoreable — it is not a fallback.
+#: `per_inning` NEGATIVE is the tell: it says a manager grows less likely to
+#: pull as the game goes on, which is backwards, and it is what a curve
+#: fitted half on rows where nobody is ever pulled will report.
+PRE_OUTS_FIX_BOUNDARY = {
     "intercept": -4.2384, "pitch_center": 47.6812, "pitch_scale": 10.8972,
     "per_run": 0.0089, "per_inning": -0.1087, "per_baserunner": 0.0379,
     "per_pitch_over": 0.0,

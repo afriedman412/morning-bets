@@ -1,0 +1,16 @@
+{
+  "intercept": -3.9240313114894985,
+  "pitch_center": 49.5493164490404,
+  "pitch_scale": 9.77220458538048,
+  "per_run": 0.0,
+  "per_baserunner": 0.0,
+  "per_inning": 0.0,
+  "per_margin": 0.0,
+  "late_mid_offset": -4.07988043361315,
+  "late_mid_per_pitch": 0.08205953087286673,
+  "late_mid_per_inning_br": 0.0,
+  "late_mid_per_run": 0.0,
+  "late_mid_per_onbase": 0.0,
+  "mid_per_margin": 0.0,
+  "mid_per_inning_run": 0.0
+}

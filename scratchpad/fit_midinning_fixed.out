@@ -1,0 +1,44 @@
+    500/9962 games, 16,263 decisions
+    1000/9962 games, 33,288 decisions
+    1500/9962 games, 50,332 decisions
+    2000/9962 games, 67,550 decisions
+    2500/9962 games, 84,262 decisions
+    3000/9962 games, 100,436 decisions
+    3500/9962 games, 117,486 decisions
+    4000/9962 games, 134,380 decisions
+    4500/9962 games, 151,443 decisions
+    5000/9962 games, 168,516 decisions
+    5500/9962 games, 183,556 decisions
+    6000/9962 games, 200,433 decisions
+    6500/9962 games, 217,384 decisions
+    7000/9962 games, 234,482 decisions
+    7500/9962 games, 251,762 decisions
+    8000/9962 games, 267,193 decisions
+    8500/9962 games, 283,918 decisions
+    9000/9962 games, 300,573 decisions
+    9500/9962 games, 317,204 decisions
+
+  332,472 MID-INNING decisions (inning alive, starter in)
+  pull rate 0.0257
+  in-sample AUC 0.9078   log loss 0.0804
+
+  parameter                     shipped     fitted
+  late_mid_offset               -7.9718    -5.0519
+  late_mid_per_pitch             0.1151     0.0765
+  late_mid_per_inning_br         0.4173     0.5303
+  late_mid_per_run               0.1366     0.1454
+  late_mid_per_onbase            0.2895     0.3110
+  mid_per_margin                 0.0000     0.0015
+  mid_per_inning_run             0.0000    -0.1540   <- COUNTED; fitted shown only for comparison
+  mid_intercept (held)          -5.0000    -5.0000
+
+  HAZARD BY PITCH COUNT
+  bucket             n   actual  shipped   fitted
+  0-60          226200   0.0046   0.0010   0.0039
+  60-70          35161   0.0164   0.0138   0.0271
+  70-80          32050   0.0373   0.0411   0.0542
+  80-90          24954   0.0910   0.1107   0.1026
+  90-100         11979   0.2151   0.2545   0.1839
+  100-999         2128   0.4117   0.4930   0.3204
+
+  {"late_mid_offset": -5.05192, "late_mid_per_pitch": 0.07654, "late_mid_per_inning_br": 0.53033, "late_mid_per_run": 0.14538, "late_mid_per_onbase": 0.31097, "mid_per_margin": 0.00151}

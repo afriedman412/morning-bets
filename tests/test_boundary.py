@@ -1,5 +1,25 @@
-"""The two-hook measurement: mid-inning rescue vs end-of-inning routine."""
+"""The two-hook measurement: mid-inning rescue vs end-of-inning routine.
+
+THE FIXTURE BELOW USED TO ENCODE THE BUG IT WAS MEANT TO GUARD. `count.outs`
+in the real feed is the outs AFTER the play — the first play of a game, a
+strikeout, reads 1 — and both `boundary.py` and this helper treated it as
+the outs BEFORE. Sharing one misunderstanding, they agreed perfectly, and
+every check here passed while 48.2% of the boundary training set was
+actually second outs. `tests/test_pbp.py` and `tests/test_inherit.py` had it
+right all along; their fixtures name the field `outs_after`.
+
+So the helper still TAKES `outs_before`, because that is what reads clearly
+at a call site, and now writes what the API would write.
+"""
 from src.context import boundary
+
+#: Outs the event itself records, for turning a readable `outs_before` into
+#: the post-play count the feed reports.
+_RETIRES = {"strikeout": 1, "field_out": 1, "force_out": 1, "sac_fly": 1,
+            "sac_bunt": 1, "fielders_choice_out": 1,
+            "grounded_into_double_play": 2, "double_play": 2,
+            "strikeout_double_play": 2, "sac_fly_double_play": 2,
+            "sac_bunt_double_play": 2, "triple_play": 3}
 
 
 def _play(inning, top, pid, event, outs_before, away=0, home=0, pitches=3):
@@ -7,7 +27,7 @@ def _play(inning, top, pid, event, outs_before, away=0, home=0, pitches=3):
         "about": {"inning": inning, "isTopInning": top},
         "matchup": {"pitcher": {"id": pid}, "batter": {"id": 900 + outs_before}},
         "result": {"eventType": event, "awayScore": away, "homeScore": home},
-        "count": {"outs": outs_before},
+        "count": {"outs": outs_before + _RETIRES.get(event, 0)},
         "playEvents": [{"isPitch": True}] * pitches,
         "runners": [],
     }

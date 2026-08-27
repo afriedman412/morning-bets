@@ -1,0 +1,23 @@
+  simulating 1639 games (3278 starts) x 120 draws
+  dropped 8 arms not sent out for length (p75 outs < 12): Braydon Fisher, Bryan Hudson, Casey Legumina, Huascar Brazobán, Lake Bachar ...
+  K=12.1 starts (between 1.01, within 3.52)
+  wrote 203 offsets to /Users/user/Documents/code/morning-bets/src/context/hook_leash.json
+
+  LONGEST LEASH (negative offset)
+    Sandy Alcantara             -1.312   +2.06 outs
+    Jesús Luzardo               -1.273   +2.00 outs
+    Yoshinobu Yamamoto          -1.235   +1.95 outs
+    Logan Webb                  -1.142   +1.81 outs
+    Michael Wacha               -1.056   +1.68 outs
+    Cristopher Sánchez          -1.038   +1.66 outs
+    Eduardo Rodriguez           -1.020   +1.63 outs
+    Dylan Cease                 -0.928   +1.49 outs
+  SHORTEST LEASH
+    Chris Paddack               +0.512   -0.86 outs
+    Carmen Mlodzinski           +0.565   -0.94 outs
+    Brayan Bello                +0.578   -0.96 outs
+    Kai-Wei Teng                +0.585   -0.98 outs
+    Steven Matz                 +0.904   -1.50 outs
+    Ryan Gusto                  +0.987   -1.64 outs
+    Tatsuya Imai                +1.263   -2.12 outs
+    Carson Palmquist            +1.917   -3.17 outs

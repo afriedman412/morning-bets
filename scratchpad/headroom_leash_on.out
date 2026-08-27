@@ -1,0 +1,13 @@
+  holdout: rates before 2026-07-01, starts on or after it, leash OFF
+    300/520 games
+
+  population: arms meant to go long, 1009 starts, 30 draws each
+
+  stat     actual sd  between  ceiling  our corr   share  our spread
+  outs          3.88     1.60    0.411     0.287     70%        1.31
+  k             2.48     1.20    0.482     0.409     85%        1.11
+
+  'our spread' is the sd of our per-start predicted means. It is
+  the model's own differentiation, and it caps `our corr` however
+  well aimed the predictions are.
+  Leash OFF and rates frozen, so outs is a LOWER bound.

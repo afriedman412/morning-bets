@@ -104,9 +104,10 @@ def exits(game_id: str, data: dict | None = None) -> list[dict]:
         v["br"] += 1 if ev in ONBASE else 0
         v["dmg"] += DAMAGE.get(ev, 0.0)
 
-        outs_after = (cnt.get("outs", 0) or 0) + (
-            1 if ev in ("strikeout", "field_out", "force_out", "sac_fly",
-                        "sac_bunt", "fielders_choice_out") else 0)
+        # `count.outs` is the outs AFTER the play — see OUT_EVENTS below for
+        # what reading it as "before" cost. Taken directly, so a double play
+        # needs no special case and no event table is consulted at all.
+        outs_after = cnt.get("outs", 0) or 0
         last[side] = {
             "game_id": game_id, "pitcher": pid, "side": side,
             "inning": ab.get("inning") or 1,
@@ -274,7 +275,7 @@ def decisions(game_id: str, data: dict | None = None) -> list[dict]:
     cum: dict = defaultdict(lambda: {"pitches": 0, "bf": 0, "runs": 0,
                                      "br": 0, "dmg": 0.0})
     inn: dict = defaultdict(lambda: {"runs": 0, "br": 0, "dmg": 0.0,
-                                     "inning": 0})
+                                     "inning": 0, "outs": 0})
     out: list[dict] = []
     prev_score = 0
     for i, play in enumerate(plays):
@@ -296,7 +297,7 @@ def decisions(game_id: str, data: dict | None = None) -> list[dict]:
         c, v = cum[side], inn[side]
         this_inn = ab.get("inning") or 1
         if v["inning"] != this_inn:
-            v.update(runs=0, br=0, dmg=0.0, inning=this_inn)
+            v.update(runs=0, br=0, dmg=0.0, inning=this_inn, outs=0)
 
         nxt = next((p for p in plays[i + 1:]
                     if bool((p.get("about") or {}).get("isTopInning")) == top),
@@ -305,7 +306,13 @@ def decisions(game_id: str, data: dict | None = None) -> list[dict]:
             break                        # game ended; no decision was made
         nxt_pid = ((nxt.get("matchup") or {}).get("pitcher") or {}).get("id")
         cnt = play.get("count") or {}
-        outs_before = cnt.get("outs", 0) or 0
+        # `count.outs` is the outs AFTER the play — see OUT_EVENTS. The
+        # state the manager weighed BEFORE it is carried on the inning
+        # accumulator, which also makes double plays free: the count simply
+        # jumps by two and no event table has to know that.
+        outs_before = v["outs"]
+        outs_after = cnt.get("outs", 0) or 0
+        v["outs"] = outs_after
         margin = (res.get("homeScore", 0) or 0) - (res.get("awayScore", 0) or 0)
         margin = margin if side == "home" else -margin
         ev = res.get("eventType") or ""
@@ -324,7 +331,6 @@ def decisions(game_id: str, data: dict | None = None) -> list[dict]:
         v["br"] += 1 if ev in ONBASE else 0
         v["dmg"] += DAMAGE.get(ev, 0.0)
 
-        outs_after = outs_before + (1 if ev in OUT_EVENTS else 0)
         out.append({
             "game_id": game_id, "pitcher": pid, "side": side,
             "inning": this_inn, "outs_before": outs_before,
@@ -344,12 +350,35 @@ def decisions(game_id: str, data: dict | None = None) -> list[dict]:
     return out
 
 
-#: Events that retire the batter. Double plays retire two, but the count
-#: that matters here is only whether the half-inning ended, and the next
-#: play's `outs` would disagree with a naive +1 — so the third out is read
-#: off the FOLLOWING play where possible. Kept simple deliberately: a
-#: mis-tagged inning end shows up immediately as a boundary row with
-#: outs_before 2 and no successor.
+#: Events that retire the batter. NO LONGER USED TO COUNT OUTS, and the
+#: reason is the most expensive labelling bug this project has had.
+#:
+#: `count.outs` on a play is the outs AFTER it — the first play of a game,
+#: a strikeout, reads 1. This module read it as the outs BEFORE and added
+#: one for an out event, so every SECOND OUT of an inning came out at three
+#: and was labelled `ends_inning`. Measured over 3,000 games, 129,883
+#: starter decisions:
+#:
+#:     labelled ends_inning         56,848
+#:     actually ends the inning     29,447
+#:     second outs wrongly included 27,401   = 48.2%
+#:     true boundary rows missed             0
+#:
+#: The two populations are nothing alike — a true boundary row pulls at
+#: 0.1188 and a second-out row at 0.0128, nine times lower — so the pooled
+#: set reported 0.0655, about half the real boundary rate, and every fit
+#: built on it inherited that.
+#:
+#: THIS IS THE POOLING RULE FROM `CLAUDE.md` ARRIVING THROUGH THE LABELS.
+#: The rule was enforced where the curves are FITTED; the pooling had
+#: already happened one step earlier, in which rows were called which. A
+#: fitted-on-the-right-population check cannot see it, because the fit is
+#: obeying labels that are wrong.
+#:
+#: The docstring here previously claimed the third out was "read off the
+#: FOLLOWING play where possible" and asserted a mis-tag "shows up
+#: immediately". Neither was true: nothing read the following play, and the
+#: mis-tag was invisible for the life of the module.
 OUT_EVENTS = {"strikeout", "strikeout_double_play", "field_out", "force_out",
               "grounded_into_double_play", "double_play", "triple_play",
               "sac_fly", "sac_bunt", "fielders_choice_out",
