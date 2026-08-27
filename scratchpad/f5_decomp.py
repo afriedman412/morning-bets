@@ -117,6 +117,16 @@ def main(argv):
     print(f"  {len(act):,} with play-by-play\n", flush=True)
 
     pens = rate_src.bullpens(lg)
+    #: The DISTRIBUTION of runs allowed, not just the mean. Advancement can
+    #: be short two completely different ways and the mean cannot tell them
+    #: apart: the per-event rates can be slightly low, or the model can be
+    #: missing CLUSTERING — real innings arrive in bunches because a pitcher
+    #: who is off gives up hits together, and independent plate appearances
+    #: do not. Clustering is CONVEX in runs, so missing it lowers the mean
+    #: AND thins the tail. If the model is short at every run total the
+    #: rates are wrong; if it is short only high and long low, it is shape.
+    sim_hist = defaultdict(float)
+    act_hist = defaultdict(int)
     sim_tot = defaultdict(float)
     act_tot = defaultdict(float)
     n = 0
@@ -147,10 +157,12 @@ def main(argv):
                 # channel matched to within 1.4%, which is impossible and was
                 # the third denominator slip in this one script.
                 sim_tot["runs"] += ln.runs
+                sim_hist[min(ln.runs, 6)] += 1
         for tag in ("away", "home"):
             a = act[g][tag]
             for c in CH:
                 act_tot[c] += a.get(c, 0)
+            act_hist[min(a.get("runs", 0), 6)] += 1
         n += 2
     for c in ("bb", "hbp", "h", "hr"):
         sim_tot["on"] += sim_tot[c]
@@ -175,6 +187,16 @@ def main(argv):
     print(f"\n  run gap EXPLAINED by the event channels: {runs_from:+.4f}")
     print(f"  run gap OBSERVED:                        "
           f"{(act_tot['runs'] / n) - (sim_tot['runs'] / denom):+.4f}")
+    print(f"\n  RUNS ALLOWED BY THE STARTER THROUGH FIVE — the SHAPE:")
+    print(f"  {'runs':>6}{'sim %':>10}{'actual %':>10}{'diff':>9}")
+    sd = sum(sim_hist.values()) or 1
+    ad = sum(act_hist.values()) or 1
+    for k_ in range(7):
+        a_ = 100 * act_hist.get(k_, 0) / ad
+        s_ = 100 * sim_hist.get(k_, 0) / sd
+        lbl = f"{k_}" if k_ < 6 else "6+"
+        print(f"  {lbl:>6}{s_:>10.2f}{a_:>10.2f}{a_ - s_:>+9.2f}")
+
     print("\n  If the observed gap is bigger than the explained one, the")
     print("  model gets the right men on and fails to bring them home —")
     print("  that is an ADVANCEMENT defect. If they match, the defect is")

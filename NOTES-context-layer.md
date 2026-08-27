@@ -4069,3 +4069,42 @@ and also a denominator.
 
 The rule worth keeping: WHEN EVERY CHANNEL IS WRONG BY THE SAME PERCENTAGE,
 STOP LOOKING AT THE RATES AND CHECK WHAT YOU DIVIDED BY.
+
+### And the advancement gap is SHAPE, not rates — the model is under-dispersed
+
+Runs allowed by the starter through five, sim against actual:
+
+    runs     sim %  actual %     diff
+       0     22.72     23.24    +0.51
+       1     21.80     21.43    -0.37
+       2     18.93     18.38    -0.55
+       3     14.31     13.74    -0.56
+       4      9.75      9.37    -0.38
+       5      6.12      6.51    +0.39
+      6+      6.37      7.32    +0.95
+
+**REALITY HAS MORE SHUTOUTS AND MORE BLOWUPS; THE MODEL IS BUNCHED IN THE
+MIDDLE.** Both tails are thin at once, which is the clustering signature: the
+simulator resolves plate appearances independently and real ones arrive in
+bunches. Runs are CONVEX in clustering, so the missing tail is also what
+drags the mean 1.7% low — the same defect explains both the shape and the
+level, and no adjustment to advancement RATES produces it, because rates
+move the middle.
+
+The model is 13% short on 6+ run starts and 2% short on shutouts.
+
+**THIS REFRAMES `form.py`, WHICH IS PARKED.** That measured whether a
+pitcher's nightly form is PREDICTABLE IN ADVANCE and answered no, three
+ways. That is a different question from whether the model GENERATES ENOUGH
+BAD NIGHTS AT ALL. Nothing here needs to know which start blows up — it
+needs the right RATE of blowups. A mean-preserving per-start dispersion
+term would fatten both tails without predicting anything, and the parked
+result does not bear on it.
+
+Exactly the standing rule: the dead list records HOW a thing was tried. Form
+was tried as a PREDICTOR and died. It has never been tried as a DISPERSION.
+
+Note also `early_exit_p`, the mixture already built and shipped inert, which
+was aimed at the same tail from the hook side and whose numbers were voided
+when the boundary bug was fixed. Two mechanisms pointing at one measured
+defect, neither currently on.
