@@ -679,3 +679,28 @@ def check_the_side_applies_defence_to_the_bullpen_too():
     assert good.pen and len(good.pen) == len(neutral.pen)
     for a, b in zip(good.pen, neutral.pen):
         assert a.babip < b.babip - 0.01, (a.babip, b.babip)
+
+
+def check_relievers_shrink_toward_the_reliever_league():
+    """A reliever is not a starter and the shrink target dominates him.
+
+    Counted on 2026: relievers allow 12% FEWER home runs (0.0280 against
+    0.0319) and walk 18% MORE (0.0972 against 0.0823). The pitcher home-run
+    shrink constant is 934 against a reliever's median 106 batters faced, so
+    ~90% of his home-run rate IS the target — and it was the rotation's.
+
+    `_starter_league` stays the log5 ANCHOR; only what a thin line is pulled
+    toward moves. Both halves are asserted, because swapping the anchor
+    instead would be a much larger change wearing the same name.
+    """
+    from src.context.sources import rates as rate_src
+
+    assert rate_src.USE_RELIEVER_LEAGUE is True
+    pen = rate_src.reliever_league(2026)
+    assert pen, "the reliever league did not load"
+    assert pen["hr_pct"] < 0.031, pen
+    assert pen["bb_pct"] > 0.090, pen
+    # The rotation baseline must be UNCHANGED — it is still the anchor.
+    lg = sim.league(2026)
+    assert lg["hr_pct"] > 0.031, lg
+    assert lg["bb_pct"] < 0.090, lg

@@ -78,6 +78,139 @@ Fork, never spawn. A spawned child re-imports at DEFAULT globals and every
 
 ---
 
+# Resume here — state as of 2026-08-27 (day twelve)
+
+## WHAT CHANGED TODAY, IN ONE LINE
+
+**THE TRAFFIC DEFICIT IS NOT A DEFICIT.** We produce the right NUMBER of
+baserunners and the wrong KIND — and the oldest open defect in this project
+has been described backwards for a week.
+
+## THE DECOMPOSITION THAT SHOULD HAVE BEEN RUN ON DAY SIX
+
+`scratchpad/traffic.py`. There are only five ways to reach base, and nobody
+had ever split them. Per 1,000 plate appearances, 300 games, sim against the
+same games' play-by-play:
+
+    channel     sim   actual    diff     rel
+    K         224.4    228.3    -3.9   -1.7%
+    BB         84.4     85.9    -1.5   -1.7%
+    HBP        10.2     10.8    -0.6   -5.3%
+    HR         32.6     29.3    +3.3  +11.2%
+    1B        137.0    146.7    -9.7   -6.6%
+    2B         39.4     38.5    +0.8   +2.2%
+    3B          3.4      3.1    +0.4  +11.3%
+    ROE         8.7      5.2    +3.5  +68.2%
+    OUT       459.8    452.1    +7.7   +1.7%
+
+    REACHED   315.8    319.6    -3.8   -1.2%
+
+**REACHED IS 1.2% OFF. The composition is 68% off in one channel and 11% in
+another, and they nearly cancel** — which is exactly why every aggregate ever
+run here missed it. "Too few men reach base" was the wrong diagnosis for
+days: it is TOO MANY HOME RUNS, TOO FEW SINGLES, AND A MADE-UP ERROR RATE.
+
+And it explains the crooked-innings shortfall directly. **Singles cluster and
+home runs do not** — a homer clears the bases and ends the rally, a single
+puts a man on AND moves the men already there. Same traffic, arranged into
+fewer big innings.
+
+## FIXED TODAY
+
+**`ROE_PER_OUT` 0.018 -> 0.0123, COUNTED.** Its own comment showed the
+working — "8.09 / (1 - 0.0764) = 8.76 against an actual 8.67" — which is an
+error rate set to lift the RUN LEVEL. It ran 46% high and put 3.5 fake
+baserunners per 1,000 PA into the model. **Correcting it WIDENED the run
+deficit from 0.10 to 0.14 per side, and that is the point**: part of the run
+total was fake traffic, and the 3%-light figure was masked.
+
+**`USE_RELIEVER_LEAGUE`, ON.** `_starter_league` is the log5 anchor AND was
+the shrink target for relievers. Counted on 2026:
+
+                       BF        K%       BB%       HR%
+    RELIEVERS      64,752    0.2227    0.0972    0.0280
+    STARTERS       85,207    0.2160    0.0823    0.0319
+    MODEL LEAGUE             0.2170    0.0812    0.0317
+
+Relievers allow 12% fewer home runs and walk 18% more. The target DOMINATES
+them: the home-run shrink constant is 934 against a reliever's median 106
+batters faced, so ~90% of his home-run rate IS the target. Fixed:
+
+    channel    before    after   actual
+    BB          -1.9%    +0.7%   fixed
+    HR         +10.7%    +4.5%   halved
+    K           -2.1%    -2.3%   unmoved
+
+**AND THE SIZE OF EACH MOVE TRACKS THE SHRINK WEIGHT**, which is the internal
+check that it is the real mechanism: 90% league on HR moved a lot, 57% on BB
+moved some, 35% on K moved nothing.
+
+SCORED NEUTRAL — F5 CRPS 1.63959 -> 1.63754, inside noise, because the extra
+walks and the missing home runs cancel on runs. Shipped on CORRECTNESS.
+The prediction that walks would buy CLUSTERING did NOT pay (5+ runs 15.1% ->
+15.0% against a real 17.6%), and it was stated before looking.
+
+## THE PRINCIPLE THAT KILLED TWO MECHANISMS AND SHOULD BE ASKED FIRST
+
+**HOW MUCH OF THIS IS ALREADY INSIDE THE PITCHER'S OWN RATES?**
+
+Team defence died on it: a pitcher's BABIP was earned in front of his own
+gloves, so neutralise-then-apply is a ROUND TRIP for anyone who was not
+traded. Park died on it once already. The raw club spread — 0.034 of BABIP
+between the best defence and the worst — is real and is NOT headroom.
+
+**AN OBSERVED SPREAD ACROSS CLUBS IS NOT AN OPPORTUNITY. Ask what is LEFT
+after the player's own line has absorbed it, and size the prize from THAT.**
+
+## THREE RE-OPENED, RANKED BY THAT QUESTION
+
+1. **PARK, FOR THE VISITING SIDE ONLY.** The strongest of the three and the
+   reason park keeps measuring null: every previous test applied it
+   SYMMETRICALLY. A home pitcher has half his innings in this park and it is
+   already in his rates; a VISITING pitcher has a series here all year and it
+   is not. So the correct specification is asymmetric — apply to the visitors,
+   apply nothing to the home side — and that has never been tested.
+2. **HANDEDNESS.** The dead result used DERIVED SEASON SPLITS on the
+   two-engine setup. Play-by-play carries real `batSide`/`pitchHand` on every
+   plate appearance now. Different data, different engine.
+3. **CATCHER FRAMING.** `sources/catcher.py` fetches it and the simulator has
+   never touched it — the only mention of a catcher in `sim.py` is a comment
+   about passed balls. Same absorption problem as park, WITH ONE ESCAPE: the
+   catcher changes WITHIN a team. The backup catches ~30% of games, so the
+   usable signal is the starter/backup swing and not the club level. Needs
+   posted lineups, so it is not an 8am mechanism.
+
+## EXONERATED — DO NOT SPEND A DAY ON THESE
+
+**THE HIT MIX IS CORRECT.** Suspected all week ("one league constant splits
+every hit"). Measured:
+
+                  1b       2b       3b
+    model     0.7597   0.2207   0.0196
+    actual    0.7594   0.2210   0.0196     (28,631 non-HR hits, 2026)
+
+Measured right and wired right. **The singles gap is a BABIP problem — total
+balls-in-play hits are 4.2% low — not an apportionment problem.** That is now
+the largest single unexplained channel and the best lead in the table.
+
+**ARSENAL HAS NEVER PRODUCED ANYTHING.** Stated plainly because it keeps
+being half-remembered as promising. The headline was 9.79% against 9.79%, a
+dead-even zero. What survives is a SUB-THRESHOLD hint on high-K prop lines
+(+0.67pp, under a 0.5pp detection floor) and `PREREG-arsenal.md` exists
+specifically to stop that hint becoming a finding. Its protocol is also now
+stale: it demands n_sims >= 400 across 6 salts to resolve 2 sigma, and
+today's real mechanisms were visible at 25 sims in one run. **A thing needing
+that much machinery to detect is below the threshold that changes a price.**
+
+## STATE
+
+* 369 checks, `make test`. New: `traffic.py` (the channel decomposition),
+  `pen_prior_ab.py`, `pen_league_ab.py`, `season_gate.py`, `pool_year.py`.
+* `USE_TEAM_DEFENCE` off (null), `USE_RELIEVER_LEAGUE` on,
+  `USE_PRIOR_SEASON` on, `EXCLUDE_POSTSEASON` off (measured dead).
+
+---
+
 # Resume here — state as of 2026-08-26 (day eleven)
 
 ## WHAT CHANGED TODAY, IN ONE LINE

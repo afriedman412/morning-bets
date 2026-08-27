@@ -432,9 +432,34 @@ def gidp_rate(outs: int) -> float:
 # not.
 
 #: Share of ball-in-play OUTS on which the batter reaches on an error.
-#: CALIBRATED against the local unearned-run share (7.64%), which is a
-#: measured quantity in this database and not a published constant.
-ROE_PER_OUT = 0.018
+#:
+#: COUNTED 2026-08-27, replacing a value CALIBRATED against the unearned-run
+#: share. The old comment above it did the arithmetic in the open —
+#: "8.09 / (1 - 0.0764) = 8.76 against an actual 8.67" — which is an error
+#: rate set to lift the RUN LEVEL, not an error rate. Counted directly, in
+#: the denominator this constant is actually rolled against:
+#:
+#:     season    errors   bip outs     rate
+#:     2023       1,216     89,427    0.0134
+#:     2024       1,243     89,522    0.0137
+#:     2025       1,115     90,025    0.0122
+#:     2026         879     69,626    0.0125
+#:     25+26      1,994    159,651    0.0123
+#:
+#: The fudge ran 46% high and put 3.5 fake baserunners per 1,000 plate
+#: appearances into the model (`scratchpad/traffic.py`: ROE 8.7 simulated
+#: against a real 5.2).
+#:
+#: ERA-GATED like `GIDP_RATE`, and it steps in the same place: 2023/24 sit
+#: at ~0.0136 and 2025/26 at ~0.0123, about 3.4 sigma. Both defensive
+#: quantities changed between 2024 and 2025.
+#:
+#: **THIS MAKES THE RUN DEFICIT WORSE AND THAT IS THE POINT.** Part of the
+#: model's run total was these baserunners. Removing them exposes how much
+#: of the 3%-light figure was being masked, which is information the fudge
+#: was concealing. A measured quantity replacing a calibrated one does not
+#: have to prove itself on the score — see CLAUDE.md.
+ROE_PER_OUT = 0.0123
 
 
 @dataclass

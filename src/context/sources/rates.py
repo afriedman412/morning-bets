@@ -1043,6 +1043,80 @@ group by p.player_name, p.team
 MIN_PEN_APPS = 5
 
 
+#: Shrink a reliever toward the RELIEVER league rather than the rotation's.
+#:
+#: `sim._starter_league` is measured on rotation starters — deliberately,
+#: because it is the log5 anchor and starters are what the model was built
+#: to price. But it is also the SHRINK TARGET, and relievers are not doing
+#: the same job. Counted on 2026:
+#:
+#:                    BF        K%       BB%       HR%
+#:     RELIEVERS  64,752    0.2227    0.0972    0.0280
+#:     STARTERS   85,207    0.2160    0.0823    0.0319
+#:
+#: They allow 12% FEWER home runs and walk 18% MORE. And the target
+#: dominates: the pitcher home-run shrink constant is 934 against a
+#: reliever's median 106 batters faced, so 90% of a reliever's home-run rate
+#: IS this number. Applying the rotation's inflates every reliever's home
+#: runs by ~13% and suppresses his walks by ~18%, across the 40% of innings
+#: the bullpen throws.
+#:
+#: That is the shape of the measured defect in `scratchpad/traffic.py`: 11%
+#: too many home runs and too few walks and singles, at almost exactly the
+#: right total number of baserunners. Homers end rallies and walks start
+#: them, which is also why the model is short of crooked innings.
+#:
+#: THE LOG5 ANCHOR IS DELIBERATELY LEFT ALONE. Changing what every rate is
+#: resolved against is a different and much larger change; this moves only
+#: what a THIN LINE IS PULLED TOWARD, which is where the 90% sits.
+#: ON. Scored neutral and shipped on CORRECTNESS, not on the score: the
+#: composition it fixes is demonstrably wrong without it (walks -1.9% ->
+#: +0.7%, home runs +10.7% -> +4.5% against reality), while F5 CRPS moves
+#: 1.63959 -> 1.63754, inside noise. The extra walks and the missing home
+#: runs very nearly cancel on runs.
+#:
+#: The prediction that walks would buy CLUSTERING did NOT pay — sides
+#: scoring 5+ went 15.1% to 15.0% against a real 17.6%. Recorded because it
+#: was stated before looking.
+USE_RELIEVER_LEAGUE = True
+
+_PEN_LG: dict = {}
+
+
+def reliever_league(season=None) -> dict:
+    """League rates over RELIEF appearances only, on the pitcher footing."""
+    key = scope.resolve(season)
+    if key in _PEN_LG:
+        return _PEN_LG[key]
+    q = ("select sum(p.outs_recorded) o, sum(p.h) h, sum(p.bb) bb,"
+         " sum(p.k) k, sum(p.hr) hr"
+         " from mlb_pitching p join games g on g.game_id = p.game_id"
+         " where g.sport = 'mlb' and g.status = 'Final'"
+         " and p.is_starter = 0 " + _where(season, None))
+
+    def _run(c):
+        return c.execute(q).fetchone()
+
+    try:
+        r = _with(_run)
+    except Exception:
+        r = None
+    if not r or not r["o"]:
+        _PEN_LG[key] = {}
+        return {}
+    bf = (r["o"] or 0) + (r["h"] or 0) + (r["bb"] or 0)
+    bip = bf - (r["k"] or 0) - (r["bb"] or 0) - (r["hr"] or 0)
+    out = {
+        "k_pct": (r["k"] or 0) / bf,
+        "bb_pct": (r["bb"] or 0) / bf,
+        "hr_pct": (r["hr"] or 0) / bf,
+        "babip": (((r["h"] or 0) - (r["hr"] or 0)) / bip) if bip > 0 else None,
+    }
+    out = {k: v for k, v in out.items() if v is not None}
+    _PEN_LG[key] = out
+    return out
+
+
 def bullpens(lg: dict, season: int | None = None, before: str | None = None,
              conn=None) -> dict[str, list[dict]]:
     """{team: [reliever rates, most-used first]}.
@@ -1062,6 +1136,10 @@ def bullpens(lg: dict, season: int | None = None, before: str | None = None,
     # rate rather than 11%.
     prior = _ensure_prior(season) if USE_PRIOR_SEASON else {}
     dfn = _defence_targets(season) if USE_TEAM_DEFENCE else {}
+    # The target only. `lg` still anchors the log5 resolution.
+    pen_lg = dict(lg)
+    if USE_RELIEVER_LEAGUE:
+        pen_lg.update(reliever_league(season))
     out: dict[str, list[dict]] = {}
     for r in rows:
         bf = (r["o"] or 0) + (r["h"] or 0) + (r["bb"] or 0)
@@ -1070,7 +1148,8 @@ def bullpens(lg: dict, season: int | None = None, before: str | None = None,
         bip = bf - (r["k"] or 0) - (r["bb"] or 0) - (r["hr"] or 0)
 
         def _t(stat, _r=r):
-            return shrink_target(_r["name"], _r["team"], stat, lg, prior, dfn)
+            return shrink_target(_r["name"], _r["team"], stat,
+                                 pen_lg, prior, dfn)
 
         out.setdefault((r["team"] or "").upper(), []).append({
             "name": r["name"],

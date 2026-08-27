@@ -452,3 +452,22 @@ def check_the_second_out_of_an_inning_is_not_a_boundary_decision():
     rows = boundary.decisions("g", {"allPlays": dp})
     assert [r["ends_inning"] for r in rows] == [False, True], rows
     assert rows[1]["outs_before"] == 1, rows[1]
+
+
+def check_the_error_rate_is_counted_not_calibrated():
+    """`ROE_PER_OUT` was set to make the RUN LEVEL come out right.
+
+    Its own comment showed the working — 8.09 / (1 - 0.0764) = 8.76 against
+    an actual 8.67 — which is a run-level fudge wearing an error rate's name.
+    Counted in the denominator the model rolls it against (balls in play that
+    were not hits, 2025+2026) it is 0.0123, and the fudge ran 0.018: 46%
+    high, worth 3.5 fake baserunners per 1,000 plate appearances.
+
+    Pinned as a BAND, and the band deliberately EXCLUDES both the old fudge
+    and the 2023/24 era rate (~0.0136), because those are the two wrong
+    values it could drift back to.
+    """
+    from src.context import sim
+
+    assert 0.010 < sim.ROE_PER_OUT < 0.0132, sim.ROE_PER_OUT
+    assert sim.ROE_PER_OUT < 0.0134, "back on the 2023/24 era rate"
