@@ -240,6 +240,46 @@ between the best defence and the worst — is real and is NOT headroom.
 **AN OBSERVED SPREAD ACROSS CLUBS IS NOT AN OPPORTUNITY. Ask what is LEFT
 after the player's own line has absorbed it, and size the prize from THAT.**
 
+## FOUR CANDIDATES SCREENED ON RESIDUALS — ALL DEAD, ALL CHEAP
+
+The pattern to copy: a residual correlation over all 3,278 starts, no
+simulation, minutes each. Every one of these would have been days of
+build-and-A/B under the old approach.
+
+    candidate                       n       r       z   removable   bar
+    handedness (own split, LOO)  3,153  +0.022    +1.2      0.046   0.2
+    catcher identity (LOO)       3,207  -0.055    -3.1      0.115   0.2
+    arsenal, contact mult        3,278  +0.040    +2.3      0.088   0.2
+    arsenal, k mult              3,278  +0.005    +0.3      0.011   0.2
+    lineup slot due up          45,097       -       -    AUC -0.0004
+
+**HANDEDNESS took three answers to get right and only the third is real.**
+First screen: lineup platoon BALANCE against the residual, flat — but that
+assumes every pitcher has the same size split, and 42 of 91 starters have
+REVERSED splits, so the population cancels. Second: his OWN split against
+tonight's mix, +4.8 sigma — leaked, because his split was counted on a
+season INCLUDING the start being predicted. Third, leave-one-out: +1.2
+sigma. The mechanism is right and the effect is ~0.06 K per start.
+
+**CATCHER** is dead on the stat that matters: walks score -0.001, and walks
+are what framing should move most. Its strikeout number is significant and
+NEGATIVE, which is the wrong sign for a mechanism and matches the known
+leash artifact.
+
+**ARSENAL is a null for the seventh time**, but the shape is new and worth
+recording: the signal is entirely on the CONTACT multiplier, not strikeouts,
+where every previous attempt looked. It is still below the bar and
+leak-inflated. If ever revisited, aim it at contact.
+
+**LINEUP SLOT DUE UP** (does a manager leave him in for 7-8-9?) is dead.
+Counted, pull rates are flat across the order — slots 1-3 at 0.1087 against
+4-9 at 0.1093 — and fitted alongside the existing features the top-of-order
+coefficient comes out NEGATIVE (-0.243) with AUC slightly WORSE. The
+intuition is not in the data.
+
+ALL FOUR were re-run against residuals regenerated after the BABIP fix and
+none of the conclusions moved.
+
 ## THREE RE-OPENED, RANKED BY THAT QUESTION
 
 1. **PARK, FOR THE VISITING SIDE ONLY.** The strongest of the three and the
@@ -279,6 +319,48 @@ specifically to stop that hint becoming a finding. Its protocol is also now
 stale: it demands n_sims >= 400 across 6 salts to resolve 2 sigma, and
 today's real mechanisms were visible at 25 sims in one run. **A thing needing
 that much machinery to detect is below the threshold that changes a price.**
+
+## PRICING A LIVE SLATE — WHAT THE TOOLING CANNOT YET SAY
+
+Ran 2026-08-27 end to end (`price.py` for props, `scratchpad/tonight.py` for
+game totals, which `total_market` still cannot do). It works, and two gaps
+showed up that are about the OUTPUT rather than the model.
+
+**A DISAGREEMENT ARRIVES WITH NO ATTRIBUTION.** The board's two biggest
+edges were Cameron unders and Arrighetti overs — six of the top ten rows.
+Both pitchers are league-average strikeout arms with nearly identical rates
+(0.2115 and 0.2118), so NONE of it was about the pitchers: Toronto's
+projected lineup sits at 17.1% against a 21.7% league. That took a manual
+investigation to find. Nothing in the output says "this is a lineup effect",
+and nothing flags that six rows are ONE bet. Worth building: attribute each
+gap to pitcher / lineup / park, and group correlated markets.
+
+**SORTING BY GAP OVERWEIGHTS THE TAILS.** The list is ranked by |ours -
+market|, which puts an 8.8-point gap on a longshot above a 8.3-point gap at
+a coin flip. The probability estimate is least reliable exactly where the
+gap is largest. Rank by gap over simulation error, which `price.py` already
+computes per market.
+
+**SIM COUNT: 400 IS NOT ENOUGH FOR A TOTAL.** LAD/ATL came out at 7.34 with
+400 sims and 7.05 with 20,000 — 1.5 standard errors apart, and it moved the
+under from 51.6% to 54.8%. Same for props: two 1,500-sim runs of the same
+Cole line differed by 1.2 points on seed alone. Use >= 20,000 before
+comparing to a price.
+
+**THE ODD/EVEN SAWTOOTH IN GAME TOTALS IS REAL**, checked rather than
+assumed: one-run margins are 27.3% of games and always produce an odd total,
+and the actual 2026 odd share is 58.1%. The model reproduces it. But the
+same comparison shows the model still carries too much mass at 3-6 runs
+(0.099 against an actual 0.067 at three), so **it leans UNDER on low totals
+as a matter of bias, not information** — worth remembering before trusting
+an under lean.
+
+**DECLINES WORKED AS DESIGNED.** BAL/STL declined twice over: first no
+announced starter, then a named starter (Cooper Hjerpe) with ZERO
+appearances in four seasons on disk. A debut is exactly where the market
+knows things this system cannot see, and a league-average stand-in would
+have produced a confident-looking moneyline indistinguishable from the ones
+built on real evidence.
 
 ## STATE
 
