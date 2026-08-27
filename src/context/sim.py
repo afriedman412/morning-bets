@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import contextlib
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from src import db
 from src.context import scope
@@ -660,29 +660,117 @@ def tto_mult(tto: int | None) -> dict | None:
     return TTO_MULT.get(min(max(tto, 1), 3))
 
 
-def pa_outcome(
-    b: BatterRates, p: PitcherRates, lg: dict, rng: random.Random,
-    hr_park: float = 1.0, park: dict | None = None, tto: int | None = None,
-) -> str:
-    """One plate appearance. Returns an outcome constant."""
+@dataclass
+class Matchup:
+    """EVERYTHING one plate appearance depends on, resolved in one place.
+
+    THE PROBLEM THIS SOLVES. A plate appearance's inputs used to come from
+    five places at once: fields on the batter, fields on the pitcher, a
+    league dict threaded down through several call layers, module globals,
+    and function arguments. Nothing owned the question "what does this at-bat
+    actually depend on", so every new value found its own route down and
+    picked whichever object was already going there.
+
+    That is not cosmetic and it cost two bugs on 2026-08-27. `lg_cell` — a
+    LEAGUE baseline — ended up living on a `BatterRates`, because the batter
+    was the object that happened to flow to the right place. And
+    `calibrate.adjust_lineup` rebuilt every `BatterRates` listing its fields
+    by hand, so it silently dropped `side` and `lg_cell` and the handedness
+    matchup arm came out identical to four decimal places, which reads as a
+    null and is plumbing.
+
+    With this, a new adjustment touches `resolve` and nothing else. Nobody
+    constructing a batter needs to know handedness or park or arsenal exist.
+
+    THE THREE log5 TERMS ARE HELD SEPARATELY AND ON THE SAME POPULATION.
+    Conditioning the batter while leaving the pitcher and the baseline
+    unconditional is the error that made handedness read as a wash for a
+    day; keeping them adjacent makes that visible instead of scattered.
+    """
+    #: The three log5 terms per channel: batter, pitcher, league baseline.
+    b_k: float = 0.22
+    b_bb: float = 0.088
+    b_hr: float = 0.033
+    b_bab: float = 0.295
+    p_k: float = 0.22
+    p_bb: float = 0.088
+    p_hr: float = 0.033
+    p_bab: float = 0.295
+    lg_k: float = 0.22
+    lg_bb: float = 0.088
+    lg_hr: float = 0.033
+    lg_bab: float = 0.295
+    #: Rate multipliers — park times arsenal — applied through `odds_mult`,
+    #: NOT to the probability. 1.0 is the shipped value for both today.
+    m_k: float = 1.0
+    m_hr: float = 1.0
+    m_bip: float = 1.0
+    #: Drawn off the top, per ARM. `cond` is carried rather than recomputed
+    #: so it can never disagree with the two rates it renormalises.
+    sac: float = 0.010
+    hbp: float = 0.0098
+    cond: float = 1.0
+    #: The 1B/2B/3B split of a hit, which is a league property and the one
+    #: thing here that is not a matchup.
+    hit_mix: dict = field(default_factory=dict)
+
+
+def resolve(b: BatterRates, p: PitcherRates, lg: dict,
+            park: dict | None = None, hr_park: float = 1.0) -> Matchup:
+    """Assemble one batter-pitcher pairing. THE ONLY PLACE INPUTS ARE PICKED.
+
+    Called when a pitcher takes the mound rather than per plate appearance —
+    nine of these, reused for every time through the order. `pa_outcome`
+    carries a note that per-PA object construction was REMOVED as too
+    expensive, and resolving here respects that: the object is built once
+    per pairing and the per-PA path allocates nothing.
+
+    Times through the order is deliberately NOT folded in. It scales the
+    pitcher's rates and changes on every lineup pass, so baking it in would
+    need three variants per batter; it stays a late input adjustment applied
+    in `pa_from`, which is what it already was.
+    """
     pk = park or NEUTRAL_PARK
-    # FOUR FLOATS, NOT A NEW OBJECT. This used to build a whole
-    # `PitcherRates` per plate appearance just to scale four rates, which is
-    # ~76 dataclass constructions per simulated game in the innermost loop
-    # of the whole model. `name` and `pa` were copied across and never read
-    # below. Arithmetic and order are unchanged, so this is bit-identical.
+    # BOTH SIDES AND THE BASELINE, or none of them. log5 returns the truth
+    # only when the batter rate, the pitcher rate and the league baseline
+    # all sit on the same population.
     p_k, p_bb, p_hr, p_bab = p.k_pct, p.bb_pct, p.hr_pct, p.babip
-    # BOTH SIDES AND THE BASELINE, or none of them. Selected BEFORE the
-    # times-through-the-order scaling so that multiplier still applies to
-    # whichever pitcher line is in use.
-    lgm = lg
     if b.side and p.vs_side:
         ps = p.vs_side.get(b.side)
         if ps:
             p_k, p_bb = ps["k_pct"], ps["bb_pct"]
             p_hr, p_bab = ps["hr_pct"], ps["babip"]
-    if b.lg_cell:
-        lgm = b.lg_cell
+    lgm = b.lg_cell or lg
+    sac_r = SAC_RATE if p.sac_rate is None else p.sac_rate
+    hbp_r = HBP_RATE if p.hbp_rate is None else p.hbp_rate
+    return Matchup(
+        b_k=b.k_pct, b_bb=b.bb_pct, b_hr=b.hr_pct, b_bab=b.babip,
+        p_k=p_k, p_bb=p_bb, p_hr=p_hr, p_bab=p_bab,
+        lg_k=lgm["k_pct"], lg_bb=lgm["bb_pct"],
+        lg_hr=lgm["hr_pct"], lg_bab=lgm["babip"],
+        m_k=pk["k"] * b.arsenal_k_mult,
+        m_hr=hr_park * pk["hr"] * b.arsenal_mult,
+        m_bip=pk["bip"] * b.arsenal_mult,
+        sac=sac_r, hbp=hbp_r, cond=1.0 - sac_r - hbp_r,
+        hit_mix=lg["hit_mix"])
+
+
+def pa_outcome(
+    b: BatterRates, p: PitcherRates, lg: dict, rng: random.Random,
+    hr_park: float = 1.0, park: dict | None = None, tto: int | None = None,
+) -> str:
+    """One plate appearance, resolving the matchup first.
+
+    THE CONVENIENCE PATH. Every caller that plays a real game should resolve
+    once per pitcher change and call `pa_from`; this exists for tests and
+    one-off questions where a single plate appearance is the whole point.
+    """
+    return pa_from(resolve(b, p, lg, park, hr_park), rng, tto)
+
+
+def pa_from(mu: Matchup, rng: random.Random, tto: int | None = None) -> str:
+    """One plate appearance from a resolved matchup. Returns an outcome."""
+    p_k, p_bb, p_hr, p_bab = mu.p_k, mu.p_bb, mu.p_hr, mu.p_bab
     m = tto_mult(tto)
     if m is not None:
         p_k *= m["k_pct"]
@@ -691,24 +779,19 @@ def pa_outcome(
         p_bab *= m["babip"]
     # Off the top: a sacrifice is a plate appearance that was never going to
     # be a strikeout or a walk, so it conditions everything below it.
-    sac_r = SAC_RATE if p.sac_rate is None else p.sac_rate
-    hbp_r = HBP_RATE if p.hbp_rate is None else p.hbp_rate
-    if rng.random() < sac_r:
+    if rng.random() < mu.sac:
         return SAC
-    if rng.random() < hbp_r:
+    if rng.random() < mu.hbp:
         return HBP
     # Sacrifices and hit-by-pitches were taken off the top, so everything
     # below is conditional on neither firing. Without this rescale the
     # marginal rates all come out light by exactly SAC_RATE + HBP_RATE —
     # measured as K/9 8.16 against a real 8.44 when it was missing.
-    # The SAME two rates that were just drawn, or the rescale corrects for
-    # a draw that never happened and every rate below comes out biased.
-    cond = 1.0 - sac_r - hbp_r
+    cond = mu.cond
     # `/ cond` is NOT a modelling multiplier and stays as division: it is a
     # conditional-probability renormalisation, P(K | not sac, not hbp), and
     # it cannot exceed 1 because a strikeout is disjoint from both.
-    k = odds_mult(log5(b.k_pct, p_k, lgm["k_pct"]),
-                  pk["k"] * b.arsenal_k_mult, lgm["k_pct"]) / cond
+    k = odds_mult(log5(mu.b_k, p_k, mu.lg_k), mu.m_k, mu.lg_k) / cond
     if rng.random() < k:
         return K
 
@@ -730,41 +813,37 @@ def pa_outcome(
     # inflates a rate will find out immediately instead of three weeks
     # later.
     rest = 1.0 - k
-    bb = log5(b.bb_pct, p_bb, lgm["bb_pct"]) / cond
+    bb = log5(mu.b_bb, p_bb, mu.lg_bb) / cond
     if bb > rest:
         raise ValueError(
             f"walk probability {bb:.4f} exceeds the {rest:.4f} left after a "
             f"{k:.4f} strikeout rate — these rates cannot coexist. "
-            f"batter bb {b.bb_pct:.4f} k {b.k_pct:.4f}, "
+            f"batter bb {mu.b_bb:.4f} k {mu.b_k:.4f}, "
             f"pitcher bb {p_bb:.4f} k {p_k:.4f}")
     if rest > 0 and rng.random() < bb / rest:
         return BB
 
     rest -= bb
-    hr = odds_mult(log5(b.hr_pct, p_hr, lgm["hr_pct"]),
-                   hr_park * pk["hr"] * b.arsenal_mult,
-                   lgm["hr_pct"]) / cond
+    hr = odds_mult(log5(mu.b_hr, p_hr, mu.lg_hr), mu.m_hr, mu.lg_hr) / cond
     if hr > rest:
         raise ValueError(
             f"home run probability {hr:.4f} exceeds the {rest:.4f} left "
             f"after a {k:.4f} strikeout and {bb:.4f} walk rate — these "
-            f"rates cannot coexist. batter hr {b.hr_pct:.4f}, "
-            f"pitcher hr {p_hr:.4f}, multiplier "
-            f"{hr_park * pk['hr'] * b.arsenal_mult:.4f}")
+            f"rates cannot coexist. batter hr {mu.b_hr:.4f}, "
+            f"pitcher hr {p_hr:.4f}, multiplier {mu.m_hr:.4f}")
     if rest > 0 and rng.random() < hr / rest:
         return HR
 
     # Ball in play. The arsenal multiplier applies here too: a mix this
     # hitter handles well produces harder contact, not just more homers.
-    babip = odds_mult(log5(b.babip, p_bab, lgm["babip"]),
-                      pk["bip"] * b.arsenal_mult, lgm["babip"])
+    babip = odds_mult(log5(mu.b_bab, p_bab, mu.lg_bab), mu.m_bip, mu.lg_bab)
     if rng.random() >= babip:
         # A ball in play the defence should have converted and did not.
         # Drawn HERE rather than from the whole plate appearance because an
         # error is specifically a fielding failure on a batted ball: a
         # strikeout or a walk cannot become one.
         return ROE if rng.random() < ROE_PER_OUT else OUT
-    mix, r = lg["hit_mix"], rng.random()
+    mix, r = mu.hit_mix, rng.random()
     if r < mix["1b"]:
         return B1
     return B2 if r < mix["1b"] + mix["2b"] else B3

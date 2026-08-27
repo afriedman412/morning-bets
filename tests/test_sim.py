@@ -1304,7 +1304,9 @@ def check_rates_are_conditioned_on_the_off_the_top_draws():
     exactly the arms the per-role rates exist to describe.
     """
     import inspect
-    src = inspect.getsource(sim.pa_outcome)
+    # `pa_from` is the hot path; `pa_outcome` now just resolves a matchup
+    # and delegates to it.
+    src = inspect.getsource(sim.pa_from)
     assert src.count("/ cond") >= 3, "not every branch is rescaled"
 
     # An arm with an ENORMOUS off-the-top share still has to produce

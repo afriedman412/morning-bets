@@ -108,6 +108,20 @@ class Side:
     idx: int = 0                            # batting-order pointer
     pen_i: int = 0
     starter_out: bool = False
+    #: RESOLVED MATCHUPS, nine of them, rebuilt when the arm changes.
+    #:
+    #: The point of `sim.resolve` is that a plate appearance's inputs get
+    #: assembled in ONE place instead of being read out of five. Doing it
+    #: per pitcher rather than per plate appearance also respects the note
+    #: on `pa_outcome` that per-PA object construction was deliberately
+    #: removed as too expensive — nine objects an arm, reused for every
+    #: time through the order.
+    #:
+    #: Keyed on the pitcher OBJECT, not his name: two clubs can carry the
+    #: same name, and a stale cache here would silently price every batter
+    #: against the previous arm.
+    _mups: list | None = None
+    _mups_for: object = None
     #: How many outs were already recorded when the CURRENT reliever came in
     #: (0 for a clean inning), and how many full innings he has thrown since.
     #: Together these are what `relief.continues` conditions on, so they must
@@ -172,7 +186,10 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
     """
     fr = sim.Frame()
     while fr.outs < 3:
-        b = side.lineup[side.idx % len(side.lineup)]
+        # The batting-order pointer indexes the RESOLVED matchups now, so
+        # the batter object itself is no longer read here — everything the
+        # plate appearance needs was assembled by `sim.resolve`.
+        slot = side.idx % len(side.lineup)
         side.idx += 1
         # The learned model's `outs` feature is outs BEFORE the plate
         # appearance — a PA never starts with three — so the inning-ending
@@ -182,7 +199,11 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
         # lineup pass, and passing 1 for him would hand every arm out of the
         # bullpen a 1.105 strikeout bonus.
         tto = None if side.starter_out else side.line.batters // 9 + 1
-        o = sim.pa_outcome(b, side.current, lg, rng, 1.0, park, tto=tto)
+        if side._mups_for is not side.current:
+            side._mups = [sim.resolve(x, side.current, lg, park)
+                          for x in side.lineup]
+            side._mups_for = side.current
+        o = sim.pa_from(side._mups[slot], rng, tto=tto)
 
         before = side.cur_line.runs
         sim.apply_pa(o, side.cur_line, fr, rng)

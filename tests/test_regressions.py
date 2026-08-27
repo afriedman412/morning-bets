@@ -589,3 +589,50 @@ def check_adjust_lineup_keeps_every_field_on_a_batter():
         assert getattr(out, f.name) == getattr(b, f.name), f.name
     # and the four it IS meant to scale actually moved
     assert out.k_pct != b.k_pct
+
+
+def check_the_matchup_cache_rebuilds_when_the_arm_changes():
+    """Nine matchups are resolved per pitcher and reused all the way through
+    the order. The failure mode is the obvious one: keep serving the old
+    arm's numbers after a change, so every batter is priced against the
+    pitcher who just left.
+
+    Nothing downstream could catch that. The runs would still be runs and
+    the line would still add up — it would simply be the wrong pitcher, and
+    the error would be largest exactly when the bullpen matters most.
+
+    Keyed on the pitcher OBJECT rather than his name, because two clubs can
+    carry the same name and a name key would collide silently.
+    """
+    import random
+    from src.context import game, sim
+
+    lg = sim.league()
+    bats = [sim.BatterRates(name=f"b{i}", k_pct=0.22, bb_pct=0.08,
+                            hr_pct=0.03, babip=0.30, pa=600)
+            for i in range(9)]
+    quiet = sim.PitcherRates(name="quiet", k_pct=0.05, bb_pct=0.08,
+                             hr_pct=0.03, babip=0.30, pa=600)
+    rng = random.Random(3)
+    # A one-arm pen, so `next_arm` produces a real, checkable change.
+    side = game.build_side(quiet, [{"name": "nasty", "k_pct": 0.45,
+                                    "bb_pct": 0.08, "hr_pct": 0.03,
+                                    "babip": 0.30, "apps": 40}],
+                           bats, None, rng)
+
+    game._half_inning(side, lg, rng, 1, 0, None)
+    assert side._mups_for is side.current, "cache never populated"
+    first = side._mups[0].p_k
+
+    # Same arm: the resolved objects must be REUSED, not rebuilt.
+    same = side._mups
+    game._half_inning(side, lg, rng, 2, 0, None)
+    assert side._mups is same, "rebuilt for an unchanged arm"
+
+    # New arm: the numbers must follow it.
+    side.next_arm()
+    assert side.current is not quiet, "the pen was never reached"
+    game._half_inning(side, lg, rng, 3, 0, None)
+    assert side._mups_for is side.current, "cache did not follow the change"
+    assert side._mups[0].p_k != first, (side._mups[0].p_k, first)
+    assert abs(side._mups[0].p_k - 0.45) < 1e-9, side._mups[0].p_k

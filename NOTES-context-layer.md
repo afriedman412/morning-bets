@@ -3825,3 +3825,51 @@ bit-identical: fingerprint 5bdcf78e9e70c3579220e55431c18aeb, unchanged.
 
 Second time in one session a story was fitted to a result before it was
 checked. Both times the mutation caught it.
+
+### The restructure: one resolved Matchup, built when a pitcher takes the mound
+
+A plate appearance's inputs came from FIVE places at once — fields on the
+batter, fields on the pitcher, a league dict threaded down through several
+call layers, module globals, and function arguments. Nothing owned the
+question "what does this at-bat depend on", so every new value found its own
+route down and picked whichever object was already going there.
+
+THAT IS NOT COSMETIC AND IT COST TWO BUGS IN ONE DAY. `lg_cell` — a LEAGUE
+baseline — ended up living on a `BatterRates`, because the batter was the
+object that happened to flow to the right place. And `adjust_lineup` rebuilt
+every `BatterRates` listing its fields by hand, so it silently dropped
+`side` and `lg_cell`, and the handedness matchup arm came out identical to
+four decimals, which reads as a null and is plumbing.
+
+NOW: `sim.Matchup` holds the three log5 terms per channel kept ADJACENT and
+on the same population, the rate multipliers, the per-arm off-the-top rates
+with the `cond` they imply, and the league hit mix. `sim.resolve` is the
+only place inputs are picked. `sim.pa_from` is the hot path. `pa_outcome`
+survives as a convenience wrapper for tests and one-off questions.
+
+RESOLVED PER PITCHER, NOT PER PLATE APPEARANCE. Nine objects an arm, reused
+for every time through the order, cached on the `Side` and keyed on the
+pitcher OBJECT — two clubs can carry the same name and a name key would
+collide silently. This respects the standing note on `pa_outcome` that per-PA
+object construction was deliberately removed as too expensive.
+
+Times through the order is deliberately NOT folded in: it scales the
+pitcher's rates and changes every lineup pass, so baking it in would need
+three variants per batter. It stays a late input adjustment in `pa_from`,
+which is what it already was.
+
+**BIT-IDENTICAL THROUGHOUT.** Fingerprint 5bdcf78e9e70c3579220e55431c18aeb
+over 400 games x 6 sims, hashing runs plus both starters' k/h/hr/bb —
+unchanged from before the odds_mult work, through it, and after the
+restructure. 376 checks pass.
+
+The stale-cache failure is guarded and mutation-verified: serving the old
+arm's numbers after a change would price every batter against the pitcher
+who just left, the runs would still add up, and the error would be largest
+exactly when the bullpen matters most.
+
+WHAT THIS BUYS, and it is the reason to have done it before the arsenal
+re-test: a new adjustment now touches `resolve` and nothing else. Nobody
+constructing a batter needs to know handedness or park or arsenal exist, and
+the three log5 terms sit on adjacent lines where conditioning one and not
+the others is visible rather than scattered across five layers.
