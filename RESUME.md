@@ -82,9 +82,38 @@ Fork, never spawn. A spawned child re-imports at DEFAULT globals and every
 
 ## WHAT CHANGED TODAY, IN ONE LINE
 
-**THE TRAFFIC DEFICIT IS NOT A DEFICIT.** We produce the right NUMBER of
-baserunners and the wrong KIND — and the oldest open defect in this project
-has been described backwards for a week.
+**THE BASERUNNER SHORTFALL IS REAL, IT IS -2.4%, AND IT IS ALMOST ENTIRELY
+SINGLES.** Decomposing the five ways to reach base localised it for the first
+time.
+
+## READ THIS BEFORE THE TABLE BELOW — A CORRECTION TO IT
+
+The decomposition was first run at 300 games and reported as "the right
+NUMBER of baserunners and the wrong KIND", with home runs 11% high. **Re-run
+at the full 520 games with 12 sims, the home-run excess DISAPPEARS** — the
+ACTUAL home-run rate was 29.3 per 1,000 in the 300-game sample and 31.1 in
+the 520-game one, a 6% swing on the target itself:
+
+    channel     300g     520g   actual (520)
+    HR        +11.2%    -0.4%          31.1
+    1B         -6.6%    -4.9%         144.4
+    ROE       +68.2%    +6.1%           5.5
+    HBP        -5.3%   -11.3%          11.2
+    REACHED    -1.2%    -2.4%         322.6
+
+**THE ACTUAL SIDE IS THE BINDING SAMPLE, NOT THE SIMULATED ONE.** 300 games
+is ~23,000 real plate appearances, which puts +/- 1.1 per 1,000 on the home
+run rate. Simulating each game six times sharpens the MODEL's number and does
+nothing for the target it is compared against — and it is easy to read the
+combined 1,800 simulated games as the sample size. It is not.
+
+So: home runs are FINE, errors are fine after today's fix, walks are fine
+after the reliever-league fix. **What is left is singles at -4.9% and a real
+-2.4% shortfall in men reaching base.** That is a BABIP problem — too few
+balls in play become hits — and the hit MIX is already exonerated below.
+
+The "wrong kind, not too few" framing was overstated and the reliever-league
+fix was over-credited on home runs; its WALK fix (-1.9% -> +0.7%) survives.
 
 ## THE DECOMPOSITION THAT SHOULD HAVE BEEN RUN ON DAY SIX
 
