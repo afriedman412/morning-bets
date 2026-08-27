@@ -381,6 +381,100 @@ roster spots moved a headline edge by half. Worth building: treat the
 projected lineup as an uncertainty to be propagated rather than an input to
 be trusted, and flag any edge whose size depends on unconfirmed names.
 
+## THREE CONSTANTS WERE MEASURED ON STARTERS AND USED ON EVERYONE (2026-08-27)
+
+**THAT IS A PATTERN, NOT THREE COINCIDENCES, AND THE REST OF THE CONSTANTS
+HAVE NOT BEEN CHECKED FOR IT.** All three were counted off play-by-play,
+all three were wrong in the same direction, and all three were derived from
+boxscore aggregates over starters and then applied to every arm in the game.
+
+    HBP_RATE   0.0098  -> per role: SP 0.01044, RP 0.01262  (relievers +21-34%)
+    SAC_RATE   0.010   -> per role: SP 0.00888, RP 0.01272  (relievers +43%)
+    WP_PB_RATE 0.0155  -> 0.02046                            (pooled, +32%)
+
+`PitcherRates` now carries `hbp_rate`/`sac_rate` (None = old flat fallback),
+`game.build_side` sets them per arm behind `USE_ROLE_HBP`, and an explicitly
+set rate WINS over the role default — overwriting unconditionally made the
+field unusable by any caller and let a regression test's mutation survive.
+
+**WP_PB_RATE CLOSED A FIFTH OF THE F5 RUN GAP** (+0.0655 -> +0.0521 runs)
+while CRPS moved 0.0004 against error bars of 0.0015-0.0024. That is the
+expected shape for measurement replacing a guess, and why such a change does
+not have to prove itself on the loss.
+
+**IT IS ALSO NO LONGER SEARCHED.** It was the ONLY parameter `fitf5` moved,
+and the fit had settled it BELOW a number anyone can count — a fitted
+constant drifting away from measurable truth is a fitted constant absorbing
+somebody else's error. The direction was diagnostic and predicted the
+result: the search bought accuracy by handing out FEWER free bases, which is
+what you do when the model turns the ones it has into too many runs.
+`fitf5.MEASURED` is the new home for constants the search may not touch, so
+`PARAMS` is now EMPTY — the honest state, not a bug.
+
+**PASSED BALLS ARE CLOSED.** 12.8% of free-base advances; the pitcher owns
+87% through wild pitches. A per-catcher BLOCKING model works on an eighth of
+an already-small quantity, ~0.002 runs. Framing was separately dead on
+strikeouts and walks. Both halves of the catcher question are now answered.
+
+**STILL MEASURED BUT NOT WIRED:** per-pitcher HBP is real and unusually
+stable — sd 0.00675, p10 0.0043 against p90 0.0200, reliability +0.711,
+which is bullpen-role territory. Leverage 0.035 runs pitcher-only, near 0.05
+with the batter side. Right at the floor, so it is a judgement call rather
+than a free win. Per-pitcher wild pitch is +0.657 reliable and 0.020 runs —
+under the floor, not worth wiring.
+
+## log5 MULTIPLIERS NOW ENTER THE ODDS, AND THE CLAMPS ARE GONE (2026-08-27)
+
+Park and arsenal MULTIPLIED log5's probability output. log5 is an odds-ratio
+construction, so scaling its output is not a consistent change to the
+underlying rates — the same park factor meant different things in different
+matchups, worst in the TAILS where prop lines sit. `sim.odds_mult` applies a
+rate multiplier as the odds ratio taking the league rate to `m * lg`, so a
+league-average matchup in an `m` park lands on exactly `m * lg` and the
+result CANNOT leave (0, 1).
+
+That deletes the clamps rather than tidying them: they existed only because
+output multipliers overflow, and clamped three different ways across four
+adjacent branches. **BIT-IDENTICAL, verified by fingerprint over 400 games x
+6 sims: 5bdcf78e9e70c3579220e55431c18aeb before and after.**
+
+**AND `pa_outcome` NOW RAISES on rates that sum past one** instead of
+clamping them. Clamping manufactures a plausible answer out of impossible
+inputs, which is the failure mode this whole session was spent unwinding —
+the clamp was an instance of the thing it was meant to guard against. Zero
+occurrences in 529,581 plate appearances, so being strict is free.
+
+## THE NEXT BUILD: ONE RESOLVED MATCHUP OBJECT — NOT STARTED
+
+A plate appearance's inputs come from FIVE places: fields on the batter,
+fields on the pitcher, a league dict threaded down through several layers,
+module globals, and function arguments. Nothing owns the question "what does
+this at-bat depend on?", so every new value finds its own route down and
+picks whichever object is already going there.
+
+That is not cosmetic — it caused two bugs today. `lg_cell` is a LEAGUE value
+riding on a `BatterRates` because the batter was the object that happened to
+flow to the right place, and `adjust_lineup` rebuilt every `BatterRates`
+listing fields by hand, so it silently dropped `side` and `lg_cell` and the
+matchup arm came out identical to four decimals.
+
+WHAT TO BUILD: one object per batter-pitcher pairing holding the resolved
+numbers, built by one resolver. Handedness touches the resolver. Park
+touches the resolver. Role rates touch the resolver. None of them touch
+`BatterRates`, and nothing constructing a batter needs to know those
+features exist.
+
+RESOLVE IT WHEN A PITCHER TAKES THE MOUND, not per plate appearance — nine
+matchups once, reused for every time through the order. `sim.pa_outcome`
+carries an explicit comment that per-PA object construction was REMOVED as
+too expensive (~76 allocations a game in the innermost loop), so per-PA
+resolution would undo a deliberate optimisation. Per-pitcher-change is
+fewer allocations than today AND moves the rate lookups out of the inner
+loop. Structure and speed point the same way.
+
+Verify it the same way the odds_mult change was verified: fingerprint 400
+games x 6 sims and demand an exact match before changing anything else.
+
 ## HANDEDNESS — CLOSED, AND THE SHIPPED FLAG IS HARMFUL (2026-08-27)
 
 **READ THIS BEFORE FLIPPING `calibrate.USE_HANDEDNESS`.** It is not a
