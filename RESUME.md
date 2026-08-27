@@ -1,26 +1,33 @@
 # BEFORE YOU START — read this or you will redo work
 
-## WHAT IS RUNNING RIGHT NOW (do not restart it)
+## WHAT IS RUNNING RIGHT NOW
 
-`scratchpad/load_rest.sh`, chained in one background job:
+NOTHING. The history load finished at the end of day ten:
 
-    2023 season load  ->  play-by-play backfill  ->  real pitch counts
+    scratchpad/load_rest.out ends "=== HISTORY LOAD COMPLETE ==="
 
-    check it:   tail -3 scratchpad/load_rest.out
-    done when:  it prints "=== HISTORY LOAD COMPLETE ==="
+It ran 2023 -> play-by-play -> real pitch counts as one chained job. Both
+of those passes take their work list from the `games` table, so they cover
+every season present with no argument.
 
-The pbp and pitch-count passes take their work list from the `games` table,
-so they cover 2024 AND 2023 with no argument. Nothing needs adding.
+## DATA STATE — FOUR COMPLETE SEASONS
 
-## DATA STATE
+    season   games   final
+    2023     2,677   2,664
+    2024     2,652   2,635
+    2025     2,639   2,632   (+ postseason)
+    2026     2,079   2,031   (in progress)
 
-    2026  2,079 games (season in progress)
-    2025  2,639 games, complete + postseason
-    2024  2,639 games, complete          235 dates, 0 failed
-    2023  loading
+    play-by-play   9,962 games cached, 981 MB in `.cache/pbp`
+    pitch counts   46,185 rows backfilled, 0 failed
 
-`.cache/pbp` ~1 GB and climbing. Backups of the pipeline DB before each
-load: `/tmp/morning_bets_backup_pre2025.db`, `..._pre2024.db`.
+Backups of the pipeline DB taken before each load:
+`/tmp/morning_bets_backup_pre2025.db`, `..._pre2024.db`.
+
+NOTE the four seasons are NOT yet used by anything. `scope.CURRENT_SEASON`
+is 2026 and every player-indexed query is scoped to it; `rates.set_prior`
+currently loads ONE prior season and `USE_PRIOR_SEASON` is False. The decay
+weight across three prior seasons is unmeasured — that is next.
 
 ## PARALLELISATION — WHAT IS AND IS NOT, AND WHY
 
