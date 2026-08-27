@@ -1,0 +1,19 @@
+  starters' own lines, 2026 starts, splits from 2023-2025
+  20 sims x 6 salts, paired
+
+  off            1659 games   k 1.2197  bb 0.7015  hr 0.4405  h 1.2604
+                              k MAE 1.703  bb MAE 1.003  hr MAE 0.700  h MAE 1.764
+  league-prior   1659 games   k 1.2197  bb 0.6998  hr 0.4416  h 1.2627
+  league x3      1659 games   k 1.2245  bb 0.7000  hr 0.4430  h 1.2654
+  league x6      1659 games   k 1.2397  bb 0.7040  hr 0.4467  h 1.2677
+
+  RPS vs off, paired by salt (NEGATIVE is better):
+  arm                            k                bb                hr                 h
+  league-prior       +0.0000(+0.0)     -0.0017(-1.0)     +0.0011(+0.8)     +0.0023(+0.9)
+  league x3          +0.0048(+1.9)     -0.0015(-0.9)     +0.0026(+1.7)     +0.0050(+3.1)
+  league x6          +0.0200(+8.2)     +0.0025(+5.3)     +0.0062(+7.7)     +0.0073(+1.7)
+
+  The bracket is standard deviations of the paired difference.
+  The bar is 2. Home runs are the channel to watch: that is
+  where the league platoon effect is largest and where the
+  shipped specification loses the most of it.

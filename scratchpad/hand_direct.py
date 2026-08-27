@@ -45,7 +45,8 @@ import sys
 import zlib
 from src.context import calibrate as cal, fitf5, sim
 from src.context.sources import rates as rate_src
-from scratchpad.platoon_fix import build, splits
+from scratchpad.platoon_fix import (build, league_cells,
+                                    pitcher_splits, splits)
 
 CHANNELS = ("k", "bb", "hr", "h")
 
@@ -89,6 +90,19 @@ def make_table(kind, data, overall):
         # split is noise and only the structure was ever worth having.
         return splits(overall, data, TRAIN, dev_seasons=TRAIN,
                       dev_k=1e9, structural=True)
+    if kind == "matchup":
+        # The batter table is applied through `build_cases` exactly as the
+        # league-prior arm does; the pitcher line and the league cell are
+        # attached afterwards by `_condition`.
+        return splits(overall, data, TRAIN, dev_seasons=TRAIN, dev_k=1e9,
+                      structural=True)
+    if kind.startswith("league x"):
+        # POSITIVE CONTROL. Same mechanism, effect scaled up. If these are
+        # detected and the 1x arm is not, the real effect is genuinely below
+        # this screen's resolution; if they are NOT detected, the screen
+        # cannot see handedness at all and its null says nothing.
+        return splits(overall, data, TRAIN, dev_seasons=TRAIN, dev_k=1e9,
+                      structural=True, amplify=float(kind.split("x")[1]))
     return splits(overall, data, TRAIN, dev_seasons=TRAIN, structural=True)
 
 
@@ -123,6 +137,43 @@ def _chunk(args):
     return acc
 
 
+def _condition(pairs, bat_tbl, pit_tbl, cells):
+    """Attach the batter's side, the matchup league cell and the pitcher's
+    side-specific line to every case.
+
+    Done HERE rather than in `build_cases` so `src/` keeps one code path.
+    Scoped to the STARTER: his hand picks each hitter's side for the whole
+    game, which is right for the quantity being scored — the starter's own
+    line — and wrong for the relievers, who have no splits on file anyway.
+    """
+    from src import roster
+    hit = [0, 0]
+    for gid, (away, home) in pairs.items():
+        for case in (away, home):
+            row, pitcher, lineup = case
+            ph = roster.throws(row["player_name"])
+            if ph not in ("L", "R"):
+                hit[1] += len(lineup)
+                continue
+            ps = pit_tbl.get(pitcher.name)
+            if ps:
+                pitcher.vs_side = {bs: ps[bs] for bs in ("L", "R")
+                                   if bs in ps}
+            for b in lineup:
+                srow = (bat_tbl.get(b.name) or {}).get(ph)
+                bs = (srow or {}).get("side")
+                if bs not in ("L", "R"):
+                    hit[1] += 1
+                    continue
+                b.side = bs
+                b.lg_cell = cells.get(f"{bs}{ph}")
+                hit[0] += 1
+    if hit[0] < hit[1]:
+        raise SystemExit(f"conditioned {hit[0]:,} lineup slots and MISSED"
+                         f" {hit[1]:,} — the matchup is not being applied")
+    return hit
+
+
 def run_arm(kind, data, n_sims, salts, lg, workers=8):
     global _PAIRS, _LG, _PENS
     real = rate_src.batter_rates_by_hand
@@ -134,6 +185,14 @@ def run_arm(kind, data, n_sims, salts, lg, workers=8):
     try:
         cal._CASES.clear()
         pairs = cal.paired_cases(season=SCORE_SEASON)
+        if kind == "matchup":
+            overall_p = rate_src.pitcher_rates(lg)
+            _condition(pairs,
+                       splits(overall, data, TRAIN, dev_seasons=TRAIN,
+                              dev_k=1e9, structural=True),
+                       pitcher_splits(overall_p, data, TRAIN,
+                                      dev_seasons=TRAIN),
+                       league_cells(data, TRAIN, lg))
         _PAIRS = [(g, a, h) for g, (a, h) in sorted(pairs.items())]
         _LG, _PENS = lg, rate_src.bullpens(lg)
         n = len(_PAIRS)
@@ -175,7 +234,7 @@ def main(argv):
     print(f"  {n_sims} sims x {len(salts)} salts, paired\n")
 
     res = {}
-    for kind in ("off", "own-prior", "league-prior", "league+dev"):
+    for kind in ("off", "league-prior", "matchup"):
         pairs, per_salt = run_arm(kind, data, n_sims, salts, lg)
         res[kind] = per_salt
         mae = {c: st.mean(s[c][0] for s in per_salt) for c in CHANNELS}
@@ -189,7 +248,7 @@ def main(argv):
     print(f"\n  RPS vs off, paired by salt (NEGATIVE is better):")
     print(f"  {'arm':<14}" + "".join(f"{c:>18}" for c in CHANNELS))
     base = res["off"]
-    for kind in ("own-prior", "league-prior", "league+dev"):
+    for kind in ("league-prior", "matchup"):
         cells = []
         for c in CHANNELS:
             d = [b[c][1] - a[c][1] for a, b in zip(base, res[kind])]

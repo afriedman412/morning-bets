@@ -477,6 +477,13 @@ class PitcherRates:
     #: Batters faced behind these rates. Carried so a caller can widen the
     #: distribution for a pitcher with 80 PA on record versus one with 600.
     pa: int = 0
+    #: {"L": rates, "R": rates} — HIS rates against each batter side. The
+    #: other half of the matchup, and it did not exist before 2026-08-27:
+    #: every handedness attempt in this project conditioned the batter and
+    #: left the pitcher on his blended line. A left-hander who is death on
+    #: left-handed bats and ordinary against righties is a real and common
+    #: type and none of it was modelled. None means use the blended rates.
+    vs_side: dict | None = None
 
 
 @dataclass
@@ -487,6 +494,17 @@ class BatterRates:
     hr_pct: float = 0.033
     babip: float = 0.295
     pa: int = 0
+    #: THE SIDE HE BATS FROM against the arm currently modelled, and the
+    #: league rates for that (batter side, pitcher hand) cell. Both empty by
+    #: default and the plate appearance is bit-identical when they are.
+    #:
+    #: log5 returns the truth only when the batter rate, the pitcher rate
+    #: and the LEAGUE BASELINE all sit on the same population. Conditioning
+    #: the batter on the pitcher's hand while leaving the other two
+    #: unconditional biases the L-vs-L cell by +0.0013 on K% — small, but a
+    #: bias rather than noise, and it grows with the size of the split.
+    side: str = ""
+    lg_cell: dict | None = None
     #: Multiplier on contact quality from the arsenal projection — this
     #: hitter's projection against this starter's actual pitch mix, over
     #: his projection against a LEAGUE-AVERAGE mix. 1.0 means the mix is
@@ -582,6 +600,17 @@ def pa_outcome(
     # of the whole model. `name` and `pa` were copied across and never read
     # below. Arithmetic and order are unchanged, so this is bit-identical.
     p_k, p_bb, p_hr, p_bab = p.k_pct, p.bb_pct, p.hr_pct, p.babip
+    # BOTH SIDES AND THE BASELINE, or none of them. Selected BEFORE the
+    # times-through-the-order scaling so that multiplier still applies to
+    # whichever pitcher line is in use.
+    lgm = lg
+    if b.side and p.vs_side:
+        ps = p.vs_side.get(b.side)
+        if ps:
+            p_k, p_bb = ps["k_pct"], ps["bb_pct"]
+            p_hr, p_bab = ps["hr_pct"], ps["babip"]
+    if b.lg_cell:
+        lgm = b.lg_cell
     m = tto_mult(tto)
     if m is not None:
         p_k *= m["k_pct"]
@@ -599,7 +628,7 @@ def pa_outcome(
     # marginal rates all come out light by exactly SAC_RATE + HBP_RATE —
     # measured as K/9 8.16 against a real 8.44 when it was missing.
     cond = 1.0 - SAC_RATE - HBP_RATE
-    k = log5(b.k_pct, p_k, lg["k_pct"]) * pk["k"] * b.arsenal_k_mult / cond
+    k = log5(b.k_pct, p_k, lgm["k_pct"]) * pk["k"] * b.arsenal_k_mult / cond
     k = min(max(k, 1e-6), 0.95)
     if rng.random() < k:
         return K
@@ -607,19 +636,19 @@ def pa_outcome(
     # Remaining probabilities are conditional on not having struck out, so
     # each is rescaled by what is left rather than used as a raw PA rate.
     rest = 1.0 - k
-    bb = log5(b.bb_pct, p_bb, lg["bb_pct"]) / cond
+    bb = log5(b.bb_pct, p_bb, lgm["bb_pct"]) / cond
     if rest > 0 and rng.random() < bb / rest:
         return BB
 
     rest -= bb
-    hr = log5(b.hr_pct, p_hr, lg["hr_pct"]) * hr_park * pk["hr"] \
+    hr = log5(b.hr_pct, p_hr, lgm["hr_pct"]) * hr_park * pk["hr"] \
         * b.arsenal_mult / cond
     if rest > 0 and rng.random() < hr / rest:
         return HR
 
     # Ball in play. The arsenal multiplier applies here too: a mix this
     # hitter handles well produces harder contact, not just more homers.
-    babip = min(0.95, log5(b.babip, p_bab, lg["babip"])
+    babip = min(0.95, log5(b.babip, p_bab, lgm["babip"])
                 * pk["bip"] * b.arsenal_mult)
     if rng.random() >= babip:
         # A ball in play the defence should have converted and did not.

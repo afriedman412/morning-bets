@@ -3518,3 +3518,102 @@ sigma in sample and +2.3 out of it. This screen read -2.0 and -2.1 on home
 runs and hits at 4 sims x 2 salts and +0.8 and +0.9 at 20 x 6. Every one of
 them had the shape the mechanism predicted, which is exactly why they were
 convincing. A cheap run is for finding bugs, never for deciding.
+
+### Handedness specified correctly, end to end — and it is a wash
+
+The challenge that forced this: are we matching hitter-vs-LHP with
+pitcher-vs-(correct hand)? We were not. log5 takes three terms and only one
+of them was ever conditioned.
+
+WHAT WAS BUILT (`scratchpad/platoon_fix.py`, `scratchpad/hand_direct.py`):
+
+  batter    his rate vs this pitcher hand, shrunk toward the LEAGUE platoon
+            cell for the side he bats from
+  pitcher   HIS rate vs this batter side — DID NOT EXIST BEFORE. Every
+            handedness attempt in this project left the pitcher on his
+            blended line, so a two-sided matchup was half specified.
+  league    the (batter side, pitcher hand) cell, RATIOED onto the model's
+            own league level
+
+`sim.BatterRates` gained `side` and `lg_cell`; `sim.PitcherRates` gained
+`vs_side`; all inert when unset and the plate appearance is bit-identical.
+
+RESULT, 2026 starts against splits from 2023-25, 20 sims x 6 salts paired,
+positive is worse:
+
+    arm                  k       bb       hr        h
+    league-prior      +0.0     -1.0     +0.8     +0.9
+    matchup           +0.3     +0.0     +1.6     -0.1
+
+Flat, on a harness proven to detect a 6x effect at 8 sd. THIS null is
+earned. The four before it were not — each was a defect:
+
+**1. THE SHRINK TARGET.** Toward the hitter's own overall rate, i.e. toward
+"no platoon effect", which is the one answer known to be false.
+
+**2. `adjust_lineup` DROPPED THE FIELDS.** It rebuilt every `BatterRates`
+listing fields BY HAND, so `side` and `lg_cell` were set on the cases and
+deleted before the simulation saw them. The matchup arm came out IDENTICAL
+TO FOUR DECIMALS and would have been reported as "the fully specified
+version changes nothing". Now uses `dataclasses.replace`, guarded by
+`check_adjust_lineup_keeps_every_field_on_a_batter`, mutation-verified.
+
+**3. THE LEAGUE BASELINE WAS SUBSTITUTED ABSOLUTELY.** The cells are counted
+off play-by-play and the model's league rates come from boxscores, so they
+sit on different footings — walks here include hit-by-pitch, which the
+simulator draws separately:
+
+    k_pct 1.042    bb_pct 1.172    hr_pct 0.966    babip 1.037
+
+Substituting the cell moved the WALK LEVEL by 17% and called it handedness:
++6.9 sd worse on walks, swamping an effect worth a fraction of that. Only
+the RATIO carries platoon information. The batter and pitcher priors were
+never exposed because they already use `cell / blend`, where the footing
+cancels.
+
+**4. THE PITCHER SIDE SILENTLY MIGHT NOT HAVE ATTACHED.** The coverage guard
+counted batter slots only. Verified after the fact: 3,203 of 3,318 starters
+carry a side-split, the 115 misses being rookies with no prior history.
+COUNT BOTH SIDES OF ANYTHING THAT ATTACHES TO TWO THINGS.
+
+### log5 is half input-adjusted and half output-adjusted
+
+Laid out during the same session, and it is an inconsistency worth fixing
+independently of handedness:
+
+    times through the order   INPUT  — scales the pitcher's rate
+    handedness                INPUT  — all three terms (as of today)
+    park                      OUTPUT — multiplies the probability
+    arsenal                   OUTPUT — multiplies the probability
+
+log5 is an ODDS-RATIO construction and multiplying its probability output is
+not equivalent to any consistent change in the underlying rates. A 1.05x on
+a .05 probability is nearly a 1.05x on the odds; on a .45 probability it is
+not. So the same arsenal multiplier means something different in a high-K
+matchup than a low-K one, and the distortion is worst in the TAILS, which is
+where prop lines sit. It is also why the clamps exist — `min(max(k, 1e-6),
+0.95)` and `min(0.95, babip)` are there because output multipliers can push
+a probability out of range, and every clamp hit is a silently distorted tail.
+
+Three more things the layout exposes: `arsenal_mult` is applied to home runs
+AND babip with the SAME constant; the two paths differ (`hr` gets
+`* arsenal_mult / cond`, `babip` gets `* arsenal_mult` with no `/cond`); and
+walks carry no park and no arsenal term at all, the only clean log5 in the
+model.
+
+### What this says about the ARSENAL experiments
+
+The same lens, applied to a feature with seven or eight nulls behind it:
+
+  * Arsenal is an OUTPUT multiplier where handedness is an INPUT
+    conditioning. Both cannot be the right shape.
+  * ARSENAL HAS NEVER HAD A POSITIVE CONTROL. Nobody amplified the
+    multiplier and confirmed the harness could see it. If a 6x arsenal
+    effect is invisible, every arsenal null is uninformative.
+  * The pre-registered tests scored it on RUNS, the low-power channel.
+  * Its leave-one-out is an ARGUMENT in a docstring, not a mechanism.
+  * The marginals may already be counted: a slider-heavy pitcher's K% is
+    already high and a batter's K% already reflects the league mix, so the
+    multiplier must carry ONLY the interaction. The screen claims to divide
+    by a league-average mix, which is the right shape — verify rather than
+    assume.

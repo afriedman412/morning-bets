@@ -42,7 +42,7 @@ from concurrent.futures import ProcessPoolExecutor
 from src import db
 from src.context.sources import pbp
 
-CACHE = pathlib.Path("scratchpad/platoon_fix.json")
+CACHE = pathlib.Path("scratchpad/platoon_fix2.json")
 
 _K = ("strikeout", "strikeout_double_play")
 _HIT = ("single", "double", "triple")
@@ -71,6 +71,8 @@ def scan(short: str):
         return None
     league = defaultdict(lambda: [0] * _N)      # (batSide, pitchHand)
     bat = defaultdict(lambda: [0] * _N)         # (bid, pitchHand)
+    pit = defaultdict(lambda: [0] * _N)         # (pid, batSide)
+    phand = {}                                  # pid -> throwing hand
     side = defaultdict(lambda: defaultdict(int))  # (bid, pitchHand) -> side
     names = {}
     for p in (d.get("allPlays") or []):
@@ -83,9 +85,17 @@ def scan(short: str):
         if not bid or bs not in ("L", "R") or ph not in ("L", "R"):
             continue
         names[bid] = b.get("fullName")
+        pit_ = mu.get("pitcher") or {}
+        pid = pit_.get("id")
+        if pid:
+            names[pid] = pit_.get("fullName")
+            phand[pid] = ph
         ev = res.get("eventType") or ""
         side[(bid, ph)][bs] += 1
-        for c in (league[(bs, ph)], bat[(bid, ph)]):
+        cells = [league[(bs, ph)], bat[(bid, ph)]]
+        if pid:
+            cells.append(pit[(pid, bs)])
+        for c in cells:
             c[0] += 1
             if ev in _K:
                 c[1] += 1
@@ -101,7 +111,9 @@ def scan(short: str):
     return ({f"{a}{b}": v for (a, b), v in league.items()},
             {f"{a}|{b}": v for (a, b), v in bat.items()},
             {f"{a}|{b}": dict(v) for (a, b), v in side.items()},
-            {str(k): v for k, v in names.items() if v})
+            {str(k): v for k, v in names.items() if v},
+            {f"{a}|{b}": v for (a, b), v in pit.items()},
+            {str(k): v for k, v in phand.items()})
 
 
 def build(workers: int = 8):
@@ -117,14 +129,15 @@ def build(workers: int = 8):
           flush=True)
     out = {"league": defaultdict(lambda: defaultdict(lambda: [0] * _N)),
            "bat": defaultdict(lambda: defaultdict(lambda: [0] * _N)),
+           "pit": defaultdict(lambda: defaultdict(lambda: [0] * _N)),
            "side": defaultdict(lambda: defaultdict(lambda: defaultdict(int))),
-           "names": {}}
+           "names": {}, "phand": {}}
     with ProcessPoolExecutor(max_workers=workers) as ex:
         res = ex.map(scan, [g.split("-")[-1] for g, _ in todo], chunksize=32)
         for (g, date), got in zip(todo, res):
             if not got:
                 continue
-            lg_, bat_, side_, names_ = got
+            lg_, bat_, side_, names_, pit_, phand_ = got
             y = str(int(date[:4]))
             for k, v in lg_.items():
                 c = out["league"][y][k]
@@ -134,6 +147,11 @@ def build(workers: int = 8):
                 c = out["bat"][y][k]
                 for i in range(_N):
                     c[i] += v[i]
+            for k, v in pit_.items():
+                c = out["pit"][y][k]
+                for i in range(_N):
+                    c[i] += v[i]
+            out["phand"].update(phand_)
             for k, v in side_.items():
                 for s, n in v.items():
                     out["side"][y][k][s] += n
@@ -143,7 +161,9 @@ def build(workers: int = 8):
         "bat": {y: dict(d) for y, d in out["bat"].items()},
         "side": {y: {k: dict(v) for k, v in d.items()}
                  for y, d in out["side"].items()},
+        "pit": {y: dict(d) for y, d in out["pit"].items()},
         "names": out["names"],
+        "phand": out["phand"],
     }
     CACHE.write_text(json.dumps(packed))
     return packed
@@ -171,12 +191,20 @@ _STATS = ("k_pct", "bb_pct", "hr_pct", "babip")
 
 
 def splits(overall: dict, data: dict, seasons, dev_seasons=None,
-           dev_k: float = DEV_STABILISE, structural: bool = True) -> dict:
+           dev_k: float = DEV_STABILISE, structural: bool = True,
+           amplify: float = 1.0) -> dict:
     """{name: {'L': rates, 'R': rates}} with the league platoon as prior.
 
     `structural=False` reproduces the SHIPPED behaviour — shrink toward the
     hitter's own overall rate — so the two specifications can be A/B'd
     against each other with everything else held fixed.
+
+    `amplify` scales the structural ratio away from 1.0 and exists ONLY as a
+    POSITIVE CONTROL. A mis-specified mechanism and an absent effect produce
+    identical output, so a null is worthless until the harness has been shown
+    to detect a known effect of known size. Run the same screen at 3x and 6x:
+    if those are seen and 1x is not, the real effect is genuinely too small;
+    if even 6x is invisible, the screen is broken and its null means nothing.
     """
     dev_seasons = dev_seasons or seasons
     lg_cells = _merge(data["league"], seasons)
@@ -236,7 +264,8 @@ def splits(overall: dict, data: dict, seasons, dev_seasons=None,
                 b = base[stat]
                 if structural and cell and cell.get(stat) is not None \
                         and blend.get(stat):
-                    prior = b * (cell[stat] / blend[stat])
+                    ratio = cell[stat] / blend[stat]
+                    prior = b * (1.0 + amplify * (ratio - 1.0))
                 else:
                     prior = b
                 o = (obs or {}).get(stat)
@@ -269,3 +298,113 @@ def main(argv):
 
 if __name__ == "__main__":
     main(sys.argv[1:])
+
+
+def pitcher_splits(overall: dict, data: dict, seasons,
+                   dev_seasons=None, dev_k: float = 1e9) -> dict:
+    """{name: {'L': rates, 'R': rates}} — HIS rates against each batter side.
+
+    THE HALF THAT NEVER EXISTED. Every handedness attempt in this project
+    conditioned the batter and left the pitcher on his blended line, so a
+    two-sided matchup was only ever half specified.
+
+    Same two-level construction as the batter side and for the same reason:
+    the prior is the LEAGUE cell for a pitcher of his hand against this
+    batter side, scaled against the blend HIS OWN mix of opposing sides
+    produces. Shrinking toward his own overall rate would regress a
+    thin-sample pitcher to having no platoon split, which is the error this
+    whole rebuild exists to remove.
+
+    `dev_k` defaults to switching the individual deviation OFF, because on
+    the batter side the personal split measured as noise — it cost 5.7 sd on
+    walks against the pure structural arm.
+    """
+    dev_seasons = dev_seasons or seasons
+    lg_cells = _merge(data["league"], seasons)
+    lg = {k: _rates(v) for k, v in lg_cells.items()}
+    pit_cells = _merge(data["pit"], dev_seasons)
+    names, phand = data["names"], data.get("phand") or {}
+
+    by_pit: dict = defaultdict(dict)
+    for key, v in pit_cells.items():
+        pid, bs = key.split("|")
+        by_pit[pid][bs] = v
+
+    out: dict = {}
+    for pid, bysd in by_pit.items():
+        nm = names.get(pid)
+        base = overall.get(nm) if nm else None
+        ph = phand.get(pid)
+        if not base or ph not in ("L", "R"):
+            continue
+        blend = {}
+        for stat in _STATS:
+            num = den = 0.0
+            for bs in ("L", "R"):
+                cell = lg.get(f"{bs}{ph}")
+                pa = (bysd.get(bs) or [0] * _N)[0]
+                if cell and cell.get(stat) is not None and pa:
+                    num += pa * cell[stat]
+                    den += pa
+            blend[stat] = (num / den) if den else None
+        out[nm] = {}
+        for bs in ("L", "R"):
+            cell = lg.get(f"{bs}{ph}")
+            obs = _rates(bysd.get(bs) or [0] * _N)
+            row = {"name": nm, "bat_side": bs, "hand": ph,
+                   "pa": (obs or {}).get("pa", 0)}
+            for stat in _STATS:
+                b = base[stat]
+                if cell and cell.get(stat) is not None and blend.get(stat):
+                    prior = b * (cell[stat] / blend[stat])
+                else:
+                    prior = b
+                o = (obs or {}).get(stat)
+                n = (obs or {}).get("pa", 0) or 0
+                if o is None or not n:
+                    row[stat] = prior
+                else:
+                    w = n / (n + dev_k)
+                    row[stat] = w * o + (1 - w) * prior
+            out[nm][bs] = row
+    return out
+
+
+def league_cells(data: dict, seasons, lg: dict) -> dict:
+    """{'RL': rates, ...} — the log5 baseline for each matchup cell, RATIOED
+    onto the model's own league level rather than substituted wholesale.
+
+    THIS IS NOT A DETAIL. These cells are counted off play-by-play and the
+    model's league rates come from boxscore aggregates, so the two sit on
+    different footings: walks here include hit-by-pitch, which the simulator
+    draws separately, and the counted balls-in-play denominator differs from
+    the boxscore one. Measured, my counts against `sim.league()`:
+
+        k_pct 1.042    bb_pct 1.172    hr_pct 0.966    babip 1.037
+
+    Substituting the absolute cell therefore moved the WALK LEVEL by 17%
+    and called it handedness — it cost +6.9 sd on walks, swamping an effect
+    worth a fraction of that. Only the RATIO between a cell and the counted
+    overall carries platoon information; the level must stay the model's.
+    The batter and pitcher priors were never exposed to this because they
+    already use `cell / blend`, where the footing cancels.
+    """
+    cells = {k: _rates(v) for k, v in _merge(data["league"], seasons).items()
+             if _rates(v)}
+    raw = _merge(data["league"], seasons)
+    tot = {}
+    for stat in _STATS:
+        if stat == "babip":
+            num = sum(raw[k][2] for k in cells)
+            den = sum(raw[k][3] for k in cells)
+            tot[stat] = (num / den) if den else None
+        else:
+            num = sum(cells[k]["pa"] * cells[k][stat] for k in cells)
+            den = sum(cells[k]["pa"] for k in cells)
+            tot[stat] = (num / den) if den else None
+    out = {}
+    for key, c in cells.items():
+        out[key] = {stat: (lg[stat] * c[stat] / tot[stat])
+                    if (tot.get(stat) and c.get(stat) is not None)
+                    else lg[stat] for stat in _STATS}
+    return out

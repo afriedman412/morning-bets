@@ -97,6 +97,21 @@ current state is at the END — it is appended chronologically, so read
 backwards from the last section. It carries the measured negatives, which
 are the expensive thing to rediscover.
 
+**A NULL IS A CLAIM AND MUST BE TESTED LIKE ONE.** The standing failure
+mode here is asymmetric: a positive result gets an adversarial test
+immediately, a negative one gets accepted and the session moves to the next
+candidate. That is a biased filter — apply skepticism only to findings and
+the conclusion is "nothing works" whatever the truth. On 2026-08-27 five
+handedness nulls were accepted in a row while three positives were each
+attacked within minutes; the mechanism turned out to be MIS-SPECIFIED, and
+the error was found only after the user pushed back twice.
+
+So: **positive-control every screen** — inject a known effect at the claimed
+size and confirm the harness sees it, because a mis-specified mechanism and
+an absent effect produce identical output. Before accepting a null, state
+the specification and what would falsify it. And a null should sometimes
+mean "strengthen the mechanism", not "next candidate".
+
 **The single most useful diagnostic in this project, now four for four: a
 fitted parameter sitting at the EDGE of its grid is a missing mechanism, not
 a tuning problem.** It found the absent hit-by-pitch, absent fielding

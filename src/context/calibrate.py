@@ -29,6 +29,8 @@ import random
 import sys
 from collections import Counter
 
+from dataclasses import replace
+
 from src import db, roster
 from src.context import game, scope, sim
 from src.context.sources import mixture
@@ -366,12 +368,15 @@ def adjust_lineup(lineup: list, is_home: bool) -> list:
         return lineup
     mk = HOME_OPP_K if is_home else AWAY_OPP_K
     mc = HOME_OPP_CONTACT if is_home else AWAY_OPP_CONTACT
-    return [sim.BatterRates(
-        name=b.name, pa=b.pa, arsenal_mult=b.arsenal_mult,
-        arsenal_k_mult=b.arsenal_k_mult,
-        k_pct=min(0.95, b.k_pct * mk),
-        bb_pct=b.bb_pct * mc, hr_pct=b.hr_pct * mc,
-        babip=b.babip * mc) for b in lineup]
+    # `replace`, NOT a fresh BatterRates listing the fields by hand. The
+    # explicit version silently DROPPED every field added after it was
+    # written, which is how the handedness matchup arm came out identical
+    # to four decimal places on 2026-08-27 — `side` and `lg_cell` were set
+    # on the cases and deleted here before the simulation saw them. An
+    # identical-to-four-decimals A/B is plumbing, never a null.
+    return [replace(b, k_pct=min(0.95, b.k_pct * mk),
+                    bb_pct=b.bb_pct * mc, hr_pct=b.hr_pct * mc,
+                    babip=b.babip * mc) for b in lineup]
 
 
 _PARK_CACHE: dict = {}

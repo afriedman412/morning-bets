@@ -558,3 +558,34 @@ def check_stopping_after_five_is_exact_not_an_approximation():
     # And the prefix record survives the early break — putting it before
     # the `track` block drops inning five from the dict it just filled.
     assert play(3, 5)[3] is not None
+
+
+def check_adjust_lineup_keeps_every_field_on_a_batter():
+    """It rebuilt each `BatterRates` by listing fields BY HAND, so any field
+    added later was silently deleted on the way into the simulation.
+
+    That is how the handedness matchup arm came out identical to four
+    decimal places: `side` and `lg_cell` were attached to every case and
+    then dropped here. An identical-to-four-decimals A/B is a plumbing
+    result, never a null — and this one would have been reported as "the
+    fully specified version changes nothing".
+
+    Guards the general property rather than the two fields, so the next
+    field added is covered without anyone remembering to come back.
+    """
+    import dataclasses
+    from src.context import calibrate as cal, sim
+
+    b = sim.BatterRates(name="x", k_pct=0.25, bb_pct=0.09, hr_pct=0.03,
+                        babip=0.30, pa=500, arsenal_mult=1.07,
+                        arsenal_k_mult=0.93, side="L",
+                        lg_cell={"k_pct": 0.2387, "bb_pct": 0.0939,
+                                 "hr_pct": 0.0240, "babip": 0.2973})
+    out = cal.adjust_lineup([b], True)[0]
+    scaled = {"k_pct", "bb_pct", "hr_pct", "babip"}
+    for f in dataclasses.fields(sim.BatterRates):
+        if f.name in scaled:
+            continue
+        assert getattr(out, f.name) == getattr(b, f.name), f.name
+    # and the four it IS meant to scale actually moved
+    assert out.k_pct != b.k_pct
