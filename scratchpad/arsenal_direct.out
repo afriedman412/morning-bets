@@ -2,3 +2,16 @@
   100 sims x 6 salts, paired
 
   off            1659 games       0 mults   k 1.1755  bb 0.6734  hr 0.4243  h 1.2160
+  arsenal 2026   1659 games  26,854 mults   k 1.1843  bb 0.6720  hr 0.4241  h 1.2203
+  arsenal x4     1659 games  26,390 mults   k 1.3474  bb 0.6717  hr 0.4248  h 1.3060
+  arsenal 2025   1659 games  24,035 mults   k 1.1837  bb 0.6726  hr 0.4235  h 1.2200
+
+  RPS vs off, paired by salt (NEGATIVE is better):
+  arm                            k                bb                hr                 h
+  arsenal 2026       +0.0088(+5.5)     -0.0014(-1.1)     -0.0002(-0.2)     +0.0043(+2.3)
+  arsenal x4       +0.1720(+113.0)     -0.0017(-1.9)     +0.0005(+0.7)    +0.0900(+58.7)
+  arsenal 2025       +0.0082(+5.0)     -0.0007(-0.6)     -0.0008(-0.8)     +0.0040(+2.8)
+
+  READ THE x4 ROW FIRST. If the control is invisible the
+  harness cannot see arsenal at all and the other rows say
+  nothing. If it IS visible, the 2025 row is the answer.

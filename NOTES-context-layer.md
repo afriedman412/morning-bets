@@ -4300,3 +4300,47 @@ constants almost exactly (model/raw: k 0.887, bb 0.742, hr 0.733, babip
 0.570 against STABILISE-implied weights at 250 plate appearances of 0.887,
 0.758, 0.610, 0.576). Consistent, so the flattening is the configured amount
 rather than a bug.
+
+### ARSENAL, tested properly at last: not a null — HARMFUL
+
+Eight previous attempts, and every one of them was missing all three of the
+things listed on 2026-08-27 while auditing handedness. `arsenal_direct.py`
+supplies them: a POSITIVE CONTROL, scoring on the DIRECT channels rather than
+runs, and a mechanical leave-one-out (the pitcher's PREVIOUS season's
+arsenal) instead of a docstring argument. 1,659 games, 100 sims x 6 salts,
+paired. Positive is WORSE.
+
+    arm                    k               bb              hr              h
+    arsenal 2026    +0.0088(+5.5)   -0.0014(-1.1)   -0.0002(-0.2)  +0.0043(+2.3)
+    arsenal x4     +0.1720(+113.0)  -0.0017(-1.9)   +0.0005(+0.7)  +0.0900(+58.7)
+    arsenal 2025    +0.0082(+5.0)   -0.0007(-0.6)   -0.0008(-0.8)  +0.0040(+2.8)
+
+**THE CONTROL FIRES AT +113 SIGMA.** The harness sees a 4x arsenal effect
+with overwhelming power on strikeouts and hits. That is the first time in
+nine attempts that an arsenal null has been shown to MEAN anything — every
+earlier one was measured on an instrument nobody had checked.
+
+**AND ARSENAL IS NOT NEUTRAL. IT IS HARMFUL.** Significantly worse on
+strikeouts (+5.0 sigma) and hits (+2.8) with the LEAK-FREE 2025 arsenal, and
+equally worse in sample, so it is not a leak artifact in either direction.
+Same shape as `USE_HANDEDNESS`: the honest finding is not "does nothing" but
+"makes the model worse". `USE_ARSENAL` is False and must stay False.
+
+**A CAVEAT THAT MUST TRAVEL WITH THIS.** The x4 control barely moves walks
+(-1.9) or home runs (+0.7). So the harness has power on STRIKEOUTS and HITS
+and NOT on those two channels — the bb and hr rows above are UNINFORMATIVE,
+not null. Anyone re-opening arsenal on a power or walk hypothesis needs a
+different instrument, and the control is how they would find that out.
+
+**WHY IT HURTS RATHER THAN DOING NOTHING**, and it is the same reason
+handedness did: the multiplier is applied on top of a log5 that ALREADY
+contains both marginals. A slider-heavy pitcher's strikeout rate is already
+high and a batter's strikeout rate already reflects the league's mix of
+pitches. The multiplier is only entitled to carry the INTERACTION — the
+deviation from what the marginals predict — and to the extent it carries any
+of the marginals again it double counts. Six of the eight earlier attempts
+aimed it at strikeouts, which is exactly where the double counting is worst.
+
+Note this ran AFTER `sim.odds_mult`, so it is the first arsenal test where
+the multiplier entered the odds rather than scaling log5's probability
+output. The incoherent application was not what was wrong with it.

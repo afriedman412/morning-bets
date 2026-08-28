@@ -381,6 +381,26 @@ roster spots moved a headline edge by half. Worth building: treat the
 projected lineup as an uncertainty to be propagated rather than an input to
 be trusted, and flag any edge whose size depends on unconfirmed names.
 
+## ARSENAL IS HARMFUL, NOT NULL — AND THE INSTRUMENT IS NOW VALIDATED
+
+Nine attempts. The first eight had no positive control, were scored on runs,
+and reasoned their leave-one-out away in a docstring.
+`scratchpad/arsenal_direct.py` fixes all three. Positive is WORSE:
+
+    arm                    k               bb              hr              h
+    arsenal 2026    +0.0088(+5.5)   -0.0014(-1.1)   -0.0002(-0.2)  +0.0043(+2.3)
+    arsenal x4     +0.1720(+113.0)  -0.0017(-1.9)   +0.0005(+0.7)  +0.0900(+58.7)
+    arsenal 2025    +0.0082(+5.0)   -0.0007(-0.6)   -0.0008(-0.8)  +0.0040(+2.8)
+
+**THE CONTROL FIRES AT +113 SIGMA**, so an arsenal null here finally MEANS
+something. And the answer is not null: leak-free 2025 arsenal is +5.0 sigma
+WORSE on strikeouts and +2.8 on hits. `USE_ARSENAL` stays False, and the
+docstring should say harmful rather than inert.
+
+**CARRY THE CAVEAT:** the control barely moves walks (-1.9) or home runs
+(+0.7), so those two rows are UNINFORMATIVE rather than null. A power or
+walk hypothesis needs a different instrument.
+
 ## WHAT IS CLOSED AS OF THE END OF DAY THIRTEEN — DO NOT RE-RUN
 
 Every one of these was measured on 2026-08-27 with stated power. They are
