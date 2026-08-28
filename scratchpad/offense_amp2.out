@@ -1,0 +1,27 @@
+  POSITIVE CONTROL: batter spread x2.0
+  HOLDOUT: rates before 2026-07-01, scored on games from 2026-07-01
+  531 games x 40 sims
+
+  9,520 simulated batter-games, 9,369 matched to a boxscore line (98%)
+
+  A. LEVEL BY LINEUP SLOT — the batting-order machine.
+   slot       n   pred r   act r    diff  pred rbi  act rbi    diff
+      1   1,051    0.636   0.578  +0.058     0.456    0.452  +0.004
+      2   1,044    0.618   0.528  +0.090     0.543    0.466  +0.077
+      3   1,062    0.545   0.515  +0.030     0.582    0.493  +0.088
+      4   1,057    0.512   0.481  +0.031     0.605    0.542  +0.063
+      5   1,042    0.461   0.470  -0.010     0.514    0.494  +0.020
+      6   1,033    0.426   0.412  +0.013     0.439    0.399  +0.040
+      7   1,017    0.413   0.414  -0.001     0.425    0.407  +0.018
+      8   1,038    0.404   0.378  +0.026     0.404    0.394  +0.010
+      9   1,025    0.395   0.375  +0.021     0.361    0.310  +0.051
+
+  B. DIFFERENTIATION — regress ACTUAL on PREDICTED.
+  slope 1.0 = the spread across hitters is right;
+  above 1 = the model bunches them toward a common bat.
+
+  unit            stat        n  sd(pred)   MC sd   raw b  TRUE b  z vs 1
+  batter-game     r       9,369    0.1718  0.1061   0.216   0.350   -10.0
+  batter-game     rbi     9,369    0.2034  0.1360   0.229   0.414    -7.6
+  player (20+ g)  r         238    0.1167  0.0200   0.397   0.409    -7.4
+  player (20+ g)  rbi       238    0.1355  0.0256   0.366   0.379    -7.4

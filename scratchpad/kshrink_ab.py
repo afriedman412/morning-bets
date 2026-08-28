@@ -30,10 +30,22 @@ from src.context.sources import rates as rate_src
 
 CUT = "2026-07-01"
 ARMS = ((57, "k_pct 57  (stale)"), (132, "k_pct 132 (measured)"))
+#: `--bat` swaps the whole BATTER row instead. Same shape of claim: the
+#: shipped values were measured on less data and `stabilise` reads higher
+#: today, and higher means MORE shrinkage — which is the direction an
+#: over-differentiated lineup asks for (`scratchpad/offense.py`).
+BAT_ARMS = (({"k_pct": 32, "bb_pct": 80, "hr_pct": 160, "babip": 184},
+             "bat shipped"),
+            ({"k_pct": 51, "bb_pct": 122, "hr_pct": 193, "babip": 250},
+             "bat measured"))
+WHO = "pit"
 
 
 def arm(k, n_sims, salt=0):
-    rate_src.STABILISE_MEASURED["pit"]["k_pct"] = k
+    if WHO == "bat":
+        rate_src.STABILISE_MEASURED["bat"] = dict(k)
+    else:
+        rate_src.STABILISE_MEASURED["pit"]["k_pct"] = k
     # Every cache downstream of a rate has to go, or the second arm scores
     # the first arm's numbers. `_PRIOR` especially: it is built by
     # `pitcher_rates`, so it carries the shrinkage constant inside it.
@@ -48,9 +60,14 @@ def arm(k, n_sims, salt=0):
 
 
 def main(argv):
+    global WHO, ARMS
+    if "--bat" in argv:
+        argv = [a for a in argv if a != "--bat"]
+        WHO, ARMS = "bat", BAT_ARMS
     n = int(argv[0]) if argv else 25
     salts = list(range(int(argv[1]) if len(argv) > 1 else 4))
-    orig = rate_src.STABILISE_MEASURED["pit"]["k_pct"]
+    orig = (dict(rate_src.STABILISE_MEASURED["bat"]) if WHO == "bat"
+            else rate_src.STABILISE_MEASURED["pit"]["k_pct"])
     print(f"  {n} sims per side x {len(salts)} salts, cut {CUT},"
           f" shipped value {orig}\n")
     print(fitf5.HEAD)
@@ -58,25 +75,30 @@ def main(argv):
     # spread across salts IS the smallest difference this objective can
     # honestly resolve, and the first pass here read -0.0079 off a single
     # salt — a number with no error bar attached to it.
-    got = {k: [] for k, _ in ARMS}
+    got = {(k if WHO != "bat" else id(k)): [] for k, _ in ARMS}
     res = None
     try:
         for salt in salts:
             for k, label in ARMS:
                 res = arm(k, n, salt)
-                got[k].append(res["loss"])
+                got[k if WHO != "bat" else id(k)].append(res["loss"])
                 if salt == salts[0]:
                     fitf5.report(label, res)
     finally:
-        rate_src.STABILISE_MEASURED["pit"]["k_pct"] = orig
+        if WHO == "bat":
+            rate_src.STABILISE_MEASURED["bat"] = orig
+        else:
+            rate_src.STABILISE_MEASURED["pit"]["k_pct"] = orig
     fitf5.report_actual(res)
-    a, b = [got[k] for k, _ in ARMS]
+    a, b = [got[k if WHO != "bat" else id(k)] for k, _ in ARMS]
     d = [y - x for x, y in zip(a, b)]
     m, se = fitf5._mean_se(d)
     import statistics as st
-    print(f"\n  per salt, k=57:  " + " ".join(f"{x:.5f}" for x in a))
-    print(f"  per salt, k=132: " + " ".join(f"{x:.5f}" for x in b))
-    print(f"\n  paired CRPS difference (132 - 57), NEGATIVE = measured wins")
+    la, lb = ARMS[0][1], ARMS[1][1]
+    print(f"\n  per salt, {la:<14}" + " ".join(f"{x:.5f}" for x in a))
+    print(f"  per salt, {lb:<14}" + " ".join(f"{x:.5f}" for x in b))
+    print(f"\n  paired CRPS difference ({lb} - {la}),"
+          f" NEGATIVE = the second arm wins")
     print(f"    {m:+.5f} +/- {se:.5f}   z {m / se if se else 0:+.1f}")
     print(f"    noise floor (sd of a single arm across salts)"
           f" {st.pstdev(a):.5f}")

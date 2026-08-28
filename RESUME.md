@@ -32,6 +32,28 @@ his own homer record where pooling the evidence once gives 0.568. Worth
 ~0.044 runs, just under the 0.05 leverage floor. One line to fix, will not
 score.
 
+## DAY FOURTEEN, PART TWO — THE OFFENCE IS READABLE
+
+`GameResult.away_bats`/`home_bats` carry per-batter runs and RBI across every
+arm. Three answers, in `scratchpad/offense.py`:
+
+* **The batting-order machine is RIGHT** — slot curve and the RBI peak at
+  cleanup both match. The slot 6-9 residual is SUBSTITUTION: the model never
+  pinch-hits and its nine absorb the 0.207 runs a game real substitutes take.
+* **We OVER-separate hitters** (slope 0.73 on runs, 0.82 on rbi, out of
+  sample, with a quantitative positive control at x1.69 spread -> x0.56
+  slope). The stale batter constants FIX it and COST F5 (+0.0126 +/- 0.0069).
+  **NOT SHIPPED.** Re-measuring is necessary and not sufficient.
+* **We put runs on TOO FEW hitters** — matched on the team total, top RBI
+  +0.072 (z +2.7). Predicted sign was the opposite, so this is NOT clustering
+  at the batter level.
+
+**ADVANCEMENT RE-MEASURED ON 754,886 PLAYS AND CONFIRMED.** Every live
+constant within ~0.01 runs of shipped. Do not re-run it. And beware
+`advance.report`: its "ANY runner advances" row compares against
+`RUNNER_ADVANCES_ON_OUT`, which is LEGACY and does not ship — it reads -41
+sigma and means nothing.
+
 **THE PROCESS LESSON, THREE DAYS RUNNING.** The F5 A/B read +0.0079 (worse)
 off ONE salt and was about to be reported as a failure; across four salts it
 is -0.008 and the noise floor is 0.0165. `fitf5.evaluate` has a `salt`

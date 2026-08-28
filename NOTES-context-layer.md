@@ -4739,3 +4739,133 @@ shown to measure the same thing.
     ceiling_holdout.json           regenerated WITH the hr channel; the old
                                    one predated it and is kept as
                                    ceiling_holdout_prehr.json
+
+## DAY FOURTEEN, PART TWO — THE OFFENCE IS READABLE NOW, AND THREE ANSWERS
+
+### ARE WE PREDICTING WHICH BATTERS PRODUCE THE OFFENCE? MOSTLY YES.
+
+`scratchpad/offense.py`, holdout: rates before 2026-07-01, 531 games after
+it, 9,369 batter-games matched to a boxscore line (98%).
+
+**A. THE BATTING-ORDER MACHINE IS RIGHT.** Runs decline monotonically from
+the leadoff man (0.581 predicted, 0.578 actual) to the ninth (0.402/0.375),
+and RBI peak at cleanup in both (0.556/0.542). The residual sits entirely at
+slots 6-9 and it is SUBSTITUTION: the model never pinch-hits, so its nine
+absorb the 0.207 runs a game that really went to substitutes. Against the
+whole offence the model is 1.4% light, which is the F5 decomposition's
+number arriving from a completely different direction.
+
+**B. WE OVER-SEPARATE HITTERS.** Regressing actual on predicted, Monte Carlo
+attenuation undone (at 40 draws the noise is 56% of a batter-game's
+predicted variance, so the raw slope of 0.290 is not reportable):
+
+    unit             stat   sd(pred)   MC sd   raw b   TRUE b   z vs 1
+    batter-game      r        0.1393  0.1043   0.290    0.659     -3.0
+    batter-game      rbi      0.1643  0.1348   0.200    0.611     -2.4
+    player (20+ g)   r        0.0690  0.0196   0.671    0.730     -1.9
+    player (20+ g)   rbi      0.0733  0.0254   0.724    0.823     -1.0
+
+**THE POSITIVE CONTROL IS QUANTITATIVE, not just directional.** Doubling
+every hitter's spread around the league raises sd(pred) by x1.69, so the
+slope must fall to 1/1.69 = 0.59 of itself. Measured 0.56. The instrument
+sees between-hitter spread and is calibrated on it, so a slope of 1.0 would
+have meant something.
+
+### THE STALE BATTER CONSTANTS FIX B AND COST F5. NOT SHIPPED.
+
+`stabilise` reads 51/122/193/250 against a shipped 32/80/160/184 — the same
+staleness signature pitcher `k_pct` had. Every slope moves toward 1:
+
+    unit             stat    shipped        measured
+    batter-game      r      0.659 (-3.0)   0.748 (-2.1)
+    batter-game      rbi    0.611 (-2.4)   0.775 (-1.3)
+    player           r      0.730 (-1.9)   0.816 (-1.3)
+    player           rbi    0.823 (-1.0)   0.888 (-0.6)
+
+AND ON WHAT SETTLES, paired over four salts (`kshrink_ab --bat`):
+
+    paired F5 CRPS (measured - shipped)   +0.01263 +/- 0.00687   z +1.8
+
+Worse. Not significant, but the point estimate is the wrong way and it did
+NOT reverse across salts the way the pitcher one did.
+
+**SO THE STALENESS CLASS IS NOT AUTOMATIC, AND THAT IS THE LESSON.** Pitcher
+`k_pct` was stale AND helped what settles. The batter row is stale and does
+not. Re-measuring is necessary and not sufficient; every candidate still has
+to clear F5. Both results can be true without contradiction — individual
+hitters can be over-separated while the LINEUP AVERAGES that a team total
+sees are right, and shrinking each hitter then removes lineup-to-lineup
+spread that was correct.
+
+### ADVANCEMENT RE-MEASURED ON 5x THE DATA — CONFIRMED, NOT STALE
+
+754,886 plays over 9,974 cached games, against the 2,006 games the shipped
+tables were counted on.
+
+    live constant           shipped     measured      sigma
+    ADVANCE_1B_ON_OUT  0      0.221        0.220       -0.3
+                       1      0.239        0.233       -2.0
+    ADVANCE_2B_ON_OUT  0      0.490        0.479       -1.8
+                       1      0.439        0.444       +1.3
+    ADVANCE_3B_ON_OUT  0      0.331        0.363       +3.6
+                       1      0.420        0.417       -0.5
+    FIRST_TO_THIRD_1B  0      0.307        0.292       -3.1
+                       1      0.295        0.310       +3.5
+    FIRST_SCORES_ON_2B 0      0.274        0.299       +2.9
+    FIRST_SCORES_ON_1B 0      0.022        0.028       +2.7
+    SECOND_SCORES_ON_1B       all three            within 1.0
+    GIDP per ball-in-play-out                     within 2.0
+
+Weighted by how often each state arises, the direct run effect of every move
+together is **~0.01 runs per team-game** — a fifth of the leverage floor,
+with the two FIRST_TO_THIRD moves partly cancelling. NOT CHANGED.
+
+**THAT IS WORTH MORE THAN A FIX.** CLAUDE.md points at advancement as where
+the model is wrong. The advancement RATES are right to within 0.01 runs on
+five times the data, which removes a competing explanation and leaves the
+clustering/shape diagnosis holding the whole gap.
+
+**TWO COMPARISONS IN `advance.report` ARE AGAINST THINGS THAT DO NOT SHIP,
+and one of them reads -41 SIGMA.** `RUNNER_ADVANCES_ON_OUT` is the LEGACY
+path — `USE_MEASURED_ADVANCEMENT` is True and `_advance` takes the per-base
+branch — so the "ANY runner advances on a ball-in-play out" row compares
+measured reality against a constant nothing reads. The double-play row at
+-103 sigma is the report's own labelled denominator switch. Both were one
+step from being reported as blockbusters.
+
+### CONCENTRATION: THE MODEL PUTS RUNS ON TOO FEW HITTERS
+
+New question, answerable only because of today's wiring. HYPOTHESIS, stated
+first: if plate appearances resolve too independently the model's runs will
+be spread across MORE hitters than reality's, and the big individual game
+will be missing. **The sign came out backwards.**
+
+Matched on the team's run total, so level and concentration are not
+confounded:
+
+    team runs   n model   n act   top rbi m   top rbi a     diff
+        3         5,921     163       1.695       1.607    +0.088
+        4         5,442     129       2.044       1.992    +0.052
+        5         4,767     113       2.380       2.265    +0.115
+        7         2,948      61       2.916       2.689    +0.227
+        8         2,205      57       3.143       3.070    +0.073
+
+    pooled over 985 real team-games   +0.0719   z +2.7, 8 of 10 levels
+
+P(a hitter drives in 4+) is 10.66% against 8.66%, 23% high.
+
+TWO ALTERNATIVES CHECKED AND NEITHER CARRIES IT. Substitution: restricting
+the real side to its top nine by plate appearances moves mean top RBI 1.923
+-> 1.905. The RBI DEFINITION: MLB awards none on a double play or an error
+and `_credit` awards one for every run on a batted event, so the model
+should read high — 0.982 RBI per run against 0.978 for real starters, worth
+about 0.02 of the 0.072.
+
+**IT DOES NOT SUPPORT THE CLUSTERING DIAGNOSIS AT THE BATTER LEVEL** —
+clustering predicts the opposite sign — so the team-total shape defect and
+this concentration defect are, on the evidence, two different things.
+
+NEXT: what SHARE OF RUNS scores on a home run, model against actual. RBI
+concentrate when runs arrive in one swing instead of passing through several
+hitters, and the channel decomposition has only ever checked home-run
+COUNTS, never the share of runs they carry.
