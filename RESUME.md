@@ -1,5 +1,43 @@
 # BEFORE YOU START — read this or you will redo work
 
+## DAY FOURTEEN (2026-08-28) — READ THIS FIRST, IT RETRACTS A DAY-THIRTEEN LEAD
+
+**THE OPEN HOME-RUN QUESTION IS CLOSED AND THE ANSWER IS "NO DEFECT".** The
++10 sigma pitcher-level home-run compression is an artifact of measuring in
+sample. A pitcher's shipped rate is built from the same starts it is graded
+against, so his own sampling noise is inside the predictor and inside the
+outcome, and the slope tends to `1/w` — the shrinkage weight — however good
+the model is. **A model that is right by construction scores 2.57 on that
+harness; the observed value was 2.36.** `scratchpad/hr_spread.py --synth`.
+
+`STABILISE_MEASURED["pit"]["hr_pct"] = 934` is RIGHT: the constant the data
+asks for is 946. Do not change it. PARK is bounded too small to matter here.
+
+**THE REAL FINDING, SHIPPED: pitcher `k_pct` was 57 and is now 132.** Stale —
+measured on half a season, never re-measured after the four-season load.
+Three independent lines agree (split-half 132, method of moments 98, holdout
+discrimination peak 131 at +9.5 sigma, replicated on a second cutoff at
++2.6). F5 CRPS neutral (-0.008 +/- 0.008). The tell that should have caught
+it: 57 was BELOW the imported all-players 70.
+
+**DO NOT ALSO RAISE bb_pct OR hr_pct.** `stabilise` reads 165 and 2130, and
+the outcome sweep says both are worse (-2.7, -2.6). That specificity is the
+control: the harness is not simply preferring more shrinkage.
+
+**RECORDED, NOT FIXED — THE PRIOR IS SHRUNK TWICE.** `_load_seasons` loads
+prior seasons through `pitcher_rates`, which already shrank them, and
+`shrink_target` shrinks the result again with the same constant. Bites in
+proportion to `k`, so it is home-runs-only in size: a pitcher keeps 0.418 of
+his own homer record where pooling the evidence once gives 0.568. Worth
+~0.044 runs, just under the 0.05 leverage floor. One line to fix, will not
+score.
+
+**THE PROCESS LESSON, THREE DAYS RUNNING.** The F5 A/B read +0.0079 (worse)
+off ONE salt and was about to be reported as a failure; across four salts it
+is -0.008 and the noise floor is 0.0165. `fitf5.evaluate` has a `salt`
+argument whose docstring says precisely this. Use it.
+
+
 ## WHAT IS RUNNING RIGHT NOW
 
 NOTHING. The history load finished at the end of day ten:
@@ -456,6 +494,11 @@ different quantities.
 
 ## THE OPEN HOME-RUN QUESTION, STATED IN THE PROTOCOL'S TERMS
 
+**CLOSED ON 2026-08-28 — THE COMPRESSION IS NOT REAL. Kept because the
+question was well posed and the answer came out of it, but do NOT run the
+"NEXT TEST" below: it was run, both arms, and the premise is void. See the
+day-fourteen block at the top of this file.**
+
 QUESTION    Where is the model's home-run compression? Its HR predictions are
             2.36x too bunched across pitchers (+10 sigma, pitcher-level,
             minimal noise correction).
@@ -839,7 +882,7 @@ built on real evidence.
 
 ## STATE
 
-* 369 checks, `make test`. New: `traffic.py` (the channel decomposition),
+* 378 checks, `make test`. New: `traffic.py` (the channel decomposition),
   `pen_prior_ab.py`, `pen_league_ab.py`, `season_gate.py`, `pool_year.py`.
 * `USE_TEAM_DEFENCE` off (null), `USE_RELIEVER_LEAGUE` on,
   `USE_PRIOR_SEASON` on, `EXCLUDE_POSTSEASON` off (measured dead).

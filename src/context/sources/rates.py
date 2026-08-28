@@ -64,9 +64,34 @@ STABILISE = {
 
 #: MEASURED on this league by `src.context.stabilise`, split by population
 #: because batters and pitchers are not the same problem.
+#:
+#: A PITCHER'S STRIKEOUT RATE STABILISES AT 132, NOT 57 (2026-08-28). The 57
+#: was measured on half a season and never re-measured after the four-season
+#: load; `stabilise` reads 132 on the data now on disk. Three independent
+#: lines agree, which is why this is a replacement and not a tuning:
+#:
+#:     stabilise, split-half over 406 starters      132
+#:     method of moments on the 2026 spread          98
+#:     holdout discrimination, k = 57 x 2.3         131
+#:
+#: THE THIRD IS A CONFIRMATION, NOT THE FIT. `scratchpad/unshrink --only
+#: pit:k_pct` sweeps the constant on starts AFTER a cutoff with rates trained
+#: only before it, and strikeout discrimination peaks at x2.3 (+0.0135,
+#: +9.5 sigma) — the same place the split-half puts it. Replicated on a
+#: second cutoff, 2026-06-01, at +2.6. Past x3.5 the K gain flattens and
+#: OUTS starts to break (-2.5 at x5.0), so the peak is not an artifact of
+#: scoring one channel.
+#:
+#: HOME RUNS ARE DELIBERATELY LEFT ALONE AT 934, and the reason is the rule
+#: about contradictory numbers. `stabilise` now reads 2130 for pitcher
+#: hr_pct — but method of moments on the same arms says 946, and the holdout
+#: sweep says raising it is WORSE (-2.6 sigma at x2.0). Three answers that
+#: do not agree, on a channel where a starter's season is ~15 events. Until
+#: they are reconciled the shipped value stands. See
+#: `scratchpad/hr_spread.py`.
 STABILISE_MEASURED = {
     "bat": {"k_pct": 32, "bb_pct": 80, "hr_pct": 160, "babip": 184},
-    "pit": {"k_pct": 57, "bb_pct": 138, "hr_pct": 934, "babip": 500},
+    "pit": {"k_pct": 132, "bb_pct": 138, "hr_pct": 934, "babip": 500},
 }
 
 #: Off restores the imported constants exactly, for both populations. Every

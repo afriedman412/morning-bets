@@ -4562,3 +4562,180 @@ Two of those three were not in conflict at all: a split-half reliability of a
 RATE and a regression slope on a SIMULATION OUTPUT are different quantities,
 and the second does not refute the first. Thrashing between them looked like
 rigour and was the opposite.
+
+---
+
+## DAY FOURTEEN (2026-08-28) — THE HOME-RUN COMPRESSION IS AN ARTIFACT, AND THE REAL FINDING IS STRIKEOUTS
+
+### QUESTION
+
+Where does the model's pitcher-level home-run compression come from? Day
+thirteen measured a slope of 2.36 raw / 2.81 corrected at +10 sigma over 181
+arms, against 1.12-1.45 on every other channel, and named
+`STABILISE_MEASURED["pit"]["hr_pct"] = 934` as the suspect.
+
+### CONCLUSION FIRST: THERE IS NO COMPRESSION. THE HARNESS MANUFACTURES IT.
+
+**The slope is measured IN SAMPLE and that is fatal.** A pitcher's shipped
+rate is computed over the same starts it is graded against, so his own
+sampling noise sits inside the predictor AND inside the outcome. Write the
+season line as `raw = T + u`, hand the model `w*raw + (1-w)*prior`, and
+score it against `y = raw`:
+
+    cov(x, y) = w (var T + var u) + (1-w) cov(prior, T)
+    var(x)    = w^2 (var T + var u) + ...
+
+so **the slope tends to 1/w even when the model is exactly right.** It
+measures the shrinkage weight, not the baseball.
+
+**POSITIVE CONTROL, and it fires** (`scratchpad/hr_spread.py --synth`).
+Invent pitchers whose true rates are KNOWN, deal them a season of binomial
+luck, apply the shipped shrinkage, grade them the same way:
+
+    stat      shipped k     k*   mean w    1/w   synth b   OBSERVED
+    k_pct           57      98    0.880   1.137    1.046      1.116
+    bb_pct         138     289    0.754   1.326    1.168      1.135
+    hr_pct         934     946    0.323   3.100    2.568      2.359
+
+**A model that is right by construction scores 2.57 on home runs.** The
+observed 2.36 is BELOW it. The channel ordering of the "defect" is the
+ordering of 1/w, which is arithmetic and not a property of the model.
+
+**`k*` IS THE OTHER HALF OF THE ANSWER.** Sampling variance over true
+between-pitcher variance is the shrinkage constant the data asks for, and
+for home runs it is 946 against a shipped 934 — 1.3% apart. And
+`sd(ship)/sd(true) = 0.617` is what an optimal posterior mean SHOULD be
+(sqrt of reliability = 0.574), not a defect. A posterior mean is less
+variable than the truth by construction; that is the point of it.
+
+**HOLDOUT AGREES.** `ceiling_holdout.json` regenerated with the hr channel,
+rates trained before 2026-07-01, scored after:
+
+    hr slope        in sample    holdout
+      raw               2.359      0.302
+      corrected         2.805      0.496   (z -0.8 vs 1)
+
+CARRY THE CAVEAT: the holdout has only ~2 sigma of power against 2.36, and
+out of sample the model's HR correlation is 0.029 against a ceiling of
+0.262. This arm cannot carry the conclusion on its own. The positive control
+does.
+
+**PARK IS BOUNDED, NOT RESOLVED.** Pitcher-level residual against the mean
+park factor of his own starts (home club home/road HR rate, 2023-2026, 31
+parks, sd 0.116): slope 0.30 +/- 0.29 where a fully missing park predicts
+0.72. Only 1.5 sigma from full strength, so the regression does not settle
+it — but the MAGNITUDE does. Park at full strength supplies 0.038 HR of
+across-pitcher spread against a 0.11 gap. It cannot be the main term either
+way. Note `venue_id` is NULL for every pre-2026 game, which is why the
+factor is keyed on the home club.
+
+### THE PRIOR IS SHRUNK TWICE. RECORDED, NOT FIXED.
+
+Found by asking the right question — home runs are RARE, but they are not
+RANDOM, so where does a pitcher's multi-year homer identity go?
+
+`_load_seasons` calls `raw = pitcher_rates(lg_prior, yr)`, which returns
+rates **already shrunk toward the league**. `shrink_target` then shrinks
+that result toward the league AGAIN with the same constant. Shrinking an
+estimate twice toward the same mean discards evidence, and it bites in
+proportion to `k`:
+
+    stat        k    own now   pooled once    gain
+    k_pct      57      0.969        0.943   -0.026
+    bb_pct    138      0.894        0.883   -0.011
+    babip     500      0.497        0.537   +0.040
+    hr_pct    934      0.418        0.568   +0.151
+
+"own" is the share of the shipped rate that traces to this pitcher rather
+than to the league. **A pitcher's four-year home-run record arrives
+flattened to a sixth of its real spread** (target sd 0.0012 against a raw
+0.0073).
+
+**IT IS HOME-RUNS-ONLY IN SIZE AND IT SITS UNDER THE FLOOR.** 15 points of
+HR identity widens predicted HR-per-start spread by ~36%, which at ~1.45
+runs a homer is **0.044 runs** of extra separation between arms, against a
+0.05-run leverage floor. Real defect, one line to fix, will not measurably
+score. Left alone deliberately rather than shipped on a day when the
+strikeout finding was live.
+
+### THE FINDING: PITCHER STRIKEOUT SHRINKAGE WAS 57 AND IS 132
+
+The 57 was measured on half a season and never re-measured after the
+four-season load. THREE INDEPENDENT LINES agree, which is why this is a
+replacement and not a tuning:
+
+    stabilise, split-half over 406 starters      132
+    method of moments on the 2026 spread          98
+    holdout discrimination peak, 57 x 2.3        131
+
+**THE SWEEP IS A CONFIRMATION, NOT THE FIT.** `unshrink --only pit:k_pct
+--holdout`, rates trained before the cutoff, scored after:
+
+    k = 57 x     value    K discrimination vs shipped
+      0.25         14        -0.0114  (-5.3)
+      0.50         29        -0.0033  (-0.6)
+      1.50         86        +0.0045  (+4.5)
+      2.30        131        +0.0135  (+9.5)
+      3.50        200        +0.0163  (+4.3)
+      5.00        285        +0.0127  (+4.3)   outs breaks (-2.5)
+
+Monotone, peaked where the split-half puts it, and REPLICATED on an
+independent cutoff (2026-06-01, x2.0 at +2.6). Past x3.5 the K gain
+flattens and OUTS degrades, so the peak is not an artifact of scoring one
+channel.
+
+**IT LOCALISES TO THE PITCHER.** The batter arm is flat (+0.3, +0.2, +0.7).
+Sweeping both constants at once is what made the day-thirteen home-run claim
+unattributable, and `--only` exists now so it cannot happen again.
+
+**THE TELL THAT SHOULD HAVE CAUGHT IT YEARS AGO:** 57 is BELOW the imported
+all-players constant of 70. That says a starter's strikeout rate stabilises
+FASTER than a generic player's, which is backwards. Now guarded by
+`check_pitcher_strikeouts_are_not_shrunk_at_the_stale_57`.
+
+**SCORED ON WHAT SETTLES, and this is where the day nearly went wrong.** F5
+CRPS, paired, cut 2026-07-01 (`scratchpad/kshrink_ab.py`):
+
+    per salt, k=57:   1.62470  1.64669  1.66992  1.65650
+    per salt, k=132:  1.63261  1.61747  1.66154  1.65317
+
+    paired difference (132 - 57)   -0.00825 +/- 0.00777   z -1.1
+    noise floor, one arm across salts                     0.01650
+
+**THE FIRST PASS READ +0.0079 — WORSE — OFF SALT 0 ALONE, AND IT WAS ABOUT
+TO BE REPORTED AS "the change damages the settling quantity".** Across four
+salts the sign reverses and the honest answer is NEUTRAL, because the noise
+floor is twice the effect. `fitf5.evaluate` carries a `salt` argument whose
+docstring says exactly this and it was not used. A cheap run is for finding
+bugs, never for deciding — three days running.
+
+Neutral on F5 is the bar for a measurement replacing a stale value, so it
+ships.
+
+### WALKS AND HOME RUNS MUST NOT BE RAISED — AND THAT IS THE CONTROL
+
+`stabilise` now reads 165 for bb_pct and 2130 for hr_pct against shipped 138
+and 934. Neither was changed, because the outcome test disagrees:
+
+    pit:bb_pct  x1.2 -1.6   x2.0 -2.4   x3.0 -2.7    monotonically worse
+    pit:hr_pct  x2.0 -2.6                             worse
+
+**If raising every constant had helped, the harness would be suspect.** It
+does not: strikeouts gain, walks and home runs lose. That specificity is
+what makes the strikeout result believable.
+
+For home runs the three numbers — split-half 2130, method of moments 946,
+outcome sweep says do not raise — do not agree, on a channel where a
+starter's season is ~15 events. The rule applies: do not act until they are
+shown to measure the same thing.
+
+### TOOLING
+
+    scratchpad/hr_spread.py        the four-part diagnosis; --synth is the
+                                   artifact's positive control
+    scratchpad/kshrink_ab.py       paired F5 CRPS across salts
+    unshrink --only who:stat       sweep ONE population's ONE constant
+    unshrink --factors a,b,c       arbitrary grid; 1.0 forced as baseline
+    ceiling_holdout.json           regenerated WITH the hr channel; the old
+                                   one predated it and is kept as
+                                   ceiling_holdout_prehr.json

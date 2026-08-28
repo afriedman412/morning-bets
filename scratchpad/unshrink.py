@@ -85,13 +85,21 @@ def corr(xs, ys):
     return sum((a - mx) * (b - my) for a, b in zip(xs, ys)) / (n * sx * sy)
 
 
-def run(factor, n_sims, salts, workers=8, holdout=None):
-    """Scale every shrinkage constant, rebuild rates, score discrimination."""
+def run(factor, n_sims, salts, workers=8, holdout=None, only=None):
+    """Scale every shrinkage constant, rebuild rates, score discrimination.
+
+    `only` restricts the scaling to one population and one stat, as
+    ("pit", "hr_pct"). Sweeping everything at once cannot say WHOSE
+    shrinkage is responsible: a pitcher's home-run rate and the nine
+    batters' home-run rates both feed the same log5 cell.
+    """
     global _PAIRS, _LG, _PENS
     base = {k: dict(v) for k, v in rate_src.STABILISE_MEASURED.items()}
     try:
         rate_src.STABILISE_MEASURED = {
-            who: {stat: max(1.0, v * factor) for stat, v in d.items()}
+            who: {stat: (max(1.0, v * factor)
+                         if only is None or only == (who, stat) else v)
+                  for stat, v in d.items()}
             for who, d in base.items()}
         cal._CASES.clear()
         lg = sim.league()
@@ -126,21 +134,37 @@ def run(factor, n_sims, salts, workers=8, holdout=None):
 
 def main(argv):
     holdout = None
+    only = None
+    if "--only" in argv:
+        i = argv.index("--only")
+        only = tuple(argv[i + 1].split(":"))       # e.g. pit:hr_pct
+        argv = argv[:i] + argv[i + 2:]
     if "--holdout" in argv:
         i = argv.index("--holdout")
         holdout = argv[i + 1]
         argv = argv[:i] + argv[i + 2:]
+    factors = (0.25, 0.5, 1.0, 2.0)
+    if "--factors" in argv:
+        i = argv.index("--factors")
+        factors = tuple(float(x) for x in argv[i + 1].split(","))
+        argv = argv[:i] + argv[i + 2:]
+    if 1.0 not in factors:
+        raise SystemExit("1.0 must be in --factors: it is the baseline"
+                         " every other arm is paired against")
     n_sims = int(argv[0]) if len(argv) > 0 else 40
     salts = list(range(int(argv[1]) if len(argv) > 1 else 4))
     if holdout:
         print(f"  HOLDOUT: rates trained before {holdout},"
               f" scored on starts from {holdout}")
+    if only:
+        print(f"  ONLY {only[0]}:{only[1]} is scaled;"
+              f" every other constant stays shipped")
     print(f"  discrimination (corr of prediction with outcome), 2026 starts")
     print(f"  {n_sims} sims x {len(salts)} salts\n")
     print(f"  {'shrink x':<10}" + "".join(f"{c:>9}" for c in CHANNELS))
     res = {}
-    for f in (0.25, 0.5, 1.0, 2.0):
-        per = run(f, n_sims, salts, holdout=holdout)
+    for f in factors:
+        per = run(f, n_sims, salts, holdout=holdout, only=only)
         res[f] = per
         means = {c: st.mean(p[c] for p in per) for c in CHANNELS}
         print(f"  {f:<10.2f}" + "".join(f"{means[c]:>+9.4f}"
@@ -149,7 +173,7 @@ def main(argv):
     print(f"\n  paired against the shipped constants (POSITIVE = better):")
     print(f"  {'shrink x':<10}" + "".join(f"{c:>13}" for c in CHANNELS))
     base = res[1.0]
-    for f in (0.25, 0.5, 2.0):
+    for f in [f for f in factors if f != 1.0]:
         cells = []
         for c in CHANNELS:
             d = [b[c] - a[c] for a, b in zip(base, res[f])]

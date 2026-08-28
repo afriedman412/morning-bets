@@ -102,3 +102,44 @@ def check_measured_batter_rates_shrink_less_than_the_imported_ones():
     for stat in ("k_pct", "bb_pct", "hr_pct", "babip"):
         assert rates.STABILISE_MEASURED["bat"][stat] < rates.STABILISE[stat], \
             stat
+
+
+def check_pitcher_strikeouts_are_not_shrunk_at_the_stale_57():
+    """The 57 was measured on half a season and outlived its data.
+
+    Three independent methods bracket the true value between 98 and 200 —
+    `stabilise`'s split-half over 406 starters (132), method of moments on
+    the observed 2026 spread (98), and a holdout discrimination sweep whose
+    strikeout peak sits at x2.3 of the old value (131, +9.5 sigma). The
+    range is what is asserted rather than the point, because re-measuring on
+    more seasons should be free to move it a little and must not be free to
+    put it back where it was.
+
+    THE TELL THAT SHOULD HAVE CAUGHT IT EARLIER is the second assert: a
+    starter's strikeout rate cannot stabilise FASTER than the imported
+    all-players constant it replaced. 57 against 70 said it did.
+    """
+    k = rates.STABILISE_MEASURED["pit"]["k_pct"]
+    assert 98 <= k <= 200, k
+    assert k > rates.STABILISE["k_pct"], (k, rates.STABILISE["k_pct"])
+
+
+def check_the_shrinkage_constants_reach_a_real_rate():
+    """A constant nothing consults is a constant that cannot be wrong.
+
+    `_shrink` is the only consumer, so the guard is that moving the pitcher
+    strikeout constant moves a pitcher's strikeout rate — and by the amount
+    the weight predicts, not merely in the right direction.
+    """
+    orig = dict(rates.STABILISE_MEASURED["pit"])
+    try:
+        rates.STABILISE_MEASURED["pit"]["k_pct"] = 132
+        got = rates._shrink(0.30, 0.22, 400, "k_pct", who="pit")
+        want = (400 / 532) * 0.30 + (132 / 532) * 0.22
+        assert abs(got - want) < 1e-12, (got, want)
+        rates.STABILISE_MEASURED["pit"]["k_pct"] = 57
+        stale = rates._shrink(0.30, 0.22, 400, "k_pct", who="pit")
+        # More shrinkage pulls a high-strikeout arm further toward league.
+        assert stale > got + 0.005, (stale, got)
+    finally:
+        rates.STABILISE_MEASURED["pit"] = orig

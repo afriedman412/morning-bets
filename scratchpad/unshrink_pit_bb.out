@@ -1,0 +1,21 @@
+  HOLDOUT: rates trained before 2026-07-01, scored on starts from 2026-07-01
+  ONLY pit:bb_pct is scaled; every other constant stays shipped
+  discrimination (corr of prediction with outcome), 2026 starts
+  40 sims x 6 salts
+
+  shrink x          k       bb       hr        h       er     outs
+  1.00        +0.4254  +0.1365  +0.0344  +0.1911  +0.0331  +0.3196
+  1.20        +0.4244  +0.1334  +0.0510  +0.1925  +0.0270  +0.3224
+  2.00        +0.4241  +0.1252  +0.0443  +0.1849  +0.0480  +0.3159
+  3.00        +0.4227  +0.1159  +0.0360  +0.1902  +0.0535  +0.3126
+
+  paired against the shipped constants (POSITIVE = better):
+  shrink x              k           bb           hr            h           er         outs
+  1.20      -0.0010(-0.4)-0.0031(-1.6)+0.0166(+1.0)+0.0014(+0.2)-0.0061(-1.2)+0.0028(+0.5)
+  2.00      -0.0013(-0.3)-0.0113(-2.4)+0.0099(+0.6)-0.0062(-1.4)+0.0149(+1.5)-0.0037(-0.8)
+  3.00      -0.0027(-0.8)-0.0206(-2.7)+0.0016(+0.2)-0.0009(-0.1)+0.0204(+3.4)-0.0070(-0.9)
+
+  If LESS shrinkage (x0.25, x0.5) raises the correlation, the
+  constants are too aggressive and the model is throwing away
+  signal. If it lowers it, the compression is the price of
+  shrinkage doing its job and the slope result is explained.

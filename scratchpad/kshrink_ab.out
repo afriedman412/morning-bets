@@ -1,0 +1,6 @@
+  25 sims per side, cut 2026-07-01, shipped value 132
+
+                       CRPS    runs     sd  shutout  5+ runs  covered5
+  k_pct 57  (stale)  1.62470    2.43   2.28    21.4%    16.5%     69.2%
+  k_pct 132 (measured)  1.63261    2.42   2.25    21.5%    16.5%     68.8%
+  ACTUAL                       2.44   2.32    22.0%    17.6%     74.1%
