@@ -5008,3 +5008,52 @@ error, measured at 0.982 rbi per run against 0.978 for real starters — worth
 "The model puts runs on too few hitters" is WITHDRAWN. The other two
 findings survive the reseeding unchanged: the batting order is right, and
 hitters are over-separated (player-level slope 0.722 on runs, z -2.2).
+
+### THE BATTER-ROW A/B, RE-RUN AT THE CORRECTED BABIP — BOTH EARLIER CLAIMS VOID
+
+The first run used `babip: 250`, which the broken numerator produced. The
+honest row is 51/122/193/**447**. Re-run, both arms sharing the new pitcher
+babip of 3068:
+
+    paired F5 CRPS (measured - shipped)
+      babip 250 (broken)      +0.01263 +/- 0.00687   z +1.8   worse
+      babip 447 (corrected)   -0.00264 +/- 0.00745   z -0.4   neutral
+
+    differentiation           shipped        measured(447)
+      batter-game  r        0.624 (-3.6)    0.638 (-3.2)
+      batter-game  rbi      0.691 (-2.1)    0.583 (-2.5)   worse
+      player       r        0.722 (-2.2)    0.711 (-2.1)   flat
+      player       rbi      0.758 (-1.5)    0.880 (-0.7)   better
+
+**BOTH OF THE MORNING'S CONCLUSIONS WERE THE BROKEN NUMERATOR.** "The batter
+constants cost F5" is void — it is neutral. And so is "they fix
+differentiation": that was four-of-four toward 1 and is now two better, two
+worse. The row SHIPS anyway, on the same standard pitcher k_pct was held to
+— a measured value replacing a stale one, neutral on what settles — and it
+buys nothing measurable.
+
+Unlike the pitcher figure, 447 is WELL DETERMINED: r_half 0.277 over 662
+hitters puts k between 371 and 550 across one standard error, with the
+shipped 184 far outside it.
+
+### A STALE .pyc SURVIVED A MUTATION RESTORE, AND IT COULD HAVE POISONED ANY OF THIS
+
+`make test` failed asserting `babip == 184` while the source on disk read
+447, and the imported module carried 51/122/193/**184** — three of four keys
+updated and one not, from a single-line edit that changed all four.
+
+CPython validates a cached `.pyc` on **(mtime, size)**. The mutation loop
+wrote `447 -> 184`, ran the suite (which wrote the bytecode), then restored
+`184 -> 447` WITHIN THE SAME SECOND and with the SAME BYTE COUNT — three
+digits either way. Both checks passed, so the mutated bytecode was reused
+and every later run tested the MUTATED constant.
+
+**THIS IS A HAZARD FOR THE PROJECT'S CORE METHOD.** Verifying a test by
+mutation means editing a constant and putting it back, and a same-second
+same-size restore is exactly the case Python cannot detect. The failure mode
+is silent and it points the wrong way — the mutation itself fails correctly,
+and it is everything AFTER the restore that is quietly wrong.
+
+Mitigation when mutating by script: clear `__pycache__` after restoring, or
+keep the byte count different, or `sleep 1`. `scratchpad/mutate.py` refuses
+to run on a dirty tree, which is a different guard and does not cover this.

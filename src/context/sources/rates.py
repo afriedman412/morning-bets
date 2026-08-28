@@ -82,6 +82,21 @@ STABILISE = {
 #: OUTS starts to break (-2.5 at x5.0), so the peak is not an artifact of
 #: scoring one channel.
 #:
+#: THE BATTER ROW IS THE CURRENTLY MEASURED ONE (2026-08-28), replacing
+#: 32/80/160/184, which `stabilise` produced on less data. babip moved most
+#: and for a second reason: its numerator was H against a denominator that
+#: excludes home runs, where BABIP is (H - HR)/(AB - K - HR). Corrected, the
+#: batter figure is 447 rather than the 250 the contaminated version gave,
+#: and it is well determined — r_half 0.277 over 662 hitters puts k between
+#: 371 and 550 across one standard error, with the shipped 184 far outside.
+#:
+#: IT EARNS NOTHING MEASURABLE AND IT SHIPS ANYWAY, which is the same
+#: standard pitcher k_pct was held to. Paired F5 CRPS -0.0026 +/- 0.0075
+#: (neutral) and the differentiation slopes come out MIXED — two of four
+#: toward 1, two away. An earlier run of this A/B reported the row COSTING
+#: F5 at +1.8 sigma and a clean four-of-four differentiation win; both were
+#: the broken babip numerator and both are withdrawn.
+#:
 #: A PITCHER'S BABIP WAS NEVER MEASURED AT ALL (2026-08-28). `stabilise`
 #: printed a babip row for BATTERS and omitted it for pitchers with no
 #: reason given, so the 500 here is the legacy all-players import — the same
@@ -110,7 +125,7 @@ STABILISE = {
 #: they are reconciled the shipped value stands. See
 #: `scratchpad/hr_spread.py`.
 STABILISE_MEASURED = {
-    "bat": {"k_pct": 32, "bb_pct": 80, "hr_pct": 160, "babip": 184},
+    "bat": {"k_pct": 51, "bb_pct": 122, "hr_pct": 193, "babip": 447},
     "pit": {"k_pct": 132, "bb_pct": 138, "hr_pct": 934, "babip": 3068},
 }
 

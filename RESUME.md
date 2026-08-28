@@ -61,9 +61,19 @@ discrimination +3.2 sigma, hits flat. The point estimate is soft (k spans
 1,500-36,000 over one standard error) and the DIRECTION is not; do not
 re-tune it.
 
-**THE BATTER BABIP NUMERATOR WAS WRONG** — H instead of (H - HR) — so the
-measured batter figure is 447, not the 250 used in today's batter-row A/B.
-That A/B lost on F5 with a wrong babip element. RE-RUN IT.
+**THE BATTER ROW IS NOW 51/122/193/447, SHIPPED.** The numerator was wrong —
+H instead of (H - HR) — so the first A/B used 250 and BOTH its conclusions
+are void: F5 goes from "costs +1.8 sigma" to NEUTRAL (-0.0026 +/- 0.0075),
+and the four-of-four differentiation win becomes two better, two worse. It
+ships as a measured value replacing a stale one and buys nothing measurable.
+
+**BEWARE THE STALE .pyc WHEN VERIFYING A TEST BY MUTATION.** CPython
+validates bytecode on (mtime, size). Editing a constant, running the suite,
+and restoring it WITHIN THE SAME SECOND at the SAME BYTE COUNT — 184 against
+447 — leaves the MUTATED bytecode in place for every later run. It cost a
+confusing half hour today and it points the wrong way: the mutation fails
+correctly and everything after the restore is silently wrong. Clear
+`__pycache__` after restoring.
 
 **THE CONCENTRATION FINDING IS WITHDRAWN.** On RUNS SCORED it is +0.025
 (z +1.1), signs mixed. It only appears on rbi, and `_credit` over-awards rbi

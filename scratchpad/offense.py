@@ -172,8 +172,8 @@ def main(argv):
     if "--bat-measured" in argv:
         argv = [a for a in argv if a != "--bat-measured"]
         rate_src.STABILISE_MEASURED["bat"] = {
-            "k_pct": 51, "bb_pct": 122, "hr_pct": 193, "babip": 250}
-        print("  BATTER CONSTANTS at the currently measured 51/122/193/250")
+            "k_pct": 51, "bb_pct": 122, "hr_pct": 193, "babip": 447}
+        print("  BATTER CONSTANTS at the currently measured 51/122/193/447")
     n_sims = int(argv[0]) if argv else 40
     _LG = sim.league()
     # POSITIVE CONTROL. Push every hitter's rates FURTHER from the league by

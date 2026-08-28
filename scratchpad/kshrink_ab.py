@@ -30,13 +30,18 @@ from src.context.sources import rates as rate_src
 
 CUT = "2026-07-01"
 ARMS = ((57, "k_pct 57  (stale)"), (132, "k_pct 132 (measured)"))
+#: BABIP IS 447, NOT THE 250 THIS WAS FIRST RUN WITH. `stabilise` measured
+#: the batter figure with H as the numerator against a denominator that
+#: excludes home runs, and BABIP is (H - HR)/(AB - K - HR). Corrected, the
+#: constant moves 250 -> 447 and the first run of this A/B is void.
+#:
 #: `--bat` swaps the whole BATTER row instead. Same shape of claim: the
 #: shipped values were measured on less data and `stabilise` reads higher
 #: today, and higher means MORE shrinkage — which is the direction an
 #: over-differentiated lineup asks for (`scratchpad/offense.py`).
 BAT_ARMS = (({"k_pct": 32, "bb_pct": 80, "hr_pct": 160, "babip": 184},
              "bat shipped"),
-            ({"k_pct": 51, "bb_pct": 122, "hr_pct": 193, "babip": 250},
+            ({"k_pct": 51, "bb_pct": 122, "hr_pct": 193, "babip": 447},
              "bat measured"))
 #: `--pit-babip` swaps the pitcher's BABIP constant. It had NEVER BEEN
 #: MEASURED — `stabilise.report` omitted the pitcher babip row entirely, so

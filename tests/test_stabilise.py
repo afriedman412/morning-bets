@@ -166,3 +166,24 @@ def check_pitcher_babip_is_not_the_unmeasured_import():
     # And it must be the LEAST trusted pitcher rate on the board.
     assert k > max(v for s, v in rates.STABILISE_MEASURED["pit"].items()
                    if s != "babip"), k
+
+
+def check_batter_babip_is_not_the_contaminated_measurement():
+    """184 was stale and 250 was wrong for a second, separate reason.
+
+    `stabilise` measured the batter figure with H as the numerator against a
+    denominator that excludes home runs. BABIP is (H - HR)/(AB - K - HR), so
+    the home run sat in the numerator and out of the denominator and made a
+    hitter's balls-in-play rate look 79% more reliable than it is. Corrected
+    it is 447, and unlike the pitcher figure it is well determined: r_half
+    0.277 over 662 hitters puts k between roughly 371 and 550.
+
+    The range is asserted rather than the point, and the lower bound is the
+    part that matters — it excludes both the stale 184 and the contaminated
+    250.
+    """
+    k = rates.STABILISE_MEASURED["bat"]["babip"]
+    assert 371 <= k <= 550, k
+    # And a hitter's balls-in-play rate must be his LEAST trusted stat.
+    assert k > max(v for s, v in rates.STABILISE_MEASURED["bat"].items()
+                   if s != "babip"), k
