@@ -381,6 +381,47 @@ roster spots moved a headline edge by half. Worth building: treat the
 projected lineup as an uncertainty to be propagated rather than an input to
 be trusted, and flag any edge whose size depends on unconfirmed names.
 
+## WHAT IS CLOSED AS OF THE END OF DAY THIRTEEN — DO NOT RE-RUN
+
+Every one of these was measured on 2026-08-27 with stated power. They are
+not "we could not find it"; they are answers.
+
+**PER-PITCHER AND PER-CLUB DISPERSION — CLOSED.** Are some arms harder to
+predict? Split-half, odd against even starts, Spearman-Brown corrected, on
+earned runs: pitcher dispersion reliability 0.072 over 107 arms, pitcher bias
+-0.011, club dispersion NEGATIVE. There is spread (mean |residual| 1.19 at
+p10 against 1.91 at p90) and it does not repeat. Powered to see a full
+reliability of 0.32. `scratchpad/whos_wrong.py`.
+
+This was the top lead out of the under-dispersion diagnosis and it is gone.
+Whatever makes a start blow up is not a persistent property of the pitcher.
+
+**SCHEDULE BURDEN — CLOSED, on the level AND on the variance.** Travel
+distance, time zones, getaway days, long stretches, days since home. Real
+great-circle miles and signed eastbound time-zone shift, which
+`sources/rest.py` has carried all along and which had never once been scored
+against outcomes. Everything with power is flat: miles +1.5 signed / +0.3
+dispersion, far-travel +1.2/+0.9, eastbound +0.6/-0.9, getaway -0.5/-0.9.
+`scratchpad/schedule.py`.
+
+TWICE the only row over 2 sigma was the interaction, with THIRTEEN and then
+SEVEN starts in it. Recorded as not a lead both times.
+
+**SPREAD CALIBRATION — real but NOT EXPLOITABLE.** Regressing actual on
+predicted, every channel is above 1.0 once Monte Carlo noise in the predictor
+is corrected (k 1.15, bb 1.23, er 1.32, h 1.37, outs 1.58, hr 2.59), so the
+model's underlying predictions are too bunched. But fit the correction on
+early starts and apply it to later ones and MSE moves -1.4% to +0.7% with
+mixed signs — the DELIVERED predictions carry the Monte Carlo noise, and
+noise widens what shrinkage narrowed. `scratchpad/spread_cal.py`.
+
+**PER-BATTER RUN SHARE — NOT ANSWERABLE, and worth knowing why.** Whether
+Judge takes the run share he should cannot be measured: `sim.apply_pa` does
+not know which batter is up and `fr.bases` holds booleans, not runner
+identity. Giving the bases identity is a real state-machine change. The
+INPUT spread is measurable and matches the shipped shrinkage constants almost
+exactly, so the flattening is configured rather than broken.
+
 ## THE RUN GAP IS ADVANCEMENT AND IT IS UNDER-DISPERSION. START HERE.
 
 **MEASURED AND SETTLED** (`scratchpad/f5_decomp.py`, 1,659 games). Simulated

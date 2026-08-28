@@ -97,6 +97,46 @@ current state is at the END — it is appended chronologically, so read
 backwards from the last section. It carries the measured negatives, which
 are the expensive thing to rediscover.
 
+**WHERE THE MODEL IS ACTUALLY WRONG, measured 2026-08-27 and the most
+useful line in these docs for choosing what to work on: THE EVENT RATES ARE
+RIGHT AND THE ADVANCEMENT IS NOT.** Through five innings the model puts
+exactly the right men on base (+0.0%) with strikeouts, walks, hits and home
+runs each inside 1.4%, and brings 1.7% fewer of them home. So no further
+measurement of a RATE can close the gap. `scratchpad/f5_decomp.py`.
+
+And it is SHAPE, not advancement rates: reality has more shutouts AND more
+blowups while the model bunches in the middle, which is clustering — plate
+appearances resolve independently and real ones arrive together. Runs are
+convex in clustering, so the thin tail also drags the mean. One defect, both
+symptoms, confirmed by a flat dispersion term that closed 44% of the shape
+error and 86% of the level gap with one number.
+
+That term is NOT shipped: it is neutral on CRPS because a flat spread added
+to everyone improves calibration and not discrimination. And the obvious way
+to make it vary is CLOSED — per-pitcher and per-club dispersion do not repeat
+(split-half reliability 0.07 over 107 arms, powered to see 0.32).
+
+**LEVEL ERRORS ADD; SPREAD EFFECTS COMBINE IN QUADRATURE.** Both kinds were
+being discarded against one leverage floor. Five 0.03-run SPREADS make 0.067,
+so the pile of sub-floor per-player features is dead collectively as well as
+individually — two 1.5-cent features make 2.3 cents and it takes SIX to reach
+the bar. But every win on 2026-08-27 was a LEVEL error pointing one way
+(hit-by-pitch, sacrifices and wild pitches all measured on STARTERS and
+applied to every arm), and the wild-pitch one closed a fifth of the run gap
+alone. Hunt level errors and structural gaps; stop screening refinements.
+
+**WHEN EVERY CHANNEL IS WRONG BY THE SAME PERCENTAGE, STOP LOOKING AT THE
+RATES AND CHECK WHAT YOU DIVIDED BY.** No set of rate bugs moves strikeouts,
+walks, hits and home runs by the same 8% — that is a denominator. Three
+denominator mistakes in one script on 2026-08-27, each producing a confident
+wrong table: `Side.line` is the STARTER'S and reliever lines are DISCARDED on
+each arm change, so it cannot be compared against every first-five plate
+appearance. Related: a MONTE CARLO MEAN carries its own noise, and noise in a
+regression PREDICTOR attenuates a slope — 55% of `m_er`'s variance is
+simulation at 40 draws, which flips the sign of a spread-calibration result.
+The same noise is only ~2% of the RESIDUAL's variance, so residual screens are
+unaffected. Ask which denominator the question is about.
+
 **A NULL IS A CLAIM AND MUST BE TESTED LIKE ONE.** The standing failure
 mode here is asymmetric: a positive result gets an adversarial test
 immediately, a negative one gets accepted and the session moves to the next
