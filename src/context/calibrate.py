@@ -316,8 +316,33 @@ USE_HOME_ROAD = True
 # metric they are then scored on will find something whether or not anything
 # is there.
 #
-#   K rate    home 0.2253 vs away 0.2110   +6.8%   z +3.49
-#   hit rate  home 0.2164 vs away 0.2253   -3.9%   z -2.15
+# RECOUNTED 2026-08-29 ON 679,329 PLATE APPEARANCES over 9,978 cached games
+# (`scratchpad/homeroad.py --all`), and BOTH WERE OVERSTATED. The originals
+# were right in direction and thin — z +3.49 and -2.15 — which is the same
+# story as every other constant in this project that got recounted:
+#
+#   quantity        home     away    ratio       se      z    was
+#   K per PA      0.2294   0.2180   1.0522   0.0048  +11.0  1.0692
+#   hits per PA   0.2184   0.2228   0.9804   0.0045   -4.4  0.9624
+#
+# 3.5 and 4.1 sigma from the shipped values on the constant's own scale.
+#
+# CONDITIONING MATCHES THE CODE PATH, which is the requirement for a recount
+# to be a measurement rather than a tune: `adjust_lineup` is applied once per
+# side and therefore to EVERY arm, so the recount counts every arm too. The
+# top half is the home club pitching and the bottom half is the away club, so
+# `halfInning` IS the split. Innings 1-8 only — the ninth is forfeited
+# asymmetrically and would bias a top/bottom comparison by composition.
+#
+# NOT SOLVED FOR A LEVEL, and the distinction matters because the run-level
+# number does NOT come out flattering. Real home-field advantage counted on
+# the same games is 0.306 runs (se 0.044, z +6.9) in innings 1-8; the model
+# produced 0.382 with the old constants and lands lower with these. The
+# temptation is to pick whatever reproduces 0.306 — that is exactly the
+# forbidden move, and the residual is a statement that K and CONTACT are the
+# only two channels modelled here while real home advantage also runs through
+# walks, home runs, errors and baserunning. Recorded as TODO 11d, not fitted
+# away.
 #   outs      home 16.12  vs away 15.79    +0.33   z +1.80  (not sig alone)
 #
 # Applied to the OPPOSING LINEUP, not to the pitcher: the visiting nine hit
@@ -343,10 +368,24 @@ USE_HOME_ROAD = True
 # Rockies pitcher's season rates already include his starts at Coors, so
 # multiplying by the park index again counts it one and a half times. Park
 # cannot help until the underlying rates are park-neutralised.
-HOME_OPP_K = 1.034
-HOME_OPP_CONTACT = 0.981
+HOME_OPP_K = 1.026
+HOME_OPP_CONTACT = 0.990
+#: WALKS GET THEIR OWN, counted in the same pass. They used to ride
+#: `HOME_OPP_CONTACT` alongside hits, home runs and babip, and they do not
+#: behave like them: the home/away split is 0.9516 on walks against 0.9804 on
+#: hits, so one shared knob was charging walks less than half their measured
+#: effect. It is the LARGEST home/road split of the four channels and the
+#: best measured — z -6.8 over 679,329 plate appearances — and it was the one
+#: with no parameter of its own.
+#:
+#: Home runs stay on the contact constant deliberately: their own count is
+#: 0.9710 (z -2.2), which sits 0.7 sigma from what the contact constant
+#: already gives them, so splitting them out would be adding a parameter to
+#: chase noise.
+HOME_OPP_BB = 0.975
 AWAY_OPP_K = 1.0 / HOME_OPP_K
 AWAY_OPP_CONTACT = 1.0 / HOME_OPP_CONTACT
+AWAY_OPP_BB = 1.0 / HOME_OPP_BB
 #: Extra log-odds on the hook at home. Left at zero: the outs difference
 #: does not clear 2 sigma on its own, and whatever is there should fall out
 #: of the rate effects above rather than being double-counted here.
@@ -368,6 +407,7 @@ def adjust_lineup(lineup: list, is_home: bool) -> list:
         return lineup
     mk = HOME_OPP_K if is_home else AWAY_OPP_K
     mc = HOME_OPP_CONTACT if is_home else AWAY_OPP_CONTACT
+    mb = HOME_OPP_BB if is_home else AWAY_OPP_BB
     # `replace`, NOT a fresh BatterRates listing the fields by hand. The
     # explicit version silently DROPPED every field added after it was
     # written, which is how the handedness matchup arm came out identical
@@ -375,7 +415,7 @@ def adjust_lineup(lineup: list, is_home: bool) -> list:
     # on the cases and deleted here before the simulation saw them. An
     # identical-to-four-decimals A/B is plumbing, never a null.
     return [replace(b, k_pct=min(0.95, b.k_pct * mk),
-                    bb_pct=b.bb_pct * mc, hr_pct=b.hr_pct * mc,
+                    bb_pct=b.bb_pct * mb, hr_pct=b.hr_pct * mc,
                     babip=b.babip * mc) for b in lineup]
 
 

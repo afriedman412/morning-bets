@@ -835,15 +835,62 @@ def check_home_multipliers_come_from_the_measured_split():
     against the metric they are then scored on will find something whether
     or not anything is there.
 
-    Measured contrast: K rate 0.2253 home vs 0.2110 away (+6.8%, z +3.49);
-    hit rate 0.2164 vs 0.2253 (-3.9%, z -2.15). Applied as HALF the contrast
-    each way — see the centring check below.
+    RECOUNTED 2026-08-29 on 679,329 plate appearances over 9,978 cached
+    games (`scratchpad/homeroad.py --all`), innings 1-8 so the asymmetric
+    ninth cannot bias a top/bottom split. The originals were right in
+    direction and thinly measured — z +3.49 and -2.15 — and both were
+    OVERSTATED by 3.5 and 4.1 sigma on the constant's own scale:
+
+        quantity        home     away    ratio       se      z     was
+        K per PA      0.2294   0.2180   1.0522   0.0048  +11.0  1.0692
+        hits per PA   0.2184   0.2228   0.9804   0.0045   -4.4  0.9624
+        walks+hbp     0.0930   0.0977   0.9516   0.0071   -6.8  (none)
+
+    Applied as HALF the contrast each way — see the centring check below.
+
+    WALKS ARE THEIR OWN CHANNEL as of the recount. They used to ride
+    `HOME_OPP_CONTACT` with hits and home runs, which charged them less than
+    half their measured effect: 0.9516 against hits' 0.9804. It is the
+    largest of the three splits and was the one without a parameter.
     """
     from src.context import calibrate as cal
-    assert abs(cal.HOME_OPP_K - 1.034) < 0.005, cal.HOME_OPP_K
-    assert abs(cal.HOME_OPP_CONTACT - 0.981) < 0.005, cal.HOME_OPP_CONTACT
-    # Directions: the visiting nine strike out MORE and hit LESS.
-    assert cal.HOME_OPP_K > 1.0 and cal.HOME_OPP_CONTACT < 1.0
+    assert abs(cal.HOME_OPP_K - 1.026) < 0.005, cal.HOME_OPP_K
+    assert abs(cal.HOME_OPP_CONTACT - 0.990) < 0.005, cal.HOME_OPP_CONTACT
+    assert abs(cal.HOME_OPP_BB - 0.975) < 0.005, cal.HOME_OPP_BB
+    # Directions: the visiting nine strike out MORE, hit LESS and walk LESS.
+    assert cal.HOME_OPP_K > 1.0
+    assert cal.HOME_OPP_CONTACT < 1.0
+    assert cal.HOME_OPP_BB < 1.0
+    # And walks are the LARGER effect. Collapsing the two back onto one
+    # constant is the bug this separation exists to prevent.
+    assert (1 - cal.HOME_OPP_BB) > (1 - cal.HOME_OPP_CONTACT) * 1.5
+
+
+def check_the_walk_multiplier_reaches_bb_pct_and_nothing_else():
+    """A constant that exists and is never read is the standing failure mode
+    here — `Matchup.m_bb` sat unread for the whole life of the park work, and
+    `calibrate.run(hook=...)` passed its hook nowhere for a week.
+
+    So this asserts the WIRING, not the value: `adjust_lineup` must scale
+    `bb_pct` by the WALK constant and leave hits, home runs and babip on the
+    CONTACT constant. Reintroducing the old shared knob — `bb_pct * mc` —
+    fails exactly here and nowhere else.
+    """
+    from src.context import calibrate as cal
+
+    b = sim.BatterRates(name="b", k_pct=0.220, bb_pct=0.080, hr_pct=0.030,
+                        babip=0.300, pa=600)
+    for is_home, mk, mc, mb in (
+            (True, cal.HOME_OPP_K, cal.HOME_OPP_CONTACT, cal.HOME_OPP_BB),
+            (False, cal.AWAY_OPP_K, cal.AWAY_OPP_CONTACT, cal.AWAY_OPP_BB)):
+        got = cal.adjust_lineup([b], is_home)[0]
+        assert abs(got.bb_pct - 0.080 * mb) < 1e-12, (is_home, got.bb_pct)
+        assert abs(got.k_pct - 0.220 * mk) < 1e-12, (is_home, got.k_pct)
+        assert abs(got.hr_pct - 0.030 * mc) < 1e-12, (is_home, got.hr_pct)
+        assert abs(got.babip - 0.300 * mc) < 1e-12, (is_home, got.babip)
+        # The two constants differ, so a shared knob is DISTINGUISHABLE here.
+        # Without this the check would pass against the old wiring too.
+        assert abs(got.bb_pct - 0.080 * mc) > 1e-6, "walks still on contact"
 
 
 def check_home_road_is_centred_on_the_season_mean():
@@ -859,6 +906,7 @@ def check_home_road_is_centred_on_the_season_mean():
     from src.context import calibrate as cal
     assert abs(cal.HOME_OPP_K * cal.AWAY_OPP_K - 1.0) < 1e-9
     assert abs(cal.HOME_OPP_CONTACT * cal.AWAY_OPP_CONTACT - 1.0) < 1e-9
+    assert abs(cal.HOME_OPP_BB * cal.AWAY_OPP_BB - 1.0) < 1e-9
 
 
 def check_park_is_off_because_it_double_counts():

@@ -146,17 +146,15 @@ before the half-innings were corrected. Runs per extra half is still short at
 2.689 against 3.026. `scratchpad/ninth.py` is the instrument.
 Two sigma on a quantity nobody pre-registered — treat as a direction.
 
-**11d. The away/home split no longer matches reality.**
-ALSO OPENED BY THE 11b FIX, also unconfirmed. Reality has the away club
-scoring slightly MORE than the home club (4.485 against 4.447), because the
-home club forfeits ~44% of its ninth innings. The model has it the other way
-(4.180 against 4.350) — a ~0.21-run disagreement at roughly 1.5-2 sigma.
-FIRST SUSPECT: the home-pitcher advantage (`HOME_OPP_K` 1.034,
-`HOME_OPP_CONTACT` 0.981) may now be over-dominating, since it was last
-fitted while the ninth-inning skip was landing on the wrong club.
-ALREADY CHECKED AND NOT THE CAUSE: `adjust_lineup(away[2], False)` reads as
-inverted and is not — `is_home` means the PITCHER is at home and `away[2]`
-is the nine the AWAY starter faces, so `False` is correct.
+**11d-residual. The model produces less home-field advantage than the league
+has — 0.247 runs against a counted 0.306. NOT AN ITEM YET.**
+1.1 sigma, a direction and not a finding, recorded so it is not re-derived.
+**DO NOT CLOSE IT BY TUNING `HOME_OPP_*`** — each is counted at 4-11 sigma on
+its own rate, and moving them to hit a run target is the forbidden
+solve-for-a-level. The residual belongs to home/road channels with NO
+parameter at all: fielding errors, baserunning, and the structural effect of
+batting last. Home runs were counted (0.9710, z -2.2) and deliberately left
+on the contact constant rather than given one.
 
 **12. The prior is shrunk twice.**
 `_load_seasons` loads prior seasons through `pitcher_rates`, which already
@@ -237,6 +235,19 @@ controlling for the arm.
 ---
 
 ## Shipped 2026-08-29 — delete from above, recorded in the notes
+
+**The home/road constants, recounted — and walks got their own** (was 11d).
+`HOME_OPP_K` 1.034 -> 1.026 and `HOME_OPP_CONTACT` 0.981 -> 0.990, both
+overstated by 3.5-4.1 sigma against a recount on 679,329 plate appearances.
+THE REAL FINDING IS THE FOURTH CHANNEL: walks were riding the contact
+constant at 0.9804 where their own count is 0.9516 (z -6.8), the LARGEST of
+the three splits and the one with no parameter. New `HOME_OPP_BB` 0.975.
+Recounting alone OVERSHOT (model home-away 0.382 -> 0.174 against a counted
+0.306); the walk channel brought it to 0.247. That overshoot is why the
+constants were NOT nudged back up — it was read as a missing mechanism and
+the same scan named it. Away/home asymmetry on team totals 0.208 -> 0.044.
+Real home-field advantage COUNTED on this league is 0.306 runs (se 0.044,
+z +6.9), twice the 0.1-0.15 an outside guess supplies.
 
 **The half-innings were reversed, and the walk-off fired on the first run**
 (was 11b). Two correctness bugs in `simulate_game`. The side named `away` is

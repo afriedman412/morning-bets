@@ -64,11 +64,53 @@ deployment is not sub-floor. BUT most of that is WHICH of the 8 arms are
 exposed (~0.6) rather than WHEN each pitches (~0.04), because a game reaches
 only ~4.4 of them. Situation and fatigue are NOT bounded by that screen.
 
-**TWO NEW UNCONFIRMED GAPS, now TODO 11c and 11d:** extras are reached too
-often (0.102 against a real 0.083, z +2.0), and the away/home split is
-inverted against reality (model 4.180/4.350, real 4.485/4.447, ~1.5-2 sigma).
-`adjust_lineup(away[2], False)` was checked and is NOT the cause — `is_home`
-means the PITCHER is at home.
+**ONE NEW UNCONFIRMED GAP, TODO 11c:** extras are reached too often (0.102
+against a real 0.083, z +2.0). 11d was opened and CLOSED the same day — see
+below.
+
+## DAY SIXTEEN, PART FOUR — 11d CLOSED: THE HOME/ROAD CONSTANTS, AND A FOURTH CHANNEL
+
+**REAL HOME-FIELD ADVANTAGE, COUNTED ON THIS LEAGUE: 0.306 RUNS** (se 0.044,
+z +6.9, 9,978 games, innings 1-8 so the ninth-inning forfeit is excluded by
+construction). An outside guess supplies 0.1-0.15. **It is twice that**, and
+an inference built on the imported figure sent me looking for a 2-3x
+overstatement that was not there. Count it, do not import it.
+
+**THE TWO CONSTANTS WERE OVERSTATED, AND A THIRD CHANNEL HAD NO PARAMETER.**
+Recounted on 679,329 plate appearances (`scratchpad/homeroad.py --all`):
+
+    quantity        home     away    ratio      se      z     was
+    K per PA      0.2294   0.2180   1.0522  0.0048  +11.0  1.0692
+    hits per PA   0.2184   0.2228   0.9804  0.0045   -4.4  0.9624
+    walks+hbp     0.0930   0.0977   0.9516  0.0071   -6.8  (none)
+    HR per PA     0.0307   0.0316   0.9710  0.0132   -2.2  (none)
+
+`HOME_OPP_K` 1.034 -> 1.026, `HOME_OPP_CONTACT` 0.981 -> 0.990, and a NEW
+`HOME_OPP_BB` 0.975. Walks were riding the contact constant at 0.9804 where
+their own count is 0.9516 — the largest split of the three, charged less than
+half. Home runs stay on contact on purpose (0.7 sigma from what they already
+get; splitting them would chase noise).
+
+**THE STEP THAT MATTERS IS THE MIDDLE ONE.** Model home-away, innings 1-8:
+
+    old constants 0.382 -> recounted 0.174 -> + walk channel 0.247
+    actual: 0.205 (holdout, se 0.147) / 0.306 (all games, se 0.044)
+
+Recounting ALONE OVERSHOT. The tempting move was to pick K and contact values
+that reproduce 0.306 — the forbidden solve-for-a-level. Reading the overshoot
+as a MISSING MECHANISM instead is what found the walk channel, and the same
+scan named it at 6.8 sigma.
+
+Away/home asymmetry on full-game team totals **0.208 -> 0.044**; both clubs
+now sit inside the global -4.5% under-scoring instead of pulling opposite
+ways. 413 -> 414 checks, fingerprint 5a39453e -> ab32efb1. The wiring check
+is mutation-verified: putting walks back on the contact knob fails exactly
+`check_the_walk_multiplier_reaches_bb_pct_and_nothing_else`.
+
+**DO NOT TUNE `HOME_OPP_*` TO CLOSE THE REMAINING 0.247-vs-0.306.** It is 1.1
+sigma, and each constant is counted at 4-11 sigma on its own rate. The
+residual belongs to channels with no home/road parameter at all: fielding
+errors, baserunning, and batting last.
 
 ## DAY FIFTEEN (2026-08-29) — SEVEN CHANGES SHIPPED, ONE MEASURED DEAD
 

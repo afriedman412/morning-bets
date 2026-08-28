@@ -6444,3 +6444,120 @@ CONCLUSION  ESTABLISHED: ordering has ample sensitivity, so item 8 is not
             not mean) and FATIGUE (the pen is redrawn independently every
             game and every draw). Item 8's real case now rests on those two
             plus arm exposure, and no longer on the ninth-inning gap.
+
+## DAY SIXTEEN, PART FOUR — TODO 11d: THE HOME/ROAD CONSTANTS, RECOUNTED, AND A FOURTH CHANNEL
+
+QUESTION    After the half-innings were fixed, the model had the HOME club
+            outscoring the away club by 0.17 runs while reality has it the
+            other way by 0.04 — a 0.21-run disagreement on per-club totals,
+            which are the stated product. Are `HOME_OPP_K` and
+            `HOME_OPP_CONTACT` the cause?
+
+HYPOTHESIS  They are overstated. They were MEASURED, but on RATES — K rate
+            +6.8% (z +3.49), hit rate -3.9% (z -2.15) — and the RUN
+            consequence was never checked. "Fit the quantity that settles,
+            not the upstream proxy" is the most-repeated line in these docs
+            and a rate split is exactly an upstream proxy.
+            FALSIFIER, pre-registered: turning `USE_HOME_ROAD` off must
+            collapse the model's home-away spread. If it survives, these
+            constants are not the mechanism and 11d lives elsewhere.
+
+TEST        `scratchpad/homeroad.py`. THE CLEAN WINDOW IS INNINGS 1-8 —
+            both clubs bat in every one, so the ninth-inning forfeit (worth
+            ~0.25 runs against the home club's own total) is excluded BY
+            CONSTRUCTION rather than modelled and subtracted. Conflating it
+            is what made 11d look ambiguous in the first place.
+            Three arms: actual, model as shipped, model with home/road off.
+
+            POWER: 926 holdout games give se ~0.147 on the raw home-away
+            spread, which CANNOT resolve 0.21 — that is why 11d was logged
+            at 1.5-2 sigma. The paired model-minus-actual and
+            model-minus-model contrasts are far sharper, and the real LEVEL
+            is taken over all 9,978 cached games at se 0.044.
+
+EVALUATE    **MY HYPOTHESIS WAS HALF RIGHT AND MY ARITHMETIC WAS WRONG, and
+            the wrong half is the instructive one.** I estimated real
+            home-field advantage at 0.1-0.15 runs from general baseball
+            knowledge. COUNTED ON THIS LEAGUE it is 0.306 (se 0.044, z
+            +6.9) over 9,978 games. Twice my guess. The inference that the
+            constants were "2-3x too strong" rested entirely on that
+            imported number — count it, do not import it, applied to me.
+
+            The falsifier behaved: off collapses the spread 0.382 -> 0.026,
+            so the constants ARE the mechanism (+0.356, z +9.2).
+
+            THE RECOUNT, 679,329 plate appearances, innings 1-8, all arms:
+
+                quantity        home     away    ratio      se      z    was
+                K per PA      0.2294   0.2180   1.0522  0.0048  +11.0  1.0692
+                hits per PA   0.2184   0.2228   0.9804  0.0045   -4.4  0.9624
+                walks+hbp     0.0930   0.0977   0.9516  0.0071   -6.8  (none)
+                HR per PA     0.0307   0.0316   0.9710  0.0132   -2.2  (none)
+
+            Both shipped constants overstated, by 3.5 and 4.1 sigma on the
+            constant's own scale. Same story as every other constant here
+            that got recounted: right in direction, thinly measured.
+
+            **THE FOURTH CHANNEL IS THE REAL FINDING. WALKS HAD NO
+            PARAMETER AND ARE THE LARGEST SPLIT OF THE THREE.** They were
+            riding `HOME_OPP_CONTACT` alongside hits, home runs and babip,
+            which charged them 0.9804 where their own count is 0.9516 —
+            less than half their measured effect, at z -6.8. Home runs stay
+            on the contact constant deliberately: their own 0.9710 sits 0.7
+            sigma from what contact already gives them, so splitting them
+            out would be adding a parameter to chase noise.
+
+            SCORED IN THREE STEPS, and the middle one matters:
+
+                arm                          home - away (innings 1-8)
+                model, OLD constants                     0.382
+                model, recounted K + contact             0.174
+                model, + counted walk channel            0.247
+                ACTUAL, holdout 926 games                0.205  se 0.147
+                ACTUAL, all 9,978 games                  0.306  se 0.044
+
+            **THE MIDDLE ROW IS WHY THE WALK CHANNEL WAS BUILT RATHER THAN
+            THE CONSTANTS BEING NUDGED BACK UP.** Recounting alone
+            OVERSHOT — 0.174 against a counted 0.306. The tempting move was
+            to pick K and contact values that reproduce 0.306, which is
+            precisely the forbidden "solve for a level". Instead the
+            overshoot was read as what it is: a MISSING MECHANISM, and the
+            same scan that found it named it at 6.8 sigma.
+
+            THE ORIGINAL 11d SYMPTOM, full-game team totals:
+
+                            BEFORE 11d work    AFTER    ACTUAL     se
+                away club             4.180    4.275     4.485  0.111
+                home club             4.350    4.281     4.447  0.106
+                asymmetry             0.208    0.044
+
+            Both clubs now sit inside the known global under-scoring
+            (-4.5%) instead of pulling opposite ways.
+
+CONCLUSION  SHIPPED. `HOME_OPP_K` 1.034 -> 1.026, `HOME_OPP_CONTACT`
+            0.981 -> 0.990, and a new `HOME_OPP_BB` 0.975 with its own
+            `AWAY_OPP_BB`, all centred so home x away = 1.0 exactly.
+            414 checks (was 413), fingerprint 5a39453e -> ab32efb1.
+
+            VERIFIED BY MUTATION: restoring `bb_pct * mc` — walks back on
+            the shared contact knob — fails exactly
+            `check_the_walk_multiplier_reaches_bb_pct_and_nothing_else` and
+            nothing else. The check asserts the WIRING, not the value,
+            because a constant that exists and is never read is this
+            project's standing failure mode (`Matchup.m_bb` sat unread for
+            the whole life of the park work).
+
+            ESTABLISHED: 11d is closed. The away/home asymmetry is 0.044
+            runs, down from 0.208.
+
+            NOT ESTABLISHED: that the model now has home-field advantage
+            exactly right. It produces 0.247 against a counted 0.306 — 1.1
+            sigma, a direction and not a finding. Do NOT tune the constants
+            to close it; they are each counted at 4-11 sigma on their own
+            quantity, and the residual belongs to channels still unmodelled
+            (errors, baserunning, and the structural effect of batting
+            last, none of which have a home/road split).
+
+NEXT STEPS  The remaining per-club gap is now the GLOBAL under-scoring
+            (-4.5%, both clubs alike), which is items 7, 9 and 11 — not a
+            home/road question. Nothing further to do on 11d.
