@@ -97,6 +97,19 @@ current state is at the END — it is appended chronologically, so read
 backwards from the last section. It carries the measured negatives, which
 are the expensive thing to rediscover.
 
+**RUN INVESTIGATIONS AS A LABELLED PROTOCOL: QUESTION, HYPOTHESIS, TEST,
+EVALUATE, CONCLUSION, NEXT STEPS.** Write the labels out — a missing stage is
+only visible when the others are named. The full version, with the specific
+failure that motivates each rule, is at the end of `NOTES-context-layer.md`
+and summarised near the top of `RESUME.md`. The three that cost the most on
+2026-08-27: STATE THE POWER BEFORE THE RESULT (a run chosen for speed is a
+plumbing check and its number is not reportable), POSITIVE-CONTROL EVERY
+SCREEN, and SEPARATE ESTABLISHED FROM INFERRED IN THE CONCLUSION.
+
+**WHEN A NEW NUMBER CONTRADICTS AN EARLIER ONE, DO NOT ACT — CHECK WHETHER
+THEY MEASURE THE SAME THING.** Three positions in two minutes on one question,
+and two of them were never in conflict.
+
 **WHERE THE MODEL IS ACTUALLY WRONG, measured 2026-08-27 and the most
 useful line in these docs for choosing what to work on: THE EVENT RATES ARE
 RIGHT AND THE ADVANCEMENT IS NOT.** Through five innings the model puts

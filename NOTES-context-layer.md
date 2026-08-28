@@ -4468,3 +4468,97 @@ NOT CHANGED YET. The right move is a home-run-specific constant validated on
 the holdout, not a global factor, and the holdout gain for a 4x reduction was
 +2.0 sigma, so the size is modest even though the compression is large. That
 is consistent with home runs being a small share of runs.
+
+---
+
+## THE INVESTIGATION PROTOCOL — label these stages explicitly
+
+Adopted 2026-08-27 after a day in which the same handful of mistakes cost
+more than every measurement combined. Each stage below exists because
+skipping it produced a specific wrong answer that day. Write the labels out;
+the point is that a missing stage becomes visible.
+
+### QUESTION
+
+**State the quantity, the population and the unit of observation.** Not "does
+handedness matter" but "does the opposing lineup's vs-hand strikeout rate
+predict this starter's strikeout residual, per start, over 2026."
+
+Today's failure: "does the model differentiate pitchers" was answered with a
+regression over STARTS, which is matchup differentiation — a start's
+prediction moves with the pitcher, the lineup, the park and the hook. The
+pitcher-level version is a different regression and gave a different, cleaner
+answer. Ambiguity in the question produced a confident answer to a question
+nobody asked.
+
+### HYPOTHESIS
+
+**State it before running, name the CHANNEL you expect it in, and say what
+would falsify it.** A mechanism has to be aimed somewhere.
+
+Today's failures: handedness was screened on strikeouts when the effect, if
+any, was on contact. Arsenal was aimed at strikeouts six times out of eight,
+which is exactly where its double counting is worst. Both were "tested" for
+years against the wrong channel.
+
+### TEST
+
+Four things, and each has burned a day here:
+
+  * **STATE THE POWER FIRST.** If the run cannot resolve the effect size
+    being looked for, it is a plumbing check — does the code run, do the arms
+    differ, did the flag arrive — and its NUMBER IS NOT REPORTABLE. Four
+    small-n results reversed on 2026-08-27, one of them stated flatly as a
+    win two minutes before it flipped.
+  * **NAME THE DENOMINATOR.** Per plate appearance, per ball in play, per
+    opportunity-in-the-state-the-code-actually-rolls-in. Three denominator
+    errors in one script that day, each producing a confident wrong table.
+  * **POSITIVE CONTROL.** Amplify the effect 3-6x and confirm the harness
+    sees it. A null on an unchecked instrument means nothing — arsenal had
+    eight of those before anyone amplified it and found the harness fires at
+    +113 sigma.
+  * **LEAVE-ONE-OUT MECHANICALLY, NOT BY ARGUMENT.** A docstring reasoning
+    the leak away is not a leave-one-out. In-sample handedness read +3.5
+    sigma and went to -2.3 when the start left its own predictor.
+
+### EVALUATE
+
+  * **READ THE CONTROL BEFORE THE RESULT.** If it did not fire, stop.
+  * **A UNIFORM PERCENTAGE ERROR ACROSS INDEPENDENT CHANNELS IS A
+    DENOMINATOR**, never a set of rate bugs. Nothing moves strikeouts, walks,
+    hits and home runs by the same 8%.
+  * **DOES THE RESULT LOCALISE TO WHAT THE HYPOTHESIS NAMED?** The home-run
+    slope of 2.36 was read as "pitcher home-run rates are over-shrunk", but
+    the predictor is a simulation output combining the pitcher's rate, the
+    nine batters' rates and the workload. It does not localise to the
+    pitcher, and asserting that it did was inference presented as
+    measurement.
+  * **A MONTE CARLO MEAN CARRIES ITS OWN NOISE**, and noise in a regression
+    PREDICTOR attenuates the slope. It is 55% of the predictor's variance at
+    40 draws and ~2% of the residual's — ask which one the question is about.
+
+### CONCLUSION
+
+**Separate what is ESTABLISHED from what is INFERRED, in the same breath.**
+And give the size in units that decide something — runs, or cents at the line
+— not only in sigma. A +2 sigma effect worth 0.02 runs is not a finding.
+
+Also: LEVEL errors ADD, SPREAD effects combine in QUADRATURE. Five 0.03-run
+spreads make 0.067, not 0.15.
+
+### NEXT STEPS
+
+**Name the ONE test that would resolve the largest remaining ambiguity**, not
+a list. If the conclusion contains an inference, the next step is the test
+that would turn it into a measurement.
+
+### AND THE RULE THAT PROMPTED ALL OF THIS
+
+**WHEN A NEW NUMBER CONTRADICTS AN EARLIER ONE, DO NOT ACT. CHECK WHETHER
+THEY MEASURE THE SAME THING.** On 2026-08-27 three positions were taken in
+two minutes — home runs are over-shrunk, then the reliability measurement
+says shrink harder, then a reporting bug — each pivoting on the newest number.
+Two of those three were not in conflict at all: a split-half reliability of a
+RATE and a regression slope on a SIMULATION OUTPUT are different quantities,
+and the second does not refute the first. Thrashing between them looked like
+rigour and was the opposite.

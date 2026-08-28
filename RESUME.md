@@ -381,6 +381,70 @@ roster spots moved a headline edge by half. Worth building: treat the
 projected lineup as an uncertainty to be propagated rather than an input to
 be trusted, and flag any edge whose size depends on unconfirmed names.
 
+## THE INVESTIGATION PROTOCOL — USE IT, AND LABEL THE STAGES
+
+Adopted 2026-08-27. Full version with the failure behind each rule is at the
+END of `NOTES-context-layer.md`. Write the labels out explicitly — the point
+is that a missing stage becomes visible.
+
+    QUESTION    the quantity, the population, and the UNIT OF OBSERVATION.
+                "differentiates pitchers" was answered with a regression over
+                STARTS, which is a different question with a different answer.
+
+    HYPOTHESIS  stated BEFORE running, naming the CHANNEL it should appear in
+                and what would falsify it. Handedness was screened on
+                strikeouts when the effect was on contact; arsenal was aimed
+                at strikeouts six times out of eight.
+
+    TEST        - STATE THE POWER FIRST. A run chosen for speed is a plumbing
+                  check and its NUMBER IS NOT REPORTABLE.
+                - NAME THE DENOMINATOR.
+                - POSITIVE CONTROL: amplify 3-6x, confirm the harness sees it.
+                - LEAVE-ONE-OUT MECHANICALLY, not by argument.
+
+    EVALUATE    read the control first. A uniform % error across independent
+                channels is a DENOMINATOR. Ask whether the result LOCALISES
+                to what the hypothesis named. Remember a Monte Carlo mean
+                carries its own noise.
+
+    CONCLUSION  separate ESTABLISHED from INFERRED in the same breath, and
+                give the size in RUNS or CENTS, not only in sigma.
+
+    NEXT STEPS  the ONE test that resolves the largest remaining ambiguity.
+
+**WHEN A NEW NUMBER CONTRADICTS AN EARLIER ONE, DO NOT ACT — CHECK WHETHER
+THEY MEASURE THE SAME THING.** Three positions were taken in two minutes on
+the home-run question and two of them were never in conflict: a split-half
+reliability of a RATE and a regression slope on a SIMULATION OUTPUT are
+different quantities.
+
+## THE OPEN HOME-RUN QUESTION, STATED IN THE PROTOCOL'S TERMS
+
+QUESTION    Where is the model's home-run compression? Its HR predictions are
+            2.36x too bunched across pitchers (+10 sigma, pitcher-level,
+            minimal noise correction).
+HYPOTHESIS  It is `STABILISE_MEASURED["pit"]["hr_pct"] = 934`, which leaves a
+            600-batter pitcher holding 39% of his own rate.
+STATUS      **NOT ESTABLISHED — this is inference, not measurement.** The
+            predictor is a simulation output combining the pitcher's rate,
+            the NINE BATTERS' rates and the workload, so a compressed output
+            does not localise to the pitcher. Batters carry only 0.73 of
+            observed HR spread. And `stabilise` measures pitcher HR as the
+            LEAST reliable stat on the board (split-half 0.108, implied k
+            2130), which argues for MORE shrinkage, not less.
+NEXT TEST   Sweep BATTER HR shrinkage and PITCHER HR shrinkage SEPARATELY on
+            the holdout. Pitcher-only helps -> k=934 is the culprit.
+            Batter-only helps -> it is k=160 on the hitters. Neither ->
+            the compression is elsewhere, and PARK is the obvious candidate
+            since `USE_PARK` is False and park is a large home-run effect the
+            model does not represent at all.
+
+NOTE a reporting bug found alongside: `stabilise.report()` prints its
+"k shipped" column against the OLD imported `STABILISE` dict, not against
+`STABILISE_MEASURED`, which is what actually ships. Its comparison column is
+therefore stale for pitchers — measured 132/165/2130 against IN USE 57/138/934,
+so all three read as under-shrunk rather than over-.
+
 ## ARSENAL IS HARMFUL, NOT NULL — AND THE INSTRUMENT IS NOW VALIDATED
 
 Nine attempts. The first eight had no positive control, were scored on runs,
