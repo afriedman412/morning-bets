@@ -620,7 +620,10 @@ def _load_seasons(season: int, back: int, lg_now: dict) -> list:
         # caller and `_LOADING` blocks the lazy path for the duration.
         # Otherwise a season's prior would be built out of the previous
         # prior, compounding three seasons into nine.
-        raw = pitcher_rates(lg_prior, yr)
+        # RAW when `USE_RAW_PRIOR`: these rates become the shrink TARGET
+        # and `shrink_target` shrinks them once against their own effective
+        # sample. Shrinking them here too is the double count.
+        raw = pitcher_rates(lg_prior, yr, shrink=not USE_RAW_PRIOR)
         if raw:
             parts.append((k + 1, _prior_adjusted(raw, lg_prior, lg_now)))
     return parts
@@ -707,9 +710,53 @@ def _prior_adjusted(prior: dict, lg_prior: dict, lg_now: dict) -> dict:
     return out
 
 
+#: Build the PRIOR from raw season rates instead of already-shrunk ones.
+#:
+#: THE DEFECT. `_load_seasons` calls `pitcher_rates(lg_prior, yr)`, which
+#: returns rates ALREADY SHRUNK toward the league. `shrink_target` then
+#: shrinks that result toward the league AGAIN with the same constant.
+#: Shrinking an estimate twice toward the same mean discards evidence, and
+#: it bites in proportion to `k`, so it is nearly invisible on strikeouts
+#: and severe on home runs. Measured over 181 arms, the share of a shipped
+#: rate that traces to the pitcher rather than to the league:
+#:
+#:     stat        k    as shipped   pooled once    gain
+#:     k_pct      57       0.969        0.943      -0.026
+#:     bb_pct    138       0.894        0.883      -0.011
+#:     babip    3068       0.497        0.537      +0.040
+#:     hr_pct    934       0.418        0.568      +0.151
+#:
+#: A pitcher's four-year home-run record arrives flattened to a sixth of its
+#: real spread — target sd 0.0012 against a raw 0.0073.
+#:
+#: IT IS WORTH ABOUT 0.044 RUNS, under the 0.05 leverage floor, so this is a
+#: correctness change and not an edge.
+#:
+#: **SCORED AND IT LOSES. OFF, AND NOT BECAUSE THE DEFECT IS IMAGINARY.**
+#: Paired F5 CRPS over four salts, `scratchpad/rawprior_ab.py`:
+#:
+#:     per salt, shipped      1.64694  1.62432  1.63189  1.65550
+#:     per salt, shrunk once  1.64780  1.63044  1.64751  1.67064
+#:     paired difference      +0.00944 +/- 0.00359   z +2.6, 4/4 positive
+#:
+#: The double shrink is wrong as a Bayesian construction and is
+#: EMPIRICALLY BETTER than shrinking once, which means it is compensating
+#: for something. The candidate is `_blend_priors` setting the prior's `pa`
+#: to the raw sum of decayed plate appearances: that OVERSTATES its
+#: predictive weight, because a season-old rate is worth less than its
+#: sample implies once talent has had a year to move. `PRIOR_DECAY` already
+#: discounts the RATE for that and nothing discounts the SAMPLE.
+#:
+#: So the fix is not this one. It is to shrink ONCE against a DISCOUNTED
+#: effective sample, and the size of that discount is a measurement nobody
+#: has made. Kept switchable with the negative recorded rather than
+#: deleted, because the defect it names is real.
+USE_RAW_PRIOR = False
+
+
 def pitcher_rates(
     lg: dict, season: int | None = None, before: str | None = None,
-    conn=None, prior: dict | None = None,
+    conn=None, prior: dict | None = None, shrink: bool = True,
 ) -> dict[str, dict]:
     """{player_name: rates} for every pitcher with a line on record.
 
@@ -743,6 +790,16 @@ def pitcher_rates(
         return shrink_target(row["name"], _team_of.get(row["name"]), stat,
                              lg, prior, dfn)
 
+    def _s(observed, target, n, stat):
+        """`_shrink`, or the raw rate when this call is building a PRIOR.
+
+        A prior season is shrunk ONCE, by `shrink_target`, against its own
+        effective sample. Shrinking it here as well is the double count.
+        """
+        if shrink:
+            return _shrink(observed, target, n, stat, who="pit")
+        return target if (observed is None or n <= 0) else observed
+
     out = {}
     for r in rows:
         bf = (r["o"] or 0) + (r["h"] or 0) + (r["bb"] or 0)
@@ -753,19 +810,16 @@ def pitcher_rates(
             "name": r["name"],
             "pa": bf,
             "apps": r["apps"],
-            "k_pct": _shrink((r["k"] or 0) / bf, _t(r, "k_pct"), bf,
-                             "k_pct", who="pit"),
-            "bb_pct": _shrink((r["bb"] or 0) / bf, _t(r, "bb_pct"), bf,
-                              "bb_pct", who="pit"),
-            "hr_pct": _shrink((r["hr"] or 0) / bf, _t(r, "hr_pct"), bf,
-                              "hr_pct", who="pit"),
+            "k_pct": _s((r["k"] or 0) / bf, _t(r, "k_pct"), bf, "k_pct"),
+            "bb_pct": _s((r["bb"] or 0) / bf, _t(r, "bb_pct"), bf, "bb_pct"),
+            "hr_pct": _s((r["hr"] or 0) / bf, _t(r, "hr_pct"), bf, "hr_pct"),
             # NEUTRALISED: what he would have allowed behind an average
             # defence. `game.build_side` puts tonight's defence back on.
-            "babip": _shrink(
+            "babip": _s(
                 ((((r["h"] or 0) - (r["hr"] or 0)) / bip)
                  + defence_delta(_team_of.get(r["name"]), season))
                 if bip > 0 else None,
-                _t(r, "babip"), max(bip, 0), "babip", who="pit"),
+                _t(r, "babip"), max(bip, 0), "babip"),
             "raw_k_pct": (r["k"] or 0) / bf,
         }
     return out

@@ -5057,3 +5057,38 @@ and it is everything AFTER the restore that is quietly wrong.
 Mitigation when mutating by script: clear `__pycache__` after restoring, or
 keep the byte count different, or `sleep 1`. `scratchpad/mutate.py` refuses
 to run on a dirty tree, which is a different guard and does not cover this.
+
+### THE DOUBLE-SHRUNK PRIOR — FIXED, SCORED, AND IT LOSES
+
+The defect is real and was written up this morning: `_load_seasons` calls
+`pitcher_rates`, which returns rates ALREADY shrunk toward the league, and
+`shrink_target` shrinks them again with the same constant. Built behind
+`USE_RAW_PRIOR`, which reaches the prior — home-run spread across 2,068 arms
+goes 0.00159 double-shrunk to 0.05048 raw.
+
+    paired F5 CRPS, 25 sims x 4 salts, cut 2026-07-01
+      per salt, shipped      1.64694  1.62432  1.63189  1.65550
+      per salt, shrunk once  1.64780  1.63044  1.64751  1.67064
+      paired difference      +0.00944 +/- 0.00359   z +2.6, 4/4 positive
+
+**HYPOTHESIS WAS NEUTRAL AND THE FALSIFIER WAS NAMED IN ADVANCE:** "a clear
+loss would say the double shrink is absorbing a real defect somewhere else,
+which is worth knowing before shipping." That is what happened.
+
+**THE DOUBLE SHRINK IS WRONG AND EMPIRICALLY BETTER, SO IT IS COMPENSATING
+FOR SOMETHING.** The candidate is `_blend_priors` setting the prior's `pa`
+to the raw sum of decayed plate appearances. That OVERSTATES its predictive
+weight: a season-old rate is worth less than its sample implies once talent
+has had a year to move. `PRIOR_DECAY` already discounts the RATE for exactly
+that and NOTHING DISCOUNTS THE SAMPLE, so the second shrink was standing in
+for the missing discount.
+
+So the fix is not this one. It is to shrink ONCE against a DISCOUNTED
+effective sample, and the size of that discount has never been measured.
+Kept switchable with the negative recorded rather than deleted, because the
+defect it names is real and the replacement is a measurement away.
+
+**AND IT IS A CLEAN INSTANCE OF THE RULE THAT MATTERS MOST HERE.** A
+correctness argument said the change had to be right. The score said
+otherwise, and the score is what settles. Reasoning from construction alone
+would have shipped a 2.6-sigma regression on the stated product.

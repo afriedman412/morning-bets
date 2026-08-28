@@ -746,3 +746,31 @@ def check_the_handedness_flag_stays_off_because_it_makes_things_worse():
     i = src.index("USE_HANDEDNESS = False")
     assert "MAKES THE MODEL WORSE" in src[:i], \
         "the measurement must stay next to the flag"
+
+
+def check_the_raw_prior_flag_reaches_the_prior():
+    """A flag that changes nothing is the failure mode this file exists for.
+
+    `USE_RAW_PRIOR` ships OFF after losing on F5, and an inert switch and a
+    switch with a measured negative look identical from the outside. The
+    prior's home-run spread is the quantity it moves, and it moves it by a
+    factor of thirty — double-shrinking flattens a pitcher's multi-season
+    record to almost nothing.
+    """
+    import statistics as st
+    from src.context import sim
+    from src.context.sources import rates as rate_src
+
+    was = rate_src.USE_RAW_PRIOR
+    lg = sim.league()
+    try:
+        out = {}
+        for flag in (False, True):
+            rate_src.USE_RAW_PRIOR = flag
+            rate_src._PRIOR, rate_src._PRIOR_FOR = {}, None
+            p = rate_src._ensure_prior(2026)
+            out[flag] = st.pstdev([v["hr_pct"] for v in p.values()])
+        assert out[True] > out[False] * 5, out
+    finally:
+        rate_src.USE_RAW_PRIOR = was
+        rate_src._PRIOR, rate_src._PRIOR_FOR = {}, None

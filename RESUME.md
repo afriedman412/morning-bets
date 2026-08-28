@@ -24,6 +24,15 @@ it: 57 was BELOW the imported all-players 70.
 the outcome sweep says both are worse (-2.7, -2.6). That specificity is the
 control: the harness is not simply preferring more shrinkage.
 
+**THE DOUBLE-SHRUNK PRIOR WAS FIXED AND IT LOST — `USE_RAW_PRIOR` IS OFF.**
+Paired F5 CRPS +0.00944 +/- 0.00359, z +2.6, 4/4 salts. The double shrink is
+wrong as a construction and better in practice, so it is COMPENSATING: the
+prior's `pa` is the raw sum of decayed plate appearances, which overstates
+its predictive weight. `PRIOR_DECAY` discounts the RATE and nothing
+discounts the SAMPLE. The real fix is one shrink against a DISCOUNTED
+sample, and that discount has never been measured. Do not re-run the naive
+version.
+
 **RECORDED, NOT FIXED — THE PRIOR IS SHRUNK TWICE.** `_load_seasons` loads
 prior seasons through `pitcher_rates`, which already shrank them, and
 `shrink_target` shrinks the result again with the same constant. Bites in

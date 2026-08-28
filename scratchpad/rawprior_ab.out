@@ -1,0 +1,13 @@
+  25 sims per side x 4 salts, cut 2026-07-01
+
+                       CRPS    runs     sd  shutout  5+ runs  covered5
+  double-shrunk (shipped)  1.64694    2.40   2.22    21.4%    16.4%     68.7%
+  shrunk once       1.64780    2.39   2.21    21.6%    16.4%     68.9%
+  ACTUAL                       2.44   2.32    22.0%    17.6%     74.1%
+
+  per salt, shipped:     1.64694 1.62432 1.63189 1.65550
+  per salt, shrunk once: 1.64780 1.63044 1.64751 1.67064
+
+  paired CRPS difference, NEGATIVE = the fix wins
+    +0.00944 +/- 0.00359   z +2.6
+    noise floor 0.01224
