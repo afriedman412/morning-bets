@@ -124,7 +124,8 @@ def check_measured_advancement_reaches_the_simulated_inning():
         sim.USE_MEASURED_ADVANCEMENT = flag
         try:
             rng = random.Random(7)
-            return sum(sim._advance([False, True, False], sim.B1, rng, 1)
+            return sum(sim._advance([None, True, None],
+                                    sim.B1, rng, 1)[0]
                        for _ in range(n)) / n
         finally:
             sim.USE_MEASURED_ADVANCEMENT = prev

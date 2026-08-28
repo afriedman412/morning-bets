@@ -4388,3 +4388,40 @@ NOT SHIPPED YET: +2.0 sigma on one channel out of sample is at the bar, and
 the change should be a home-run-specific constant rather than a global
 factor. Recorded with the holdout numbers so the next session does not have
 to re-derive the leak.
+
+### The bases carry RUNNER IDENTITY — per-hitter attribution is now possible
+
+`Frame.bases` held three booleans, so the model knew THAT a bag was occupied
+and never WHO was on it. No run could be credited to whoever scored it or
+drove it in, which is why "does Judge take the run share he should" was
+recorded as unanswerable.
+
+The bases now hold a runner TOKEN or None. Truthiness is unchanged so every
+occupancy test reads the same; `sum(bases)` would add strings, so counting
+goes through `_n`. `_advance` returns `(runs, scorers)` and `_credit` records
+`StartResult.scored_by` and `.rbi_by`, which stay empty unless a batter is
+passed. `game._half_inning` passes `side.lineup[slot].name`.
+
+**BIT-IDENTICAL, verified in isolation**: fingerprint
+f0778667206fe5ce57dba06fa4a432a2 before and after, 400 games x 6 sims. (The
+earlier 5bdcf78e is pre-steal-table; that fingerprint moved for the steal
+work, not for this.) Attribution populates: 18 distinct batters credited over
+200 sims of one game.
+
+THREE BUGS THE TEST SUITE CAUGHT, all of which would have changed the game
+rather than just the bookkeeping:
+
+  1. A batter who reaches must OCCUPY THE BAG EVEN IF UNNAMED. Writing
+     `None` to first when no batter is passed DELETED him from the base
+     state. `True` is the unnamed token — truthy for occupancy, skipped by
+     attribution. The bases-loaded walk check failed immediately.
+  2. `STEAL_TABLE` is keyed on boolean occupancy tuples, and `tuple(bases)`
+     is now `('Judge', None, None)`, which matches no key — steals stopped
+     happening entirely. Keyed on `tuple(bool(b) for b in bases)`.
+  3. Tests comparing whole base states to `[False, True, True]` were
+     asserting the TOKEN TYPE, not occupancy. They now go through `_occ`.
+
+WHAT IS STILL MISSING: reliever lines are discarded on each arm change
+(`cur_line = StartResult()`), so a whole-side per-batter tally needs the
+lines merged before they are dropped. The starter's innings are covered,
+which is most of them and matches how everything else here is scored.

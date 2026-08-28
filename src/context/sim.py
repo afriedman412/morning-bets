@@ -1735,41 +1735,72 @@ def rules(**overrides):
         globals().update(prev)
 
 
-def _advance(bases: list[bool], outcome: str, rng: random.Random,
-             outs: int = 0) -> int:
-    """Mutate `bases` for a hit, walk or productive out. Returns runs.
+def _n(bases, lo=0) -> int:
+    """Occupied bases from `lo` on. `bases` holds RUNNER TOKENS, not bools,
+    so `sum()` no longer counts them."""
+    return sum(1 for b in bases[lo:] if b)
+
+
+def _advance(bases: list, outcome: str, rng: random.Random,
+             outs: int = 0, batter=None) -> tuple:
+    """Mutate `bases` for a hit, walk or productive out. -> (runs, scorers).
 
     Lead runner first, so a runner held at third does not collide with one
     arriving there from first. Doing it in batting order instead is the
     obvious-looking version and it silently overwrites.
+
+    BASES CARRY RUNNER IDENTITY as of 2026-08-27 — a token per occupied bag
+    rather than a boolean. Truthiness is unchanged so every occupancy test
+    still reads the same, but `sum(bases)` would now add strings, so counting
+    goes through `_n`. The arithmetic and the order of random draws are
+    untouched: this is bit-identical and adds only the ability to say WHO
+    scored, which nothing here could do before.
     """
     runs = 0
+    scorers = []
+    # A BATTER WHO REACHES STILL OCCUPIES THE BAG EVEN IF UNNAMED. Callers
+    # that do not pass a batter — every test, and anything using `apply_pa`
+    # directly — must get the old behaviour exactly, and putting `None` on
+    # first would DELETE him from the base state. `True` is the unnamed
+    # token: truthy for every occupancy test, and attribution simply skips
+    # it. The bases-loaded walk check caught this immediately.
+    runner = True if batter is None else batter
     if outcome == HR:
-        runs = 1 + sum(bases)
-        bases[:] = [False, False, False]
+        runs = 1 + _n(bases)
+        scorers = [b for b in bases if b] + [batter]
+        bases[:] = [None, None, None]
     elif outcome == B3:
-        runs = sum(bases)
-        bases[:] = [False, False, True]
+        runs = _n(bases)
+        scorers = [b for b in bases if b]
+        bases[:] = [None, None, runner]
     elif outcome == B2:
-        runs = sum(bases[1:])                       # 2nd and 3rd both score
+        runs = _n(bases, 1)                         # 2nd and 3rd both score
+        scorers = [b for b in bases[1:] if b]
         from_first_scores = bases[0] and rng.random() < _rate(
             FIRST_SCORES_ON_2B if USE_MEASURED_ADVANCEMENT
             else LEGACY_ADVANCEMENT["FIRST_SCORES_ON_2B"], outs)
-        runs += 1 if from_first_scores else 0
-        bases[:] = [False, True, bool(bases[0]) and not from_first_scores]
+        if from_first_scores:
+            runs += 1
+            scorers.append(bases[0])
+        bases[:] = [None, runner,
+                    bases[0] if (bases[0] and not from_first_scores)
+                    else None]
     elif outcome == B1:
         second_scores = (SECOND_SCORES_ON_1B if USE_MEASURED_ADVANCEMENT
                          else LEGACY_ADVANCEMENT["SECOND_SCORES_ON_1B"])
         to_third = (FIRST_TO_THIRD_ON_1B if USE_MEASURED_ADVANCEMENT
                     else LEGACY_ADVANCEMENT["FIRST_TO_THIRD_ON_1B"])
         runs = 1 if bases[2] else 0                 # third always scores
-        third = False
+        if bases[2]:
+            scorers.append(bases[2])
+        third = None
         if bases[1]:
             if rng.random() < _rate(second_scores, outs):
                 runs += 1
+                scorers.append(bases[1])
             else:
-                third = True
-        on_first = bool(bases[0])
+                third = bases[1]
+        on_first = bases[0]
         if on_first and not third:
             # ONE DRAW, CUMULATIVE THRESHOLDS. Scoring from first and
             # stopping at third are disjoint outcomes in the data they were
@@ -1783,20 +1814,29 @@ def _advance(bases: list[bool], outcome: str, rng: random.Random,
                        if USE_MEASURED_ADVANCEMENT else 0.0)
             if r < score_p:
                 runs += 1
-                on_first = False
+                scorers.append(on_first)
+                on_first = None
             elif r < score_p + _rate(to_third, outs):
-                third = True
-                on_first = False
-        bases[:] = [True, on_first, third]
+                third = on_first
+                on_first = None
+        bases[:] = [runner, on_first, third]
     elif outcome == BB:
+        # A walk forces only where every bag behind is occupied.
         if bases[0] and bases[1] and bases[2]:
             runs = 1
+            scorers.append(bases[2])
+            bases[2] = bases[1]
+            bases[1] = bases[0]
+            bases[0] = runner
         elif bases[0] and bases[1]:
-            bases[2] = True
+            bases[2] = bases[1]
+            bases[1] = bases[0]
+            bases[0] = runner
         elif bases[0]:
-            bases[1] = True
+            bases[1] = bases[0]
+            bases[0] = runner
         else:
-            bases[0] = True
+            bases[0] = runner
     elif outcome == OUT and not USE_MEASURED_ADVANCEMENT:
         # LEGACY: one coin flip, everybody moves together.
         if rng.random() < _rate(RUNNER_ADVANCES_ON_OUT, outs):
@@ -1811,14 +1851,15 @@ def _advance(bases: list[bool], outcome: str, rng: random.Random,
         # is a different play from the one that happens.
         if bases[2] and rng.random() < _rate(ADVANCE_3B_ON_OUT, outs):
             runs += 1                               # sacrifice fly
-            bases[2] = False
+            scorers.append(bases[2])
+            bases[2] = None
         if (bases[1] and not bases[2]
                 and rng.random() < _rate(ADVANCE_2B_ON_OUT, outs)):
-            bases[1], bases[2] = False, True
+            bases[1], bases[2] = None, bases[1]
         if (bases[0] and not bases[1]
                 and rng.random() < _rate(ADVANCE_1B_ON_OUT, outs)):
-            bases[0], bases[1] = False, True
-    return runs
+            bases[0], bases[1] = None, bases[0]
+    return runs, scorers
 
 
 @dataclass
@@ -1886,6 +1927,12 @@ class StartResult:
     #: relief scoring by about half.
     left_on_base: int = 0
     outs_when_pulled: int = 0
+    #: Per-batter attribution, empty unless `apply_pa` is given a
+    #: batter. Before 2026-08-27 the bases held booleans, so the
+    #: model knew THAT someone was on and never WHO — no run could
+    #: be credited to whoever scored it or drove it in.
+    scored_by: dict = field(default_factory=dict)
+    rbi_by: dict = field(default_factory=dict)
     wp_pb: int = 0
 
 
@@ -1921,11 +1968,11 @@ class Frame:
 
     def __post_init__(self):
         if self.bases is None:
-            self.bases = [False, False, False]
+            self.bases = [None, None, None]
 
     @property
     def on_base(self) -> int:
-        return sum(self.bases)
+        return _n(self.bases)
 
 
 def _score(r: StartResult, fr: Frame, runs: int) -> None:
@@ -1941,7 +1988,27 @@ def _score(r: StartResult, fr: Frame, runs: int) -> None:
         r.earned += runs
 
 
-def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random) -> None:
+def _credit(r: StartResult, fr: Frame, advanced: tuple, batter) -> None:
+    """Score the runs AND record who scored them and who drove them in.
+
+    `_score` stays the single place runs are credited to the line; this adds
+    the attribution beside it so the two can never disagree about how many.
+    Tallies are plain dicts on the line and are empty unless batters were
+    passed in, so nothing that calls `apply_pa` without a batter changes.
+    """
+    runs, scorers = advanced
+    _score(r, fr, runs)
+    if not runs:
+        return
+    for who in scorers:
+        if who is not None and who is not True:
+            r.scored_by[who] = r.scored_by.get(who, 0) + 1
+    if batter is not None:
+        r.rbi_by[batter] = r.rbi_by.get(batter, 0) + runs
+
+
+def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random,
+             batter=None) -> None:
     """Apply one plate-appearance outcome. Mutates `r` and `fr`.
 
     EXTRACTED so the two engines could not drift apart, and it is why
@@ -1978,7 +2045,7 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random) -> None:
             bases[:] = [False, bases[0], bases[1]]
     elif o == HBP:
         r.hbp += 1
-        _score(r, fr, _advance(bases, BB, rng, outs_before))  # forces
+        _credit(r, fr, _advance(bases, BB, rng, outs_before, batter), batter)
     elif o == ROE:
         # No hit, no out, batter on first — and every run after this in the
         # inning is unearned. The out that did not happen is the reason an
@@ -1986,7 +2053,7 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random) -> None:
         # occupied.
         r.roe += 1
         fr.errored = True
-        _score(r, fr, _advance(bases, B1, rng, outs_before))
+        _credit(r, fr, _advance(bases, B1, rng, outs_before, batter), batter)
     elif o == K:
         r.k += 1
         fr.outs += 1
@@ -2006,7 +2073,7 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random) -> None:
             # crediting it would inflate runs in exactly the innings that
             # ended badly.
             if fr.outs < 3:
-                _score(r, fr, _advance(bases, OUT, rng, outs_before))
+                _credit(r, fr, _advance(bases, OUT, rng, outs_before, batter), batter)
     else:
         if o == BB:
             r.bb += 1
@@ -2014,7 +2081,7 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random) -> None:
             r.h += 1
             if o == HR:
                 r.hr += 1
-        _score(r, fr, _advance(bases, o, rng, outs_before))
+        _credit(r, fr, _advance(bases, o, rng, outs_before, batter), batter)
 
 
 
@@ -2097,7 +2164,11 @@ def baserunning(r: StartResult, fr: Frame, rng: random.Random) -> None:
                 bases[0], bases[1] = False, True
                 r.stolen_bases += 1
         return
-    row = STEAL_TABLE.get((tuple(bases), fr.outs))
+    # OCCUPANCY, not the tokens. `bases` holds runner identity now, so
+    # `tuple(bases)` is ('Judge', None, None) and would never match a
+    # key written as (True, False, False) — steals silently stopped
+    # happening at all, which the steal check caught.
+    row = STEAL_TABLE.get((tuple(bool(b) for b in bases), fr.outs))
     if row is None:
         return
     sb_r, cs_r, to_third = row

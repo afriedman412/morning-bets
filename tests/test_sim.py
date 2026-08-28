@@ -102,6 +102,13 @@ def check_log5_monotone_in_batter():
 
 
 # ── plate appearance ───────────────────────────────────────────────────
+def _occ(bases):
+    """Which bags are occupied. `sim` bases carry RUNNER IDENTITY as of
+    2026-08-27 — a token or None rather than a bool — and these checks are
+    about occupancy, not about what kind of object marks it."""
+    return [bool(b) for b in bases]
+
+
 def check_pa_outcomes_are_all_known_constants():
     rng = random.Random(3)
     seen = set()
@@ -174,23 +181,23 @@ def check_arsenal_multiplier_moves_contact_not_strikeouts():
 def check_home_run_clears_the_bases_and_scores_everyone():
     rng = random.Random(1)
     bases = [True, True, True]
-    runs = sim._advance(bases, sim.HR, rng)
+    runs, _who = sim._advance(bases, sim.HR, rng)
     assert runs == 4, runs
-    assert bases == [False, False, False], bases
+    assert _occ(bases) == [False, False, False], bases
 
 
 def check_walk_with_bases_loaded_forces_exactly_one_run():
     rng = random.Random(1)
     bases = [True, True, True]
-    assert sim._advance(bases, sim.BB, rng) == 1
-    assert bases == [True, True, True]
+    assert sim._advance(bases, sim.BB, rng)[0] == 1
+    assert _occ(bases) == [True, True, True], bases
 
 
 def check_walk_with_a_gap_forces_nobody():
     rng = random.Random(1)
     bases = [False, True, False]
-    assert sim._advance(bases, sim.BB, rng) == 0
-    assert bases == [True, True, False], bases
+    assert sim._advance(bases, sim.BB, rng)[0] == 0
+    assert _occ(bases) == [True, True, False], bases
 
 
 def check_double_does_not_strand_the_runner_from_first_on_third_always():
@@ -202,12 +209,12 @@ def check_double_does_not_strand_the_runner_from_first_on_third_always():
     for seed in range(400):
         rng = random.Random(seed)
         bases = [True, False, False]
-        r = sim._advance(bases, sim.B2, rng)
+        r, _who = sim._advance(bases, sim.B2, rng)
         if r:
             scored += 1
         else:
             held += 1
-            assert bases == [False, True, True], bases
+            assert _occ(bases) == [False, True, True], bases
     assert scored > 0 and held > 0, (scored, held)
 
 
@@ -215,7 +222,7 @@ def check_runner_on_third_always_scores_on_a_single():
     for seed in range(50):
         rng = random.Random(seed)
         bases = [False, False, True]
-        assert sim._advance(bases, sim.B1, rng) >= 1
+        assert sim._advance(bases, sim.B1, rng)[0] >= 1
 
 
 def check_advance_never_produces_negative_or_impossible_runs():
@@ -224,7 +231,7 @@ def check_advance_never_produces_negative_or_impossible_runs():
         bases = [rng.random() < 0.4 for _ in range(3)]
         before = sum(bases)
         o = rng.choice([sim.B1, sim.B2, sim.B3, sim.HR, sim.BB, sim.OUT])
-        runs = sim._advance(list(bases), o, rng)
+        runs, _who = sim._advance(list(bases), o, rng)
         assert 0 <= runs <= before + 1, (bases, o, runs)
 
 
@@ -1418,7 +1425,8 @@ def check_advance_actually_uses_the_out_count():
         n = 0
         for seed in range(600):
             bases = [False, True, False]      # runner on second
-            n += sim._advance(bases, sim.B1, random.Random(seed), outs)
+            n += sim._advance(bases, sim.B1,
+                              random.Random(seed), outs)[0]
         scored[outs] = n / 600
     assert scored[2] > scored[0] + 0.20, scored
 
