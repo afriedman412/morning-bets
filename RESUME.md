@@ -57,7 +57,34 @@ arm. Three answers, in `scratchpad/offense.py`:
   +0.072 (z +2.7). Predicted sign was the opposite, so this is NOT clustering
   at the batter level.
 
-## THE RUN GAP: NOT THE BULLPEN, AND THE SEASONAL PART IS SMALL
+## THE SEASON IS A HOME-RUN EFFECT AND IT CLOSES THE RUN GAP — START HERE
+
+`scratchpad/month_league.py`. Measured on 2023-2025, applied to 2026:
+
+    arm                 model   actual      gap      rel
+    month OFF           4.229    4.403   -0.174    -3.9%
+    month ON            4.432    4.403   +0.029    +0.7%
+
+HR per batter faced swings 0.912 in April to 1.085 in August, replicates at
+r +0.82 to +0.95 across seasons, and BALLS IN PLAY ARE FLAT — it is a carry
+effect. Every holdout here trains April-June and scores July onward, so the
+rates are COLD and the games are HOT: applied factor 1.12.
+
+**DO NOT SHIP IT YET.** (1) It is a LEVEL result and `fitf5.evaluate` cannot
+take a park, so it has never been scored on F5 CRPS — the dispersion term
+fixed a level too and ships inert. (2) Every scored month has a factor ABOVE
+one, so it only ever adds runs and the model was light; the falsifier needs
+rates trained hot and games played cold. (3) Walks have no park slot.
+
+**THE SEASONAL TERM IS NOT VISIBLE IN RUNS** — I measured runs-by-month
+first, found only May replicating, and advised against building this. Runs
+dilute a channel effect. Measure the CHANNEL.
+
+**IT MAY ALSO EXPLAIN THE PITCHER HR RELIABILITY CONTRADICTION** (stabilise
+2130 vs method-of-moments 946): seasonal environment enters observed HR
+spread as if it were talent, biasing the moments estimate low.
+
+## THE RUN GAP: NOT THE BULLPEN, AND THE SEASONAL PART IS SMALL (SUPERSEDED ABOVE)
 
 * **Uniform by inning.** 1-5 at -7.8%, 6+ at -8.1%. The F5-vs-full-game
   arithmetic that suggested relief carried 70% was comparing STARTER innings

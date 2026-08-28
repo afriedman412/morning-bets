@@ -5228,3 +5228,68 @@ year-to-year level drift for free. That is the version to test.
 
 MARCH IS EXCLUDED THROUGHOUT: 146 games in 2026 and a +0.516 outlier in
 2024. Four days of opening-day pitching is not a seasonal effect.
+
+### THE SEASON IS A HOME-RUN EFFECT, IT REPLICATES, AND IT CLOSES THE RUN GAP
+
+**BUILT AGAINST MY OWN RECOMMENDATION AND THE RECOMMENDATION WAS WRONG.** I
+measured the seasonal term on RUNS, found only May replicating, and advised
+against month dummies. Runs DILUTE a channel-specific effect. Measured on the
+home-run channel it is large and it replicates:
+
+    HR per batter faced, each season centred on its own mean
+    month     2023     2024     2025     2026     mean     se     z
+    04      0.9536   0.8844   0.8906   0.9183   0.9117 0.0158  -5.6
+    05      0.9690   0.9157   0.9531   0.9319   0.9424 0.0117  -4.9
+    06      0.9669   1.0164   1.0059   1.1398   1.0322 0.0374  +0.9
+    07      1.0323   1.1032   1.0551   1.0651   1.0639 0.0148  +4.3
+    08      1.0782   1.0803   1.0952   0.9450   1.0497 0.0351  +1.4
+
+    shape correlation  2023/2024 +0.82  2023/2025 +0.90  2024/2025 +0.95
+    pooled April vs August HR/BF   0.02789 -> 0.03222   +15.5%
+
+Strikeouts move a little (0.98-1.04) and BALLS IN PLAY ARE FLAT (0.996-1.004),
+so this is a carry effect and not a general offence effect. That is why the
+runs-by-month analysis was noisy and the channel version is not.
+
+**NEUTRALISE THEN APPLY, the pair park taught this project.** A rate already
+contains the months it was earned in, so the factor applied is the game's
+month over the training window's exposure-weighted mix. Trained before
+2026-07-01 that mix is hr 0.9498 — cold — and a July game asks for 1.0639,
+so the applied factor is 1.1204. Cold rates, hot games, in EVERY holdout
+this project runs.
+
+**SCORED OUT OF SAMPLE — factors from 2023-2025, applied to 2026:**
+
+    arm                 model   actual      gap      rel
+    month OFF           4.229    4.403   -0.174    -3.9%
+    month ON            4.432    4.403   +0.029    +0.7%
+    paired change      +0.2031 runs per team-game (se 0.0235)
+
+**IT CLOSES THE RUN-LEVEL GAP.** Largest single correction found on
+2026-08-28.
+
+**THREE THINGS THAT MUST HAPPEN BEFORE IT SHIPS.**
+
+  1. IT IS A LEVEL RESULT, NOT CRPS. A flat correction that fixes the level
+     and nothing else is precisely what the dispersion term did — calibration
+     moved, discrimination did not, and it ships inert. `fitf5.evaluate` does
+     not accept a park, so the F5 test needs a small change there.
+  2. EVERY SCORED MONTH HERE HAS A FACTOR ABOVE 1, so the correction only
+     ever ADDS runs and the model was light. It could be closing the gap for
+     a cheap reason. The falsifier is a window where the factor is BELOW one
+     — rates trained hot, games played cold — which needs prior-season rates
+     against 2026 April-May.
+  3. WALKS HAVE NO PARK SLOT, so a month's walk deviation is not applied.
+
+**AND IT REFRAMES THE PITCHER HOME-RUN RELIABILITY CONTRADICTION.** Three
+numbers disagreed — `stabilise` 2130, method of moments 946, the outcome
+sweep saying do not raise it. A seasonal swing this large adds variance to a
+pitcher's observed HR rate that is NOT talent: an arm who threw more of his
+innings in April looks like a low-homer pitcher. Method of moments counts
+that environment as talent and is therefore biased LOW, which is the
+direction of the disagreement. Re-measuring reliability on month-adjusted
+rates is the test that would reconcile them.
+
+**IT ALSO CONTAMINATES EVERY LEVEL REPORTED TODAY.** Each holdout trains
+April-June and scores July onward, so a ~10% home-run understatement sits
+inside all of them. The paired A/Bs cancel it; the levels do not.
