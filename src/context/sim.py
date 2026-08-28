@@ -756,67 +756,109 @@ def tto_mult(tto: int | None) -> dict | None:
 #: the same discipline the `odds_mult` migration used. Populating it is a
 #: separate change with its own measurement and its own A/B.
 #:
-#: NOT ALL FOUR CHANNELS. Only `k_pct`, `hr_pct` and `babip` are read here.
-#: WALKS have no `odds_mult` slot on `Matchup` at all and HIT-BY-PITCH is
-#: drawn off the top against `cond`, which would have to be recomputed in
-#: the same breath or the rates below it are renormalised by the wrong
-#: denominator. Both are on the list and neither is done here.
+#: HOME RUNS are the one channel absent, and on purpose — see below.
+#: `hbp_pct` joined on 2026-08-29 and is the reason `cond` is recomputed in
+#: `pa_from`: a hit batsman is drawn off the top, so scaling it without
+#: rescaling the renormaliser in the same breath leaves every rate below it
+#: divided by the wrong number.
 STATE_MULT: dict = {
-    (0, 0): {"k_pct": 0.9870, "bb_pct": 0.9667, "babip": 0.9773},
-    (0, 1): {"k_pct": 1.0331, "bb_pct": 0.9722, "babip": 0.9865},
-    (0, 2): {"k_pct": 1.0509, "bb_pct": 1.0076, "babip": 0.9848},
-    (1, 0): {"k_pct": 0.9411, "babip": 1.0376},
-    (1, 1): {"k_pct": 0.9798, "bb_pct": 1.0380, "babip": 1.0549},
-    (1, 2): {"k_pct": 0.9839, "bb_pct": 1.0688, "babip": 1.0039},
-    (2, 0): {"k_pct": 0.9575, "bb_pct": 0.9876, "babip": 1.0484},
-    (2, 1): {"k_pct": 0.9750, "bb_pct": 1.0035, "babip": 1.0392},
-    (2, 2): {"k_pct": 1.0093, "bb_pct": 1.0246, "babip": 0.9662},
-    (3, 0): {"k_pct": 0.9964, "bb_pct": 0.9698, "babip": 1.0211},
-    (3, 1): {"k_pct": 0.9886, "bb_pct": 0.9466, "babip": 1.0787},
-    (3, 2): {"k_pct": 0.9941, "bb_pct": 0.9824, "babip": 0.9658},
+    (0, 0): {"k_pct": 0.9849, "bb_pct": 0.9505, "babip": 0.9873,
+             "hbp_pct": 0.9397, "hr_pct": 1.0584},
+    (0, 1): {"k_pct": 1.0391, "bb_pct": 0.9605, "babip": 0.9781,
+             "hbp_pct": 0.9056, "hr_pct": 0.9938},
+    (0, 2): {"k_pct": 1.0706, "bb_pct": 1.0186, "babip": 0.9742,
+             "hbp_pct": 0.9109, "hr_pct": 0.9567},
+    (1, 0): {"k_pct": 0.9206, "bb_pct": 0.9907, "babip": 1.0553,
+             "hbp_pct": 1.1985, "hr_pct": 0.9977},
+    (1, 1): {"k_pct": 0.9611, "bb_pct": 1.0464, "babip": 1.0451,
+             "hbp_pct": 1.0718, "hr_pct": 0.9955},
+    (1, 2): {"k_pct": 0.9975, "bb_pct": 1.1037, "babip": 0.9952,
+             "hbp_pct": 0.9923, "hr_pct": 0.9742},
+    (2, 0): {"k_pct": 0.9289, "bb_pct": 0.9706, "babip": 1.0650,
+             "hbp_pct": 1.1102, "hr_pct": 1.0102},
+    (2, 1): {"k_pct": 0.9432, "bb_pct": 0.9708, "babip": 1.0360,
+             "hbp_pct": 1.2094, "hr_pct": 0.9421},
+    (2, 2): {"k_pct": 1.0207, "bb_pct": 1.1094, "babip": 0.9905,
+             "hbp_pct": 1.1450, "hr_pct": 0.9774},
+    (3, 0): {"k_pct": 0.9615, "bb_pct": 0.7812, "babip": 1.0294,
+             "hbp_pct": 0.9862, "hr_pct": 0.9899},
+    (3, 1): {"k_pct": 0.9845, "bb_pct": 0.7583, "babip": 1.0446,
+             "hbp_pct": 1.3148, "hr_pct": 0.9921},
+    (3, 2): {"k_pct": 1.0054, "bb_pct": 0.9857, "babip": 0.9647,
+             "hbp_pct": 1.1449, "hr_pct": 0.9945},
 }
 
 #: HOW THE TABLE ABOVE WAS BUILT, because "measured" has to be checkable.
 #:
-#: Counted on 150,275 plate appearances over 2,000 games of 2026
-#: (`scratchpad/state_table.py`), JOINTLY on (men on, outs) — the earlier
+#: Counted on 748,905 plate appearances over 9,978 games of 2023-2026
+#: (`scratchpad/state_seasons.py`), JOINTLY on (men on, outs) — the earlier
 #: tables varied one at a time and cannot separate them, since a two-out
 #: plate appearance is likelier to have runners on and vice versa.
+#:
+#: MULTIPLIERS ARE COMPUTED WITHIN A SEASON AND POOLED AFTERWARDS, and that
+#: ordering matters. The league drifts — 2023 struck out at 0.2299 against
+#: 2026's 0.2224 — so pooling raw COUNTS and taking one ratio lets a
+#: season's baseline leak into the cells. A ratio to that season's own
+#: overall rate is the quantity that is comparable across years.
 #:
 #: Each multiplier is the cell's rate over the OVERALL rate, which makes the
 #: table self-normalising: sum of freq(s) x rate(s) IS the overall rate by
 #: definition. Verified — the frequency-weighted mean came back 1.0000 on
-#: all four channels before shrinkage and is renormalised to exactly 1.0
-#: after it.
+#: every channel before shrinkage and is renormalised to exactly 1.0 after.
+#:
+#: GATED ON WHETHER A CELL REPEATS FROM YEAR TO YEAR, which is the check
+#: `advance.py` applies per club and FAILS. Correlation of the twelve cell
+#: multipliers between seasons, averaged over the six pairs:
+#:
+#:     stat       all 12    fat 8      tau   mean se   weight kept
+#:     k_pct       0.859    0.945   0.0437    0.0146       0.91
+#:     bb_pct      0.908    0.866   0.1121    0.0245       0.96
+#:     hr_pct      0.172    0.519   0.0272    0.0439       0.48
+#:     babip       0.432    0.850   0.0372    0.0154       0.88
+#:     hbp_pct     0.550    0.764   0.1606    0.0807       0.84
+#:
+#: THE TWO COLUMNS DISAGREE AND THE FAT ONE IS RIGHT. An unweighted
+#: correlation over twelve cells gives the three bases-loaded cells — 3,149
+#: plate appearances between them against 185,488 in the leadoff cell — the
+#: same vote as the cell that decides the channel, so their own noise reads
+#: as a channel that does not repeat. Restricted to the eight cells above
+#: 30,000 plate appearances, every channel repeats. A correlation over
+#: twelve points has se ~0.27 anyway; read the direction, not the decimal.
 #:
 #: THEN SHRUNK TOWARD 1.0 BY EACH CELL'S OWN BINOMIAL NOISE
 #: (`scratchpad/state_shrink.py`), tau^2 = observed variance minus mean
-#: noise variance. A cell seen 704 times must not shout as loudly as one
-#: seen 37,162 times.
+#: noise variance. A cell seen 3,149 times must not shout as loudly as one
+#: seen 185,488 times.
 #:
-#:     stat        tau    mean se   weight kept
-#:     k_pct    0.0281     0.0320       0.60
-#:     bb_pct   0.0523     0.0532       0.63
-#:     hr_pct   0.0000     0.0953       0.00   <- entirely noise
-#:     babip    0.0496     0.0338       0.77
+#: **HOME RUNS ARE BACK, AND THIS IS WHY THE RESCAN WAS WORTH DOING.** On
+#: 2026 alone their entire spread was their own sampling error, tau came
+#: back 0.0000 and the channel shipped as all-ones — correctly, on that
+#: data. On five times the data tau is 0.0272 and the channel keeps 48%:
+#: 1.058 with the bases empty and nobody out, falling to 0.942 at two on
+#: and one out. Ordinary baseball — a pitcher challenges a hitter with
+#: nobody aboard and works away from the barrel with men on. THE OLD NULL
+#: WAS NOT WRONG, IT WAS UNDERPOWERED, which is the distinction this
+#: project keeps having to relearn.
 #:
-#: **HOME RUNS COLLAPSED TO ALL-ONES AND ARE ABSENT ON PURPOSE.** Their
-#: whole spread across the twelve cells is explained by their own sampling
-#: error, so the shrinkage returns the null — which is the discipline
-#: working, not a gap. The raw table showed a tempting 0.797 at (2 on, 1
-#: out) and its standard error is 0.062 on a cell of 6,545.
-#:
-#: WHAT THE SURVIVING NUMBERS SAY, and both are ordinary baseball: with men
+#: WHAT THE OTHER NUMBERS SAY, and all of it is ordinary baseball: with men
 #: on, strikeouts fall and balls in play find more holes (the defence is
-#: holding runners). Walks rise with a man on and FALL with the bases loaded
-#: — 0.947 at (3, 1) — because a walk there forces in a run and nobody
-#: pitches around anyone. Strikeouts also rise with the out count
-#: independently of the bases, which is the effect the one-at-a-time tables
-#: were confounding with traffic.
+#: holding runners). Strikeouts rise with the out count independently of the
+#: bases, which is the effect the one-at-a-time tables confounded with
+#: traffic. Walks rise with a man on and COLLAPSE with the bases loaded —
+#: 0.781 and 0.758 at (3, 0) and (3, 1) — because a walk there forces in a
+#: run and nobody pitches around anyone. That effect was 0.970/0.947 on 2026
+#: alone and is one of the two the rescan sharpened most.
 #:
-#: HIT-BY-PITCH IS NOT HERE and is the largest relative effect measured
-#: (+23.0%). It is drawn off the top against `cond` and scaling it requires
-#: recomputing that renormaliser in the same breath. On the list.
+#: HIT-BY-PITCH is the other, and it has the largest tau of the five.
+#: Pitchers hit more batters with men on: all three empty cells sit at
+#: 0.906-0.940 and every occupied one bar (1, 2) is above 1.07, topping out
+#: at 1.31 with the bases loaded and one out. Working from the stretch, more
+#: breaking balls in the dirt, less margin to miss over the plate. It keeps
+#: 84% of its spread now against 36% on 2026 alone.
+#:
+#: WIRING IT REQUIRED `cond`. HBP is drawn off the top, so its rate is also
+#: the renormaliser for everything below it — see `pa_from`, where the two
+#: move together and cannot disagree.
 
 #: ON. Measured, shrunk, and scored on the SHAPE rather than the mean.
 #:
@@ -1005,24 +1047,40 @@ def pa_from(mu: Matchup, rng: random.Random, tto: int | None = None,
     # short-circuits on `m == 1.0` and returns its input untouched. That is
     # what makes the empty table bit-identical to the state-blind model
     # rather than merely very close.
-    s_k = s_bb = s_hr = s_bab = 1.0
+    s_k = s_bb = s_hr = s_bab = s_hbp = 1.0
     s = state_mult(state)
     if s is not None:
         s_k = s.get("k_pct", 1.0)
         s_bb = s.get("bb_pct", 1.0)
         s_hr = s.get("hr_pct", 1.0)
         s_bab = s.get("babip", 1.0)
+        s_hbp = s.get("hbp_pct", 1.0)
+    # THE HIT-BY-PITCH AND ITS RENORMALISER MOVE TOGETHER OR NOT AT ALL.
+    # `cond` is carried on the matchup precisely so it can never disagree
+    # with the rate it conditions on, and scaling one without the other
+    # would divide every rate below by a denominator that no longer matches
+    # what was drawn. A PLAIN MULTIPLIER, not `odds_mult`: there is no log5
+    # pairing behind `hbp` — it is a league rate per arm — and the cell
+    # multipliers were counted as exactly this ratio.
+    #
+    # Guarded on `!= 1.0` so an absent key leaves `hbp` and `cond` as the
+    # objects they were, bit-identical rather than merely very close. That
+    # is the same short-circuit `odds_mult` uses and the reason an empty
+    # table reproduces the state-blind model exactly.
+    hbp, cond = mu.hbp, mu.cond
+    if s_hbp != 1.0:
+        hbp = mu.hbp * s_hbp
+        cond = 1.0 - mu.sac - hbp
     # Off the top: a sacrifice is a plate appearance that was never going to
     # be a strikeout or a walk, so it conditions everything below it.
     if rng.random() < mu.sac:
         return SAC
-    if rng.random() < mu.hbp:
+    if rng.random() < hbp:
         return HBP
     # Sacrifices and hit-by-pitches were taken off the top, so everything
     # below is conditional on neither firing. Without this rescale the
     # marginal rates all come out light by exactly SAC_RATE + HBP_RATE —
     # measured as K/9 8.16 against a real 8.44 when it was missing.
-    cond = mu.cond
     # `/ cond` is NOT a modelling multiplier and stays as division: it is a
     # conditional-probability renormalisation, P(K | not sac, not hbp), and
     # it cannot exceed 1 because a strikeout is disjoint from both.

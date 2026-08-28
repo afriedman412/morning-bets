@@ -13,6 +13,7 @@ advancement) that has one right answer.
 from __future__ import annotations
 
 import random
+import statistics as st
 
 from dataclasses import replace
 
@@ -2049,6 +2050,82 @@ def check_field_state_is_inert_with_an_empty_table():
         sim.STATE_MULT = keep
 
 
+def _state_shares(state, table, n=60000, seed=11):
+    """Outcome shares at one field state under one STATE_MULT table.
+
+    Returns the K and HBP shares together because the hit-by-pitch channel
+    cannot be checked alone: it is drawn off the top, so its rate is also
+    the denominator every rate below it is divided by.
+    """
+    keep, keep_flag = sim.STATE_MULT, sim.USE_FIELD_STATE
+    try:
+        sim.STATE_MULT = table
+        sim.USE_FIELD_STATE = True
+        rng = random.Random(seed)
+        b, p = _lineup(1)[0], _pitcher()
+        got = {sim.K: 0, sim.HBP: 0}
+        for _ in range(n):
+            o = sim.pa_outcome(b, p, LG, rng, state=state)
+            if o in got:
+                got[o] += 1
+        return {k: v / n for k, v in got.items()}
+    finally:
+        sim.STATE_MULT, sim.USE_FIELD_STATE = keep, keep_flag
+
+
+def check_field_state_scales_the_hit_by_pitch():
+    """THE WIRING CHECK for the newest channel. Pitchers hit more batters
+    with men on, and the table says so — but `hbp` is drawn against a
+    `cond` that is CARRIED on the matchup rather than recomputed, so it was
+    the one channel the first version of this table could not touch."""
+    base = _state_shares((1, 0), {})[sim.HBP]
+    up = _state_shares((1, 0), {(1, 0): {"hbp_pct": 3.0}})[sim.HBP]
+    assert base > 0.005, f"no hit batsmen to scale: {base}"
+    assert up > base * 2.4, (
+        f"hbp multiplier did not reach the draw: {base} -> {up}")
+
+
+def check_scaling_the_hit_by_pitch_moves_its_renormaliser_too():
+    """THE REASON THIS ITEM WAITED, and the check the whole change exists
+    for. Everything below the hit-by-pitch is divided by `cond`, which is
+    `1 - sac - hbp`. Scale `hbp` and leave `cond` behind and every rate
+    under it is renormalised by a denominator that no longer matches what
+    was drawn — strikeouts, walks and hits all come out light, silently.
+
+    A tenfold hit-by-pitch is not baseball; it is the size that separates
+    the two implementations cleanly. With `cond` stale the strikeout rate
+    falls ~9.5%. With it recomputed the only residual is the second-order
+    `sac * hbp` term, worth ~1%.
+    """
+    base = _state_shares((1, 0), {})[sim.K]
+    scaled = _state_shares((1, 0), {(1, 0): {"hbp_pct": 10.0}})
+    assert scaled[sim.HBP] > 0.06, f"the 10x did not fire: {scaled}"
+    rel = scaled[sim.K] / base - 1.0
+    assert abs(rel) < 0.04, (
+        f"K moved {rel:+.1%} when only hit batsmen changed — `cond` did not "
+        f"follow `hbp`: {base:.4f} -> {scaled[sim.K]:.4f}")
+
+
+def check_an_absent_hbp_key_leaves_the_draw_untouched():
+    """A cell that carries other channels but no `hbp_pct` must produce the
+    IDENTICAL sequence, not merely the same rate. `pa_from` short-circuits
+    on the multiplier being exactly 1.0 for this reason — recomputing
+    `cond` unconditionally would rebuild the same float by a different route
+    and there is no guarantee the two agree in the last bit."""
+    keep = sim.STATE_MULT
+    try:
+        sim.STATE_MULT = {(1, 0): {"k_pct": 0.95}}
+        rng_a = random.Random(4)
+        b, p = _lineup(1)[0], _pitcher()
+        a = [sim.pa_outcome(b, p, LG, rng_a, state=(1, 0)) for _ in range(4000)]
+        sim.STATE_MULT = {(1, 0): {"k_pct": 0.95, "hbp_pct": 1.0}}
+        rng_b = random.Random(4)
+        c = [sim.pa_outcome(b, p, LG, rng_b, state=(1, 0)) for _ in range(4000)]
+        assert a == c, "an hbp_pct of exactly 1.0 changed the draw"
+    finally:
+        sim.STATE_MULT = keep
+
+
 def check_the_shipped_state_table_is_frequency_normalised():
     """THE TABLE MUST NOT ADD OFFENCE, only move it around.
 
@@ -2057,27 +2134,39 @@ def check_the_shipped_state_table_is_frequency_normalised():
     the model simply scores more and the "clustering" claim is unfalsifiable
     — which is the failure mode pre-registered for this change.
 
-    Weights are the real cell frequencies from the 150,275 plate appearances
-    the table was counted on.
+    Weights are the real cell frequencies from the 748,905 plate appearances
+    the table was counted on, 2023-2026.
     """
-    freq = {(0, 0): 37162, (0, 1): 26832, (0, 2): 21048,
-            (1, 0): 10737, (1, 1): 15466, (1, 2): 17166,
-            (2, 0): 3245, (2, 1): 6545, (2, 2): 8167,
-            (3, 0): 704, (3, 1): 1455, (3, 2): 1748}
+    freq = {(0, 0): 185488, (0, 1): 133782, (0, 2): 105760,
+            (1, 0): 54433, (1, 1): 77197, (1, 2): 85831,
+            (2, 0): 16315, (2, 1): 32177, (2, 2): 39829,
+            (3, 0): 3149, (3, 1): 6643, (3, 2): 8301}
     tot = sum(freq.values())
-    for stat in ("k_pct", "bb_pct", "babip"):
+    for stat in ("k_pct", "bb_pct", "babip", "hbp_pct", "hr_pct"):
         w = sum(n * sim.STATE_MULT.get(c, {}).get(stat, 1.0)
                 for c, n in freq.items()) / tot
         assert abs(w - 1.0) < 0.005, f"{stat} averages {w:.4f}, not 1.0"
 
 
-def check_home_runs_are_absent_from_the_state_table():
-    """Home runs shrank to all-ones — their entire spread across the twelve
-    cells was their own sampling error. Absent ON PURPOSE, and a future
-    edit that adds an `hr_pct` key without re-measuring should have to
-    delete this check and say why."""
-    assert not any("hr_pct" in v for v in sim.STATE_MULT.values()), (
-        "hr_pct reappeared in STATE_MULT; its measured tau was 0.0000")
+def check_home_runs_are_in_the_state_table_and_point_the_right_way():
+    """REPLACES a check that asserted `hr_pct` was ABSENT, and the swap is
+    the point. On 2026 alone the channel's entire spread was its own
+    sampling error — tau 0.0000 — so it shipped as all-ones and this check
+    guarded that. On 2023-2026, five times the data, tau is 0.0272 and the
+    channel keeps 48%. The old null was underpowered, not wrong.
+
+    Guards the DIRECTION rather than the values, because the direction is
+    the baseball: a pitcher challenges a hitter with nobody aboard and works
+    away from the barrel with men on. A sign flip here means the table was
+    rebuilt from a broken scan.
+    """
+    got = {c: v["hr_pct"] for c, v in sim.STATE_MULT.items() if "hr_pct" in v}
+    assert len(got) == 12, f"hr_pct missing from cells: {12 - len(got)}"
+    empty = st.mean(v for c, v in got.items() if c[0] == 0)
+    on = st.mean(v for c, v in got.items() if c[0] > 0)
+    assert empty > on, (
+        f"home runs should be commoner with the bases empty: "
+        f"empty {empty:.4f} against men-on {on:.4f}")
 
 
 def check_field_state_multiplier_reaches_the_plate_appearance():

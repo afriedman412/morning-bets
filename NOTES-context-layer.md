@@ -5955,3 +5955,293 @@ NEXT STEPS  The residual is still sd 8.2 pitches per start. The table now
             per plate appearance is correlated within a start, so that is a
             PER-PITCHER term, not noise — and it feeds the hook directly.
             Reliability unmeasured. Screen before building.
+
+---
+
+## DAY SIXTEEN (2026-08-29) — HIT-BY-PITCH BY FIELD STATE (TODO item 4)
+
+QUESTION    `STATE_MULT` shipped with four channels and deliberately without
+            hit-by-pitch, which was the largest relative effect on the
+            board (+23.0% with men on, 3.7 sigma). Does it survive being
+            counted JOINTLY on (men on, outs) and shrunk, and can it be
+            wired without breaking the renormaliser it sits on top of?
+
+HYPOTHESIS  Pitchers hit more batters with men on — working from the
+            stretch, more breaking balls in the dirt, pitching more
+            carefully around contact. Should show as a gradient with the
+            occupied cells above 1.0.
+            FALSIFIER, pre-registered: if the OVERALL rate per plate
+            appearance rises, the table is adding free baserunners rather
+            than moving them around. If K or BB fall alongside, `cond` did
+            not follow `hbp`.
+
+TEST        No rescan. `scratchpad/state_counts.json` already held the
+            per-cell `hbp` counts from the same 150,275 plate appearances
+            the shipped table was built on, and `state_table.py` gained a
+            `--from-counts` path to use them — rescanning today would fold
+            in games played since and drift the four shipped columns for a
+            reason unrelated to the new one. Self-check: the regenerated
+            k/bb/babip multipliers came back IDENTICAL to the shipped
+            table, which is what says nothing else moved.
+
+            POWER, STATED FIRST, and the two halves are not comparable.
+            The RATE half walks the real state distribution through
+            `pa_from` directly and is exact — that is where the claim
+            lives. The GAME half cannot resolve this: a hit batsman is 1.1%
+            of plate appearances, the table moves ~6% of those into
+            higher-leverage states, and at a ~0.15-run difference in run
+            expectancy that is ~0.003 runs a game against F5 noise of
+            ~0.03. TEN TIMES below the test's resolution, which is the
+            expected result and not a null.
+
+EVALUATE    IT SURVIVES, with the largest tau of the five channels and the
+            least of its raw spread kept:
+
+                stat        tau    mean se   weight kept
+                k_pct    0.0281     0.0320       0.60
+                bb_pct   0.0523     0.0532       0.63
+                hr_pct   0.0000     0.0953       0.00
+                babip    0.0496     0.0338       0.77
+                hbp_pct  0.0759     0.1716       0.36   <- new
+
+            36% kept, because a hit batsman is a 1.1% event and the
+            thinnest cell (bases loaded, nobody out) saw eight of them. The
+            raw +45% at two on and nobody out shrinks to +9%. Every empty
+            cell sits at or below 1.01 and every occupied one at or above
+            1.00, topping out at 1.14 with a man on and nobody out.
+
+            **THE ONE-AT-A-TIME +23.0% WAS NEVER WRONG, IT WAS LESS CERTAIN
+            THAN IT READ.** Counted jointly and shrunk, the men-on / empty
+            ratio the model now produces is 1.112 against a counted 1.266 —
+            42% of the raw gap, which is the shrinkage doing its job and
+            not an implementation shortfall.
+
+            BOTH FALSIFIERS CLEARED, on the exact rate half:
+
+                arm          hbp/PA   men-on/empty    K/PA
+                NO HBP      0.01017          1.001  0.2241
+                HBP         0.01019          1.112  0.2241
+                CONTROL x5  0.01014          1.734  0.2241
+                COUNTED     0.01145          1.266
+
+            The overall rate is flat to the fourth decimal, so this
+            redistributes hit batsmen rather than manufacturing them, and
+            K/PA does not move at all, so `cond` followed. The x5 positive
+            control scales cleanly, which separates a real-but-small effect
+            from a mis-specified one. (The 0.01145 counted level is not
+            comparable to the harness's 0.0102 — the harness pitcher falls
+            back to the flat `HBP_RATE`, not the per-role constants.)
+
+            The game half is flat as pre-registered: F5 runs/side 2.457 ->
+            2.455, sd 2.282 -> 2.281, shutout and five-plus shares
+            unchanged to three decimals over 21,480 simulated sides.
+
+CONCLUSION  SHIPPED. A measured quantity replacing a state-blind one.
+
+            **THE REASON THIS ITEM WAITED A DAY IS THE WHOLE CHANGE.** HBP
+            is drawn OFF THE TOP, so its rate is also `cond`, the
+            denominator every rate below it is divided by. Scale one
+            without the other and strikeouts, walks and hits all come out
+            light — silently. `pa_from` now moves the two together, guarded
+            on the multiplier being exactly 1.0 so an absent key is
+            bit-identical rather than merely close.
+
+            VERIFIED BY MUTATION, three checks and three bugs:
+            leaving `cond` stale moves K by -8.1% and fails exactly
+            `check_scaling_the_hit_by_pitch_moves_its_renormaliser_too`;
+            drawing against `mu.hbp` instead of the scaled value fails the
+            wiring check; inflating the table 1.2x fails the
+            frequency-normalisation check.
+            Fingerprint a0369429 -> 9eb102bf, and a0369429 reproduced
+            exactly with the `hbp_pct` key stripped. 408 -> 411 checks.
+
+NEXT STEPS  The `hbp_pct` column keeps only 36% of its spread because the
+            cells are thin, not because the effect is small. It is the one
+            channel here that would sharpen materially on more seasons —
+            `state_counts.json` is 2026 only, and `advance.py` already runs
+            2023-2026. Cheap, and it is the same rescan for all five
+            channels.
+
+### Scoping check: TTO_MULT and STATE_MULT do NOT double-count
+
+QUESTION    `TTO_MULT` controls survivorship and batter mix and does NOT
+            control base-out state. `STATE_MULT` now ships. If the first
+            lineup pass sees a different mix of field states than the
+            third, both multipliers are charging for the same baseball.
+
+TEST        `scratchpad/tto_state_overlap.py`, 2,000 games, starters only.
+            Bin every plate appearance by (pass, men on, outs), then push
+            each pass's state mix through the shipped `STATE_MULT` to get
+            the K multiplier the state table ALONE implies for that pass.
+
+EVALUATE    The state mix genuinely moves — men-on share 0.367 / 0.429 /
+            0.440 across the three passes. But the K multiplier it implies
+            is 1.0002 / 1.0003 / 1.0021: the state table's own multipliers
+            nearly cancel across that shift, because K rises with the out
+            count and falls with traffic and the two move together.
+
+                pass-1-over-pass-3 K spread
+                TTO_MULT charges      +23.83%
+                field state alone      -0.19%
+
+            POSITIVE CONTROL: a fake table at -20% K with men on produces a
+            +1.60% span, so the harness sees an effect when one is there.
+            Sensitivity is ~8% of the injected size, since the men-on share
+            only moves 7 points — the state table would need men-on
+            multipliers near -300% to explain the TTO decay.
+
+CONCLUSION  NO OVERLAP. The two mechanisms are independent and neither
+            needs refitting against the other. Do not re-run this.
+
+            NOT ESTABLISHED, and it is the reason to be careful with the
+            raw column above: real K% by pass came out 0.2425 / 0.2068 /
+            0.1976, ratios 1.000 / 0.853 / 0.815 against TTO_MULT's 1.000 /
+            0.852 / 0.808. That LOOKS like TTO is calibrated, which would
+            weaken item 11's stated candidate — but this count is NOT
+            survivorship-controlled and `tto.py`'s is, so the two are not
+            the same quantity and must not be compared. Item 11 needs its
+            own measurement.
+
+## DAY SIXTEEN, PART TWO — ITEM 11 RE-MEASURED, AND THE FOUR-SEASON RESCAN
+
+### Item 11: the first inning is still under-scored, but its stated cause is weaker than the note claimed
+
+QUESTION    The -13.3% first-inning gap was measured before `_track` fired
+            on every exit path and before `STATE_MULT` shipped. The first
+            inning is the one that starts bases-empty by construction, so
+            the state table lands on it unevenly. Has it moved?
+
+TEST        `scratchpad/where_runs.py --cut 2026-05-15 --profile`, the SAME
+            instrument on the SAME games. Only the model changed.
+
+EVALUATE    926 games, se ~0.050 a side per inning.
+
+                inning   model  actual     gap      z     rel      [was]
+                     1   0.898   1.021  -0.122   -2.5  -12.0%   [-13.3%]
+                     2   0.839   0.910  -0.071   -1.5   -7.8%    [-7.3%]
+                     3   0.970   0.995  -0.025   -0.5   -2.5%    [-5.7%]
+                     4   0.976   0.973  +0.003   +0.1   +0.3%
+                     5   0.945   1.068  -0.123   -2.5  -11.5%
+                     6   0.960   1.023  -0.063   -1.2   -6.2%
+                     7   0.961   0.932  +0.029   +0.6   +3.1%
+                     8   0.960   1.051  -0.091   -1.8   -8.6%
+                     9   0.793   0.960  -0.167   -2.9  -17.4%
+                 total   8.302   8.932  -0.630   -4.1   -7.1%    [-8.0%]
+
+CONCLUSION  ESTABLISHED: the first inning survives at -12.0%, z -2.5. The
+            gap moved 0.014 runs against se 0.050 — nothing resolved it and
+            nothing needs to. Item 11 stands.
+
+            NOT ESTABLISHED, AND THE NOTE OVERSOLD IT: the "-13.3%, -7.3%,
+            -5.7% monotonic decay shaped like a lineup pass" was the stated
+            reason to suspect `TTO_MULT`. Innings 2 and 3 were NEVER
+            individually significant (z -1.4 and -1.2 then, -1.5 and -0.5
+            now) and inning 3 has drifted to -2.5% with inning 4 at +0.3%.
+            The decay now dies by the third inning, faster than a lineup
+            pass. **The shape argument rested on two numbers that were
+            never distinguishable from zero.** Only inning 1 is a finding,
+            then and now, and it needs a mechanism that is specific to the
+            FIRST inning rather than to the first lineup pass.
+
+            Combined with the TTO/field-state null above — field state
+            explains none of the TTO decay — `TTO_MULT` is now a WEAK
+            candidate for item 11 rather than the leading one.
+
+NEXT STEPS  TWO NEW GAPS, and neither is in the old note because it printed
+            only innings 1-3. NINE-PLUS is now the largest relative gap on
+            the board at -17.4%, z -2.9, and innings 5 and 8 are at -11.5%
+            and -8.6%. CAVEAT BEFORE ANYONE CHASES ONE: nine innings were
+            tested, so at alpha 0.05 roughly half a false positive is
+            expected; z -2.9 is p ~0.004 and survives that, the others do
+            not clearly. The ninth is where the model has no closer and no
+            leverage — `next_arm` walks the pen in DRAW ORDER (item 8) — so
+            it is the one worth opening, and item 8 already has a finished
+            feasibility study behind it.
+
+### The four-season rescan: every channel gated, and home runs come back
+
+QUESTION    `state_counts.json` was 2026 alone, 150,275 plate appearances,
+            and its thin cells are what held the table back. All four
+            seasons are cached locally. What does 5x the data change?
+
+TEST        `scratchpad/state_seasons.py --backfill` — 9,978 games, 748,905
+            plate appearances, no network. MULTIPLIERS COMPUTED WITHIN A
+            SEASON AND POOLED AFTERWARDS: the league drifts (2023 struck
+            out at 0.2299 against 2026's 0.2224), so pooling raw counts and
+            taking one ratio lets a season's baseline leak into the cells.
+
+            NEW: A STABILITY GATE, which the 2026 table never had. Does a
+            cell's multiplier repeat from year to year, or is it that
+            year's noise? This is the check `advance.py` applies per club
+            and FAILS.
+
+EVALUATE        stat       all 12    fat 8      tau  mean se   kept
+                k_pct       0.859    0.945   0.0437   0.0146   0.91
+                bb_pct      0.908    0.866   0.1121   0.0245   0.96
+                hr_pct      0.172    0.519   0.0272   0.0439   0.48
+                babip       0.432    0.850   0.0372   0.0154   0.88
+                hbp_pct     0.550    0.764   0.1606   0.0807   0.84
+
+            **THE TWO GATE COLUMNS DISAGREE AND THE FAT ONE IS RIGHT.** An
+            unweighted correlation over twelve cells gives the three
+            bases-loaded cells — 3,149 plate appearances between them
+            against 185,488 in the leadoff cell — the same vote as the cell
+            that decides the channel, so their own noise reads as a channel
+            that does not repeat. Restricted to the eight cells above
+            30,000, every channel repeats. Read the direction: a
+            correlation over twelve points has se ~0.27.
+
+            **HOME RUNS COME BACK, AND THAT IS THE HEADLINE.** On 2026
+            alone tau was 0.0000 and the channel shipped as all-ones, with
+            a test guarding its absence. On 2023-2026 tau is 0.0272 and it
+            keeps 48%: 1.058 with the bases empty and nobody out down to
+            0.942 at two on and one out. A pitcher challenges a hitter with
+            nobody aboard and works away from the barrel with men on.
+            **THE OLD NULL WAS NOT WRONG, IT WAS UNDERPOWERED** — which is
+            exactly the distinction the standing rule about nulls exists to
+            protect, and this is the first time the rescan has produced the
+            other side of it.
+
+            TWO EFFECTS SHARPENED HARD. Walks with the bases loaded go
+            0.970/0.947 -> 0.781/0.758: nobody pitches around anyone when a
+            walk forces in a run. Hit-by-pitch keeps 84% against 36%, with
+            all three empty cells at 0.906-0.940 and every occupied one bar
+            (1, 2) above 1.07.
+
+            SCORED, 537 holdout games, 21,480 sides an arm
+            (`scratchpad/state_4season_ab.py`). Read as two steps:
+
+                                    OFF     2026  2023-26   ACTUAL   se
+                F5 runs / side    2.424    2.455    2.460    2.437  0.070
+                  sd              2.251    2.281    2.290    2.313
+                  five-plus       0.164    0.168    0.168    0.176  0.012
+                starter outs     15.872   15.855   15.819   15.820
+
+            Dispersion keeps moving the right way — 2.251 -> 2.281 -> 2.290
+            against a real 2.313 — which is the standing under-dispersion
+            defect closing, slowly.
+
+CONCLUSION  SHIPPED. More data, measured the same way, now gated on
+            repeatability. Fingerprint 9eb102bf -> 93af75e7.
+
+            THE FALSIFIER, AND WHY IT DID NOT FIRE. I pre-registered "the
+            mean drifting up means normalisation broke", and the mean did
+            drift up, 2.424 -> 2.460 against a real 2.437. That is 0.33
+            sigma and NOT a finding — and the falsifier as I wrote it was
+            sloppy, because the direct check is exact: the
+            frequency-weighted mean of every channel is 1.0000 and a test
+            asserts it. A mean that rises while the tails ALSO fatten is
+            the mechanism working as designed, since runs are convex in
+            clustering. The original `state_ab.py` falsifier said it
+            properly — "mean up WITH FLAT TAILS" — and the tails are not
+            flat.
+
+            `check_home_runs_are_absent_from_the_state_table` was DELETED
+            and replaced with one that guards the direction (empty > men
+            on) rather than the values. The old check said in its own
+            docstring that an edit adding `hr_pct` should have to delete it
+            and say why. This is the why.
+
+NEXT STEPS  The rescan cache (`state_counts_4season.json`) is keyed by
+            season and cell and is the base for items 6, 13 and 18 — same
+            plays, same pass, grouped by runner, pitcher or batter instead.

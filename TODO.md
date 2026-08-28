@@ -11,6 +11,15 @@ counted, reliability-gated mechanism ships and accumulates (CLAUDE.md).
 Each item says what is ESTABLISHED and what is not, because the expensive
 mistake here is re-running something that already has an answer.
 
+**THE FOUR-SEASON RESCAN IS DONE (2026-08-29) AND ITEMS 6, 13 AND 18 SHOULD
+BUILD ON IT.** `scratchpad/state_counts_4season.json` holds 748,905 plate
+appearances over 9,978 cached games, keyed by season and (men on, outs).
+`state_seasons.py` is the scan and carries the stability gate. Items 6
+(per-runner speed) and 18 (steal decisions) key on the SAME cell and need
+only runner and batter IDs carried through the same pass; item 13
+(per-pitcher hbp/wp) is the same pass grouped by pitcher. Extend that scan
+rather than writing a third one.
+
 ## WORKING ONE ITEM PER SESSION — read this first
 
 Items are written to be picked up COLD. If one is not self-contained enough
@@ -50,13 +59,6 @@ break that ends a game when the home side wins in its half — games ending on
 the winning half read as nine innings and fell out NON-RANDOMLY. Fixed.
 One-run games 0.247 against a real 0.266 (1.9 sigma) is mildly low and is
 the only survivor; not its own item.
-
-**4. Hit-by-pitch by field state.**
-+23.0% with men on, the largest relative effect measured. Held back from the
-plumbing deliberately: hbp is drawn off the top against `cond`, which is
-carried rather than recomputed so it can never disagree with the rates it
-renormalises. Scaling hbp REQUIRES recomputing `cond` in the same breath, or
-every rate below it is renormalised by the wrong denominator.
 
 **6. Per-runner speed.**
 Reliability +0.834 — the most repeatable player-level quantity measured in
@@ -110,11 +112,31 @@ runs a side.
 Full-game totals are a stated product that has never once been scored against
 a settled price. `scratchpad/tonight.py` is the workaround.
 
-**11. The first inning is under-scored by 13.3%.**
-z -2.7. Reality's first is its highest-scoring inning, the model's is its
-lowest. Innings 1-3 run -13.3%, -7.3%, -5.7% — a decay shaped like a lineup
-pass. UNTESTED CANDIDATE: `TTO_MULT`'s first-pass penalty (k_pct 1.1053) may
-be too strong.
+**11. The first inning is under-scored by 12.0%.**
+RE-MEASURED 2026-08-29 on the same instrument and the same games
+(`where_runs.py --cut 2026-05-15 --profile`): -0.122 runs, z -2.5, against
+the earlier -13.3% / z -2.7. Reality's first is its highest-scoring inning
+(1.021), the model's is near its lowest (0.898). ESTABLISHED and unmoved by
+everything shipped since.
+**ITS STATED CAUSE IS NOW WEAK, AND THE NOTE OVERSOLD IT.** The reason to
+suspect `TTO_MULT` was a "monotonic decay shaped like a lineup pass" across
+innings 1-3. Innings 2 and 3 were NEVER individually significant — z -1.4
+and -1.2 then, -1.5 and -0.5 now — and inning 3 has drifted to -2.5% with
+inning 4 at +0.3%. The decay dies by the third inning, faster than a lineup
+pass. Field state is separately RULED OUT as the cause of the TTO decay
+(`scratchpad/tto_state_overlap.py`, +23.8% charged against -0.19% implied,
+positive-controlled). So this needs a mechanism specific to the FIRST
+INNING, not to the first lineup pass.
+
+**11b. Innings nine-plus are under-scored by 17.4%, z -2.9.**
+NEW, from the same re-measurement — the old note printed only innings 1-3.
+Now the largest relative gap on the board. Innings 5 and 8 sit at -11.5%
+and -8.6%. CAVEAT: nine innings were tested, so ~0.5 false positives are
+expected at alpha 0.05; the ninth survives that (p ~0.004), the others do
+not clearly.
+The ninth is exactly where the model has no closer and no leverage — see
+item 8, which already has a finished feasibility study. Do 8 and this
+together.
 
 **12. The prior is shrunk twice.**
 `_load_seasons` loads prior seasons through `pitcher_rates`, which already
@@ -195,6 +217,15 @@ controlling for the arm.
 ---
 
 ## Shipped 2026-08-29 — delete from above, recorded in the notes
+
+**Hit-by-pitch by field state** (was 4). `STATE_MULT` gained an `hbp_pct`
+column and `pa_from` now moves `hbp` and its renormaliser `cond` together.
+Survives shrinkage with the largest tau of the five channels but keeps only
+36% of its raw spread — the men-on / empty ratio lands at 1.112 against a
+counted 1.266. Overall rate flat, K/PA flat, x5 control scales.
+FOLLOW-UP WORTH TAKING: `state_counts.json` is 2026 only and the cells are
+thin. Rescanning 2023-2026 sharpens all five channels at once and this is
+the one that needs it most.
 
 **Rank by gap over simulation error** (was 15). `price.py` now sorts on
 `z = gap / se` and prints the column. The estimate is least reliable where
