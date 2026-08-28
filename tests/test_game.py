@@ -688,3 +688,16 @@ def check_home_run_runs_are_tallied_across_every_arm():
     # doing nothing and the check is vacuous.
     assert r.home_hr_runs > away.line.runs_hr, (r.home_hr_runs,
                                                 away.line.runs_hr)
+
+
+def check_plate_appearances_are_tallied_across_every_arm():
+    """THE DENOMINATOR. Every offence question is a rate, and the starter's
+    line alone covers about two thirds of a game's plate appearances."""
+    away, home = _side(), _side()
+    r = game.simulate_game(away, home, dict(LG), random.Random(6))
+    # Nine innings of outs is 27 per side at minimum, plus everyone who
+    # reached, so a full game cannot come in under that.
+    assert r.away_pa >= 27 and r.home_pa >= 27, (r.away_pa, r.home_pa)
+    assert r.away_pa > home.line.batters, (r.away_pa, home.line.batters)
+    # A team cannot score more runs than it sent men to the plate.
+    assert r.away <= r.away_pa and r.home <= r.home_pa, r

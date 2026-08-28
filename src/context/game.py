@@ -158,6 +158,10 @@ class Side:
     #: Runs allowed ON a home run, across every arm. Folded for the same
     #: reason the dicts are: `next_arm` drops the line it sits on.
     bat_runs_hr: int = 0
+    #: Plate appearances FACED, across every arm — the opposing team's PA.
+    #: THE DENOMINATOR. Every offence question here is a rate and the run
+    #: total alone cannot say whether a gap is production or opportunity.
+    bat_pa: int = 0
 
     def __post_init__(self):
         if self.cur_line is None:
@@ -169,12 +173,18 @@ class Side:
             for who, n in src.items():
                 dst[who] = dst.get(who, 0) + n
         self.bat_runs_hr += ln.runs_hr
+        self.bat_pa += ln.batters
 
     @property
     def runs_on_hr(self) -> int:
         """Runs allowed on a home run, whole game. Non-mutating like
         `offense()` — the arm currently on has not been folded yet."""
         return self.bat_runs_hr + self.cur_line.runs_hr
+
+    @property
+    def pa_faced(self) -> int:
+        """Plate appearances faced by every arm — the opposing team's PA."""
+        return self.bat_pa + self.cur_line.batters
 
     def offense(self) -> dict:
         """{batter name: {"r": runs, "rbi": runs driven in}}, whole game.
@@ -474,6 +484,9 @@ class GameResult:
     #: same way everything else here is.
     away_hr_runs: int = 0
     home_hr_runs: int = 0
+    #: Each team's plate appearances. Crossed like everything else.
+    away_pa: int = 0
+    home_pa: int = 0
 
     @property
     def total(self) -> int:
@@ -564,7 +577,8 @@ def simulate_game(away: Side, home: Side, lg: dict,
         # CROSSED, like the runs directly above: the away TEAM's hitters are
         # the nine the HOME side pitched to.
         away_bats=home.offense(), home_bats=away.offense(),
-        away_hr_runs=home.runs_on_hr, home_hr_runs=away.runs_on_hr)
+        away_hr_runs=home.runs_on_hr, home_hr_runs=away.runs_on_hr,
+        away_pa=home.pa_faced, home_pa=away.pa_faced)
 
 
 def build_side(starter: sim.PitcherRates, pen_pool: list[dict],

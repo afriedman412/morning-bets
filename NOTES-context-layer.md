@@ -5092,3 +5092,47 @@ defect it names is real and the replacement is a measurement away.
 correctness argument said the change had to be right. The score said
 otherwise, and the score is what settles. Reasoning from construction alone
 would have shipped a 2.6-sigma regression on the stated product.
+
+### SUBSTITUTION IS 0.033 RUNS, NOT 0.207. AND THE REAL NUMBER IS BETTER.
+
+**THE 0.207 FIGURE QUOTED TWICE TODAY WAS WRONG.** It came from subtracting
+the slot table's actual column (the nine the MODEL simulated, matched to a
+boxscore row) from every batter's runs — two different populations, and 151
+of 9,520 simulated batter-games had no boxscore line at all. Counted
+properly on 1,062 team-games:
+
+                        PA/game   runs/game   runs per PA
+    all batters           36.90       4.358        0.1181
+    top 9 by PA           35.41       4.214        0.1190
+    substitutes            1.49       0.144        0.0967
+
+Substitutes take 4.0% of plate appearances and are 19% worse per one, so
+what the model loses by never pinch-hitting is 0.04 x 0.19 x 4.36 =
+**0.033 runs a team-game**. Under the floor. CLOSED.
+
+### THE MODEL SENDS EXACTLY THE RIGHT NUMBER OF MEN TO THE PLATE AND SCORES 3% FEWER RUNS
+
+`Side.pa_faced` and `GameResult.away_pa`/`home_pa` exist now — the
+DENOMINATOR, folded across arms like everything else. Holdout, 531 games:
+
+                             PA/game   runs/game   runs per PA
+    model (its nine)           37.64       4.229        0.1124
+    actual, `ab + bb`          36.90       4.358        0.1181
+    actual, PA corrected       37.64       4.358        0.1158
+
+**AND THE CORRECTION IS THE POINT.** `mlb_batting` carries `ab` and `bb` and
+NOT hit-by-pitch or sacrifices, both of which are plate appearances. Counted
+— 0.410 hbp per team-game from `mlb_pitching`, 0.329 sacrifices at the
+measured starter rate — that is 0.738, or **2.00% of the 36.90 the column
+can see**. The model's apparent plate-appearance excess was **+1.99%**.
+
+So the model's opportunity is EXACT and it converts 2.96% worse. That is the
+full-game version of `f5_decomp`'s finding — the right men on base through
+five, 1.7% fewer brought home — and it is about 0.13 runs a team-game,
+2.6x the leverage floor.
+
+**FOURTH NEAR-MISS OF THE DAY, AND THE SAME RULE EVERY TIME.** "+2% more
+plate appearances" would have been a confident finding built on two missing
+boxscore columns. The others: a -41 sigma advancement row against dead code,
+a +3.5 sigma home-run share that was a shared seed, and a single-salt F5
+read with the wrong sign. NAME THE DENOMINATOR.

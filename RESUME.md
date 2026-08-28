@@ -57,6 +57,17 @@ arm. Three answers, in `scratchpad/offense.py`:
   +0.072 (z +2.7). Predicted sign was the opposite, so this is NOT clustering
   at the batter level.
 
+**SUBSTITUTION IS CLOSED AT 0.033 RUNS.** The 0.207 figure was wrong — it
+subtracted two different populations. Subs take 4.0% of plate appearances at
+19% worse production. Do not build a pinch-hitter.
+
+**THE REAL OFFENCE NUMBER, AND IT IS THE BEST STATEMENT OF THE GAP:** the
+model sends EXACTLY the right number of men to the plate (37.64 against a
+corrected 37.64) and scores 3.0% fewer runs. ~0.13 runs a team-game, 2.6x
+the floor. `mlb_batting` has no hbp or sacrifice column, so `ab + bb`
+understates plate appearances by 2.00% — correct for it or the model reads
+as sending 2% MORE men up, which it does not.
+
 **THE SEED IS SHARED ACROSS GAMES IN `ceiling` AND `offense`** (`seed=0` for
 every game), which correlates the per-draw errors and inflates the standard
 error of any ABSOLUTE level or share by **3.4x**. It cancels in a paired A/B
