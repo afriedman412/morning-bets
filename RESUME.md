@@ -5,6 +5,71 @@ there, ordered, with what is established and what is not on each item. This
 file is the LOG — what was measured and what it meant. When something
 ships, delete it from `TODO.md` and write the result here.
 
+## DAY SIXTEEN (2026-08-29) — THE HALF-INNINGS WERE REVERSED. READ THIS FIRST.
+
+Full write-up in `NOTES-context-layer.md` under DAY SIXTEEN, PART THREE.
+
+**TWO CORRECTNESS BUGS IN `simulate_game`, BOTH SHIPPED FIXED.**
+
+  1. **THE TWO HALF-INNINGS WERE THE WRONG WAY ROUND.** A `Side` is a
+     PITCHING side and its `lineup` is "the OPPOSING nine", so the side
+     named `away` FACES THE HOME CLUB. Calling it first batted the home club
+     in the top of every inning. Measured, not argued
+     (`scratchpad/whobats.py`): the home club batted first in 300 of 300
+     games and reached the ninth in 100% of them against the away club's
+     46.7%, where reality is away 1.000 / home 0.557.
+  2. **THE WALK-OFF FIRED ON THE FIRST RUN, NOT ON THE LEAD.**
+     `home.opposing_runs = home.runs` handed the condition the BATTING
+     club's own score snapshotted before the half, so it collapsed to "has
+     the batting club scored at all". 34 of 42 scoring halves ended on
+     exactly one run, max 3 (`scratchpad/walkoff.py`). The condition was
+     always sound; only its input was wrong.
+
+**WHAT IT MOVED**, 926 holdout games x 20 sims:
+
+                               BEFORE    AFTER   ACTUAL     se
+    innings 9+                  0.792    0.980    0.960  0.059
+      top of 9                  0.152    0.452    0.455  0.034
+      bottom of 9               0.503    0.251    0.254  0.025
+    whole game                  8.302    8.530    8.932  0.154
+    away club, whole game       ~3.88    4.180    4.485  0.112
+    home club, whole game       ~4.60    4.350    4.447  0.106
+
+TODO item 11b (-17.4%, z -2.9) is CLOSED at +2.0%, z +0.3. The whole-game
+gap went -7.1% -> -4.5%. 411 -> 413 checks, fingerprint 93af75e7 -> 5a39453e.
+
+**INNINGS 1-8 CANNOT MOVE AND DID NOT.** Both rules key on `regulation`, so
+the two halves are exactly symmetric before the ninth — every F5 number,
+ladder and CRPS run in this project's history is untouched. Do not re-run
+anything on this account.
+
+**WHY IT SURVIVED, AND IT IS THE TRANSFERABLE PART.** The two errors nearly
+ANNIHILATE in the only place anyone looked: `where_runs --profile` sums both
+halves, so -0.302 and +0.249 read as -0.053. **CANCELLATION EXPLAINS THE
+SURVIVAL, NOT THE SEVERITY** — those innings are really played, both
+per-club numbers were really wrong, and TEAM TOTALS ARE THE STATED PRODUCT.
+When a bucket is a RESIDUAL over differently-selected populations, decompose
+it before attributing it to a mechanism.
+
+**A TEST WAS ENCODING THE BUG.** `check_errors_raise_the_run_level` asserted
+27 outs while reading `away_sp`, but the away side pitches the BOTTOM halves
+and a never-pulled starter records 24 outs in exactly the games his club
+loses. `fixtures.one_side` gained `side="home"`.
+
+**ITEM 8 (BULLPEN) DID NOT CAUSE THIS AND ITS EVIDENCE HAS CHANGED.**
+Sensitivity is now screened for the first time
+(`scratchpad/deploy_screen.py`, 20,000 paired draws): the oracle ceiling on
+re-ordering the same eight arms is 0.618 runs, 12x the leverage floor — so
+deployment is not sub-floor. BUT most of that is WHICH of the 8 arms are
+exposed (~0.6) rather than WHEN each pitches (~0.04), because a game reaches
+only ~4.4 of them. Situation and fatigue are NOT bounded by that screen.
+
+**TWO NEW UNCONFIRMED GAPS, now TODO 11c and 11d:** extras are reached too
+often (0.102 against a real 0.083, z +2.0), and the away/home split is
+inverted against reality (model 4.180/4.350, real 4.485/4.447, ~1.5-2 sigma).
+`adjust_lineup(away[2], False)` was checked and is NOT the cause — `is_home`
+means the PITCHER is at home.
+
 ## DAY FIFTEEN (2026-08-29) — SEVEN CHANGES SHIPPED, ONE MEASURED DEAD
 
 Full write-ups in `NOTES-context-layer.md` under DAY FIFTEEN. Backlog in

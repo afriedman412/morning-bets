@@ -698,24 +698,59 @@ def simulate_game(away: Side, home: Side, lg: dict,
                 pass                      # still tied, keep playing
             else:
                 break
-        # Top: away pitches. Its margin is what its own offence has put up
-        # (= runs the home side has allowed) minus what it has given back.
+        # TOP OF THE INNING: THE AWAY CLUB BATS, SO THE HOME SIDE PITCHES.
+        # Its margin is what its own offence has put up (= runs the away
+        # side has allowed) minus what it has given back.
+        #
+        # THESE TWO HALVES WERE THE WRONG WAY ROUND until 2026-08-29, and
+        # the crossing is why it survived. A `Side` is a PITCHING side and
+        # its `lineup` is "the OPPOSING nine", so the side named `away`
+        # faces the HOME club — putting it first batted the home club in the
+        # top of every inning. Measured rather than argued
+        # (`scratchpad/whobats.py`, 300 games): the home club batted first
+        # in 300 of 300, and reached the ninth in 100% of games against the
+        # away club's 46.7%, where reality is away 1.000 / home 0.557.
+        #
+        # INNINGS 1-8 ARE UNAFFECTED, WHICH IS WHY NOTHING CAUGHT IT. The
+        # skip below and the walk-off both key on `regulation`, so before
+        # the ninth the two halves are symmetric and every F5 number ever
+        # measured here is untouched. What it moved was the NINTH, where the
+        # skip and the walk-off apply to a club — and it put both on the
+        # wrong one, biasing away-club ninths down and home-club ninths up
+        # by ~0.3 runs each. Those very nearly cancel in a COMBINED total,
+        # which is the only place `where_runs --profile` ever looked.
         extra = inning > innings
-        _half_inning(away, lg, rng, inning, home.runs - away.runs, park,
+        _half_inning(home, lg, rng, inning, away.runs - home.runs, park,
                      auto_runner=extra)
-        _end_of_inning(away, rng, inning, home.runs - away.runs)
+        _end_of_inning(home, rng, inning, away.runs - home.runs)
 
         # THE BOTTOM HALF IS NOT ALWAYS PLAYED. A home team ahead after the
         # top of the ninth does not bat, and playing it anyway invents a
         # half-inning of scoring in roughly 40% of games — straight onto the
         # full-game total. Extras follow the same rule.
+        #
+        # The expression is unchanged by the swap, and that is not luck:
+        # `away.runs` is what the AWAY side ALLOWED, i.e. the HOME club's
+        # score. It was always the right test for "is the home club ahead" —
+        # it was simply being used to skip the away club's half.
         if inning >= regulation and away.runs > home.runs:
             _track(inning)
             break
-        home.opposing_runs = home.runs      # this team's own score
-        _half_inning(home, lg, rng, inning, away.runs - home.runs, park,
+        # WHAT THE PITCHING SIDE'S OWN CLUB HAS SCORED — the number the
+        # batting club must PASS for a walk-off. The away side's own club is
+        # the away club, whose score is what the HOME side has allowed.
+        #
+        # THIS WAS `home.opposing_runs = home.runs`, which set it to the
+        # BATTING club's own score snapshotted at the start of the half, so
+        # `side.runs > side.opposing_runs` reduced to "the batting club has
+        # scored at least one run this half" — truncating every ninth and
+        # every extra inning at the FIRST RUN whatever the margin. Signature
+        # confirmed on 42 of 42 scoring halves (`scratchpad/walkoff.py`);
+        # the condition itself was always sound, only its input was wrong.
+        away.opposing_runs = home.runs
+        _half_inning(away, lg, rng, inning, home.runs - away.runs, park,
                      walk_off=inning >= regulation, auto_runner=extra)
-        _end_of_inning(home, rng, inning, away.runs - home.runs)
+        _end_of_inning(away, rng, inning, home.runs - away.runs)
 
         if inning == 5:
             away.runs_f5, home.runs_f5 = away.runs, home.runs

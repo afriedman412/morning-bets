@@ -1536,7 +1536,16 @@ def check_errors_raise_the_run_level():
         sim.ROE_PER_OUT = roe
         try:
             rng = random.Random(6)
-            out = [fx.one_side(_pitcher(), _lineup(), LG, never, rng)
+            # THE HOME STARTER, because the assertion below is about LENGTH.
+            # The away side pitches the bottom halves and the bottom of the
+            # ninth is skipped when the home club leads, so an away starter
+            # who was never pulled still records 24 outs in the games his
+            # club loses. Reading the away line here asserted "27 or more"
+            # against a population that legitimately contains 24s — it
+            # passed only while `simulate_game` had the two halves the wrong
+            # way round and the away side pitched every top half.
+            out = [fx.one_side(_pitcher(), _lineup(), LG, never, rng,
+                               side="home")
                    for _ in range(n)]
             # At LEAST the full nine, not exactly nine. The deleted
             # one-sided loop stopped at `max_innings`; a real game goes to

@@ -95,10 +95,21 @@ and lands at average slot 3.01 of 8, as likely to pitch the sixth as the
 ninth. No situation — nothing knows the score, the platoon or the save. No
 fatigue — the pen is redrawn independently every game AND every draw, so
 nothing records that an arm threw 30 pitches yesterday.
-`deploy.py` already measured that role is real and projects (split-half +0.55
-to +0.78 over 319 relievers) and concluded role-based deployment was worth
-building. It was never built. Largest unbuilt item with a finished
-feasibility study behind it.
+`deploy.py` measured that role is real and projects (split-half +0.55 to
++0.78 over 319 relievers). SENSITIVITY IS NOW SCREENED TOO
+(`scratchpad/deploy_screen.py`, 20,000 paired draws): the oracle ceiling on
+re-ordering the same eight arms is 0.618 runs, twelve times the leverage
+floor, so this is not a sub-floor mechanism.
+**BUT READ WHERE THAT 0.618 COMES FROM BEFORE BUILDING.** A nine-inning game
+reaches only ~4.4 of the 8 drawn arms, so most of the ceiling is WHICH arms
+are exposed (~0.6 runs), not WHEN each pitches (~0.04). A rule that only
+re-times a fixed set of arms buys the small number. The unbounded channels
+are SITUATION (a closer appears only in save situations — shape, not mean)
+and FATIGUE. Start with exposure: "the manager uses his best available arms
+in a close game" is a bigger and simpler lever than a leverage index.
+**ITS FORMER HEADLINE EVIDENCE IS GONE.** The ninth-inning gap that item 11b
+handed over was two driver bugs, now fixed, and the ninth reads +2.0% / z
++0.3. Do not re-cite it.
 
 **9. Ship and score the seasonal home-run term.**
 Measured on 2023-2025; applied out of sample it moves a team total from -3.9%
@@ -128,15 +139,24 @@ pass. Field state is separately RULED OUT as the cause of the TTO decay
 positive-controlled). So this needs a mechanism specific to the FIRST
 INNING, not to the first lineup pass.
 
-**11b. Innings nine-plus are under-scored by 17.4%, z -2.9.**
-NEW, from the same re-measurement — the old note printed only innings 1-3.
-Now the largest relative gap on the board. Innings 5 and 8 sit at -11.5%
-and -8.6%. CAVEAT: nine innings were tested, so ~0.5 false positives are
-expected at alpha 0.05; the ninth survives that (p ~0.004), the others do
-not clearly.
-The ninth is exactly where the model has no closer and no leverage — see
-item 8, which already has a finished feasibility study. Do 8 and this
-together.
+**11c. Extra innings are now reached too often.**
+OPENED BY THE 11b FIX, and unconfirmed. P(extras) 0.102 against a real 0.083
+(z +2.0) and extra innings/game 0.147 against 0.114 (z +2.1); it was 0.079
+before the half-innings were corrected. Runs per extra half is still short at
+2.689 against 3.026. `scratchpad/ninth.py` is the instrument.
+Two sigma on a quantity nobody pre-registered — treat as a direction.
+
+**11d. The away/home split no longer matches reality.**
+ALSO OPENED BY THE 11b FIX, also unconfirmed. Reality has the away club
+scoring slightly MORE than the home club (4.485 against 4.447), because the
+home club forfeits ~44% of its ninth innings. The model has it the other way
+(4.180 against 4.350) — a ~0.21-run disagreement at roughly 1.5-2 sigma.
+FIRST SUSPECT: the home-pitcher advantage (`HOME_OPP_K` 1.034,
+`HOME_OPP_CONTACT` 0.981) may now be over-dominating, since it was last
+fitted while the ninth-inning skip was landing on the wrong club.
+ALREADY CHECKED AND NOT THE CAUSE: `adjust_lineup(away[2], False)` reads as
+inverted and is not — `is_home` means the PITCHER is at home and `away[2]`
+is the nine the AWAY starter faces, so `False` is correct.
 
 **12. The prior is shrunk twice.**
 `_load_seasons` loads prior seasons through `pitcher_rates`, which already
@@ -217,6 +237,21 @@ controlling for the arm.
 ---
 
 ## Shipped 2026-08-29 — delete from above, recorded in the notes
+
+**The half-innings were reversed, and the walk-off fired on the first run**
+(was 11b). Two correctness bugs in `simulate_game`. The side named `away` is
+a PITCHING side facing the HOME club, so calling it first batted the home
+club in the top of every inning — the away club reached the ninth in 46.7%
+of games against a real 1.000. And `home.opposing_runs = home.runs` handed
+the walk-off the BATTING club's own score, truncating every ninth and extra
+inning at the first run (34 of 42 scoring halves ended on exactly one).
+Innings 9+ -17.4% / z -2.9 -> +2.0% / z +0.3; whole game -7.1% -> -4.5%;
+away-club totals ~-0.61 -> -0.305 and home-club ~+0.15 -> -0.097.
+INNINGS 1-8 CANNOT MOVE — both rules key on `regulation` — so no F5 number,
+ladder or CRPS run in this project's history is affected. That symmetry, plus
+the two errors nearly cancelling in the only place anyone looked (a COMBINED
+per-inning total), is why it survived. Two regression checks, each verified
+by mutation. 411 -> 413 checks, fingerprint 93af75e7 -> 5a39453e.
 
 **Hit-by-pitch by field state** (was 4). `STATE_MULT` gained an `hbp_pct`
 column and `pa_from` now moves `hbp` and its renormaliser `cond` together.

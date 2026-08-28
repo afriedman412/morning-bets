@@ -6245,3 +6245,202 @@ CONCLUSION  SHIPPED. More data, measured the same way, now gated on
 NEXT STEPS  The rescan cache (`state_counts_4season.json`) is keyed by
             season and cell and is the base for items 6, 13 and 18 — same
             plays, same pass, grouped by runner, pitcher or batter instead.
+
+## DAY SIXTEEN, PART THREE — ITEM 11b WAS NOT THE BULLPEN. IT WAS TWO DRIVER BUGS IN `simulate_game`
+
+QUESTION    TODO item 11b (innings 9+ under-scored by 17.4%, z -2.9) was
+            handed to item 8, the bullpen, on the argument that "the ninth
+            is exactly where the model has no closer". Before building a
+            bullpen: CAN a bullpen move that number?
+
+HYPOTHESIS  Not obviously. `9+` is a RESIDUAL over three populations
+            selected in completely different ways — the top of the ninth
+            (always played), the bottom (only when the home club is not
+            ahead) and extras (only when tied). The last two are
+            conditioned on the SCORE, which is the model's own output, so a
+            model under-scoring by 7.1% everywhere reaches them at the wrong
+            rate for reasons a closer cannot touch. Only a RATE gap in the
+            halves actually played is available to item 8.
+
+            The user's guard was the same point from the other side: the
+            whole game is -7.1%, so only the ninth's ~10-point EXCESS over
+            the global gap was ever claimable, not the full 17.4%.
+
+TEST        `scratchpad/ninth.py` — the same 926 games and the same cut as
+            `where_runs --profile`, decomposing
+
+                E[9+] = P(top9) E[runs|top9] + P(bot9) E[runs|bot9]
+                        + E[extra runs]
+
+            POWER, STATED FIRST: the SHARES are the sharp terms (se ~0.016
+            over 926 games); the conditional RATES are the noisy ones
+            because they drop to the games that played the half. Read the
+            shares first.
+
+EVALUATE    THE DECOMPOSITION DID NOT LOOK LIKE A BULLPEN AT ALL:
+
+                quantity          model   actual      gap     z
+                9+ total          0.792    0.960   -0.168  -2.9
+                top of 9          0.152    0.455   -0.302  -9.1
+                bottom of 9       0.503    0.254   +0.249  +9.9
+
+            Two nine-sigma errors pointing OPPOSITE ways, in a bucket whose
+            combined gap is 2.9 sigma. A bullpen cannot produce that. An
+            inverted top and bottom can.
+
+            **CONFIRMED DIRECTLY, NOT INFERRED FROM RUNS**
+            (`scratchpad/whobats.py`, 300 games, with a positive control on
+            a hand-built game whose order is known by construction):
+
+                                    model   reality
+                bats first          home     away     300/300 games
+                P(away bats in 9th) 0.467    1.000
+                P(home bats in 9th) 1.000    0.557
+
+            **BUG ONE: THE TWO HALF-INNINGS WERE THE WRONG WAY ROUND.** A
+            `Side` is a PITCHING side and its `lineup` is "the OPPOSING
+            nine", so the side named `away` FACES THE HOME CLUB. Calling it
+            first batted the home club in the top of every inning, and the
+            two rules that break the symmetry — the skipped bottom half and
+            the walk-off — landed on the wrong club.
+
+            **BUG TWO: THE WALK-OFF FIRED ON THE FIRST RUN, NOT ON THE
+            LEAD.** `_half_inning` ends a half on
+            `side.runs > side.opposing_runs`. `side.runs` is what the
+            PITCHING side ALLOWED — the batting club's score — so
+            `opposing_runs` has to hold the pitching side's OWN club's
+            score. The driver set `home.opposing_runs = home.runs`, the
+            BATTING club's score, snapshotted immediately before the half.
+            The comparison collapsed to "has the batting club scored at all
+            this half". Counted (`scratchpad/walkoff.py`): 34 of 42 scoring
+            halves ended on exactly one run, max 3, and 42 of 42 carried the
+            snapshot signature. The condition itself was always sound; only
+            its input was wrong.
+
+            **WHY NEITHER WAS EVER CAUGHT, and it is the transferable
+            part.** Both rules key on `regulation`, so INNINGS 1-8 ARE
+            EXACTLY SYMMETRIC and no F5 number ever moved — every fit,
+            every ladder and every CRPS run in this project's history is
+            untouched. And in the one place anyone looked, the two halves
+            of the error very nearly ANNIHILATE: `where_runs --profile`
+            sums both halves, so -0.302 and +0.249 read as -0.053.
+            The user's correction on the day is the right framing and is
+            recorded because it changed how this was reported: THE
+            CANCELLATION IS NOT A REASON TO DISCOUNT IT. Those innings are
+            really played, both per-club numbers are real, and TEAM TOTALS
+            ARE THE STATED PRODUCT — so both sides of the product were
+            wrong while the aggregate looked fine. Cancellation explains the
+            SURVIVAL, not the severity.
+
+            SCORED, same 926 holdout games x 20 sims:
+
+                                       BEFORE    AFTER   ACTUAL     se
+                9+ total                0.792    0.980    0.960  0.059
+                  top of 9              0.152    0.452    0.455  0.034
+                  bottom of 9           0.503    0.251    0.254  0.025
+                P(bottom 9 played)      0.517    0.564    0.557  0.017
+                whole game              8.302    8.530    8.932  0.154
+                away club, whole game   ~3.88    4.180    4.485  0.112
+                home club, whole game   ~4.60    4.350    4.447  0.106
+
+            Item 11b: -17.4% / z -2.9 -> +2.0% / z +0.3. CLOSED.
+            The whole-game gap: -7.1% / z -4.1 -> -4.5% / z -2.6.
+
+            THE PRE-REGISTERED FALSIFIER PASSES. The user set it before the
+            work: the ninth must move WITHOUT innings 1-5 moving, or the
+            level has been changed rather than the deployment. Innings 1-5
+            went -12.0/-7.8/-2.5/+0.3/-11.5% to -10.7/-5.5/-4.5/-0.3/-8.1%,
+            every one inside 1 se, and the arithmetic says they cannot move
+            — the two rules cannot fire before the ninth.
+
+CONCLUSION  ESTABLISHED: two correctness bugs in `simulate_game`, each
+            verified by mutation against its own regression check.
+            `check_the_away_club_bats_in_the_top_of_the_inning` and
+            `check_a_walk_off_needs_the_lead_not_just_a_run`; mutation 1
+            (order swapped back) fails both, mutation 2 (`opposing_runs`
+            alone) fails exactly the walk-off check. 411 -> 413 checks.
+            Fingerprint 93af75e7 -> 5a39453e, deliberately NOT inert.
+
+            ESTABLISHED: item 11b is closed and item 8 did not cause it.
+
+            NOT ESTABLISHED, and it must not be read as a bullpen result:
+            this says nothing about whether role-based deployment is worth
+            building. It says only that the ninth-inning gap which was
+            being used as EVIDENCE for it was an artifact.
+
+            ONE TEST WAS ENCODING THE BUG rather than guarding against it.
+            `check_errors_raise_the_run_level` asserted every start reached
+            27 outs while reading `away_sp`, and the away side pitches the
+            BOTTOM halves — a starter who is never pulled records 24 outs in
+            exactly the games his club loses, which is real baseball.
+            `fixtures.one_side` gained `side="home"` (the side that pitches
+            every top half) and the check reads that. Defaulting to away
+            keeps every other caller's seeded draw unchanged.
+
+NEXT STEPS  TWO NEW GAPS OPENED BY THE FIX, both unconfirmed and neither
+            chased:
+
+              * EXTRAS ARE NOW TOO FREQUENT. P(extras) 0.102 against a real
+                0.083 (z +2.0) and extra innings/game 0.147 against 0.114
+                (z +2.1). It was 0.079 before. Runs per extra half is still
+                short (2.689 against 3.026, -11%).
+              * THE AWAY/HOME SPLIT NO LONGER MATCHES. Reality has the away
+                club scoring slightly MORE than the home club (4.485 against
+                4.447) because the home club forfeits ~44% of its ninths.
+                The model has it the other way (4.180 against 4.350), a
+                ~0.21-run disagreement at roughly 1.5-2 sigma. The
+                home-pitcher advantage (`HOME_OPP_K` 1.034) pushes that way
+                and may now be over-dominating. CHECKED AND NOT A BUG:
+                `adjust_lineup(away[2], False)` looks inverted but is not —
+                `is_home` means the PITCHER is at home, and `away[2]` is the
+                nine the AWAY starter faces, so `False` is correct.
+
+### The deployment screen for item 8 — sensitivity, which was never measured
+
+QUESTION    `deploy.py` established that reliever ROLE IS REAL AND PROJECTS
+            (split-half +0.55 to +0.78 over 319 relievers) and concluded
+            deployment was worth building. It never established SENSITIVITY.
+            `leverage.py` screens bullpen ARM QUALITY, a different
+            parameter — what a better pen is worth, not what the same pen in
+            a different order is worth. Nothing screened deployment.
+
+TEST        `scratchpad/deploy_screen.py`, 20,000 paired draws on the
+            reference club, common random numbers at the draw. Two ORACLE
+            orderings of the same eight drawn arms bound every possible
+            rule: best-last against best-first.
+
+EVALUATE        ordering      game total    9th+   5+ runs   relievers
+                best last          9.093   1.050     0.413        4.43
+                draw order         8.793   1.032     0.383        4.40
+                best first         8.474   1.006     0.352        4.40
+
+                ceiling (last - first)  total +0.618 (se 0.024)
+                                        9th+  +0.043 (se 0.015)
+                status quo - best last  total -0.300 (se 0.020)
+
+            SENSITIVITY IS LARGE — 0.618 runs, twelve times the ~0.05-run
+            leverage floor. Deployment is not a sub-floor mechanism.
+
+            **BUT THE CEILING CONFLATES TWO CHANNELS AND THE BIG ONE IS NOT
+            LEVERAGE.** A nine-inning game reaches only ~4.4 of the 8 drawn
+            arms, so reordering changes WHICH arms pitch at all, not merely
+            when. That is why best-last scores MORE (9.093) rather than
+            fewer runs: it puts the WORST arms in the innings that are
+            actually played. Split:
+
+                which arms are exposed   ~0.6 runs
+                when each one pitches    ~0.04 runs
+
+CONCLUSION  ESTABLISHED: ordering has ample sensitivity, so item 8 is not
+            dead on leverage grounds and its feasibility study stands.
+
+            NOT ESTABLISHED: that a leverage/role rule buys the 0.6. Most of
+            the ceiling is ARM EXPOSURE — which of the eight are used —
+            rather than the inning each is used in. A rule that only
+            re-times a fixed set of arms is screened at ~0.04 runs.
+
+            NOT BOUNDED AT ALL by this screen: SITUATION (a closer appears
+            only in save situations, redistributing across games — shape,
+            not mean) and FATIGUE (the pen is redrawn independently every
+            game and every draw). Item 8's real case now rests on those two
+            plus arm exposure, and no longer on the ninth-inning gap.

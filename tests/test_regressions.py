@@ -645,3 +645,162 @@ def check_the_matchup_cache_rebuilds_when_the_arm_changes():
     assert got, "nothing resolved for the new arm"
     assert got[0].p_k != first, (got[0].p_k, first)
     assert abs(got[0].p_k - 0.45) < 1e-9, got[0].p_k
+
+
+def check_the_away_club_bats_in_the_top_of_the_inning():
+    """`simulate_game` played its two half-innings the wrong way round.
+
+    A `Side` is a PITCHING side and its `lineup` is "the OPPOSING nine", so
+    the side named `away` faces the HOME club. Calling it first therefore
+    batted the HOME club in the top of every inning, and the two rules that
+    break the symmetry — the skipped bottom half and the walk-off — landed
+    on the wrong club: the away club reached the ninth in 46.7% of games
+    against a real 1.000, and the home club in 100% against a real 0.557.
+
+    IT CANCELLED IN THE ONLY PLACE ANYONE LOOKED. `where_runs --profile`
+    sums both halves, so away-club ninths biased ~0.3 runs low and
+    home-club ninths ~0.3 high nearly annihilated. Team totals are the
+    stated product and both sides of them were wrong.
+
+    Innings 1-8 are symmetric — both rules key on `regulation` — so no F5
+    number ever moved and no existing check could see it.
+
+    Asserted on the SKIP, not on runs: the away club must bat in the ninth
+    of every game, and the home club must not.
+    """
+    import random
+    from src.context import game, sim
+
+    lg = sim.league()
+    bats = [sim.BatterRates(name=f"b{i}", k_pct=0.22, bb_pct=0.08,
+                            hr_pct=0.03, babip=0.300, pa=600)
+            for i in range(9)]
+    p = sim.PitcherRates(name="p", k_pct=0.22, bb_pct=0.08, hr_pct=0.03,
+                         babip=0.300, pa=600)
+
+    real = game._half_inning
+    seen = []
+
+    def spy(side, *a, **kw):
+        # The away SIDE pitches to the home club, so a call on it IS the
+        # home club batting. Recorded as the BATTING club.
+        # `_half_inning(side, lg, rng, inning, margin, park, ...)` — the
+        # inning is the THIRD positional after `side`.
+        seen.append((a[2], "home" if side is spy.A else "away"))
+        return real(side, *a, **kw)
+
+    first, away_9, home_9, n = [], 0, 0, 60
+    for i in range(n):
+        rng = random.Random(i * 17 + 1)
+        A = game.build_side(p, [], bats, None, rng, apply_leash=False)
+        H = game.build_side(p, [], bats, None, rng, apply_leash=False)
+        spy.A = A
+        seen.clear()
+        game._half_inning = spy
+        try:
+            game.simulate_game(A, H, lg, rng)
+        finally:
+            game._half_inning = real
+        halves = [(inn, who) for inn, who in seen]
+        first.append(next(who for inn, who in halves if inn == 1))
+        ninth = {who for inn, who in halves if inn == 9}
+        away_9 += "away" in ninth
+        home_9 += "home" in ninth
+
+    assert all(f == "away" for f in first), \
+        f"the home club batted first in {first.count('home')}/{n} games"
+    assert away_9 == n, f"the away club skipped the ninth {n - away_9} times"
+    # The two clubs are identical here, so the home club leads after the top
+    # of the ninth in a healthy share of games and must sit some of them out.
+    # A loose bound: this is asserting the rule FIRES, not its exact rate.
+    assert home_9 < n, "the home club batted in every ninth"
+
+
+def check_a_walk_off_needs_the_lead_not_just_a_run():
+    """The walk-off truncated the final half at the FIRST run scored.
+
+    `_half_inning` ends a half early on `side.runs > side.opposing_runs`.
+    `side` is the PITCHING side, so `side.runs` is what it ALLOWED — the
+    batting club's score — and `opposing_runs` therefore has to hold the
+    pitching side's OWN club's score. The driver set
+
+        home.opposing_runs = home.runs      # "this team's own score"
+
+    which is the BATTING club's score, snapshotted immediately before the
+    half. The comparison collapsed to "has the batting club scored at all
+    this half", so every ninth and every extra inning stopped on the first
+    run whatever the margin: 34 of 42 scoring halves ended on exactly one
+    run, and none ever exceeded three.
+
+    Asserted on the CONDITION's input rather than on a run distribution,
+    because the condition was always sound and only its input was wrong.
+    """
+    import random
+    from src.context import game, sim
+
+    lg = sim.league()
+    bats = [sim.BatterRates(name=f"b{i}", k_pct=0.10, bb_pct=0.15,
+                            hr_pct=0.02, babip=0.360, pa=600)
+            for i in range(9)]
+    p = sim.PitcherRates(name="p", k_pct=0.10, bb_pct=0.15, hr_pct=0.02,
+                         babip=0.360, pa=600)
+
+    # A side that has ALLOWED 1 (the batting club's score) while its own
+    # club has scored 6. Trailing by five, the batting club must be allowed
+    # to bat on through a rally rather than being cut off at one run.
+    scored = []
+    for i in range(300):
+        rng = random.Random(i * 29 + 3)
+        s = game.build_side(p, [], bats, None, rng, apply_leash=False)
+        s.runs, s.opposing_runs = 1, 6
+        before = s.runs
+        game._half_inning(s, lg, rng, 9, 5, None, walk_off=True)
+        scored.append(s.runs - before)
+
+    # With the bug the half died the instant a run crossed, so nothing could
+    # reach four. The rally has to survive well past one run.
+    assert max(scored) >= 4, \
+        f"no half got past {max(scored)} runs — truncated early?"
+    big = sum(1 for g in scored if g >= 2)
+    assert big > 20, f"only {big}/300 halves scored more than once"
+
+    # And the driver hands the condition the PITCHING side's own club's
+    # score, not the batting club's. With the away club (home.runs) on 4 and
+    # the home club (away.runs) on 0, the away side's `opposing_runs` must
+    # come back 4.
+    real = game._half_inning
+    got = {}
+    # SEVERAL GAMES, and the case has to be an UNTIED one. The bottom of the
+    # ninth is not always reached (the home club leading after the top skips
+    # it, which is the rule the check above asserts), and when it is reached
+    # with the score TIED the buggy value and the correct one COINCIDE —
+    # both equal the batting club's score. Only a half entered with the home
+    # club trailing can tell them apart.
+    for i in range(60):
+        rng = random.Random(i * 13 + 11)
+        A = game.build_side(p, [], bats, None, rng, apply_leash=False)
+        H = game.build_side(p, [], bats, None, rng, apply_leash=False)
+
+        def spy(side, *a, _A=A, _H=H, **kw):
+            if kw.get("walk_off") and side is _A and "seen" not in got:
+                # AT THE START OF THE HALF: `_A.runs` is what the away side
+                # has allowed — the HOME club's score, i.e. the batting
+                # club's. `_H.runs` is the AWAY club's score, which is what
+                # the batting club has to pass.
+                if _A.runs != _H.runs:
+                    got["seen"] = (side.opposing_runs, _A.runs, _H.runs)
+            return real(side, *a, **kw)
+
+        game._half_inning = spy
+        try:
+            game.simulate_game(A, H, lg, rng)
+        finally:
+            game._half_inning = real
+        if "seen" in got:
+            break
+    assert "seen" in got, "no untied walk-off-eligible half in 60 games"
+    opp, batting, own = got["seen"]
+    assert opp == own, \
+        f"opposing_runs {opp} is not the pitching club's score {own}"
+    assert opp != batting, \
+        f"opposing_runs tracked the BATTING club's score {batting}"

@@ -34,7 +34,7 @@ from src.context import game
 
 
 def one_side(pitcher, faces, lg, hook=None, rng=None, park=None,
-             innings=9, seed=0):
+             innings=9, seed=0, side="away"):
     """One starter's line out of a real game. -> sim.StartResult
 
     `faces` is THE NINE THIS PITCHER FACES. The name is deliberate: `a_nine`
@@ -45,12 +45,21 @@ def one_side(pitcher, faces, lg, hook=None, rng=None, park=None,
     hook is asserting on that hook, not on whatever `hook_leash.json` holds
     today. The pen is empty, so a pulled starter simply stops accumulating:
     `Side.line` is his own and `next_arm` swaps `cur_line` out from under it.
+
+    `side` PICKS WHICH STARTER'S LINE COMES BACK, and the two are not
+    interchangeable for LENGTH. The away side pitches the BOTTOM halves, and
+    the bottom of the ninth is not played when the home club already leads —
+    so an away starter going the distance records 24 outs in exactly the
+    games his club loses, which is real baseball and not a hook firing. The
+    home side pitches every top half and therefore always reaches 27.
+    A check asserting "he was never pulled" wants `side="home"`.
+    Defaults to away so that every existing caller's draw is unchanged.
     """
     rng = rng if rng is not None else random.Random(seed)
     a = game.build_side(pitcher, [], faces, hook, rng, apply_leash=False)
     h = game.build_side(pitcher, [], faces, hook, rng, apply_leash=False)
-    return game.simulate_game(a, h, lg, rng, innings=innings,
-                              park=park).away_sp
+    r = game.simulate_game(a, h, lg, rng, innings=innings, park=park)
+    return r.away_sp if side == "away" else r.home_sp
 
 
 def starts(pitcher, faces, lg, n=100, hook=None, seed=0, park=None,
