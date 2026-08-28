@@ -57,6 +57,30 @@ arm. Three answers, in `scratchpad/offense.py`:
   +0.072 (z +2.7). Predicted sign was the opposite, so this is NOT clustering
   at the batter level.
 
+## THE RUN GAP: NOT THE BULLPEN, AND THE SEASONAL PART IS SMALL
+
+* **Uniform by inning.** 1-5 at -7.8%, 6+ at -8.1%. The F5-vs-full-game
+  arithmetic that suggested relief carried 70% was comparing STARTER innings
+  against ALL arms. `scratchpad/where_runs.py`.
+* **POWER IS THE BINDING CONSTRAINT.** Team-game runs have sd 3.22, so 1,062
+  team-games give se 0.099 against a 0.174 gap — the headline is 1.7 sigma.
+  ~2,500 team-games are needed to resolve it.
+* **The FIRST INNING is UNDER-scored by 13.3% (z -2.7)**, reversing the old
+  over-scoring defect. Reality's first is its highest-scoring inning, the
+  model's is its lowest. Untested candidate: `TTO_MULT`'s first-pass penalty
+  — innings 1-3 run -13.3%, -7.3%, -5.7%.
+* **Rate freshness is worth 2.5-3% of the run level**, clean (same games,
+  two cuts). Thin rates shrink toward league, spread leaves the lineup, and
+  runs are convex in spread — so the model under-scores worst in April/May.
+* **The seasonal term is REAL BUT SMALL.** 2026 alone suggested a 9.6% swing;
+  pooled over four seasons only MAY replicates (-0.134 runs, -3.0%, negative
+  every year, z -5.0). 2026's profile ANTICORRELATES with 2025 and 2023. Use
+  a TRAILING-WINDOW league baseline, not month dummies — fitted on 2026 they
+  would fit noise.
+* **BEWARE `prefix_side[9]`.** `simulate_game` breaks before the `track`
+  block when the home team leads after the top of the ninth, so inning 9 is
+  never recorded for those games and reads -58.9%. Take 9+ as the residual.
+
 **SUBSTITUTION IS CLOSED AT 0.033 RUNS.** The 0.207 figure was wrong — it
 subtracted two different populations. Subs take 4.0% of plate appearances at
 19% worse production. Do not build a pinch-hitter.

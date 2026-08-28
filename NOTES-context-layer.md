@@ -5136,3 +5136,95 @@ plate appearances" would have been a confident finding built on two missing
 boxscore columns. The others: a -41 sigma advancement row against dead code,
 a +3.5 sigma home-run share that was a shared seed, and a single-salt F5
 read with the wrong sign. NAME THE DENOMINATOR.
+
+### WHERE THE RUN GAP LIVES — NOT THE BULLPEN, AND THE SEASONAL PART IS A QUARTER OF WHAT IT LOOKED LIKE
+
+QUESTION: the model sends the right number of men to the plate and scores
+fewer runs. Where? `f5_decomp` put the starter's first five at 1.7% light
+and the full game at 3.0%, which would put ~70% of the gap in innings 6+.
+
+**HYPOTHESIS REFUTED. THE GAP IS UNIFORM BY INNING.** Both halves counted
+the same way — all arms, split at the fifth, model against actual on the
+same games (`scratchpad/where_runs.py`, cut 2026-05-15, 1,846 team-games):
+
+    split           model   actual     gap      se     z      rel
+    innings 1-5     2.291    2.485   -0.194   0.056  -3.5    -7.8%
+    innings 6+      1.820    1.982   -0.161   0.052  -3.1    -8.1%
+    whole game      4.111    4.466   -0.355   0.077  -4.6    -8.0%
+
+The F5-versus-full-game arithmetic that motivated this was comparing
+STARTER innings through five against EVERY inning and every arm. Two
+populations. Relief carries its proportional share and no more.
+
+**POWER IS THE BINDING CONSTRAINT ON ALL OF THIS.** A team-game's runs have
+sd 3.22, so 1,062 team-games give se 0.099 — and the full-game gap at the
+July cut is 0.174. **The headline was 1.7 sigma.** Resolving a gap this size
+at 2 sigma needs ~2,500 team-games.
+
+**THE FIRST INNING IS UNDER-SCORED, WHICH REVERSES AN OLD DEFECT.** Runs by
+inning, both teams, 923 games:
+
+    inning    model   actual      gap      se      z      rel
+         1    0.883    1.018   -0.136   0.050   -2.7   -13.3%
+         2    0.843    0.909   -0.066   0.047   -1.4    -7.3%
+         3    0.941    0.998   -0.057   0.048   -1.2    -5.7%
+         ...
+     total    8.222    8.933   -0.711   0.152   -4.7    -8.0%
+
+Reality's first inning is its HIGHEST-scoring (1.018 against a 0.993 average
+for innings 2-8) because the top of the order is guaranteed to bat. The
+model's is its LOWEST (0.883 against 0.936). The batting order is not the
+cause — the model starts at the leadoff man. CANDIDATE, UNTESTED:
+`TTO_MULT`. Inning 1 is entirely first-pass and innings 1-3 decline
+monotonically at -13.3%, -7.3%, -5.7%, which is the shape an over-strong
+first-pass penalty makes.
+
+**A SIXTH INSTRUMENT ARTIFACT: the ninth inning first read -58.9%.**
+`simulate_game` breaks out when the home team leads after the top of the
+ninth — correctly, that half is not played — and that break happens BEFORE
+the `if inning in track` block, so `prefix_side[9]` is never set for those
+games and the top of the ninth, which WAS played, counts as zero. Take
+innings 9+ as the residual against the final score.
+
+### THE MODEL HAS NO SEASONAL VARIATION, AND TWO THINGS WERE CONFOUNDED
+
+**RATE FRESHNESS IS CLEAN — same games, only the training window moves:**
+
+    game month     model @ May cut    model @ July cut    change
+    2026-07              4.100              4.202          +2.5%
+    2026-08              4.136              4.255          +2.9%
+
+Thinner rates shrink harder toward the league, spread comes out of the
+lineup, and runs are CONVEX in that spread. So the model under-scores in
+proportion to how little it knows — which is worst in April and May, exactly
+when a live board is hardest to price.
+
+**THE CALENDAR HALF WAS MOSTLY ONE SEASON'S NOISE, AND THE CHECK THAT FOUND
+IT WAS "does it repeat across years".** Within the May cut the model's output
+is flat to 0.9% across four months while 2026's actual swings 9.6% — which
+read as a seasonal term worth up to 0.4 runs, eight times the leverage floor.
+Centring each season on its own mean and pooling four seasons:
+
+    month     2023     2024     2025     2026     mean     se     z     rel
+    04      +0.020   -0.116   -0.124   +0.071   -0.037  0.049  -0.8   -0.8%
+    05      -0.057   -0.170   -0.142   -0.169   -0.134  0.027  -5.0   -3.0%
+    06      -0.075   +0.046   -0.008   +0.208   +0.043  0.060  +0.7   +1.0%
+    07      +0.026   +0.147   +0.048   +0.024   +0.061  0.029  +2.1   +1.4%
+    08      +0.085   +0.092   +0.226   -0.134   +0.067  0.075  +0.9   +1.5%
+
+    shape correlation   2023/2024 +0.43  2023/2025 +0.68  2024/2025 +0.81
+                        2023/2026 -0.38  2024/2026 +0.25  2025/2026 -0.17
+
+**WHAT SURVIVES IS MAY, at -0.134 runs and -3.0%, negative in all four
+seasons.** July is mildly high. **2026's OWN PROFILE DOES NOT REPLICATE** —
+it anticorrelates with 2025 and 2023, and its June +0.21 and August -0.13,
+which produced the whole "9.6% swing", appear in no other year.
+
+So the real seasonal term is 0.13-0.20 runs, a QUARTER of what one season
+suggested, and still 2.7x the leverage floor. **MONTH DUMMIES ARE THE WRONG
+CONSTRUCTION** — fitted on 2026 they would fit noise. A TRAILING-WINDOW
+league baseline picks up the May trough without a month model and handles
+year-to-year level drift for free. That is the version to test.
+
+MARCH IS EXCLUDED THROUGHOUT: 146 games in 2026 and a +0.516 outlier in
+2024. Four days of opening-day pitching is not a seasonal effect.
