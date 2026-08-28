@@ -73,8 +73,13 @@ def main(argv):
         # untracked run reports F5 as 0.00 rather than as missing.
         f5 = [sum(r.prefix_side[5]) for r in res
               if getattr(r, "prefix_side", None) and 5 in r.prefix_side]
+        # A MISSING F5 PRINTS AS "-", NEVER AS 0.00. It read zero for every
+        # game on the board until 2026-08-28 because `simulate_slate_game`
+        # passed no `track`, and a zero that looks like a number hides that
+        # far better than a dash would have.
         line = (f"  {tag:<12}{sp:<40}{st.mean(tot):>7.2f}"
-                f"{(st.mean(f5) if f5 else 0):>7.2f}{st.pstdev(tot):>6.2f}  ")
+                f"{(f'{st.mean(f5):.2f}' if f5 else '-'):>7}"
+                f"{st.pstdev(tot):>6.2f}  ")
         for ln in (6.5, 7.5, 8.5, 9.5, 10.5):
             over = sum(1 for t in tot if t > ln) / len(tot)
             line += f"{ln}:{over:.3f} "

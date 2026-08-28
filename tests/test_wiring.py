@@ -774,3 +774,23 @@ def check_the_raw_prior_flag_reaches_the_prior():
     finally:
         rate_src.USE_RAW_PRIOR = was
         rate_src._PRIOR, rate_src._PRIOR_FOR = {}, None
+
+
+def check_the_slate_simulation_tracks_the_first_five():
+    """F5 TEAM TOTALS ARE THE STATED PRODUCT and the live path lost them.
+
+    `simulate_slate_game` called `simulate_game` with no `track`, so
+    `prefix_side` came back empty for every game and `scratchpad/tonight.py`
+    printed the first-five total as 0.00 across the whole board. Nothing
+    failed; the one number this project exists to produce was simply absent
+    from the only tool that shows a live slate.
+    """
+    import inspect
+    from src.context import price
+
+    sig = inspect.signature(price.simulate_slate_game)
+    assert "track" in sig.parameters, sorted(sig.parameters)
+    assert sig.parameters["track"].default == (5,), \
+        sig.parameters["track"].default
+    src = inspect.getsource(price.simulate_slate_game)
+    assert "track=track" in src, "track must reach simulate_game"

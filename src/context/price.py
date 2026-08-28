@@ -170,7 +170,7 @@ def _build(names, br, league_bats):
 
 
 def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
-                        seed=0, progress=None):
+                        seed=0, progress=None, track=(5,)):
     """`n_sims` simulated games for one slate matchup. -> (results, reason).
 
     BOTH STARTERS OR NEITHER, and that is the whole point of this function.
@@ -250,8 +250,15 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
             sides[side] = game.build_side(
                 pitcher, pens.get((abbr or "").upper(), []), faces, hook,
                 rng, team=abbr, apply_leash=False)
+        # TRACK THE FIFTH BY DEFAULT. `prefix_side` is only populated for
+        # innings named here, and this passed nothing — so every caller got
+        # an empty dict and `scratchpad/tonight.py` printed the first-five
+        # total as 0.00 for every game on the board. F5 team totals are the
+        # STATED PRODUCT, so the one number this project most wants was
+        # missing from the only tool that shows a live slate. Recording an
+        # inning is a dict write; there is no reason not to.
         out.append(game.simulate_game(sides["away"], sides["home"], lg, rng,
-                                      park=park))
+                                      park=park, track=track))
         if progress is not None and (i + 1) % every == 0:
             progress(i + 1, n_sims)
     if progress is not None:
