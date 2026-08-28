@@ -23,7 +23,7 @@ from __future__ import annotations
 import json
 import statistics as st
 
-STATS = ("k_pct", "bb_pct", "hr_pct", "babip")
+STATS = ("k_pct", "bb_pct", "hr_pct", "babip", "hbp_pct")
 
 
 def main():

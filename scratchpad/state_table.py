@@ -22,6 +22,12 @@ BABIP IS A DIFFERENT DENOMINATOR from the other three and getting it wrong
 is the single likeliest error here. The model's `babip` channel is
 P(a ball in play becomes a hit), so the ratio must be
 (H - HR) / (PA - K - BB - HBP - HR), NOT hits per plate appearance.
+
+`--from-counts` rebuilds the table from `state_counts.json` instead of
+rescanning 2,000 games. That is what the dumped counts are FOR, and it is
+the right path when a CHANNEL is added rather than a season: rescanning
+today would fold in games played since, and the shipped k/bb/babip columns
+would drift for a reason that has nothing to do with the new column.
 """
 from __future__ import annotations
 
@@ -62,6 +68,12 @@ def _one(gid):
     return {k: dict(v) for k, v in out.items()}
 
 
+#: HBP IS PER PLATE APPEARANCE, like k and bb. It shares their denominator
+#: because that is how `sim` draws it — off the top of the plate appearance,
+#: before anything else resolves.
+STATS = ("k_pct", "bb_pct", "hr_pct", "babip", "hbp_pct")
+
+
 def _rates(c):
     pa = c["pa"]
     bip = pa - c["k"] - c["bb"] - c["hbp"] - c["hr"]
@@ -70,33 +82,52 @@ def _rates(c):
         "bb_pct": c["bb"] / pa,
         "hr_pct": c["hr"] / pa,
         "babip": (c["h"] - c["hr"]) / bip if bip > 0 else 0.0,
+        "hbp_pct": c["hbp"] / pa,
     }
 
 
+def _load_counts():
+    """The dumped counts, keys back to tuples. See `--from-counts` above."""
+    raw = json.load(open("scratchpad/state_counts.json"))
+    out = {}
+    for k, v in raw.items():
+        out["ALL" if k == "ALL" else
+            tuple(int(x) for x in k.strip("()").split(","))] = v
+    return out
+
+
 def main(argv):
+    from_counts = "--from-counts" in argv
+    argv = [a for a in argv if not a.startswith("--")]
     cap = int(argv[0]) if argv else 2000
-    with db.connect() as c:
-        gids = [r["game_id"] for r in c.execute(
-            "select game_id from games where sport='mlb' and status='Final'"
-            " and date like '2026%' order by date")][:cap]
-    with mp.get_context("fork").Pool(8) as p:
-        got = [g for g in p.map(_one, gids, chunksize=16) if g]
-    agg = defaultdict(lambda: defaultdict(int))
-    for g in got:
-        for cell, c in g.items():
-            key = tuple(cell) if isinstance(cell, list) else cell
-            for k, v in c.items():
-                agg[key][k] += v
-    # RAW COUNTS DUMPED so shrinkage can be reconsidered without a
-    # 2,000-game rescan.
-    json.dump({str(k): dict(v) for k, v in agg.items()},
-              open("scratchpad/state_counts.json", "w"), indent=1)
+    if from_counts:
+        agg = _load_counts()
+        got = []
+    else:
+        with db.connect() as c:
+            gids = [r["game_id"] for r in c.execute(
+                "select game_id from games where sport='mlb' and status='Final'"
+                " and date like '2026%' order by date")][:cap]
+        with mp.get_context("fork").Pool(8) as p:
+            got = [g for g in p.map(_one, gids, chunksize=16) if g]
+        agg = defaultdict(lambda: defaultdict(int))
+        for g in got:
+            for cell, c in g.items():
+                key = tuple(cell) if isinstance(cell, list) else cell
+                for k, v in c.items():
+                    agg[key][k] += v
+        # RAW COUNTS DUMPED so shrinkage can be reconsidered without a
+        # 2,000-game rescan.
+        json.dump({str(k): dict(v) for k, v in agg.items()},
+                  open("scratchpad/state_counts.json", "w"), indent=1)
     base = _rates(agg["ALL"])
-    print(f"  {len(got):,} games, {agg['ALL']['pa']:,} plate appearances")
+    src = "cached counts" if from_counts else f"{len(got):,} games"
+    print(f"  {src}, {agg['ALL']['pa']:,} plate appearances")
     print(f"  overall  k {base['k_pct']:.4f}  bb {base['bb_pct']:.4f}  "
-          f"hr {base['hr_pct']:.4f}  babip {base['babip']:.4f}\n")
+          f"hr {base['hr_pct']:.4f}  babip {base['babip']:.4f}  "
+          f"hbp {base['hbp_pct']:.4f}\n")
     print(f"  {'on':>3}{'out':>5}{'n':>9}"
-          + "".join(f"{s:>13}" for s in ("k", "bb", "hr", "babip")))
+          + "".join(f"{s:>13}" for s in ("k", "bb", "hr", "babip", "hbp")))
     table = {}
     for on in (0, 1, 2, 3):
         for outs in (0, 1, 2):
@@ -112,7 +143,8 @@ def main(argv):
             bip = (c["pa"] - c["k"] - c["bb"] - c["hbp"] - c["hr"])
             se = {}
             for k, n in (("k_pct", c["pa"]), ("bb_pct", c["pa"]),
-                         ("hr_pct", c["pa"]), ("babip", max(bip, 1))):
+                         ("hr_pct", c["pa"]), ("babip", max(bip, 1)),
+                         ("hbp_pct", c["pa"])):
                 pr = r[k]
                 se[k] = ((pr * (1 - pr) / n) ** 0.5) / base[k]
             # SHRUNK TOWARD 1.0 BY ITS OWN NOISE, which is the same move
@@ -124,13 +156,11 @@ def main(argv):
                                      **{k: round(m[k], 4) for k in m},
                                      **{f"se_{k}": round(se[k], 4) for k in se}}
             print(f"  {on:>3}{outs:>5}{c['pa']:>9,}"
-                  + "".join(f"{m[k]:>6.3f}+-{se[k]:<5.3f}"
-                            for k in ("k_pct", "bb_pct", "hr_pct", "babip")))
+                  + "".join(f"{m[k]:>6.3f}+-{se[k]:<5.3f}" for k in STATS))
     # THE NORMALISATION CHECK. Weighted by cell frequency these must come
     # back to 1.0, or the table adds offence instead of moving it around.
-    tot = sum(agg[k]["pa"] for k in agg if k != "ALL")
-    print(f"\n  frequency-weighted mean multiplier (must be ~1.000):")
-    for stat in ("k_pct", "bb_pct", "hr_pct", "babip"):
+    print("\n  frequency-weighted mean multiplier (must be ~1.000):")
+    for stat in STATS:
         s = sum(agg[k]["pa"] * (_rates(agg[k])[stat] / base[stat])
                 for k in agg if k != "ALL" and agg[k]["pa"] >= 500)
         n = sum(agg[k]["pa"] for k in agg if k != "ALL" and agg[k]["pa"] >= 500)
