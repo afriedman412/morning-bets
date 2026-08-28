@@ -4869,3 +4869,59 @@ NEXT: what SHARE OF RUNS scores on a home run, model against actual. RBI
 concentrate when runs arrive in one swing instead of passing through several
 hitters, and the channel decomposition has only ever checked home-run
 COUNTS, never the share of runs they carry.
+
+### THE SEED IS SHARED ACROSS GAMES AND IT INFLATES EVERY ABSOLUTE LEVEL
+
+**FOUND BY TWO OF MY OWN NUMBERS DISAGREEING**, which is the only reason it
+surfaced: mean team runs read 4.4732 over the first 20 draws and 4.3205 over
+40, from the same engine on the same games. That looked like state carrying
+across replays — a serious bug — and it is not.
+
+`ceiling`, `offense` and the first `hr_share` all pass `seed=0` for EVERY
+game. Draw *i* then sits at the same position in the random stream for all
+of them, so the per-draw errors CORRELATE ACROSS GAMES and the effective
+sample size is nowhere near n_games x n_sims. Measured, 60 games x 100 draws
+in blocks of 20:
+
+    same seed for every game    8.480 8.873 8.564 8.184 7.733   sd 0.385
+    seed varies BY GAME         8.187 8.342 8.290 8.168 8.480   sd 0.113
+
+**3.4x on the standard error, 11.6x on the variance.** It CANCELS in a
+paired A/B — both arms use the same seeds, which is why `unshrink` and
+`kshrink_ab` are sound, and `unshrink` varies its seed by game anyway. It
+does NOT cancel in a LEVEL or a SHARE, and those are exactly what the new
+offence measurements report.
+
+Note `scratchpad/fingerprint.py` must NOT adopt per-game variation for its
+own sake — it needs a STABLE seed, which is why it uses crc32 of the game id
+rather than `hash()`. Stable and varying-by-game are the same fix here.
+
+### WHAT SHARE OF RUNS ARRIVES ON A HOME RUN — NOT RESOLVED
+
+The test that was supposed to separate the two mechanisms behind the rbi
+concentration. HYPOTHESIS stated first: the model's home-run share of runs
+is too HIGH, so its runs land in one swing on one batter.
+
+    cut 2026-07-01, 531 games   model 43.06%  actual 41.53%   +1.53%  z +1.4
+    cut 2026-05-15, 923 games   model 40.76%  actual 42.10%   -1.33%  z -1.6
+
+**TWO WINDOWS, OPPOSITE SIGNS, NEITHER RESOLVING.** The share matches within
+about 1.5 points and the direction is not stable. Sequencing-through-homers
+is not established as the mechanism, and the pre-registered fallback — "then
+it is the batter rates" — does not survive either, because those cost F5.
+**The concentration defect stands with NO mechanism identified.**
+
+THE FIRST RUN OF THIS SAID +3.86% AT z +3.5. That was the shared seed, and
+it is the second time in one day the instrument rather than the model
+produced the headline (the other being `advance.report` comparing against
+legacy constants at -41 sigma).
+
+### `mlb_batting` UNDERCOUNTS RUNS BY 1%
+
+On the same 531 holdout games: summing the batting table's per-player runs
+gives 4.3578 per team-game against 4.4030 from the games table's final
+scores. The scores are authoritative, so about 1.0% of runs have no batting
+row behind them. Every "actual" figure in `scratchpad/offense.py` is
+understated by that much, and a team-game with missing rows lands in a lower
+run bucket than it belongs in — which matters for the run-matched
+concentration table, though not enough to move a +0.072 result.

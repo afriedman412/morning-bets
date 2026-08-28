@@ -1934,6 +1934,8 @@ class StartResult:
     scored_by: dict = field(default_factory=dict)
     rbi_by: dict = field(default_factory=dict)
     wp_pb: int = 0
+    #: Runs that scored ON a home run, batter included. See `apply_pa`.
+    runs_hr: int = 0
 
 
 @dataclass
@@ -2040,9 +2042,17 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random,
         r.outs += 1
         r.sacrifices += 1
         if fr.outs < 3 and any(bases):
-            if bases[2]:
-                _score(r, fr, 1)                 # sacrifice fly
-            bases[:] = [False, bases[0], bases[1]]
+            # THROUGH `_credit`, not `_score`, and moving TOKENS. This
+            # branch had the same two defects `baserunning` had: it wrote
+            # booleans into a list that carries runner identity, and it
+            # scored the sacrifice fly with nobody credited. A sac fly DOES
+            # award an rbi, so the batter is passed through. It survived
+            # the whole-game attribution check only because sacrifices are
+            # about 1% of plate appearances — the check now runs enough
+            # games that it cannot pass by luck.
+            _credit(r, fr, ((1, [bases[2]]) if bases[2] else (0, [])),
+                    batter)
+            bases[:] = [None, bases[0], bases[1]]
     elif o == HBP:
         r.hbp += 1
         _credit(r, fr, _advance(bases, BB, rng, outs_before, batter), batter)
@@ -2081,7 +2091,15 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random,
             r.h += 1
             if o == HR:
                 r.hr += 1
+        before = r.runs
         _credit(r, fr, _advance(bases, o, rng, outs_before, batter), batter)
+        if o == HR:
+            # HOW RUNS ARRIVE, not just how many. A homer delivers its runs
+            # in one swing to one batter; a single passes them through
+            # several. The channel decomposition has only ever checked home
+            # run COUNTS, and the share of RUNS they carry is a different
+            # quantity — it is what decides whether rbi concentrate.
+            r.runs_hr += r.runs - before
 
 
 

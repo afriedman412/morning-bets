@@ -589,7 +589,23 @@ def check_per_batter_runs_add_up_to_the_team_score():
     home = _side(starter=_pitcher(name="h", k_pct=0.05, bb_pct=0.25,
                                   hr_pct=0.08, babip=0.40),
                  pen=_pen(k_pct=0.05, bb_pct=0.25, hr_pct=0.08, babip=0.40))
-    r = game.simulate_game(away, home, dict(LG), random.Random(7))
+    # MANY GAMES, not one. Sacrifices are about 1% of plate appearances,
+    # so a single game passed this check for weeks while the `SAC` branch
+    # scored its sacrifice flies with nobody credited at all.
+    for seed in range(40):
+        away = _side(starter=_pitcher(name="a", k_pct=0.05, bb_pct=0.25,
+                                      hr_pct=0.08, babip=0.40),
+                     pen=_pen(k_pct=0.05, bb_pct=0.25, hr_pct=0.08,
+                              babip=0.40))
+        home = _side(starter=_pitcher(name="h", k_pct=0.05, bb_pct=0.25,
+                                      hr_pct=0.08, babip=0.40),
+                     pen=_pen(k_pct=0.05, bb_pct=0.25, hr_pct=0.08,
+                              babip=0.40))
+        r = game.simulate_game(away, home, dict(LG), random.Random(seed))
+        for team, bats in (("away", r.away_bats), ("home", r.home_bats)):
+            scored = sum(v["r"] for v in bats.values())
+            want = r.away if team == "away" else r.home
+            assert scored == want, (seed, team, scored, want)
     for team, bats in (("away", r.away_bats), ("home", r.home_bats)):
         scored = sum(v["r"] for v in bats.values())
         rbi = sum(v["rbi"] for v in bats.values())
@@ -653,3 +669,22 @@ def check_reading_the_offence_twice_does_not_double_count():
     second = away.offense()
     assert first == second, (first, second)
     assert sum(v["r"] for v in second.values()) == r.home
+
+
+def check_home_run_runs_are_tallied_across_every_arm():
+    """`runs_on_hr` folds like the offence dicts, and cannot exceed runs.
+
+    The starter's own line is not enough: about a third of a game's runs
+    come against the pen, and the line carrying them is replaced at every
+    pitching change.
+    """
+    away = _side(starter=_pitcher(name="a", k_pct=0.02, bb_pct=0.10,
+                                  hr_pct=0.25, babip=0.30),
+                 pen=_pen(k_pct=0.02, bb_pct=0.10, hr_pct=0.25, babip=0.30))
+    home = _side()
+    r = game.simulate_game(away, home, dict(LG), random.Random(4))
+    assert 0 < r.home_hr_runs <= r.home, (r.home_hr_runs, r.home)
+    # The starter alone must be short of the whole game, or the fold is
+    # doing nothing and the check is vacuous.
+    assert r.home_hr_runs > away.line.runs_hr, (r.home_hr_runs,
+                                                away.line.runs_hr)

@@ -48,6 +48,20 @@ arm. Three answers, in `scratchpad/offense.py`:
   +0.072 (z +2.7). Predicted sign was the opposite, so this is NOT clustering
   at the batter level.
 
+**THE SEED IS SHARED ACROSS GAMES IN `ceiling` AND `offense`** (`seed=0` for
+every game), which correlates the per-draw errors and inflates the standard
+error of any ABSOLUTE level or share by **3.4x**. It cancels in a paired A/B
+and does not cancel in a level. Vary the seed by game — crc32 of the game id.
+It turned a z +3.5 home-run-share result into z +1.4.
+
+**HOW RUNS ARRIVE — the home-run share of runs is NOT RESOLVED.** +1.53% on a
+July cut, -1.33% on a May cut, neither over 1.6 sigma. So the rbi
+concentration finding has NO mechanism identified: sequencing is not
+established and the batter rates are ruled out by F5.
+
+**`mlb_batting` UNDERCOUNTS RUNS BY 1.0%** against the final scores on the
+same games. Every "actual" figure in `offense.py` is light by that much.
+
 **ADVANCEMENT RE-MEASURED ON 754,886 PLAYS AND CONFIRMED.** Every live
 constant within ~0.01 runs of shipped. Do not re-run it. And beware
 `advance.report`: its "ANY runner advances" row compares against

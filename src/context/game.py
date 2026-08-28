@@ -155,6 +155,9 @@ class Side:
     #: so no caller has to remember an end-of-game step.
     bat_scored: dict = field(default_factory=dict)
     bat_rbi: dict = field(default_factory=dict)
+    #: Runs allowed ON a home run, across every arm. Folded for the same
+    #: reason the dicts are: `next_arm` drops the line it sits on.
+    bat_runs_hr: int = 0
 
     def __post_init__(self):
         if self.cur_line is None:
@@ -165,6 +168,13 @@ class Side:
                          (ln.rbi_by, self.bat_rbi)):
             for who, n in src.items():
                 dst[who] = dst.get(who, 0) + n
+        self.bat_runs_hr += ln.runs_hr
+
+    @property
+    def runs_on_hr(self) -> int:
+        """Runs allowed on a home run, whole game. Non-mutating like
+        `offense()` — the arm currently on has not been folded yet."""
+        return self.bat_runs_hr + self.cur_line.runs_hr
 
     def offense(self) -> dict:
         """{batter name: {"r": runs, "rbi": runs driven in}}, whole game.
@@ -460,6 +470,10 @@ class GameResult:
     #: and `home` are — see the assignment in `simulate_game`.
     away_bats: dict = field(default_factory=dict)
     home_bats: dict = field(default_factory=dict)
+    #: Of each team's runs, how many arrived on a home run. Crossed the
+    #: same way everything else here is.
+    away_hr_runs: int = 0
+    home_hr_runs: int = 0
 
     @property
     def total(self) -> int:
@@ -549,7 +563,8 @@ def simulate_game(away: Side, home: Side, lg: dict,
         prefix_side=prefix_side,
         # CROSSED, like the runs directly above: the away TEAM's hitters are
         # the nine the HOME side pitched to.
-        away_bats=home.offense(), home_bats=away.offense())
+        away_bats=home.offense(), home_bats=away.offense(),
+        away_hr_runs=home.runs_on_hr, home_hr_runs=away.runs_on_hr)
 
 
 def build_side(starter: sim.PitcherRates, pen_pool: list[dict],

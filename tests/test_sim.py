@@ -1968,3 +1968,33 @@ def check_a_steal_of_third_keeps_the_runner_too():
     sim.baserunning(r, fr, _Rolls(0.99, cs_r + sb_r / 2, 0.0))
     assert r.stolen_bases == 1, (r.stolen_bases, fr.bases)
     assert fr.bases == [None, None, "SOTO"], fr.bases
+
+
+def check_a_sacrifice_fly_credits_the_runner_and_the_batter():
+    """The `SAC` branch had the same two defects `baserunning` had.
+
+    It wrote booleans into a list that carries runner identity, and it
+    scored the run through `_score` so nobody was credited. MLB awards an
+    rbi on a sacrifice fly, so the batter gets one; the man on third gets
+    the run.
+    """
+    r = sim.StartResult()
+    fr = sim.Frame(bases=["A", None, "C"], outs=0)
+    sim.apply_pa(sim.SAC, r, fr, random.Random(1), batter="BAT")
+    assert r.runs == 1, r.runs
+    assert r.scored_by == {"C": 1}, r.scored_by
+    assert r.rbi_by == {"BAT": 1}, r.rbi_by
+    # And the man on first moved up carrying his own name.
+    assert fr.bases == [None, "A", None], fr.bases
+
+
+def check_runs_on_a_home_run_are_counted_separately():
+    """`runs_hr` is how runs ARRIVE, which the line alone cannot say."""
+    r = sim.StartResult()
+    fr = sim.Frame(bases=["A", "B", None], outs=0)
+    sim.apply_pa(sim.HR, r, fr, random.Random(1), batter="BAT")
+    assert r.runs == 3 and r.runs_hr == 3, (r.runs, r.runs_hr)
+    sim.apply_pa(sim.B1, r, fr, random.Random(1), batter="BAT")
+    fr.bases[2] = "D"
+    sim.apply_pa(sim.B2, r, fr, random.Random(1), batter="BAT")
+    assert r.runs_hr == 3, (r.runs, r.runs_hr)
