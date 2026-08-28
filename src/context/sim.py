@@ -324,8 +324,42 @@ def _sigmoid(z: float) -> float:
 #: hits, not hit types, to a pitcher — so they inherit the non-homer hit
 #: coefficient. SAC and ROE are likewise unidentified and keep sensible
 #: neighbours.
-PITCH_COST = {K: 4.97, BB: 5.48, HR: 3.76, B1: 3.01, B2: 3.01, B3: 3.01,
-              OUT: 3.25, SAC: 3.0, HBP: 3.67, ROE: 3.25}
+#: Pitches charged per outcome. COUNTED on 150,907 plate appearances of
+#: 2026 play-by-play, 2026-08-29 (`scratchpad/pitch_cost.py`), replacing
+#: values that were off by up to 19%:
+#:
+#:     outcome     was   counted        n
+#:     K          4.97      4.85   33,469
+#:     BB         5.48      5.72   13,181
+#:     HBP        3.67      3.09    1,721   <- 19% high
+#:     HR         3.76      3.28    4,610   <- 15% high
+#:     1B         3.01      3.35   21,386
+#:     2B         3.01      3.33    6,234
+#:     3B         3.01      3.36      548
+#:     OUT        3.25      3.37   67,298
+#:     SAC        3.00      2.77    1,592
+#:     ROE        3.25      3.46      868
+#:
+#: The old values charged one flat 3.01 to every hit and too much for a
+#: home run and a hit-by-pitch — both of which end an at-bat EARLY, which
+#: is the tell that they were imported rather than counted.
+#:
+#: IT IS A LEVEL ERROR AND THE HOOK KEYS ON IT. Summed over a start the old
+#: table predicted 83.6 pitches against an actual 85.6, so every simulated
+#: starter arrived at the removal decision two pitches young.
+#:
+#: **DETERMINISTIC ON PURPOSE, and that was checked rather than assumed.**
+#: The obvious next thought is to draw the cost from a distribution — real
+#: pitches per plate appearance carry sd 1.4 to 1.9. Measured, that is
+#: WRONG: the table already produces a start-level spread of 15.0 pitches
+#: against a real 14.2, so it is if anything slightly too wide already, and
+#: adding independent per-PA noise over ~25 plate appearances would take it
+#: to ~17.5. Real pitch counts are CORRELATED WITHIN A START — an efficient
+#: pitcher is efficient all night — so independent noise is the wrong
+#: shape. What remains wrong is per-start ACCURACY (residual sd 8.2), and
+#: that is a per-pitcher efficiency term, not noise.
+PITCH_COST = {K: 4.85, BB: 5.72, HR: 3.28, B1: 3.35, B2: 3.33, B3: 3.36,
+              OUT: 3.37, SAC: 2.77, HBP: 3.09, ROE: 3.46}
 
 #: How much trouble each outcome represents, for the hook. NOT run value —
 #: this is "how alarmed is the dugout", which is a different quantity. Runs
@@ -621,7 +655,12 @@ class BatterRates:
 #: Neutral park. Every factor is a multiplier on a rate, 1.0 = league.
 #: Savant publishes these as indices where 100 is average, so a caller
 #: converts with index/100 — see `park_mults`.
-NEUTRAL_PARK = {"hr": 1.0, "k": 1.0, "bip": 1.0}
+#: `bb` was added 2026-08-29. Savant has always served a walk park
+#: index and `sources/park.py` has always fetched it — it had nowhere
+#: to go, so every park test ever run here excluded walks by
+#: construction. Spread across 29 venues is 91 to 114, sd 5.0, which
+#: is the same order as the home-run factors that ARE used.
+NEUTRAL_PARK = {"hr": 1.0, "k": 1.0, "bip": 1.0, "bb": 1.0}
 
 
 def park_mults(factors: dict | None) -> dict:
@@ -637,7 +676,10 @@ def park_mults(factors: dict | None) -> dict:
     def m(key, default=100):
         v = factors.get(key)
         return (v / 100.0) if v else (default / 100.0)
-    return {"hr": m("hr"), "k": m("so"), "bip": m("bacon", 100)}
+    return {"hr": m("hr"), "k": m("so"), "bip": m("bacon", 100),
+            # Savant's walk index. Fetched by `sources/park.py` since the
+            # beginning and dropped on the floor here until 2026-08-29.
+            "bb": m("bb")}
 
 
 #: TIMES THROUGH THE ORDER. Multipliers on a starter's own rates by how
@@ -685,6 +727,144 @@ def tto_mult(tto: int | None) -> dict | None:
     return TTO_MULT.get(min(max(tto, 1), 3))
 
 
+#: Rate multipliers by FIELD STATE, keyed `(men on base, outs)`.
+#:
+#: WHY THIS EXISTS. Until 2026-08-29 a plate appearance resolved identically
+#: with the bases empty and the bases loaded — `pa_from` took a resolved
+#: matchup and a times-through-order index and nothing else. Counted on
+#: 112,809 real plate appearances (`scratchpad/basestate.py`, intentional
+#: walks and sacrifice bunts excluded because both are runners-on-only
+#: plays that would manufacture the effect):
+#:
+#:     channel    empty   runners on      rel   sigma
+#:     k         0.2279       0.2160    -5.2%    -4.7
+#:     bb        0.0850       0.0920    +8.2%    +4.1
+#:     hbp       0.0104       0.0128   +23.0%    +3.7
+#:     h         0.2138       0.2236    +4.6%    +3.9
+#:
+#: Real offence is materially better with men on, and the model had no
+#: channel for it. That matters beyond the level: it is a FEEDBACK LOOP —
+#: a baserunner improves the next plate appearance, which produces more
+#: baserunners — and a feedback loop is what generates fat tails at both
+#: ends. The standing unexplained defect is that reality has more shutouts
+#: AND more blowups while the model bunches in the middle, recorded as
+#: "plate appearances resolve independently and real ones arrive together".
+#: This is that mechanism.
+#:
+#: EMPTY IS NEUTRAL AND THAT IS DELIBERATE. The table ships empty so the
+#: PLUMBING can be verified bit-identical before any number goes in it —
+#: the same discipline the `odds_mult` migration used. Populating it is a
+#: separate change with its own measurement and its own A/B.
+#:
+#: NOT ALL FOUR CHANNELS. Only `k_pct`, `hr_pct` and `babip` are read here.
+#: WALKS have no `odds_mult` slot on `Matchup` at all and HIT-BY-PITCH is
+#: drawn off the top against `cond`, which would have to be recomputed in
+#: the same breath or the rates below it are renormalised by the wrong
+#: denominator. Both are on the list and neither is done here.
+STATE_MULT: dict = {
+    (0, 0): {"k_pct": 0.9870, "bb_pct": 0.9667, "babip": 0.9773},
+    (0, 1): {"k_pct": 1.0331, "bb_pct": 0.9722, "babip": 0.9865},
+    (0, 2): {"k_pct": 1.0509, "bb_pct": 1.0076, "babip": 0.9848},
+    (1, 0): {"k_pct": 0.9411, "babip": 1.0376},
+    (1, 1): {"k_pct": 0.9798, "bb_pct": 1.0380, "babip": 1.0549},
+    (1, 2): {"k_pct": 0.9839, "bb_pct": 1.0688, "babip": 1.0039},
+    (2, 0): {"k_pct": 0.9575, "bb_pct": 0.9876, "babip": 1.0484},
+    (2, 1): {"k_pct": 0.9750, "bb_pct": 1.0035, "babip": 1.0392},
+    (2, 2): {"k_pct": 1.0093, "bb_pct": 1.0246, "babip": 0.9662},
+    (3, 0): {"k_pct": 0.9964, "bb_pct": 0.9698, "babip": 1.0211},
+    (3, 1): {"k_pct": 0.9886, "bb_pct": 0.9466, "babip": 1.0787},
+    (3, 2): {"k_pct": 0.9941, "bb_pct": 0.9824, "babip": 0.9658},
+}
+
+#: HOW THE TABLE ABOVE WAS BUILT, because "measured" has to be checkable.
+#:
+#: Counted on 150,275 plate appearances over 2,000 games of 2026
+#: (`scratchpad/state_table.py`), JOINTLY on (men on, outs) — the earlier
+#: tables varied one at a time and cannot separate them, since a two-out
+#: plate appearance is likelier to have runners on and vice versa.
+#:
+#: Each multiplier is the cell's rate over the OVERALL rate, which makes the
+#: table self-normalising: sum of freq(s) x rate(s) IS the overall rate by
+#: definition. Verified — the frequency-weighted mean came back 1.0000 on
+#: all four channels before shrinkage and is renormalised to exactly 1.0
+#: after it.
+#:
+#: THEN SHRUNK TOWARD 1.0 BY EACH CELL'S OWN BINOMIAL NOISE
+#: (`scratchpad/state_shrink.py`), tau^2 = observed variance minus mean
+#: noise variance. A cell seen 704 times must not shout as loudly as one
+#: seen 37,162 times.
+#:
+#:     stat        tau    mean se   weight kept
+#:     k_pct    0.0281     0.0320       0.60
+#:     bb_pct   0.0523     0.0532       0.63
+#:     hr_pct   0.0000     0.0953       0.00   <- entirely noise
+#:     babip    0.0496     0.0338       0.77
+#:
+#: **HOME RUNS COLLAPSED TO ALL-ONES AND ARE ABSENT ON PURPOSE.** Their
+#: whole spread across the twelve cells is explained by their own sampling
+#: error, so the shrinkage returns the null — which is the discipline
+#: working, not a gap. The raw table showed a tempting 0.797 at (2 on, 1
+#: out) and its standard error is 0.062 on a cell of 6,545.
+#:
+#: WHAT THE SURVIVING NUMBERS SAY, and both are ordinary baseball: with men
+#: on, strikeouts fall and balls in play find more holes (the defence is
+#: holding runners). Walks rise with a man on and FALL with the bases loaded
+#: — 0.947 at (3, 1) — because a walk there forces in a run and nobody
+#: pitches around anyone. Strikeouts also rise with the out count
+#: independently of the bases, which is the effect the one-at-a-time tables
+#: were confounding with traffic.
+#:
+#: HIT-BY-PITCH IS NOT HERE and is the largest relative effect measured
+#: (+23.0%). It is drawn off the top against `cond` and scaling it requires
+#: recomputing that renormaliser in the same breath. On the list.
+
+#: ON. Measured, shrunk, and scored on the SHAPE rather than the mean.
+#:
+#: Scored on 537 holdout games, 21,480 simulated sides an arm, against a
+#: 3x-amplified positive control:
+#:
+#:     F5 per side          OFF      ON   CTRLx3   ACTUAL    se(actual)
+#:     mean               2.425   2.458    2.500    2.437         0.071
+#:     sd                 2.254   2.286    2.326    2.313
+#:     shutout share      0.215   0.213    0.211    0.219         0.012
+#:     five-plus share    0.164   0.169    0.175    0.176         0.012
+#:
+#: The spread and the five-plus share both move toward reality. The mean
+#: and the shutout share move by 0.3 sigma and 0.2 se respectively — that
+#: is noise, and an earlier version of this comment called both of them
+#: results. F5 CRPS is neutral (+0.00169 +/- 0.00235 over four salts),
+#: which is the EXPECTED reading for a change this size: CRPS is dominated
+#: by the bulk and cannot resolve a shape move in the tails.
+#:
+#: **THE PREDICTION THAT FAILED WAS MINE, NOT THE MECHANISM'S.** It was
+#: registered as "both tails fatten" on the generic intuition that
+#: clustering produces feast or famine. Reading the measured table back
+#: shows there was never a route to more shutouts in it: the bases-empty
+#: nobody-out cell — where every inning begins — comes out NEUTRAL
+#: (k 0.987). The table makes a rally easier to CONTINUE and does nothing
+#: to make one harder to START. That is an amplifier, and an amplifier
+#: moves one side. Import the intuition, get the wrong falsifier.
+#:
+#: NOT SCALED TO PIN THE MEAN, and deliberately. Solving for a scalar that
+#: lands the level on a target is fitting a counted quantity back to a
+#: search, and the level it would be defending is 0.3 sigma from where it
+#: already is.
+USE_FIELD_STATE = True
+
+
+def state_mult(state: tuple | None) -> dict | None:
+    """Multipliers for a base-out state, or None when it does not apply.
+
+    `None` means leave the rates alone, and an empty `STATE_MULT` therefore
+    makes this path a no-op rather than a neutral multiplication — worth
+    being exact about, because `odds_mult` returns its input unchanged only
+    when `m` is EXACTLY 1.0.
+    """
+    if not USE_FIELD_STATE or not state or not STATE_MULT:
+        return None
+    return STATE_MULT.get(state)
+
+
 @dataclass(slots=True)
 class Matchup:
     """EVERYTHING one plate appearance depends on, resolved in one place.
@@ -730,6 +910,12 @@ class Matchup:
     m_k: float = 1.0
     m_hr: float = 1.0
     m_bip: float = 1.0
+    #: Walks were the one channel with NO multiplier slot, so `bb` was bare
+    #: `log5(...) / cond` while the other three went through `odds_mult`.
+    #: That silently excluded walks from park, from arsenal and from any
+    #: field-state term — a missing channel reads as a null, not as an
+    #: error, which is the failure mode this project is worst at seeing.
+    m_bb: float = 1.0
     #: Drawn off the top, per ARM. `cond` is carried rather than recomputed
     #: so it can never disagree with the two rates it renormalises.
     sac: float = 0.010
@@ -773,6 +959,7 @@ def resolve(b: BatterRates, p: PitcherRates, lg: dict,
         p_k=p_k, p_bb=p_bb, p_hr=p_hr, p_bab=p_bab,
         lg_k=lgm["k_pct"], lg_bb=lgm["bb_pct"],
         lg_hr=lgm["hr_pct"], lg_bab=lgm["babip"],
+        m_bb=pk.get("bb", 1.0),
         m_k=pk["k"] * b.arsenal_k_mult,
         m_hr=hr_park * pk["hr"] * b.arsenal_mult,
         m_bip=pk["bip"] * b.arsenal_mult,
@@ -783,6 +970,7 @@ def resolve(b: BatterRates, p: PitcherRates, lg: dict,
 def pa_outcome(
     b: BatterRates, p: PitcherRates, lg: dict, rng: random.Random,
     hr_park: float = 1.0, park: dict | None = None, tto: int | None = None,
+    state: tuple | None = None,
 ) -> str:
     """One plate appearance, resolving the matchup first.
 
@@ -790,11 +978,22 @@ def pa_outcome(
     once per pitcher change and call `pa_from`; this exists for tests and
     one-off questions where a single plate appearance is the whole point.
     """
-    return pa_from(resolve(b, p, lg, park, hr_park), rng, tto)
+    return pa_from(resolve(b, p, lg, park, hr_park), rng, tto, state)
 
 
-def pa_from(mu: Matchup, rng: random.Random, tto: int | None = None) -> str:
-    """One plate appearance from a resolved matchup. Returns an outcome."""
+def pa_from(mu: Matchup, rng: random.Random, tto: int | None = None,
+            state: tuple | None = None) -> str:
+    """One plate appearance from a resolved matchup. Returns an outcome.
+
+    `state` is `(men on base, outs)` and enters as an ODDS multiplier
+    through `odds_mult`, NOT the way `tto` does. The difference is not
+    stylistic. Times through the order scales the PITCHER'S input rate,
+    which is the right shape for "this man is wearing down". The field-state
+    effect was measured as a LEAGUE RATE PER STATE — 0.2279 strikeouts with
+    the bases empty against 0.2160 with men on — and `odds_mult` is built so
+    a league-average matchup at multiplier `m` lands on exactly `m * lg`.
+    So the measurement maps onto the mechanism with nothing to reconcile.
+    """
     p_k, p_bb, p_hr, p_bab = mu.p_k, mu.p_bb, mu.p_hr, mu.p_bab
     m = tto_mult(tto)
     if m is not None:
@@ -802,6 +1001,17 @@ def pa_from(mu: Matchup, rng: random.Random, tto: int | None = None) -> str:
         p_bb *= m["bb_pct"]
         p_hr *= m["hr_pct"]
         p_bab *= m["babip"]
+    # EXACTLY 1.0 WHEN THERE IS NOTHING TO APPLY, because `odds_mult`
+    # short-circuits on `m == 1.0` and returns its input untouched. That is
+    # what makes the empty table bit-identical to the state-blind model
+    # rather than merely very close.
+    s_k = s_bb = s_hr = s_bab = 1.0
+    s = state_mult(state)
+    if s is not None:
+        s_k = s.get("k_pct", 1.0)
+        s_bb = s.get("bb_pct", 1.0)
+        s_hr = s.get("hr_pct", 1.0)
+        s_bab = s.get("babip", 1.0)
     # Off the top: a sacrifice is a plate appearance that was never going to
     # be a strikeout or a walk, so it conditions everything below it.
     if rng.random() < mu.sac:
@@ -816,7 +1026,7 @@ def pa_from(mu: Matchup, rng: random.Random, tto: int | None = None) -> str:
     # `/ cond` is NOT a modelling multiplier and stays as division: it is a
     # conditional-probability renormalisation, P(K | not sac, not hbp), and
     # it cannot exceed 1 because a strikeout is disjoint from both.
-    k = odds_mult(log5(mu.b_k, p_k, mu.lg_k), mu.m_k, mu.lg_k) / cond
+    k = odds_mult(log5(mu.b_k, p_k, mu.lg_k), mu.m_k * s_k, mu.lg_k) / cond
     if rng.random() < k:
         return K
 
@@ -838,7 +1048,8 @@ def pa_from(mu: Matchup, rng: random.Random, tto: int | None = None) -> str:
     # inflates a rate will find out immediately instead of three weeks
     # later.
     rest = 1.0 - k
-    bb = log5(mu.b_bb, p_bb, mu.lg_bb) / cond
+    bb = odds_mult(log5(mu.b_bb, p_bb, mu.lg_bb), mu.m_bb * s_bb,
+                   mu.lg_bb) / cond
     if bb > rest:
         raise ValueError(
             f"walk probability {bb:.4f} exceeds the {rest:.4f} left after a "
@@ -849,7 +1060,8 @@ def pa_from(mu: Matchup, rng: random.Random, tto: int | None = None) -> str:
         return BB
 
     rest -= bb
-    hr = odds_mult(log5(mu.b_hr, p_hr, mu.lg_hr), mu.m_hr, mu.lg_hr) / cond
+    hr = odds_mult(log5(mu.b_hr, p_hr, mu.lg_hr), mu.m_hr * s_hr,
+                   mu.lg_hr) / cond
     if hr > rest:
         raise ValueError(
             f"home run probability {hr:.4f} exceeds the {rest:.4f} left "
@@ -861,7 +1073,8 @@ def pa_from(mu: Matchup, rng: random.Random, tto: int | None = None) -> str:
 
     # Ball in play. The arsenal multiplier applies here too: a mix this
     # hitter handles well produces harder contact, not just more homers.
-    babip = odds_mult(log5(mu.b_bab, p_bab, mu.lg_bab), mu.m_bip, mu.lg_bab)
+    babip = odds_mult(log5(mu.b_bab, p_bab, mu.lg_bab), mu.m_bip * s_bab,
+                      mu.lg_bab)
     if rng.random() >= babip:
         # A ball in play the defence should have converted and did not.
         # Drawn HERE rather than from the whole plate appearance because an

@@ -701,3 +701,47 @@ def check_plate_appearances_are_tallied_across_every_arm():
     assert r.away_pa > home.line.batters, (r.away_pa, home.line.batters)
     # A team cannot score more runs than it sent men to the plate.
     assert r.away <= r.away_pa and r.home <= r.home_pa, r
+
+
+def check_the_engine_passes_the_field_state_to_the_plate_appearance():
+    """THE WIRING CHECK FOR `_half_inning`, and it is a different claim from
+    the ones in test_sim.py.
+
+    Those call `sim.pa_outcome` directly, so they pass whether or not the
+    ENGINE ever supplies a state — which is precisely the gap
+    `scratchpad/mutate.py` found five times over: every measurement was
+    tested and none of the wiring was. Deleting the `state=` argument in
+    `game._half_inning` leaves all four of those checks green and this one
+    red.
+
+    Keyed on a state that can only arise MID-INNING (a man on, nobody out),
+    so a table that leaked into the bases-empty leadoff spot would not be
+    enough to move it.
+    """
+    keep, keep_flag = sim.STATE_MULT, sim.USE_FIELD_STATE
+    try:
+        # SET BOTH EXPLICITLY. Relying on the shipped defaults broke this
+        # twice in one day — once when the table was populated and once when
+        # the flag was parked off. A wiring check must test the wiring, not
+        # the configuration that happens to ship.
+        sim.USE_FIELD_STATE = True
+
+        def runs(table):
+            sim.STATE_MULT = table
+            tot = 0
+            for i in range(120):
+                rng = random.Random(1000 + i)
+                a, h = _side(), _side()
+                r = game.simulate_game(a, h, LG, rng)
+                tot += r.away + r.home
+            return tot / 120
+
+        base = runs({})
+        # Strikeouts collapse whenever a man reaches, so a rally that starts
+        # cannot be ended — runs have to rise, and by a lot.
+        hot = runs({(n, o): {"k_pct": 0.2}
+                    for n in (1, 2, 3) for o in (0, 1, 2)})
+        assert hot > base + 0.5, (
+            f"field state never reached the engine: {base:.2f} -> {hot:.2f}")
+    finally:
+        sim.STATE_MULT, sim.USE_FIELD_STATE = keep, keep_flag

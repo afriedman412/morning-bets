@@ -786,8 +786,11 @@ def check_unknown_park_is_neutral_not_the_home_club():
 def check_park_index_100_is_neutral():
     """Savant publishes indices where 100 is league average, not 1.0.
     Reading one as a raw multiplier would suppress every rate by 99%."""
-    m = sim.park_mults({"hr": 100, "so": 100, "bacon": 100})
-    assert m == {"hr": 1.0, "k": 1.0, "bip": 1.0}, m
+    m = sim.park_mults({"hr": 100, "so": 100, "bacon": 100, "bb": 100})
+    assert m == {"hr": 1.0, "k": 1.0, "bip": 1.0, "bb": 1.0}, m
+    # EXACT EQUALITY ON PURPOSE, and it earned its keep on 2026-08-29: adding
+    # the `bb` slot broke this check immediately rather than silently
+    # shipping a fourth channel nobody had scored. Keep it exact.
 
 
 def check_park_moves_the_right_outcomes():
@@ -1998,3 +2001,152 @@ def check_runs_on_a_home_run_are_counted_separately():
     fr.bases[2] = "D"
     sim.apply_pa(sim.B2, r, fr, random.Random(1), batter="BAT")
     assert r.runs_hr == 3, (r.runs, r.runs_hr)
+
+
+# ── field state ────────────────────────────────────────────────────────
+#
+# The plate appearance was blind to the base-out state until 2026-08-29.
+# These guard the PLUMBING, which is the half this project keeps shipping
+# broken: `scratchpad/mutate.py` found five constants where the measurement
+# was tested and the wiring was not.
+
+def _state_rate(state, table, n=20000, seed=11):
+    """Strikeout rate at one field state under one STATE_MULT table."""
+    keep, keep_flag = sim.STATE_MULT, sim.USE_FIELD_STATE
+    try:
+        sim.STATE_MULT = table
+        sim.USE_FIELD_STATE = True
+        rng = random.Random(seed)
+        b, p = _lineup(1)[0], _pitcher()
+        k = 0
+        for _ in range(n):
+            if sim.pa_outcome(b, p, LG, rng, state=state) == sim.K:
+                k += 1
+        return k / n
+    finally:
+        sim.STATE_MULT, sim.USE_FIELD_STATE = keep, keep_flag
+
+
+def check_field_state_is_inert_with_an_empty_table():
+    """An empty table must be EXACTLY the state-blind model, not merely
+    close — `odds_mult` short-circuits only on m == 1.0, so a stray 0.9999
+    would silently change every rate in the model.
+
+    SETS THE TABLE EXPLICITLY rather than trusting the shipped one. The
+    first version relied on `STATE_MULT` being empty and broke the moment it
+    was populated, which is a test coupled to configuration instead of to
+    the property it is meant to guard.
+    """
+    keep = sim.STATE_MULT
+    try:
+        sim.STATE_MULT = {}
+        rng_a, rng_b = random.Random(4), random.Random(4)
+        b, p = _lineup(1)[0], _pitcher()
+        a = [sim.pa_outcome(b, p, LG, rng_a, state=None) for _ in range(4000)]
+        c = [sim.pa_outcome(b, p, LG, rng_b, state=(2, 1)) for _ in range(4000)]
+        assert a == c, "field state changed the draw with an empty table"
+    finally:
+        sim.STATE_MULT = keep
+
+
+def check_the_shipped_state_table_is_frequency_normalised():
+    """THE TABLE MUST NOT ADD OFFENCE, only move it around.
+
+    Each multiplier is a cell's rate over the overall rate, so weighted by
+    how often each state occurs they have to average to one. If they do not,
+    the model simply scores more and the "clustering" claim is unfalsifiable
+    — which is the failure mode pre-registered for this change.
+
+    Weights are the real cell frequencies from the 150,275 plate appearances
+    the table was counted on.
+    """
+    freq = {(0, 0): 37162, (0, 1): 26832, (0, 2): 21048,
+            (1, 0): 10737, (1, 1): 15466, (1, 2): 17166,
+            (2, 0): 3245, (2, 1): 6545, (2, 2): 8167,
+            (3, 0): 704, (3, 1): 1455, (3, 2): 1748}
+    tot = sum(freq.values())
+    for stat in ("k_pct", "bb_pct", "babip"):
+        w = sum(n * sim.STATE_MULT.get(c, {}).get(stat, 1.0)
+                for c, n in freq.items()) / tot
+        assert abs(w - 1.0) < 0.005, f"{stat} averages {w:.4f}, not 1.0"
+
+
+def check_home_runs_are_absent_from_the_state_table():
+    """Home runs shrank to all-ones — their entire spread across the twelve
+    cells was their own sampling error. Absent ON PURPOSE, and a future
+    edit that adds an `hr_pct` key without re-measuring should have to
+    delete this check and say why."""
+    assert not any("hr_pct" in v for v in sim.STATE_MULT.values()), (
+        "hr_pct reappeared in STATE_MULT; its measured tau was 0.0000")
+
+
+def check_field_state_multiplier_reaches_the_plate_appearance():
+    """THE WIRING CHECK. A table that is never read looks identical to a
+    table full of ones, and the second is a defensible design while the
+    first is dead code."""
+    base = _state_rate((1, 0), {})
+    up = _state_rate((1, 0), {(1, 0): {"k_pct": 1.5}})
+    down = _state_rate((1, 0), {(1, 0): {"k_pct": 0.5}})
+    assert up > base + 0.03, f"k multiplier did not raise K: {base} -> {up}"
+    assert down < base - 0.03, f"k multiplier did not lower K: {base} -> {down}"
+
+
+def check_field_state_only_touches_the_state_it_is_keyed_on():
+    """A multiplier on one base-out cell must not leak into another, which
+    is what a truthiness bug or a bad default in `.get` would produce."""
+    table = {(1, 0): {"k_pct": 2.0}}
+    hit = _state_rate((1, 0), table)
+    miss = _state_rate((0, 0), table)
+    plain = _state_rate((0, 0), {})
+    assert hit > miss + 0.05, (hit, miss)
+    assert abs(miss - plain) < 1e-12, "an unkeyed state was altered"
+
+
+def check_field_state_turns_off():
+    """Off must restore the state-blind model exactly, like every other
+    USE_* flag here — the A/B is the only way a mechanism stays scoreable."""
+    keep_flag, keep_tab = sim.USE_FIELD_STATE, sim.STATE_MULT
+    try:
+        sim.STATE_MULT = {(1, 0): {"k_pct": 2.0}}
+        sim.USE_FIELD_STATE = False
+        assert sim.state_mult((1, 0)) is None
+        sim.USE_FIELD_STATE = True
+        assert sim.state_mult((1, 0)) == {"k_pct": 2.0}
+    finally:
+        sim.USE_FIELD_STATE, sim.STATE_MULT = keep_flag, keep_tab
+
+
+def check_walks_have_a_multiplier_slot():
+    """Walks were the one channel with no `odds_mult` slot, so park,
+    arsenal and field state all excluded them BY CONSTRUCTION — and a
+    missing channel reads as a null rather than as an error."""
+    rng = random.Random(9)
+    b, p = _lineup(1)[0], _pitcher()
+
+    def rate(m_bb, n=30000):
+        mu = sim.resolve(b, p, LG)
+        mu.m_bb = m_bb
+        r = random.Random(9)
+        return sum(1 for _ in range(n) if sim.pa_from(mu, r) == sim.BB) / n
+    assert rate(1.5) > rate(1.0) + 0.02, "m_bb did not raise walks"
+    assert rate(0.5) < rate(1.0) - 0.02, "m_bb did not lower walks"
+    del rng
+
+
+def check_the_walk_multiplier_defaults_to_exactly_one():
+    """`odds_mult` short-circuits only on m == 1.0 exactly, so a default of
+    0.9999 would silently rescale every walk in the model."""
+    mu = sim.resolve(_lineup(1)[0], _pitcher(), LG)
+    assert mu.m_bb == 1.0
+    assert sim.NEUTRAL_PARK["bb"] == 1.0
+    assert sim.park_mults(None)["bb"] == 1.0
+
+
+def check_park_mults_reads_the_walk_index():
+    """Savant serves a walk park factor and `sources/park.py` has always
+    fetched it; until 2026-08-29 `park_mults` dropped it on the floor."""
+    got = sim.park_mults({"hr": 110, "so": 99, "bacon": 100, "bb": 106})
+    assert abs(got["bb"] - 1.06) < 1e-9, got
+    # A venue with no walk index must come back neutral, not zero — the
+    # falsy-value trap that `m()` exists to handle.
+    assert sim.park_mults({"hr": 110, "so": 99})["bb"] == 1.0

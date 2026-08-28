@@ -91,6 +91,93 @@ USE_MEASURED_RELIEF_HOOK = True
 #: its way back in on the outs DISTRIBUTION, not on AUC.
 USE_LEARNED_HOOK = False
 
+#: The AUTOMATIC RUNNER. Every half-inning from the tenth starts with a man
+#: on second and nobody out. MLB has done this since 2020 and permanently
+#: since 2023; this simulator played extras under the old rules until
+#: 2026-08-29, which is 8.3% of games.
+#:
+#: COUNTED ON OUR OWN 2026 LINE SCORES, which is what makes it a defect
+#: rather than a rules footnote:
+#:
+#:     games past nine              167 of 2,006   (8.3%)
+#:     mean innings in those        10.34
+#:     runs per EXTRA half-inning    1.049   (448 halves)
+#:     runs per REGULATION half      0.498   (35,207 halves)
+#:
+#: A real extra half-inning scores 2.11x a regulation one and the model was
+#: producing a regulation one. Worth ~0.12 runs a game on a FULL-GAME total,
+#: concentrated as ~1.1 runs in the games that go long.
+#:
+#: IT CANNOT REACH F5 OR A STARTER'S LINE, which is exactly why nothing
+#: caught it: full-game totals and moneylines are the two markets that have
+#: never been scored against a settled price.
+#: ON. Every half-inning from the tenth starts with a man on second and
+#: nobody out — MLB since 2020, permanently since 2023. This simulator
+#: played extras under the old rules until 2026-08-29.
+#:
+#: SCORED, 537 holdout games x 20 sims, paired on seeds:
+#:
+#:                            OFF       ON    ACTUAL   se(act)
+#:     share past nine      0.078    0.078     0.083     0.006
+#:     mean innings then   11.170   10.228    10.340     0.050
+#:     runs per extra half  0.354    0.671     1.049     0.070
+#:     game total           8.611    8.620
+#:
+#: Extra-inning LENGTH is essentially fixed — 11.17 was 16 sigma off and
+#: 10.23 is within two. Runs per half improves sharply. The SHARE reaching
+#: extras does not move, and the GAME TOTAL moves +0.009: the runner adds
+#: runs per inning and removes innings, and those nearly cancel. **The
+#: value is in the SHAPE of extras, not the level.**
+#:
+#: **IT WAS PARKED FOR A DAY ON A MEASUREMENT BUG, which is the lesson.**
+#: The first pass read "auto ON pushes the share from 5.4% to 3.3% against
+#: a real 8.3%" and that was entirely `simulate_game` skipping the track
+#: block on the `break` that ends a game when the home side wins in its
+#: half. Games that ended on the winning half read as nine innings and fell
+#: out of the extras sample — NON-RANDOMLY, since they are exactly the
+#: games that ended. Fixed by `_track` firing on every exit path, after
+#: which both arms read 0.078 and the share was never the problem.
+#:
+#: `runs per extra half` is a FLOOR, not a point estimate: the denominator
+#: counts two halves per extra inning and a game ending in the first half
+#: played one. The isolated half-inning with the runner produces 0.969
+#: against a league run expectancy of ~1.05, which is the honest figure.
+#:
+#: The automatic runner is UNEARNED — `fr.errored` is set, which routes the
+#: half's runs away from earned. Approximation: MLB would still charge the
+#: batter's own run. It reaches only a reliever's ER in extras, which
+#: nothing here prices.
+USE_AUTO_RUNNER = True
+
+#: **OFF, AND THE REORDER IS A STRUCTURAL NO-OP. Do not try this again.**
+#:
+#: The proposal was to roll steals, wild pitches and passed balls BEFORE
+#: the plate appearance instead of after, on the argument that (a) the
+#: at-bat should resolve against the post-steal state, (b) an inning-ending
+#: caught stealing should VOID the at-bat rather than follow it, and (c)
+#: the lineup pointer should not advance on that voided at-bat.
+#:
+#: BUILT AND SCORED. Predicted -0.18 plate appearances a game; measured
+#: +0.037, which is noise on 74.9.
+#:
+#: **(a) IS A REAL DEFECT AND THE FIX IS WORTH NOTHING. Those are separate
+#: statements.** An at-bat does resolve against a state one event stale —
+#: at-bat N sees at-bat N-1's steals, not its own — and reordering fixes
+#: exactly that. It buys nothing because the staleness shifts UNIFORMLY:
+#: moving which at-bat owns each steal by one slot is a relabelling, and
+#: the same at-bats meet the same distribution of base states either way.
+#: The aggregate rates are identical by construction.
+#:
+#: (b) IS NOT REACHABLE AT THIS GRANULARITY AT ALL. The at-bat reality
+#: erases is the one IN PROGRESS when the runner is thrown out, and a
+#: plate-appearance-granular model has no in-progress at-bat. Voiding it
+#: needs pitch-level simulation, which is a different engine.
+#:
+#: Kept switchable rather than deleted so the null stays scoreable, and
+#: because the reordering argument will be made again by someone reading
+#: `_half_inning` for the first time.
+USE_RUNNERS_FIRST = False
+
 
 @dataclass
 class Side:
@@ -233,7 +320,7 @@ class Side:
 
 def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
                  margin: int, park: dict | None,
-                 walk_off: bool = False) -> None:
+                 walk_off: bool = False, auto_runner: bool = False) -> None:
     """One half-inning. `margin` is this pitching side's lead, in runs.
 
     Runs are counted from the CHANGE in the current pitcher's line rather
@@ -242,7 +329,57 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
     of the base-out state machine.
     """
     fr = sim.Frame()
+    if auto_runner and USE_AUTO_RUNNER:
+        # THE RULE NAMES HIM: the automatic runner is the player who made
+        # the last out of the previous inning, which is the batter one slot
+        # BEHIND the pointer. `side.idx` already points at who is due up,
+        # so `idx - 1` is exactly that man and no new state is needed.
+        #
+        # An anonymous `True` token was tried first and it breaks
+        # attribution: `_credit` skips `True` when recording who scored, so
+        # every run the automatic runner scored went uncredited and the
+        # per-batter tally stopped summing to the team total. That is a real
+        # check (`check_per_batter_runs_add_up_to_the_team_score`) and it
+        # caught this immediately.
+        fr.bases[1] = side.lineup[(side.idx - 1) % len(side.lineup)].name
+        # HIS RUN IS UNEARNED. MLB treats the automatic runner as having
+        # reached on an error for earned-run purposes, and `fr.errored` is
+        # the switch `_score` already reads.
+        #
+        # APPROXIMATION, STATED: this makes EVERY run in the half unearned,
+        # where MLB would still charge the batter's own. It reaches only a
+        # RELIEVER'S earned runs in extra innings — reliever lines are
+        # discarded on each arm change and nothing here prices ER — so the
+        # cost is nil and the alternative is per-runner earned tracking
+        # through two scoring paths.
+        fr.errored = True
     while fr.outs < 3:
+        # RUNNER EVENTS FIRST, and this is a causal fix rather than a
+        # reordering. A steal or a wild pitch happens DURING an at-bat, so
+        # the hitter finishes it in the state those events left behind. The
+        # roll used to sit after `apply_pa`, which cost two things:
+        #
+        #   * the at-bat resolved against a STALE base-out state. Harmless
+        #     until 2026-08-29 because the plate appearance ignored the
+        #     state entirely; live now that `STATE_MULT` ships.
+        #   * an inning-ending CAUGHT STEALING arrived AFTER the at-bat, so
+        #     the model played a plate appearance that reality erases and
+        #     advanced the lineup a slot it should not have. Counted: 0.185
+        #     inning-ending caught stealings a game.
+        #
+        # The first iteration is a no-op — `baserunning` returns
+        # immediately on empty bases — and the trailing roll after the
+        # third out disappears, which is the half that was wrong.
+        if USE_RUNNERS_FIRST:
+            outs_before = fr.outs
+            before = side.cur_line.runs
+            sim.baserunning(side.cur_line, fr, rng)
+            side.runs += side.cur_line.runs - before
+            if fr.outs >= 3:
+                # The inning ended on the bases. No batter is charged and
+                # the pointer does not move: he leads off the next inning.
+                _boundary_roll(side, fr, inning, margin, rng, outs_before)
+                break
         # The batting-order pointer indexes the RESOLVED matchups now, so
         # the batter object itself is no longer read here — everything the
         # plate appearance needs was assembled by `sim.resolve`.
@@ -267,7 +404,10 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
         if mu is None:
             mu = side._mups[slot] = sim.resolve(
                 side.lineup[slot], side.current, lg, park)
-        o = sim.pa_from(mu, rng, tto=tto)
+        # THE FIELD STATE the hitter actually walks into. `fr.bases`
+        # holds runner tokens, so truthiness is the occupancy count.
+        o = sim.pa_from(mu, rng, tto=tto,
+                        state=(sum(1 for b in fr.bases if b), outs_before))
 
         before = side.cur_line.runs
         sim.apply_pa(o, side.cur_line, fr, rng,
@@ -277,12 +417,13 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
             _boundary_roll(side, fr, inning, margin, rng, outs_before)
             break
 
-        before = side.cur_line.runs
-        sim.baserunning(side.cur_line, fr, rng)
-        side.runs += side.cur_line.runs - before
-        if fr.outs >= 3:
-            _boundary_roll(side, fr, inning, margin, rng, outs_before)
-            break
+        if not USE_RUNNERS_FIRST:
+            before = side.cur_line.runs
+            sim.baserunning(side.cur_line, fr, rng)
+            side.runs += side.cur_line.runs - before
+            if fr.outs >= 3:
+                _boundary_roll(side, fr, inning, margin, rng, outs_before)
+                break
         # A walk-off ends the game mid-inning. `walk_off` is only ever set
         # for the bottom of the ninth or later, and `side` here is the
         # PITCHING side, so its runs allowed ARE the home team's score.
@@ -526,6 +667,25 @@ def simulate_game(away: Side, home: Side, lg: dict,
     rng = rng or random.Random()
     prefix: dict = {}
     prefix_side: dict = {}
+
+    def _track(inn: int) -> None:
+        """Record the prefix for an inning. CALLED ON EVERY EXIT PATH.
+
+        IT WAS NOT, and that is a measurement bug rather than a cosmetic
+        one. The block used to sit after the `break` that ends a game when
+        the home side has won in its half, so the DECIDING inning was never
+        recorded — `prefix[9]` was missing for roughly 40% of games and the
+        notes carried a standing warning to "take 9+ as the residual".
+        Found again on 2026-08-29 measuring extra innings, where it drops
+        precisely the walk-off halves and therefore the highest-scoring
+        ones: runs per extra half read 0.553 against a real 1.049 while the
+        half-inning itself was producing a correct 0.969.
+        """
+        if inn in track:
+            # Runs ALLOWED by both sides is runs SCORED in the game.
+            prefix[inn] = away.runs + home.runs
+            prefix_side[inn] = (home.runs, away.runs)
+
     inning = 0
     while True:
         inning += 1
@@ -540,7 +700,9 @@ def simulate_game(away: Side, home: Side, lg: dict,
                 break
         # Top: away pitches. Its margin is what its own offence has put up
         # (= runs the home side has allowed) minus what it has given back.
-        _half_inning(away, lg, rng, inning, home.runs - away.runs, park)
+        extra = inning > innings
+        _half_inning(away, lg, rng, inning, home.runs - away.runs, park,
+                     auto_runner=extra)
         _end_of_inning(away, rng, inning, home.runs - away.runs)
 
         # THE BOTTOM HALF IS NOT ALWAYS PLAYED. A home team ahead after the
@@ -548,18 +710,16 @@ def simulate_game(away: Side, home: Side, lg: dict,
         # half-inning of scoring in roughly 40% of games — straight onto the
         # full-game total. Extras follow the same rule.
         if inning >= regulation and away.runs > home.runs:
+            _track(inning)
             break
         home.opposing_runs = home.runs      # this team's own score
         _half_inning(home, lg, rng, inning, away.runs - home.runs, park,
-                     walk_off=inning >= regulation)
+                     walk_off=inning >= regulation, auto_runner=extra)
         _end_of_inning(home, rng, inning, away.runs - home.runs)
 
         if inning == 5:
             away.runs_f5, home.runs_f5 = away.runs, home.runs
-        if inning in track:
-            # Runs ALLOWED by both sides is runs SCORED in the game.
-            prefix[inning] = away.runs + home.runs
-            prefix_side[inning] = (home.runs, away.runs)
+        _track(inning)
         # AFTER `track`, or a caller asking for both gets a prefix dict
         # silently missing its last entry.
         if stop_after is not None and inning >= stop_after:
