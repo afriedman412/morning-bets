@@ -377,7 +377,21 @@ def price_slate(date_str: str | None = None, stats=("k", "outs"),
                 "confirmed_lineup": ctx["confirmed"],
                 "pitcher_pa": p["pa"],
             })
-    rows.sort(key=lambda r: -abs(r["gap"]))
+    # RANKED BY GAP OVER SIMULATION ERROR, not by raw gap.
+    #
+    # Sorting on |ours - market| puts an 8.8-point gap on a longshot above
+    # an 8.3-point gap at a coin flip, and the probability estimate is LEAST
+    # reliable exactly where the gap is largest: `se` is
+    # sqrt(p(1-p)/n_sims), which collapses in the tails, so a tail gap is
+    # measured against a number the simulation is not entitled to be
+    # confident about. Dividing by it ranks a disagreement by how much the
+    # simulation is actually willing to stand behind.
+    #
+    # `se` is already computed per market a few lines above and was being
+    # printed and then ignored by the ordering.
+    for r in rows:
+        r["z"] = r["gap"] / r["se"] if r["se"] > 0 else 0.0
+    rows.sort(key=lambda r: -abs(r["z"]))
     if verbose and skipped:
         print(f"declined to price {len(skipped)} pitcher(s):")
         for nm, why in sorted(skipped.items()):
@@ -399,12 +413,17 @@ def report(rows: list[dict], top: int = 30) -> None:
         print("  ** a large SIGNED mean means we disagree with the whole "
               "board in one direction — that is a defect, not an edge **")
     print(f"\n  {'stat':<5}{'player':<20}{'bet':<12}{'ours':>7}{'mkt':>7}"
-          f"{'gap':>8}{'+/-':>6}  opp  lineup")
+          f"{'gap':>8}{'+/-':>6}{'z':>7}  opp  lineup")
     for r in rows[:top]:
         flag = "conf" if r["confirmed_lineup"] else "PROJ"
         print(f"  {r['stat']:<5}{r['player'][:18]:<20}"
               f"{f'o{r['line']:g}':<12}{r['ours']:>7.3f}{r['market']:>7.3f}"
-              f"{r['gap']:>+8.3f}{r['se']:>6.3f}  {r['opp']:<4} {flag}")
+              f"{r['gap']:>+8.3f}{r['se']:>6.3f}"
+              f"{r.get('z', 0.0):>+7.1f}  {r['opp']:<4} {flag}")
+    print("\n  SORTED BY z = gap / simulation error, not by raw gap. The")
+    print("  probability estimate is least reliable where the gap is")
+    print("  largest, so a big tail gap and a big central gap are not the")
+    print("  same evidence. `gap` is still shown; it is no longer the key.")
 
 
 if __name__ == "__main__":
