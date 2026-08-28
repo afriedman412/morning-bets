@@ -4344,3 +4344,47 @@ aimed it at strikeouts, which is exactly where the double counting is worst.
 Note this ran AFTER `sim.odds_mult`, so it is the first arsenal test where
 the multiplier entered the odds rather than scaling log5's probability
 output. The incoherent application was not what was wrong with it.
+
+### Shrinkage: the big in-sample gain was a leak; what survives is per-channel
+
+Following the under-differentiation finding rather than dismissing it — the
+earlier "not exploitable" verdict tested whether the DELIVERED 40-draw
+predictions could be rescaled, which is a question about the estimator, not
+about whether the underlying model is compressed. Only the second was
+measured and only the first was tested.
+
+`scratchpad/unshrink.py` scales every `STABILISE_MEASURED` constant and
+measures DISCRIMINATION — correlation of prediction with outcome, not MSE,
+because MSE conflates spread with accuracy and spread is what is being
+varied.
+
+IN SAMPLE it looks enormous and monotone. Earned-run discrimination goes
+0.1317 -> 0.1777 at a quarter of the shrinkage, +8.9 sigma, with home runs
++7.3 and hits +6.9.
+
+**IT IS MOSTLY A LEAK.** Player rates are built from the SAME season being
+scored, so less shrinkage lets each rate track that player's own realised
+outcomes and the correlation with those outcomes rises for free. On a real
+holdout — rates trained before 2026-07-01, scored on starts after it:
+
+    shrink x        k       bb       hr        h       er     outs
+    0.25         -3.0     +2.4     +2.0     -0.3     +2.0     -5.5
+    0.50         -1.8     +1.7     +0.1     +0.2     +0.6     -0.4
+    2.00         +2.5     +2.3     -2.0     -3.1     -1.2     +3.3
+
+**WHAT SURVIVES IS PER-CHANNEL AND POINTS BOTH WAYS.** Home runs want LESS
+shrinkage (+2.0 at a quarter, -2.0 at double). Strikeouts and outs want MORE
+(+2.5 and +3.3 at double). A single global knob is the wrong instrument, and
+"un-shrink everything" would have made strikeouts and outs worse.
+
+**TWO INDEPENDENT METHODS AGREE ON THE RANKING**, which is what makes the
+home-run result worth acting on. The slope test found home runs the most
+compressed channel (2.59) and strikeouts the least (1.15); the holdout finds
+home runs wanting less shrinkage and strikeouts wanting more. Pitcher home
+runs use k=934 — a 600-batter pitcher keeps 39% of his own number — and that
+is the specific suspect.
+
+NOT SHIPPED YET: +2.0 sigma on one channel out of sample is at the bar, and
+the change should be a home-run-specific constant rather than a global
+factor. Recorded with the holdout numbers so the next session does not have
+to re-derive the leak.
