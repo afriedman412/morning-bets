@@ -38,6 +38,74 @@ flat result means the test could not resolve ~0.02 runs, not that the
 mechanism failed. Applying a fitting standard — "prove it improves the
 loss" — to measurement work makes every correct change read as a null.
 
+## A FLAT MEAN IS NOT A NEUTRAL RESULT — THE DISTRIBUTION IS THE PRODUCT
+
+Set 2026-08-29 after getting it wrong twice in one session.
+
+The objective is to simulate games accurately against what actually
+happened. A run total is not a number, it is a DISTRIBUTION, so "the mean
+did not move" says nothing about whether the simulation got better. Judge a
+change on the SHAPE against actuals — the mass at each value, the spread,
+the tails — not on the mean and not on CRPS alone.
+
+**THE EXAMPLE THAT SETTLES IT, measured the same day:** the strikeout
+distribution has an essentially EXACT mean (4.86 against 4.84) and at nine
+or more strikeouts it produces 6.0% where reality produces 9.5%. Judged on
+the mean it is healthy. It is 3.9 sigma wrong where it matters and no
+summary statistic used in this project would have found it.
+
+**CRPS IS A WEAK DETECTOR OF THIS** and has been treated as the arbiter.
+Almost all of it comes from the bulk of the distribution, so a tail repair
+or a modest dispersion change registers as neutral. A flat CRPS on a small
+measured change is the EXPECTED result, not a rejection — the loss cannot
+resolve it. Do not park a measured mechanism because CRPS shrugged.
+
+TWO FAILURES THIS RULE EXISTS TO PREVENT, both mine, both on the same
+change: reading a 0.002 move in the shutout share as a falsifier when its
+standard error is 0.012, and calling a 0.3 sigma drift in the mean an
+overshoot that needed correcting. **State the standard error of the thing
+you are about to call a result.**
+
+AND DO NOT SOLVE FOR A LEVEL. Scaling a measured table until the mean lands
+on a target is fitting — it hands a counted quantity back to a search,
+which is what every absorbed constant in this project's history has in
+common.
+
+## THE LEVERAGE FLOOR IS A BETTING THRESHOLD, NOT A TRUTH THRESHOLD
+
+**THE GOAL IS BETTER SIMULATION OVERALL, NOT JUST BEATING THE VIG. ANYTHING
+THAT PRODUCES A CONSISTENT, MEASURED IMPROVEMENT IS WORTH KEEPING, BECAUSE
+THESE CHANGES ACCUMULATE.** Set 2026-08-29, and it OVERRIDES the reflex to
+discard a real mechanism for being small.
+
+`scratchpad/leverage.py` says "under ~0.05 runs it cannot matter however
+real it is." That sentence is true about A PRICE and false about THE MODEL.
+The arithmetic behind it: at a team-total line the discrete run density is
+~0.17 per run, so 0.05 runs is ~0.85 cents against market spreads of four
+and up. It answers "can I bet this on its own today", which is a different
+question from "is the simulation closer to baseball".
+
+So the floor decides PRIORITY, never ADMISSIBILITY. A 0.03-run mechanism
+that is counted, reliability-gated and directionally stable SHIPS. It is
+not required to move CRPS, and a flat CRPS on such a change is the expected
+result rather than a refutation — the loss cannot resolve it, which is the
+same point the corollary above makes.
+
+**THE GUARD THAT KEEPS THIS FROM BECOMING A LICENCE TO OVERFIT, and it is
+the whole reason the rule is safe:** "consistent" means MEASURED, not
+FITTED. The thing must be counted on this league and pass a stability gate
+BEFORE it is wired, exactly as `advance.py` and `stabilise.py` do it.
+Accumulating measured quantities converges on baseball. Accumulating
+quantities that were tuned until the loss moved converges on the seed —
+and the noise floor here is 0.0165, so anything smaller "improving" the
+loss is fitting dice. **Small and measured, yes. Small and fitted, never.**
+
+A corollary that follows and has already bitten: SPREAD effects combine in
+QUADRATURE, so nine independent per-hitter effects of 0.010 runs make 0.030
+and not 0.090. Accumulation is real but it is slower than addition, so
+state which arithmetic applies before claiming a pile of small things adds
+up.
+
 ## Read this next — two systems, one repo
 
 **The original pipeline** turns YouTube capper videos into graded bets and
@@ -92,6 +160,14 @@ on the quantity we price.
 **START WITH `RESUME.md`** — where the edge is, what to do next, and the
 long list of things already measured and dead so nobody re-runs them.
 
+**`TODO.md` IS THE BACKLOG** (added 2026-08-29). Ordered, with what is
+ESTABLISHED and what is not on each item, and with the falsifier
+pre-registered where one exists. `RESUME.md` and `NOTES-context-layer.md`
+are the LOG — what was measured and what it meant. When something ships,
+delete it from `TODO.md` and write the result in the notes. Keeping the
+backlog inside the log is what made "what should I do next" a
+twenty-minute read.
+
 **Before touching the context layer, read `NOTES-context-layer.md`.** The
 current state is at the END — it is appended chronologically, so read
 backwards from the last section. It carries the measured negatives, which
@@ -129,14 +205,22 @@ to everyone improves calibration and not discrimination. And the obvious way
 to make it vary is CLOSED — per-pitcher and per-club dispersion do not repeat
 (split-half reliability 0.07 over 107 arms, powered to see 0.32).
 
-**LEVEL ERRORS ADD; SPREAD EFFECTS COMBINE IN QUADRATURE.** Both kinds were
-being discarded against one leverage floor. Five 0.03-run SPREADS make 0.067,
-so the pile of sub-floor per-player features is dead collectively as well as
-individually — two 1.5-cent features make 2.3 cents and it takes SIX to reach
-the bar. But every win on 2026-08-27 was a LEVEL error pointing one way
-(hit-by-pitch, sacrifices and wild pitches all measured on STARTERS and
-applied to every arm), and the wild-pitch one closed a fifth of the run gap
-alone. Hunt level errors and structural gaps; stop screening refinements.
+**LEVEL ERRORS ADD; SPREAD EFFECTS COMBINE IN QUADRATURE.** Five 0.03-run
+SPREADS make 0.067, not 0.15 — two 1.5-cent features make 2.3 cents and it
+takes SIX to reach a betting bar. **AMENDED 2026-08-29: that arithmetic is
+about how FAST small things accumulate, and it is no longer a reason to
+discard them.** The sentence this replaced said the pile of sub-floor
+per-player features was "dead collectively as well as individually", which
+contradicts the objective — see the leverage-floor block above. They are
+LOW PRIORITY, not inadmissible, and a counted one ships.
+
+What survives unchanged is the ordering advice, and it is the useful part:
+every win on 2026-08-27 was a LEVEL error pointing one way (hit-by-pitch,
+sacrifices and wild pitches all measured on STARTERS and applied to every
+arm), and the wild-pitch one closed a fifth of the run gap alone. **Hunt
+level errors and structural gaps FIRST** — they are worth more per day of
+work than refinements are. Then take the refinements, because they
+accumulate and nothing else is left.
 
 **WHEN EVERY CHANNEL IS WRONG BY THE SAME PERCENTAGE, STOP LOOKING AT THE
 RATES AND CHECK WHAT YOU DIVIDED BY.** No set of rate bugs moves strikeouts,

@@ -1,5 +1,72 @@
 # BEFORE YOU START — read this or you will redo work
 
+**THE BACKLOG LIVES IN `TODO.md` AS OF 2026-08-29.** What to do next is
+there, ordered, with what is established and what is not on each item. This
+file is the LOG — what was measured and what it meant. When something
+ships, delete it from `TODO.md` and write the result here.
+
+## DAY FIFTEEN (2026-08-29) — SEVEN CHANGES SHIPPED, ONE MEASURED DEAD
+
+Full write-ups in `NOTES-context-layer.md` under DAY FIFTEEN. Backlog in
+`TODO.md`. Short forms:
+
+**SHIPPED AND ON**
+
+  1. `src/context/atomic.py` — cache writes are atomic. Two pricing runs at
+     once silently used DIFFERENT DATA and moved a moneyline 1.2 points; a
+     torn read was caught and turned into a live refetch. 33.8% of
+     concurrent reads were torn, 0 after. Five mutation-verified checks.
+  2. `price.py` ranks by `gap / simulation error`, not raw gap. The estimate
+     is least reliable exactly where the gap is largest.
+  3. `Matchup.m_bb` — walks had no multiplier slot, so park, arsenal and
+     field state all excluded them BY CONSTRUCTION. Savant's walk index was
+     fetched and discarded all along; spread 91-114 over 29 venues.
+  4. `simulate_game._track` fires on EVERY exit path. The deciding inning
+     was never recorded, so `prefix[9]` was missing for ~40% of games. This
+     one had already corrupted two of my own measurements.
+  5. `sim.STATE_MULT` — the plate appearance now sees the base-out state.
+     Counted jointly on 150,275 plate appearances; home runs shrank to
+     all-ones and are absent on purpose.
+  6. `game.USE_AUTO_RUNNER` — extras start with a man on second. Fixes
+     extra-inning length, 11.17 -> 10.23 against a real 10.34.
+  7. `sim.PITCH_COST` counted on 150,907 plate appearances. Was wrong by up
+     to 19% and ran a start 2 pitches light, which the HOOK keys on.
+
+**MEASURED AND DEAD:** the runner-event reorder. Real defect, no
+measurable gain — the staleness shifts uniformly and cancels.
+
+**WITHDRAWN:** "the model reaches extras too rarely". It is 7.8% against a
+real 8.3%. The 3.3% that made it a priority was defect 4 above.
+
+## THE THREE RULES SET TODAY, ALL IN CLAUDE.MD
+
+**A FLAT MEAN IS NOT A NEUTRAL RESULT — THE DISTRIBUTION IS THE PRODUCT.**
+The strikeout distribution has an exact mean (4.86 against 4.84) and
+produces 6.0% at nine-plus where reality produces 9.5%. Judge shape, not
+the mean, and not CRPS alone — CRPS is dominated by the bulk and reads
+neutral on any tail repair.
+
+**THE LEVERAGE FLOOR IS A BETTING THRESHOLD, NOT A TRUTH THRESHOLD.** ~0.05
+runs is ~0.85 cents. It decides PRIORITY, never admissibility. Small,
+counted, reliability-gated mechanisms ship and accumulate. Small and
+FITTED, never.
+
+**STATE THE STANDARD ERROR OF THE THING YOU ARE ABOUT TO CALL A RESULT.**
+Three of my predictions failed today and I misread two results as
+regressions that were 0.2 and 1.0 sigma. Both times the number disagreed
+with a prediction I had made, and I scrutinised it while waving through the
+ones that agreed.
+
+**AND DO NOT LOOSEN A TEST TO ADMIT A CHANGE.** I widened a band for the
+runner-event reorder, then reverted the reorder. Had it stuck, the suite
+would permanently carry a weaker check bought with an unmeasured result.
+
+**RETRACTED, AND IT IS A DENOMINATOR ERROR OF THE KIND THIS FILE KEEPS
+WARNING ABOUT:** a pitcher card reading "K% 30.8%" is K PER AT-BAT; the
+model's `k_pct` is K PER PLATE APPEARANCE. Detmers is 0.3051 per AB and
+0.2793 per PA. **NAME THE DENOMINATOR BEFORE COMPARING A MODEL RATE TO A
+PUBLISHED ONE.**
+
 ## PRICING BETS TODAY — THE OPERATOR'S PAGE (written 2026-08-28)
 
 Everything below this block is the modelling log. This block is what you
@@ -23,6 +90,49 @@ the first-five total — the STATED PRODUCT — was missing from the only tool
 that shows a live slate. Fixed, `track=(5,)` is now the default, and a
 missing F5 prints as `-` rather than as a number. If you are reading notes or
 output from before today, ignore every F5 figure in them.
+
+### 0. DO NOT BET THE MODEL'S HIGH-STRIKEOUT UNDERS (added 2026-08-29)
+
+**THE K DISTRIBUTION IS TOO NARROW IN THE TAIL AND THE ERROR IS BIGGEST
+EXACTLY WHERE THE BOARD SHOWS THE BIGGEST EDGES.** Measured on 1,074
+holdout starts, rates frozen before 2026-07-01 (`scratchpad/shape.py`):
+
+    line     model   actual     gap      se   sigma
+    o3.5     0.713    0.676   +0.037   0.014   +2.6
+    o4.5     0.539    0.515   +0.024   0.015   +1.6
+    o5.5     0.365    0.364   +0.001   0.015    0.0
+    o6.5     0.221    0.235   -0.014   0.013   -1.1
+    o7.5     0.123    0.138   -0.015   0.011   -1.4
+    o8.5     0.060    0.095   -0.035   0.009   -3.9
+    o9.5     0.027    0.046   -0.019   0.006   -3.2
+    o10.5    0.011    0.023   -0.013   0.005   -2.6
+
+The middle of the board (5.5-7.5) is FINE. **At 8.5 and above the model
+prices an over at roughly 60% of its true probability**, so its "edge" on
+the under is largely its own missing tail. On 2026-08-28 that was six of
+the ten largest gaps on the board — Skubal o8.5 ours 0.154 against a market
+0.285, o9.5 0.074 against 0.165, o10.5 0.031 against 0.115. The market was
+closer to right than we were.
+
+**THE RULE: add about 3.5 points to any over at 8.5+, subtract about 3 at
+3.5, and treat the model's number as usable between 5.5 and 7.5.** Do not
+bet a high-K under on this model's say-so.
+
+WHY, LOCALISED: the length is right (mean outs 15.95 against 15.82) and the
+K LEVEL is right (4.86 against 4.84). What is wrong is the JOINT. K per 27
+outs, by length:
+
+    bucket     model   actual
+    15-17       8.42     8.33
+    18-20       8.05     7.98
+    21-27       7.51     8.49
+
+The two middle buckets are right to a tenth. The model's rate then keeps
+declining where reality's JUMPS — a real seven-inning start is a SELECTED
+population, earned by missing bats, and the model has no selection at all.
+`PITCH_COST` charges 4.97 pitches for a strikeout against 3.25 for an out,
+so a high-K night SHORTENS a simulated start. That top bucket is where the
+o8.5+ mass comes from, which is why the error is confined to the tail.
 
 ### FIVE THINGS THAT WILL COST YOU MONEY IF YOU FORGET THEM
 
@@ -2839,8 +2949,16 @@ sigma alone guarantees everything reads as a failure.
 
 Use `scratchpad/leverage.py` BEFORE building: it swings each parameter across
 its reliability-adjusted club spread and reports the runs of separation it
-could buy. Under ~0.05 runs it cannot matter however real it is. It has
-already redirected a day of work.
+could buy. It has already redirected a day of work.
+
+**READ ITS NUMBER AS A PRIORITY, NOT A VERDICT (amended 2026-08-29).** The
+old line here said "under ~0.05 runs it cannot matter however real it is",
+which is true of a PRICE and false of the MODEL — 0.05 runs is ~0.85 cents
+at a team total, so it is a betting threshold. The objective is a better
+simulation, and small COUNTED mechanisms ship and accumulate. Build the
+0.15-run thing before the 0.03-run thing; do not throw the 0.03-run thing
+away. The full statement is in CLAUDE.md under "THE LEVERAGE FLOOR IS A
+BETTING THRESHOLD, NOT A TRUTH THRESHOLD".
 
 ## WHAT IS ACTUALLY WRONG WITH THE MODEL
 

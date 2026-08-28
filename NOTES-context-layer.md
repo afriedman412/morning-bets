@@ -5293,3 +5293,665 @@ rates is the test that would reconcile them.
 **IT ALSO CONTAMINATES EVERY LEVEL REPORTED TODAY.** Each holdout trains
 April-June and scores July onward, so a ~10% home-run understatement sits
 inside all of them. The paired A/Bs cancel it; the levels do not.
+
+## DAY FIFTEEN (2026-08-29, overnight) — WHAT PRICING A REAL CARD EXPOSED
+
+The session began as a pricing request, not a modelling one: nine bets on
+the 2026-08-28 board. Everything below came out of that, which is the
+argument for pricing live boards more often — three of these were invisible
+from inside the measurement scripts.
+
+### THE CACHE WRITES WERE NOT ATOMIC — FIXED, SHIPPED, GUARDED
+
+QUESTION    Two runs of the same 20,000-sim card produced SF 0.551 and
+            0.563 for the same game with the seed bound. Which input moved?
+HYPOTHESIS  Not the RNG — `simulate_slate_game` builds `random.Random(seed)`
+            and is deterministic. Something read a different cache.
+TEST        Verified determinism first: three separate processes returned
+            0.5638 to four decimals with identical lineups, so the engine
+            was exonerated before anything was changed. The differing run
+            was the one that had raced a concurrent `src.context.price`.
+            POSITIVE CONTROL — a standalone repro, 3 readers against 1
+            writer for 3 seconds.
+EVALUATE    `Path.write_text` TRUNCATES and then writes, so a concurrent
+            reader observes a partial file. 25,691 of 76,076 reads (33.8%)
+            were torn; with `os.replace` it was 0 of 105,020. And the
+            symptom is not a crash: `sources/*._cached` CATCHES
+            `JSONDecodeError` and falls through to a LIVE REFETCH, so two
+            processes silently disagree about the data instead of failing.
+CONCLUSION  ESTABLISHED and fixed. `src/context/atomic.py`, 14 call sites
+            across 12 modules. Five checks in `tests/test_atomic.py`,
+            mutation-verified BOTH WAYS: reverting the writer fails
+            `check_concurrent_readers_never_see_a_partial_cache` (11,733
+            torn reads), reverting ONE source file fails
+            `check_every_cache_writer_goes_through_atomic` and names the
+            line. Suite 398 passed, 0 failed.
+NEXT STEPS  None. This one is closed.
+
+**THE TRANSFERABLE PART: a caught exception that falls back to a refetch
+converts a crash into an irreproducibility.** The cache layer was written
+to be robust to a truncated file from an interrupted run, and that
+robustness is exactly what hid a concurrency bug for as long as it existed.
+A pricing tool whose numbers do not reproduce is worse than one that fails.
+
+### THE STRIKEOUT TAIL IS TOO THIN — MEASURED, AND IT IS A BETTING HAZARD
+
+QUESTION    Does the shipped engine reproduce the STARTER'S OWN outs and K
+            distribution? Unit of observation: one real start. This is the
+            settled quantity for a prop, and `f5_decomp` measures a FIXED
+            five-inning window instead, so it cannot see a hook defect.
+HYPOTHESIS  Stated from the live board: `price.py` ran a mean SIGNED gap of
+            -0.036 over 142 markets, i.e. the model sits below the market
+            almost everywhere. Either the market is wrong in one direction
+            all day, or the model's distributions are too narrow.
+TEST        `scratchpad/shape.py`. 537 holdout games / 1,074 starts, rates
+            AND the league baseline frozen before 2026-07-01, starts scored
+            on or after it. 40 sims each. POWER PRINTED BEFORE THE TABLE:
+            the ACTUAL side is binding at n=1,074, se 0.014 on boundary
+            share, 0.124 on mean outs, 0.076 on mean K.
+EVALUATE    The LEVELS are right and the SHAPE is not.
+
+    quantity            model    actual      gap
+    mean outs           15.95     15.82    +0.13   (1.0 se — fine)
+    sd outs              4.01      4.04    -0.03
+    boundary share       0.598     0.669   -0.071  (5.0 sigma)
+    mean K               4.86      4.84    +0.02   (exact)
+    sd K                 2.23      2.49    -0.26
+
+            And it LOCALISES, which is what makes it actionable. sd(K|outs)
+            by length bucket, gap against actual:
+
+    outs        0-8    9-11   12-14   15-17   18-20   21-27
+    sd gap    +0.14   -0.03   +0.06   -0.23   -0.20   -0.36
+    se         0.13    0.13    0.10    0.09    0.09    0.17
+
+            The short starts are FINE. The missing dispersion is entirely in
+            long starts. And the conditional MEAN gives the mechanism:
+            E[K|21-27] is 6.07 for the model against a real 6.84.
+CONCLUSION  **ESTABLISHED: real long starts are EARNED by missing bats and
+            the model's are not.** Counted rather than asserted — K per 27
+            outs, within bucket, model against actual:
+
+    bucket    mean outs   K/27 model   K/27 actual
+    15-17         15.6         8.42          8.33
+    18-20         18.4         8.05          7.98
+    21-27         21.8         7.51          8.49
+    all           16.0         8.22          8.26
+
+            The model's K rate DECLINES MONOTONICALLY with length — 8.42,
+            8.05, 7.51 — which is what times-through-the-order plus a pitch
+            budget produces. Reality declines and then JUMPS: 8.33, 7.98,
+            **8.49**. A real seven-inning start is a SELECTED population and
+            the model has no selection at all, so its longest starts are its
+            lowest-K ones and reality's are its highest.
+
+            `PITCH_COST` charges 4.97 pitches for a strikeout against 3.25
+            for an out, so in the model a high-K night actively SHORTENS the
+            start. Real managers let a dominant arm go deep anyway. Note the
+            two middle buckets are right to within 0.1, so this is not a
+            level error smeared across the range — it is the top bucket
+            alone, which is where the o8.5+ mass comes from.
+
+            **This replicates day nine exactly on a changed engine**: 6.07
+            here against 6.08 then, actual 6.84 against 6.70. Two seasons of
+            engine changes did not touch it.
+
+            SIZE, IN CENTS, which is the part that matters: at o8.5 the
+            model says 0.060 where reality is 0.095 (-3.9 sigma), at o9.5
+            0.027 against 0.046, at o10.5 0.011 against 0.023. **It prices a
+            high-K over at ~60% of its true probability.** The correction
+            table is now item 0 of the operator's page.
+NEXT STEPS  The hook, not the rates. If length were conditioned on how the
+            night is actually going rather than on pitch count alone, the
+            selection would appear for free. `PITCH_COST` making strikeouts
+            expensive is the specific suspect and it is measurable.
+
+### THE PER-START SHARPNESS TERM — PRE-REGISTERED, FALSIFIER HELD, NOT SHIPPED
+
+QUESTION    `scratchpad/dispersion.py` already draws a per-start latent
+            quality (K down, walks/homers/contact up on a bad night). It
+            applies `stop_after=5`, so it has ONLY ever been scored on F5
+            RUNS, where it is CRPS-neutral. It has never been scored on the
+            starter's own line — the quantity above.
+HYPOTHESIS  Registered BEFORE running, with the channel and the falsifier:
+            the term should reproduce SELECTION, not spread. A sharp night
+            means fewer baserunners, fewer pitches, a longer start AND more
+            strikeouts. So sd(K) must widen in the LONG buckets and NOT in
+            the short ones, where it already matches within a standard
+            error. **Uniform widening falsifies it** — that is dispersion
+            bought for nothing, which is what the early-exit mixture and the
+            `early_innings` branches were each rejected for.
+TEST        Sigma 0.00 / 0.05 / 0.10 / 0.15 / 0.20, full holdout, paired by
+            construction: same games, same seeds, both latent draws taken at
+            the same stream position so sigma=0 consumes them too.
+            POSITIVE CONTROL at sigma 0.40 — K sd 2.23 -> 3.17, outs sd
+            3.92 -> 5.08, so the perturbation is genuinely wired through.
+EVALUATE    The falsifier HELD through 0.15 and begins to fire at 0.20
+            (the 12-14 bucket over-widens to +0.12). Everything aimed at
+            moved monotonically toward truth:
+
+    sigma   K sd   o8.5   o9.5  E[K|21+]  outs sd    bnd
+    ACTUAL  2.49  0.095  0.046      6.84     4.04  0.669
+     0.00   2.22  0.059  0.026      6.07     4.02  0.596
+     0.10   2.28  0.066  0.030      6.21     4.08  0.595
+     0.20   2.45  0.083  0.042      6.67     4.32  0.586
+
+            AND THE PAIRED TEST IS A WASH. Per-start CRPS, paired:
+
+    sigma    dK CRPS      se      z     dOUTS CRPS      se      z
+     0.05    -0.0027  0.0057  -0.47        -0.0080  0.0092  -0.87
+     0.10    -0.0132  0.0072  -1.83        +0.0169  0.0118  +1.43
+     0.20    -0.0174  0.0088  -1.98        +0.0309  0.0146  +2.11
+
+CONCLUSION  **NOT SHIPPED.** The K gain and the outs loss are the same size
+            and cancel, and it degrades the outs distribution, which is
+            already the weaker half. Neither column clears 2.1 sigma.
+
+            SEPARATING ESTABLISHED FROM INFERRED: it is ESTABLISHED that
+            the term closes 78-85% of the K tail and dispersion gap with the
+            widening in the right buckets. It is ESTABLISHED that it costs
+            an equal amount of outs CRPS. It is INFERRED, and NOT measured,
+            that shipping it would improve prop pricing — CRPS is dominated
+            by the bulk where the model is already right, so a tail repair
+            cannot show up there, and a TAIL prop is priced on calibration
+            rather than on discrimination. That inference is exactly the
+            reasoning that would need a pre-registered prop-calibration
+            harness to test, and there is not one.
+NEXT STEPS  Do NOT re-run this sweep. The term is a symptom-level patch on
+            a mechanism defect that is now named: the hook does not
+            condition length on how the night is going. Fix the cause and
+            the selection is free; keep patching the symptom and it costs
+            outs every time. `PITCH_COST` is the first place to look.
+
+### THE DENOMINATOR RETRACTION, AND IT WAS MINE, LIVE, THE SAME NIGHT
+
+I told the user the model compressed Reid Detmers to 27.6% K against "his
+card's 30.8%" and built a three-row sensitivity table on it. **That gap does
+not exist.** The card is K PER AT-BAT; `k_pct` is K PER PLATE APPEARANCE.
+Counted from the pipeline DB on his 25 starts: 162 K, 580 PA, 531 AB —
+0.2793 per PA and 0.3051 per AB. His raw per-PA rate is 0.2812 and the
+shipped value is 0.2761, which is ordinary shrinkage at 576 batters faced
+with k=132. The model is not compressing him.
+
+**AND THE DOUBLE-SHRUNK PRIOR IS NOT THE K PROBLEM EITHER**, which is worth
+recording because it was the standing lead. The retained-fraction table says
+k_pct goes 0.969 shipped against 0.943 pooled-once — a 2.6% effect, where
+home runs are 0.418 against 0.568. Any K-input story that leans on the
+double shrink is leaning on 2.6%. The measured K defect is 10% of the
+distribution's spread and lives in the joint with length, not in the rate.
+
+VERIFIED SEPARATELY AND CLEAN: the PA denominator inside the code is
+consistent. `rates._PITCHER_Q` and `sim._SP_Q` both build `bf = outs + h +
+bb`, so hit-by-pitch and reached-on-error are missing from BOTH and the
+~1.6% understatement cancels in the log5 ratio. `sim.league`'s docstring
+already records the day this did NOT cancel and what it cost. Not a defect;
+checked rather than assumed.
+
+### WHAT WAS NOT DONE, AND WHY IT IS THE NEXT THING
+
+The boundary share is 0.598 against a real 0.669 and it is 5.0 sigma. The
+mass table says where: the model is 5.8 points short at exactly 18 outs —
+six innings, which is the single most common real outcome at 24.4% of
+starts — and long at 11, 14 and 20. **Reality ends starts at the end of an
+inning and the model ends them in the middle of one.** It is the same defect
+family as the K finding (the hook is not conditioned on the right things)
+and it is the largest single unexplained number now on the board. It also
+means the model sends TOO MANY starters past the sixth: o18.5 0.224 against
+an actual 0.173, o20.5 0.153 against 0.119.
+
+## DAY FIFTEEN, PART TWO — FOUR STRUCTURAL QUESTIONS FROM THE USER
+
+All four came from reading the pipeline description rather than the code,
+which is worth noting: three are real and none had been looked at.
+
+### EXTRA INNINGS ARE PLAYED UNDER THE PRE-2020 RULES — REAL, UNFIXED
+
+`sim.Frame.__post_init__` sets `bases = [None, None, None]` on every
+half-inning with no exception for the tenth. There is no automatic-runner
+code anywhere. MLB has started each half-inning from the tenth with a
+runner on second since 2020, permanently since 2023.
+
+**AND THE RULE IS PLAINLY VISIBLE IN OUR OWN DATA**, which closes the loop:
+counted off the 2026 line scores in `games.away_innings`/`home_innings`,
+
+    games past nine            167 of 2,006   (8.3%)
+    mean innings in those      10.34
+    runs per EXTRA half        1.049   (448 halves)
+    runs per REGULATION half   0.498   (35,207 halves)
+
+**A real extra half-inning scores 2.11x a regulation one.** The model
+produces a regulation one there, so it is short about 0.55 runs on every
+extra half it plays — and it plays MORE of them, because a scoreless
+inning is far likelier starting from empty than from second.
+
+SIZE AND SCOPE: ~0.12 runs per game on the FULL-GAME TOTAL, concentrated
+entirely in the 8.3% of games that go long, where it is ~1.1 runs light.
+**It cannot touch F5 or a starter's line.** It is a full-game total and
+moneyline defect only — which is exactly the pair that has never been
+scored against a settled price, so it would not have shown up anywhere.
+
+Note also `max_extra=9`: a game still tied after the eighteenth is returned
+as a TIE. Rare, but real MLB has none.
+
+### THE PLATE APPEARANCE IS BLIND TO THE BASE-OUT STATE — AND THIS IS THE
+### CLUSTERING MECHANISM THE PROJECT HAS BEEN LOOKING FOR
+
+QUESTION    The user asked whether resolving steals/wild pitches/passed
+            balls AFTER the plate appearance is incongruous, since they
+            really happen during it.
+EVALUATE    The REORDER itself is nearly a no-op, and saying so matters.
+            `_half_inning` alternates PA, baserunning, PA, baserunning, so
+            moving the roll before the PA just drops the final one after
+            the last batter — the sequence in between is identical.
+            **But the question points at something real and larger.**
+            `sim.pa_from(mu, rng, tto)` takes a resolved matchup and a
+            times-through-order index and NOTHING ELSE. Not the bases, not
+            the outs. A plate appearance resolves identically with the
+            bases empty and loaded.
+TEST        Counted on 1,500 games of 2026 play-by-play, 112,809 plate
+            appearances (`scratchpad/basestate.py`). TWO CONFOUNDS
+            EXCLUDED and they sit exactly where the effect appears:
+            INTENTIONAL walks (a manager decision that only happens with
+            runners on) and SACRIFICE BUNTS (a runners-on-only play that
+            enters the denominator as a guaranteed non-strikeout).
+
+    channel    empty   runners on      rel    sigma
+    k         0.2279       0.2160    -5.2%     -4.7
+    bb        0.0850       0.0920    +8.2%     +4.1
+    hbp       0.0104       0.0128   +23.0%     +3.7
+    hr        0.0316       0.0304    -3.9%     -1.2
+    h         0.2138       0.2236    +4.6%     +3.9
+
+CONCLUSION  **ESTABLISHED: real offence is materially better with runners
+            on, and the model has no channel for it at all.** Fewer
+            strikeouts, more walks, more hits — traffic begets traffic.
+
+            **THIS IS THE CLUSTERING DEFECT, NAMED.** The standing
+            diagnosis in RESUME is "plate appearances resolve
+            independently and real ones arrive together", recorded as a
+            symptom with no mechanism and chased through a flat dispersion
+            term and per-pitcher dispersion (closed, does not repeat).
+            The mechanism is a FEEDBACK LOOP the state machine does not
+            have: a baserunner changes the next plate appearance's rates,
+            which produces more baserunners. That generates fat tails at
+            both ends for free — more blowups AND more shutouts — which is
+            precisely the shape error measured on F5.
+NOT ESTABLISHED  How much of the -5.2%/+8.2% is the pitcher working from
+            the stretch versus defensive positioning versus selection this
+            screen has not removed. The DIRECTION and rough size are solid;
+            the causal split is not, and a wired version should be fitted
+            as a state multiplier and leverage-screened before building.
+NEXT STEPS  Run `scratchpad/leverage.py` on a bases-occupied rate
+            multiplier before building it. If it clears, it is a change to
+            `sim.resolve`/`pa_from` — the resolved-matchup object would
+            need a per-base-state variant, which is exactly the "one
+            resolved matchup object" refactor already written up as the
+            next build.
+
+### MID-PLATE-APPEARANCE REMOVALS — A NULL, WITH A NUMBER
+
+The model rolls removal only BETWEEN plate appearances. Counted over 400
+games of 2026 play-by-play: of 2,848 pitching changes, **13 happened
+mid-plate-appearance — 0.456%.** The model is right 99.5% of the time and
+this is not worth building. Recorded so it is not asked a third time.
+
+### THE BULLPEN IS DRAWN, NOT DEPLOYED — AND FATIGUE DOES NOT EXIST
+
+`build_side` samples `PEN_DEPTH` = 8 arms without replacement weighted by
+season appearances, and `next_arm` walks that list IN DRAW ORDER. So:
+
+* **NO LEVERAGE.** A club's most-used arm is drawn into the pen in 84.4%
+  of games and lands at average slot 3.01 of 8 — as likely to pitch the
+  sixth as the ninth. Real closers pitch the ninth.
+* **NO SITUATION.** Nothing knows the score, the platoon, or the save.
+* **NO FATIGUE OF ANY KIND.** The pen is redrawn independently every game
+  AND every draw. Nothing records that an arm threw 30 pitches yesterday
+  or has worked three days running. Real availability is the largest
+  game-to-game difference between two outings by the same club.
+
+Real usage for scale: the most-used reliever takes 13.8% of his club's
+relief appearances (p10 11.8%, p90 15.6%), so usage is flatter than
+intuition suggests and the DRAW is not crazy — it is the ORDER and the
+availability that are missing.
+
+**`deploy.py` ALREADY MEASURED THAT ROLE IS REAL AND PROJECTS** — split-half
+r +0.55 to +0.78 over 319 relievers — and its own conclusion was that
+role-based deployment is worth building. It was never built. This is the
+largest unbuilt item with a completed feasibility measurement behind it.
+
+### THE PER-HITTER HIT MIX — COUNTED, AND THE IMPORTED ASSERTION SURVIVES
+
+`rates.py` carries a comment saying extra-base rates "move much less
+between hitters than the overall hit rate does, so this is applied
+league-wide and the individual variation is carried by BABIP", and
+`sim.resolve` duly sets `hit_mix=lg["hit_mix"]` for everyone. That was an
+ASSERTION in a file whose house rule is count it, do not import it.
+Counted (`scratchpad/hitmix.py`, 294 hitters with 40+ non-homer hits):
+
+    league extra-base share of a non-homer hit   0.2423
+    observed spread across hitters (sd)          0.0587
+    binomial noise at mean n=76                  0.0490
+    TRUE spread after removing it                0.0324   (13.4%)
+    split-half r                                 +0.116
+    Spearman-Brown                               +0.209
+
+**THE ASSERTION HOLDS.** Most of the visible spread is sampling noise — a
+hitter with 76 non-homer hits carries 0.049 of binomial sd by himself, so
+83% of the observed variance is nothing. What survives repeats only weakly
+(+0.209, against +0.711 for pitcher HBP which IS worth wiring, and +0.072
+for per-pitcher dispersion which is closed).
+
+LEVERAGE: one true sd of extra-base share is worth ~0.010 runs a game per
+hitter and ~0.09 across nine slots IF every slot deviated the same way,
+which they do not. Against a 0.05-run floor this is below the bar
+individually and marginal collectively. **Not worth building.**
+
+CARRY THE CAVEAT: doubles power correlates with home-run power, and
+`hr_pct` IS modelled per hitter, so part of the extra-base signal is
+already in the model by another route. That makes +0.209 a RESIDUAL
+reliability rather than the total, and it is the right number for deciding
+whether to add a channel — but it means the honest statement is "the
+marginal channel is small", not "hitters do not differ in doubles".
+
+### BASERUNNER SPEED DOES NOT EXIST IN THE MODEL — AND IT IS THE VARIABLE
+### THE HIT-MIX SCREEN SHOULD HAVE BEEN AIMED AT
+
+The user's objection to the hit-mix null: "doubles aren't just power,
+they're also speed — that is two identical outcomes with different
+on-field structures." Correct, and it exposes a screen aimed at the wrong
+quantity.
+
+**THE MODEL HAS NO PER-RUNNER SPEED ANYWHERE.** `STEAL_TABLE` is keyed on
+(base state, outs) and nothing else, so every runner steals at the league
+rate for that state. `FIRST_TO_THIRD_ON_1B`, `SECOND_SCORES_ON_1B`,
+`FIRST_SCORES_ON_2B` and the `ADVANCE_*_ON_OUT` tables are keyed on the
+OUT COUNT alone. A burner and a catcher are the same baserunner in every
+one of those decisions.
+
+**AND SPEED PASSES THE STABILITY GATE THAT DOUBLES FAILED.** Split-half on
+odd/even games, Spearman-Brown corrected, 2026:
+
+    quantity                          n      r    S-B
+    steal rate per time on base     306  +0.715  +0.834
+    triple share of non-homer hits  222  +0.339  +0.506
+    extra-base share (the screen)   271  +0.116  +0.209
+
+    for scale: pitcher HBP +0.711 (judged worth wiring)
+               per-pitcher dispersion +0.072 (closed)
+
+**+0.834 is the most reliable player-level quantity measured in this
+project.** The hit-mix screen returned a null because a hitter's DOUBLES
+COUNT is a noisy 76-hit sample; his SPEED is not, and speed acts in far
+more places than the one hit that becomes a double — it acts on every
+subsequent hit, every ground ball, and every steal opportunity for as long
+as he is on base.
+
+**THE LEVERAGE ARITHMETIC WAS ALSO STATED SLOPPILY AND THE USER CAUGHT
+IT.** I reported ~0.01 runs a game per hitter and then waved at 0.09 for a
+lineup. Nine hitters deviating INDEPENDENTLY is a SPREAD effect and
+combines in quadrature: 0.010 x sqrt(9) = **0.030 runs** of team-to-team
+separation, not 0.09 and not 0.01. Against the ~0.05 floor that is closer
+than the per-hitter figure implied. The floor itself is ~1 cent: at a
+team-total line the discrete run density is ~0.17 per run, so 0.05 runs is
+0.85 cents against market spreads of four and up.
+
+NEXT STEPS  Screen SPEED, not hit mix. The quantity is a per-runner
+            advancement and steal multiplier, and the three places it
+            enters are already separate named tables, so it is a resolver
+            change and not a state-machine change. Run
+            `scratchpad/leverage.py` on it first — the reliability is
+            settled, the SENSITIVITY is not, and reliability without
+            sensitivity is how park died three times.
+
+### FIELD STATE: THE PLUMBING, SHIPPED INERT (2026-08-29)
+
+Scoped deliberately: make the engine ABLE to carry a base-out state, prove
+the path is exact, and put no number in it. Populating the table is a
+separate change with its own measurement and its own A/B.
+
+WHAT SHIPPED
+
+    sim.STATE_MULT      {} — keyed (men on base, outs). EMPTY.
+    sim.USE_FIELD_STATE True
+    sim.state_mult()    returns None on an empty table, not a dict of 1.0s
+    sim.pa_from(..., state=)   applies it through `odds_mult`
+    game._half_inning   passes (occupied bases, outs BEFORE the PA)
+
+**`odds_mult`, NOT the `tto` pattern, and the reason is the measurement.**
+Times through the order scales the PITCHER'S input rate before log5, which
+is the right shape for "this man is wearing down". The field-state effect
+was measured as a LEAGUE RATE PER STATE (0.2279 strikeouts bases empty
+against 0.2160 with men on), and `odds_mult` is constructed so a
+league-average matchup at multiplier `m` lands on exactly `m * lg`. The
+measurement therefore maps onto the mechanism with nothing to reconcile.
+It is also the already-vetted path: park and arsenal were moved onto it on
+2026-08-27 precisely because output multipliers distort the TAILS, which is
+where prop lines sit.
+
+**BIT-IDENTICAL, VERIFIED THE WAY THE `odds_mult` MIGRATION WAS.** 400
+games x 6 sims, `scratchpad/fingerprint.py`:
+
+    before  07528f5b1eb8aff97750ae9283f30ac1
+    after   07528f5b1eb8aff97750ae9283f30ac1
+
+An EMPTY table returns None rather than a dict of 1.0s, and that is load
+bearing: `odds_mult` short-circuits only on `m == 1.0` exactly, so the
+distinction between "no multiplier" and "a multiplier of 0.9999" is the
+difference between inert and silently rescaling every rate in the model.
+
+**THREE CHANNELS, NOT FOUR, AND BOTH OMISSIONS ARE ON THE LIST.**
+`k_pct`, `hr_pct` and `babip` have `odds_mult` slots on `Matchup`.
+
+  * WALKS have no multiplier slot at all — `bb` is bare `log5(...) / cond`.
+    Adding one is small and matches the other three. Note this is the SAME
+    gap that blocks the seasonal park term ("walks have no park slot").
+  * HIT-BY-PITCH is drawn off the top against `cond`, which is carried
+    rather than recomputed so it can never disagree with the rates it
+    renormalises. Scaling hbp by state REQUIRES recomputing cond in the
+    same breath, or every rate below it is renormalised by the wrong
+    denominator — a silent level error of exactly the kind this file is
+    full of. Deliberately not attempted alongside the plumbing.
+
+**THE TEST THAT MATTERS IS THE ENGINE ONE, AND MUTATION PROVED IT.** Four
+checks in `test_sim.py` exercise `sim.pa_outcome` directly. Deleting the
+`state=` argument from `game._half_inning` leaves ALL FOUR GREEN — the
+mechanism works perfectly and the engine never calls it. Only
+`test_game.check_the_engine_passes_the_field_state_to_the_plate_appearance`
+goes red. That is the `scratchpad/mutate.py` finding reproduced on new
+code: every measurement tested, none of the wiring. Both mutations were
+run and each fails exactly the checks it should.
+
+NEXT   Measure the multiplier: outs and bases JOINTLY, which has not been
+       done — the tables so far vary one at a time and the two are
+       entangled. Then `leverage.py`, then populate.
+       PRE-REGISTER THE FALSIFIER NOW: the claim is CLUSTERING, so the
+       tails must move (shutouts 22.1% -> 21.9%, five-plus 15.8% -> 17.6%)
+       while the MEAN holds. Runs rising without the tails spreading means
+       the multipliers do not average to one over the state distribution
+       and the change is just added offence.
+
+### FIELD STATE POPULATED, SCORED, AND PARKED — THE FALSIFIER FIRED
+
+QUESTION    Does populating `sim.STATE_MULT` move the run distribution's
+            SHAPE toward reality? F5 runs per team-side and the share at 0
+            and 5+, over 537 holdout games, rates frozen before the cutoff.
+HYPOTHESIS  Registered before running: a feedback loop should fatten BOTH
+            tails while the mean holds. FALSIFIER: mean up with flat tails
+            = the table adds offence. SECONDARY: only the upper tail
+            moving = a level error, not clustering.
+TEST        The table was counted JOINTLY on (men on, outs) over 150,275
+            plate appearances, IBB and sac bunts excluded, each multiplier
+            a cell's rate over the overall rate. Frequency-weighted mean
+            verified at 1.0000 on all four channels. Then shrunk toward 1.0
+            by each cell's own binomial noise.
+            **HOME RUNS SHRANK TO ALL-ONES — tau 0.0000 against a mean se
+            of 0.0953.** Their entire spread across twelve cells is their
+            own sampling error, so they are absent from the shipped table
+            on purpose. The raw number showed a tempting 0.797 at (2 on, 1
+            out) with se 0.062.
+            POSITIVE CONTROL: a third arm at 3x amplification.
+            POWER STATED FIRST: model-vs-model is paired and sharp at
+            21,480 sides an arm; model-vs-REALITY is bound by 1,074 real
+            sides, se ~0.012, and the five-plus gap being chased is itself
+            only ~1.6 sigma. Those are different claims.
+EVALUATE
+                             OFF      ON   CTRLx3   ACTUAL
+    F5 mean / side         2.425   2.458    2.500    2.437
+    sd                     2.254   2.286    2.326    2.313
+    shutout share          0.215   0.213    0.211    0.219
+    five-plus share        0.164   0.169    0.175    0.176
+
+            The control fires, so wiring and harness are sound. The PRIMARY
+            falsifier did not fire — the tails did move. **The SECONDARY
+            one did:** the upper tail moves, the lower tail moves the WRONG
+            WAY, and the mean rises past a level that was previously right.
+            F5 CRPS is NEUTRAL — paired over four salts, +0.00169 +/-
+            0.00235, 2/4 worse, against a 0.0165 noise floor.
+CONCLUSION  **NOT SHIPPED. `USE_FIELD_STATE = False`.**
+            ESTABLISHED: the mechanism is real and wired; rate-normalised
+            multipliers do NOT preserve the run level; F5 CRPS is neutral.
+            REFUTED: that this produces symmetric clustering.
+
+            **WHY THE MEAN MOVED THOUGH THE MULTIPLIERS AVERAGE TO EXACTLY
+            ONE — the transferable part. RATE-NEUTRAL IS NOT RUN-NEUTRAL,
+            because the state distribution is ENDOGENOUS.** The states
+            where offence is boosted (men on) are exactly the states where
+            a boost converts to runs, and boosting them produces MORE
+            men-on states, which compounds. The frequency weighting holds
+            the RATES fixed and lets the RUNS drift. Verifying it at 1.0000
+            felt like a proof and was the wrong invariant.
+NEXT STEPS  Renormalise on RUNS, not rates: solve the single scalar that
+            restores the F5 mean with the table applied. That is a
+            normalisation against a level the model already had right, not
+            a tuning against a loss. Then re-run the falsifier — if the
+            lower tail STILL moves the wrong way with the mean pinned, the
+            clustering claim is dead and this is only a dispersion term.
+
+**A MEASUREMENT BUG IN THE A/B ITSELF, recorded so the number is not
+believed:** `state_ab.py` reports "share past nine" as 0.000 in every arm.
+It reads `max(r.prefix)` with `track=(5, 9)`, so the maximum is 9 by
+construction and extras can never be detected. That column is an artifact
+and says nothing about the tie rate.
+
+### THE RUNNER-EVENT REORDER IS A STRUCTURAL NO-OP — MEASURED, DEAD
+
+QUESTION    Should steals, wild pitches and passed balls resolve BEFORE the
+            plate appearance rather than after it? Raised by the user on
+            the grounds that these events happen DURING an at-bat.
+HYPOTHESIS  Three effects, registered before running: (a) the at-bat
+            resolves against the post-steal state, live now that
+            `STATE_MULT` ships; (b) an inning-ending caught stealing VOIDS
+            the at-bat instead of following it, worth ~0.18 fewer plate
+            appearances a game; (c) the lineup pointer stops advancing on
+            that voided at-bat.
+            FALSIFIER: if PA/game does not fall by ~0.18, the voiding is
+            not happening.
+TEST        537 holdout games x 20 sims, flag on and off. Not paired — the
+            reorder reshuffles the random stream — so marginals only.
+EVALUATE    **THE FALSIFIER FIRED.** PA/game 74.902 -> 74.939, i.e. +0.037
+            where -0.18 was predicted. Game total +0.042, F5 per side
+            -0.007, five-plus share +0.001. All noise.
+CONCLUSION  **THE DEFECT IS REAL. THE FIX IS WORTH NOTHING MEASURABLE.
+            THOSE ARE DIFFERENT STATEMENTS AND AN EARLIER VERSION OF THIS
+            NOTE COLLAPSED THEM INTO "the claim is wrong", WHICH IS NOT
+            WHAT WAS MEASURED.**
+
+            (a) IS A GENUINE DEFECT and remains one. An at-bat resolves
+            against a state that is one event stale: at-bat N sees the
+            steals from at-bat N-1, not its own. Reordering DOES fix that.
+            What it buys is nothing, and the reason is that the staleness
+            shifts UNIFORMLY — moving which at-bat owns each steal by one
+            slot is a relabelling, and the same at-bats meet the same
+            distribution of base states either way. So the aggregate rates
+            are identical by construction, which is what +0.037 PA/game and
+            noise on runs are reporting.
+
+            Note what this does NOT say: it does not say the state is
+            irrelevant (`STATE_MULT` ships and is measured), and it does
+            not say events during an at-bat do not matter. It says the
+            per-at-bat MISATTRIBUTION cancels over a sequence.
+
+            (b) IS NOT REACHABLE AT THIS GRANULARITY. The at-bat reality
+            erases is the one IN PROGRESS when the runner is thrown out,
+            and a plate-appearance-granular model has no in-progress
+            at-bat. It needs pitch-level simulation, which is a different
+            engine. (c) follows (b).
+
+            The 0.185 inning-ending caught stealings a game are real and
+            counted; what is wrong is the belief that reordering captures
+            them.
+NEXT STEPS  None. Kept switchable so the null stays scoreable, and because
+            the reordering argument is persuasive on inspection and will be
+            made again by the next person to read `_half_inning`.
+
+**AND IT COST A TEST BAND, WHICH IS ITS OWN LESSON.** With the reorder on,
+`check_longer_leash_raises_strikeout_totals` failed by 0.0009 —
+`marginal` is a RATIO OF TWO SMALL DIFFERENCES between separately-seeded
+arms and carries far more noise than either input. I loosened the band
+rather than establishing whether the move was real. When the change was
+reverted the band went back. **Loosening a test to admit a change is a
+decision that has to be made AFTER the change is established, not as part
+of shipping it** — had the reorder been kept, the suite would have carried
+a permanently weaker check bought with an unmeasured result.
+
+### PITCH_COST WAS IMPORTED AND IS NOW COUNTED (2026-08-29)
+
+QUESTION    The simulator does not simulate pitches; it CHARGES a fixed
+            number per outcome and the hook keys on the total. What are the
+            real values? Unit: one plate appearance, then one start.
+HYPOTHESIS  Per-PA spread of 1.5-2.5 pitches, and a start-level pitch count
+            that is TOO PRECISE by ~10 pitches once ~25 plate appearances
+            add in quadrature.
+TEST        150,907 plate appearances of 2026 play-by-play, 3,843 starts.
+            The decisive comparison is per START — actual pitches against
+            what the table predicts from that start's own outcomes.
+EVALUATE    Wrong by up to 19%:
+
+    outcome     was   counted        n
+    K          4.97      4.85   33,469
+    BB         5.48      5.72   13,181
+    HBP        3.67      3.09    1,721   <- 19% high
+    HR         3.76      3.28    4,610   <- 15% high
+    1B         3.01      3.35   21,386
+    2B         3.01      3.33    6,234
+    3B         3.01      3.36      548
+    OUT        3.25      3.37   67,298
+    SAC        3.00      2.77    1,592
+    ROE        3.25      3.46      868
+
+            One flat 3.01 for every hit, and too much for a home run and a
+            hit-by-pitch — both of which END AN AT-BAT EARLY. That is the
+            tell it was imported.
+
+            **TWO TABLES WERE BEING CONFLATED, INCLUDING BY ME.** The
+            hook's `pitch_center` is FITTED on real removal decisions with
+            REAL pitch counts, so the curve expects true units. `PITCH_COST`
+            is how the SIMULATOR manufactures a count to feed it. Over a
+            start that came to 83.6 against a real 85.6, so **every
+            simulated starter reached the removal decision two pitches
+            young.** After the fix, 85.5 against 85.6.
+
+            **THE HYPOTHESIS WAS WRONG AND IT KILLED THE OBVIOUS NEXT
+            IDEA.** Start-level spread is 15.0 against a real 14.2 —
+            slightly TOO WIDE, not too precise. Drawing the cost from a
+            distribution would add ~1.8 per-PA over ~25 plate appearances
+            and push it to ~17.5. Real pitch counts are CORRELATED WITHIN A
+            START, so independent noise is the wrong shape.
+CONCLUSION  SHIPPED, measured replacing imported.
+
+            DOWNSTREAM IS MIXED. Outs CRPS 2.1045 -> 2.0878. Mean outs
+            15.95 -> 15.70 against 15.82 — a 1.0 sigma error flipping to a
+            1.0 sigma error the other way (se 0.124), not a regression.
+            Boundary share 0.598 -> 0.587. P(over) worse at low outs lines,
+            better at high ones.
+
+            **`pitch_center` DELIBERATELY NOT RESCALED.** It was fitted on
+            real counts; the simulator was feeding it short ones. Moving
+            the centre to preserve the old output would undo a correctness
+            fix to protect a number that is 1 sigma from where it already
+            is.
+NEXT STEPS  The residual is still sd 8.2 pitches per start. The table now
+            has the LEVEL right and cannot say WHO is efficient. Pitches
+            per plate appearance is correlated within a start, so that is a
+            PER-PITCHER term, not noise — and it feeds the hook directly.
+            Reliability unmeasured. Screen before building.
