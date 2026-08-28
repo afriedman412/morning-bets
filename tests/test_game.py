@@ -572,3 +572,84 @@ def check_replay_does_not_hand_a_pitcher_his_own_teammates():
         f"away pitcher ({a_team}) is facing {a_team}'s own hitters")
     assert seen["H"] <= by_team.get(a_team, set()), (
         f"home pitcher ({h_team}) is facing {h_team}'s own hitters")
+
+
+def check_per_batter_runs_add_up_to_the_team_score():
+    """Attribution and the scoreboard cannot disagree.
+
+    `_credit` records who scored beside `_score`, so if these two ever come
+    apart it is the attribution that is wrong, not the total. Summed across
+    a WHOLE game, which is the part that was missing: `next_arm` replaces
+    `cur_line`, so before the fold every reliever's runs vanished from the
+    tally while still counting on the board.
+    """
+    away = _side(starter=_pitcher(name="a", k_pct=0.05, bb_pct=0.25,
+                                  hr_pct=0.08, babip=0.40),
+                 pen=_pen(k_pct=0.05, bb_pct=0.25, hr_pct=0.08, babip=0.40))
+    home = _side(starter=_pitcher(name="h", k_pct=0.05, bb_pct=0.25,
+                                  hr_pct=0.08, babip=0.40),
+                 pen=_pen(k_pct=0.05, bb_pct=0.25, hr_pct=0.08, babip=0.40))
+    r = game.simulate_game(away, home, dict(LG), random.Random(7))
+    for team, bats in (("away", r.away_bats), ("home", r.home_bats)):
+        scored = sum(v["r"] for v in bats.values())
+        rbi = sum(v["rbi"] for v in bats.values())
+        want = r.away if team == "away" else r.home
+        assert scored == want, (team, scored, want)
+        # Every run is driven in by somebody in this model — there is no
+        # unearned-advance path that scores a run with no batter at the
+        # plate except a wild pitch, so RBI can only be lower.
+        assert rbi <= want, (team, rbi, want)
+    assert sum(v["r"] for v in r.away_bats.values()) > 0
+
+
+def check_relief_innings_are_not_dropped_from_the_offence_tally():
+    """The specific defect the fold exists for.
+
+    A starter who cannot get anybody out is pulled early, so most of the
+    game's runs arrive against the pen. If the tally only covered the
+    starter's line it would come up far short of the board.
+    """
+    away = _side(starter=_pitcher(name="gone", k_pct=0.01, bb_pct=0.35,
+                                  hr_pct=0.12, babip=0.45),
+                 pen=_pen(k_pct=0.05, bb_pct=0.25, hr_pct=0.10, babip=0.40))
+    home = _side()
+    r = game.simulate_game(away, home, dict(LG), random.Random(11))
+    starter_only = sum(away.line.scored_by.values())
+    tallied = sum(v["r"] for v in r.home_bats.values())
+    assert tallied == r.home, (tallied, r.home)
+    # The point of the check: the pen really did allow a large share, so a
+    # starter-only tally would have been visibly wrong rather than equal.
+    assert tallied > starter_only + 2, (tallied, starter_only)
+
+
+def check_the_offence_tally_is_crossed_the_same_way_the_score_is():
+    """`away_bats` is the AWAY team's hitters — the nine the HOME side faced.
+
+    Same crossing as `away`/`home`, and the same way to get it backwards.
+    Checked on identity: the names in each tally must come from that team's
+    own lineup and never from the other's.
+    """
+    away = _side()
+    home = _side()
+    for i, b in enumerate(away.lineup):
+        b.name = f"HOMEBAT{i}"          # away side PITCHES to the home nine
+    for i, b in enumerate(home.lineup):
+        b.name = f"AWAYBAT{i}"
+    r = game.simulate_game(away, home, dict(LG), random.Random(5))
+    assert r.away_bats and r.home_bats, (r.away_bats, r.home_bats)
+    assert all(n.startswith("AWAYBAT") for n in r.away_bats), r.away_bats
+    assert all(n.startswith("HOMEBAT") for n in r.home_bats), r.home_bats
+
+
+def check_reading_the_offence_twice_does_not_double_count():
+    """`offense()` merges rather than folding, so it is safe to call again.
+
+    A fold-on-read would pass every check above and silently double the
+    numbers for the second caller.
+    """
+    away, home = _side(), _side()
+    r = game.simulate_game(away, home, dict(LG), random.Random(9))
+    first = {k: dict(v) for k, v in away.offense().items()}
+    second = away.offense()
+    assert first == second, (first, second)
+    assert sum(v["r"] for v in second.values()) == r.home

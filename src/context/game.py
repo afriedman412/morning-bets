@@ -144,10 +144,44 @@ class Side:
     #: Whoever is on now, and his line (the starter's IS `line`).
     cur_line: sim.StartResult | None = None
     runs_f5: int = 0
+    #: Per-batter attribution for the nine this side FACES — which is the
+    #: OPPOSING team's offence, the same crossing `GameResult` documents.
+    #:
+    #: IT LIVES ON THE SIDE AND NOT ON THE LINE BECAUSE `next_arm` REPLACES
+    #: `cur_line`. `sim.StartResult` has carried `scored_by`/`rbi_by` since
+    #: 2026-08-27 and nothing could read a whole team's offence off them:
+    #: every reliever's innings went on the floor at the arm change, which
+    #: is roughly a third of the runs in a game. Folded here on the way past
+    #: so no caller has to remember an end-of-game step.
+    bat_scored: dict = field(default_factory=dict)
+    bat_rbi: dict = field(default_factory=dict)
 
     def __post_init__(self):
         if self.cur_line is None:
             self.cur_line = self.line
+
+    def _fold(self, ln: sim.StartResult) -> None:
+        for src, dst in ((ln.scored_by, self.bat_scored),
+                         (ln.rbi_by, self.bat_rbi)):
+            for who, n in src.items():
+                dst[who] = dst.get(who, 0) + n
+
+    def offense(self) -> dict:
+        """{batter name: {"r": runs, "rbi": runs driven in}}, whole game.
+
+        NON-MUTATING, and that is the point: it merges what has been folded
+        with the arm currently on the mound, so it is correct whenever it is
+        called and calling it twice cannot double count. A fold-on-read
+        would be one forgotten copy away from exactly that.
+        """
+        out: dict = {}
+        live = self.cur_line
+        for tag, folded, now in (("r", self.bat_scored, live.scored_by),
+                                 ("rbi", self.bat_rbi, live.rbi_by)):
+            for src in (folded, now):
+                for who, n in src.items():
+                    out.setdefault(who, {"r": 0, "rbi": 0})[tag] += n
+        return out
 
     @property
     def current(self) -> sim.PitcherRates:
@@ -169,6 +203,9 @@ class Side:
             self.starter_out = True
         else:
             self.pen_i += 1
+        # FOLD BEFORE DISCARDING. `cur_line` is about to be replaced and
+        # the outgoing arm's attribution goes with it otherwise.
+        self._fold(self.cur_line)
         self.cur_line = sim.StartResult()
         self.cur_entry_outs = entry_outs
         self.cur_extra_innings = 0
@@ -418,6 +455,11 @@ class GameResult:
     #: Note the crossing: a Side's `runs` are runs ALLOWED, so the away
     #: TEAM's score is what the HOME side gave up.
     prefix_side: dict = field(default_factory=dict)
+    #: {batter name: {"r": runs, "rbi": runs driven in}} per TEAM, over the
+    #: whole game and every arm that pitched. CROSSED the same way `away`
+    #: and `home` are — see the assignment in `simulate_game`.
+    away_bats: dict = field(default_factory=dict)
+    home_bats: dict = field(default_factory=dict)
 
     @property
     def total(self) -> int:
@@ -504,7 +546,10 @@ def simulate_game(away: Side, home: Side, lg: dict,
         away=home.runs, home=away.runs,
         away_f5=home.runs_f5, home_f5=away.runs_f5,
         away_sp=away.line, home_sp=home.line, prefix=prefix,
-        prefix_side=prefix_side)
+        prefix_side=prefix_side,
+        # CROSSED, like the runs directly above: the away TEAM's hitters are
+        # the nine the HOME side pitched to.
+        away_bats=home.offense(), home_bats=away.offense())
 
 
 def build_side(starter: sim.PitcherRates, pen_pool: list[dict],

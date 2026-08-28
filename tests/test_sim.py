@@ -1899,3 +1899,72 @@ def check_every_outcome_channel_survives_extreme_rates():
         assert "cannot coexist" in str(e), e
     else:
         raise AssertionError("impossible rates resolved silently")
+
+
+class _Rolls:
+    """An rng that returns a scripted sequence, then always 0.99.
+
+    `baserunning` branches on three separate `random()` calls and the only
+    way to land on the steal branch deliberately is to say what each one
+    returns. A seeded `random.Random` would be a guess about internals.
+    """
+    def __init__(self, *vals):
+        self.vals = list(vals)
+
+    def random(self):
+        return self.vals.pop(0) if self.vals else 0.99
+
+
+def check_a_stolen_base_keeps_the_runner_who_stole_it():
+    """`bases` holds RUNNER TOKENS and `baserunning` used to write `True`.
+
+    The identity was destroyed at the steal, so a man who stole second and
+    came round to score was dropped by `_credit` — a silent hole in the
+    per-batter attribution that the run total alone cannot show, because
+    the run still counted on the line.
+    """
+    r = sim.StartResult()
+    fr = sim.Frame(bases=["JUDGE", None, None], outs=0)
+    # no wild pitch (0.99), then a roll inside the steal band.
+    key = (tuple(bool(b) for b in fr.bases), 0)
+    row = sim.STEAL_TABLE.get(key)
+    assert row, key
+    cs_r, sb_r = row[1], row[0]
+    sim.baserunning(r, fr, _Rolls(0.99, cs_r + sb_r / 2))
+    assert r.stolen_bases == 1, (r.stolen_bases, fr.bases)
+    assert fr.bases == [None, "JUDGE", None], fr.bases
+
+
+def check_a_wild_pitch_credits_the_man_who_scored_on_it():
+    """A run with nobody at the plate has a scorer and no RBI.
+
+    `_score` was called directly here, so the run appeared on the line and
+    in no batter's tally — which is how a whole-game attribution came up
+    short of its own scoreboard.
+    """
+    r = sim.StartResult()
+    fr = sim.Frame(bases=[None, None, "SOTO"], outs=0)
+    sim.baserunning(r, fr, _Rolls(0.0))          # wild pitch fires
+    assert r.wp_pb == 1, r.wp_pb
+    assert r.runs == 1, r.runs
+    assert r.scored_by == {"SOTO": 1}, r.scored_by
+    assert r.rbi_by == {}, r.rbi_by
+    assert fr.bases == [None, None, None], fr.bases
+
+
+def check_a_steal_of_third_keeps_the_runner_too():
+    """The other live steal branch, and it moves a DIFFERENT base.
+
+    Written after a mutation sweep showed the first-to-second check left
+    this line unguarded: two adjacent assignments, only one of them tested,
+    is exactly the shape that survives a rewrite.
+    """
+    r = sim.StartResult()
+    fr = sim.Frame(bases=[None, "SOTO", None], outs=1)
+    row = sim.STEAL_TABLE.get(((False, True, False), 1))
+    assert row, "the table must carry a man on second with one out"
+    sb_r, cs_r, _to_third = row
+    # past caught-stealing, inside the steal band, then under `to_third`.
+    sim.baserunning(r, fr, _Rolls(0.99, cs_r + sb_r / 2, 0.0))
+    assert r.stolen_bases == 1, (r.stolen_bases, fr.bases)
+    assert fr.bases == [None, None, "SOTO"], fr.bases

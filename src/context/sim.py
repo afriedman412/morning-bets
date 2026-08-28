@@ -2145,23 +2145,39 @@ def baserunning(r: StartResult, fr: Frame, rng: random.Random) -> None:
     A runner caught stealing is an out with no batter attached and it counts
     toward innings pitched, which is why leaving it out cost roughly 0.10
     outs a start.
+
+    THIS FUNCTION USED TO WRITE BOOLEANS BACK INTO `fr.bases`. The bases
+    carry RUNNER TOKENS as of 2026-08-27 and this path was not updated, so a
+    man who stole second became `True` and a man who advanced on a wild
+    pitch became whatever was behind him — either way his identity was gone,
+    and if he scored later `_credit` dropped him. Every write here now moves
+    the TOKEN. Truthiness is unchanged at every site, so the simulation is
+    bit-identical and only the attribution differs.
+
+    The wild-pitch run is credited to whoever was on third with NO rbi: a
+    run scored with nobody at the plate has a scorer and no one who drove
+    him in, and silently giving it to the man on deck would corrupt exactly
+    the quantity this attribution exists to measure.
     """
     bases = fr.bases
     if any(bases) and rng.random() < WP_PB_RATE:
         if bases[2]:
             _score(r, fr, 1)
-        bases[:] = [False, bases[0], bases[1]]
+            who = bases[2]
+            if who is not None and who is not True:
+                r.scored_by[who] = r.scored_by.get(who, 0) + 1
+        bases[:] = [None, bases[0], bases[1]]
         r.wp_pb += 1
     if not USE_STEAL_TABLE:
         if bases[0] and not bases[1]:
             roll = rng.random()
             if roll < CS_RATE:
-                bases[0] = False
+                bases[0] = None
                 fr.outs += 1
                 r.outs += 1
                 r.caught_stealing += 1
             elif roll < CS_RATE + SB_RATE:
-                bases[0], bases[1] = False, True
+                bases[0], bases[1] = None, bases[0]
                 r.stolen_bases += 1
         return
     # OCCUPANCY, not the tokens. `bases` holds runner identity now, so
@@ -2178,9 +2194,9 @@ def baserunning(r: StartResult, fr: Frame, rng: random.Random) -> None:
         # thrown out. Which base he was heading for does not matter: the
         # out is recorded and he leaves the bases either way.
         if bases[1] and not bases[2]:
-            bases[1] = False
+            bases[1] = None
         else:
-            bases[0] = False
+            bases[0] = None
         fr.outs += 1
         r.outs += 1
         r.caught_stealing += 1
@@ -2190,9 +2206,9 @@ def baserunning(r: StartResult, fr: Frame, rng: random.Random) -> None:
         # to2B/to3B counts describe — 122 of them in 2026 and not one
         # double advance recorded as a single event.
         if bases[1] and not bases[2] and rng.random() < to_third:
-            bases[1], bases[2] = False, True
+            bases[1], bases[2] = None, bases[1]
         elif bases[0] and not bases[1]:
-            bases[0], bases[1] = False, True
+            bases[0], bases[1] = None, bases[0]
         else:
             return
         r.stolen_bases += 1
