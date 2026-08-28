@@ -25,10 +25,46 @@ every season present with no argument.
 Backups of the pipeline DB taken before each load:
 `/tmp/morning_bets_backup_pre2025.db`, `..._pre2024.db`.
 
-NOTE the four seasons are NOT yet used by anything. `scope.CURRENT_SEASON`
-is 2026 and every player-indexed query is scoped to it; `rates.set_prior`
-currently loads ONE prior season and `USE_PRIOR_SEASON` is False. The decay
+NOTE (CORRECTED day thirteen) the four seasons ARE used now:
+`USE_PRIOR_SEASON` is True and `PRIOR_SEASONS` is 3. The paragraph below was
+written on day ten and its flag states are stale. The decay
 weight across three prior seasons is unmeasured — that is next.
+
+## START HERE — DAY THIRTEEN STATE, AND WHERE THE WORK IS
+
+**EVERYTHING BELOW THIS BLOCK UNTIL "ARSENAL IS HARMFUL" IS DAY 8-12 AND
+PARTLY STALE.** The current picture, in order of what should be read:
+
+  1. `## THE INVESTIGATION PROTOCOL` — run investigations as labelled
+     stages, and the rule that when a new number contradicts an earlier one
+     you check whether they measure the same thing before acting.
+  2. `## THE OPEN HOME-RUN QUESTION` — the one live lead, stated in the
+     protocol's terms with its hypothesis marked NOT ESTABLISHED.
+  3. `## THE RUN GAP IS ADVANCEMENT AND IT IS UNDER-DISPERSION` — the
+     measured diagnosis that should drive the work.
+  4. `## WHAT IS CLOSED AS OF THE END OF DAY THIRTEEN` — do not re-run.
+  5. `## ARSENAL IS HARMFUL, NOT NULL` and `## HANDEDNESS — CLOSED`.
+
+**FLAG STATE, verified at the end of day thirteen:**
+
+    USE_PRIOR_SEASON   True   (3 seasons)
+    USE_STEAL_TABLE    True   steals in every base state, measured
+    USE_ROLE_HBP       True   per-arm hit-by-pitch and sacrifice rates
+    USE_HANDEDNESS     False  HARMFUL, not inert — see its docstring
+    USE_ARSENAL        False  HARMFUL, +5.0 sigma worse leak-free
+    USE_PARK           False  and park is a large HOME RUN effect the model
+                              does not represent at all — a live candidate
+                              for the open home-run question
+
+**THE ONE-LINE STATE OF THE MODEL:** it puts exactly the right men on base
+(+0.0%) with every event channel inside 1.4%, and brings 1.7% fewer of them
+home. The remaining gap is advancement, and it is SHAPE — reality has more
+shutouts AND more blowups. No further measurement of a RATE can close it.
+
+**THE SIMULATOR NOW CARRIES RUNNER IDENTITY.** `Frame.bases` holds a runner
+token, `StartResult.scored_by` / `.rbi_by` attribute runs, and per-hitter
+questions are answerable for the first time. Reliever lines are still
+discarded on each arm change, so a whole-side tally needs them merged first.
 
 ## PARALLELISATION — WHAT IS AND IS NOT, AND WHY
 
