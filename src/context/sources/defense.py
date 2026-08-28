@@ -31,6 +31,7 @@ import re
 import urllib.request
 from datetime import date
 from pathlib import Path
+from src.context import atomic
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 CACHE_DIR = PROJECT_ROOT / ".cache"
@@ -55,7 +56,7 @@ def _load(kind: str, year: int, as_of: str | None) -> list[dict]:
             text = r.read().decode("utf-8", errors="replace")
         if text.lstrip().startswith("<"):
             raise ValueError(f"OAA {kind} returned HTML, not CSV")
-        p.write_text(text)
+        atomic.write_text(p, text)
     return list(csv.DictReader(io.StringIO(text.lstrip("﻿"))))
 
 

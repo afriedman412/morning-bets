@@ -31,6 +31,7 @@ import re
 import urllib.request
 from datetime import date
 from pathlib import Path
+from src.context import atomic
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 CACHE_DIR = PROJECT_ROOT / ".cache"
@@ -73,7 +74,7 @@ def _fetch(year: int, side: str, as_of: str | None) -> list[dict]:
             f"park factors: no `var data` in {url} — Savant changed the page"
         )
     rows = json.loads(m.group(1))
-    p.write_text(json.dumps(rows))
+    atomic.write_text(p, json.dumps(rows))
     return rows
 
 

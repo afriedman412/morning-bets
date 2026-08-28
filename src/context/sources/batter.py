@@ -27,6 +27,7 @@ import urllib.error
 import urllib.request
 from datetime import date
 from pathlib import Path
+from src.context import atomic
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 CACHE_DIR = PROJECT_ROOT / ".cache"
@@ -51,7 +52,7 @@ def _cached(name: str, url: str) -> dict:
             d = json.loads(r.read())
     except (urllib.error.URLError, TimeoutError):
         return json.loads(p.read_text()) if p.exists() else {}
-    p.write_text(json.dumps(d))
+    atomic.write_text(p, json.dumps(d))
     return d
 
 
@@ -180,7 +181,7 @@ def _batter_pitch_table(
             text = r.read().decode("utf-8", errors="replace")
         if text.lstrip().startswith("<"):
             raise ValueError("batter arsenal returned HTML, not CSV")
-        p.write_text(text)
+        atomic.write_text(p, text)
 
     def _key(v: str) -> str:
         s = (v or "").strip()

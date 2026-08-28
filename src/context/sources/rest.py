@@ -25,6 +25,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 from src import db
+from src.context import atomic
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 CACHE_DIR = PROJECT_ROOT / ".cache"
@@ -59,7 +60,7 @@ def _venues(season: int | None = None) -> dict[int, dict]:
             )
             with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
                 d = json.loads(r.read())
-            p.write_text(json.dumps(d))
+            atomic.write_text(p, json.dumps(d))
         except (urllib.error.URLError, TimeoutError):
             return {}
     out: dict[int, dict] = {}

@@ -55,6 +55,7 @@ import os
 import pathlib
 
 from src.context.sources import pbp
+from src.context import atomic
 
 CACHE = pathlib.Path(".cache/removal_decisions.json")
 
@@ -188,7 +189,7 @@ def build(limit: int | None = None, verbose: bool = True) -> list[dict]:
             print(f"  {n} games, {len(rows):,} decisions", flush=True)
     if limit is None:
         CACHE.parent.mkdir(parents=True, exist_ok=True)
-        CACHE.write_text(json.dumps(rows))
+        atomic.write_text(CACHE, json.dumps(rows))
     return rows
 
 
@@ -363,7 +364,7 @@ def train_and_save(cutoff="2026-07-15", path=MODEL_PATH) -> dict:
         "n_train": len(rows) - len(res["test"]),
         "n_test": len(res["test"]),
     }
-    path.write_text(json.dumps(blob, indent=1))
+    atomic.write_text(path, json.dumps(blob, indent=1))
     return blob
 
 

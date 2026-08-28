@@ -21,6 +21,7 @@ import urllib.error
 import urllib.request
 from datetime import date
 from pathlib import Path
+from src.context import atomic
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 CACHE_DIR = PROJECT_ROOT / ".cache"
@@ -55,7 +56,7 @@ def _fetch(date_str: str, allow_cache: bool) -> dict:
         return {}
     if any(g.get("lineups") for day in d.get("dates", [])
            for g in day.get("games", [])):
-        p.write_text(json.dumps(d))
+        atomic.write_text(p, json.dumps(d))
     return d
 
 

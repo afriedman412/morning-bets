@@ -24,6 +24,7 @@ import urllib.error
 import urllib.request
 from datetime import date, timedelta
 from pathlib import Path
+from src.context import atomic
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 CACHE_DIR = PROJECT_ROOT / ".cache"
@@ -52,7 +53,7 @@ def _cached(name: str, url: str) -> dict:
             d = json.loads(r.read())
     except (urllib.error.URLError, TimeoutError):
         return json.loads(p.read_text()) if p.exists() else {}
-    p.write_text(json.dumps(d))
+    atomic.write_text(p, json.dumps(d))
     return d
 
 

@@ -39,6 +39,7 @@ import urllib.request
 from pathlib import Path
 
 from src.context import store
+from src.context import atomic
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 CACHE = PROJECT_ROOT / ".cache" / "weather"
@@ -114,7 +115,7 @@ def fetch_date(date_str: str, force: bool = False) -> list[dict]:
                 "carry": carry,
                 "roof_closed": int(roof),
             })
-    p.write_text(json.dumps(out))
+    atomic.write_text(p, json.dumps(out))
     return out
 
 
