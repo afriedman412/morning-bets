@@ -9,6 +9,20 @@ team totals actually be?
 A parameter can be real, pass every stability gate, and still move nothing.
 This finds those before they cost a day.
 
+**READ THE NUMBER THIS PRINTS AS A PRIORITY, NOT AS A VERDICT** (2026-08-29).
+The ~0.05-run floor quoted below is a BETTING threshold: at a team-total
+line the run density is ~0.17 per run, so 0.05 runs is ~0.85 cents against
+market spreads of four and up. It answers "can I bet this on its own", not
+"is the simulation closer to baseball". The stated objective is the second
+one, so a small, COUNTED, reliability-gated mechanism ships regardless of
+what this reports — see the leverage-floor block in CLAUDE.md. What this
+tool is still exactly right about is ORDER OF WORK: build the 0.15-run
+mechanism before the 0.03-run one.
+
+And SPREAD effects combine in QUADRATURE. Nine independent per-hitter
+effects of 0.010 runs make 0.030, not 0.090, so a pile of small things
+accumulates more slowly than adding them suggests.
+
     separation = output sensitivity  x  usable club spread
     usable spread = observed club spread x reliability
 

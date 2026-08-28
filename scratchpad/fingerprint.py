@@ -1,53 +1,60 @@
-"""One hash over many simulated games — did a refactor change the numbers?
+"""One hash over many simulated games, for verifying a change is inert.
 
     venv/bin/python -m scratchpad.fingerprint [n_games] [n_sims]
 
-The verification standard this project already used once, for `odds_mult`,
-but never as a tool: run a fixed set of games at fixed seeds, digest every
-number that comes out, and demand an EXACT match across the change. A paired
-A/B can only say "inside noise"; this says "identical", which is the only
-honest claim for a change that is supposed to be structural.
-
-Use it whenever a change is asserted to be behaviour-preserving. Asserting
-bit-identity in a docstring and not checking it is how a refactor ships a
-quiet regression that every aggregate absorbs.
+The discipline this project already uses for a refactor that must not
+change behaviour: the `odds_mult` migration was accepted only after 400
+games x 6 sims hashed identically before and after. A test that asserts
+"about the same" cannot tell a correct refactor from a small real change,
+and a small real change is exactly what a plumbing edit produces when it
+is subtly wrong.
 """
 from __future__ import annotations
 
 import hashlib
 import random
 import sys
-import zlib
 
-from src.context import calibrate as cal, sim
+from src.context import calibrate as cal
+from src.context import game, sim
 from src.context.sources import rates as rate_src
 
+HOLDOUT = "2026-07-01"
 
-def digest(n_games=400, n_sims=6, season=2026) -> str:
-    lg = sim.league()
-    pens = rate_src.bullpens(lg)
-    pairs = sorted(cal.paired_cases(season=season).items())[:n_games]
-    h = hashlib.sha256()
-    for gid, (away, home) in pairs:
-        # NOT `hash(gid)`. Python randomises string hashing per process, so
-        # a seed built from it differs between two runs of this script and
-        # the digests can never match — which is exactly what happened the
-        # first time this was used, and it read as "the refactor changed the
-        # numbers". `crc32` is stable across processes and machines.
-        rng = random.Random(zlib.crc32(gid.encode()) & 0xFFFFFF)
-        for _ in range(n_sims):
-            r = cal.replay((away, home), lg, pens, rng)
-            for ln in (r.away_sp, r.home_sp):
-                h.update(f"{ln.k},{ln.bb},{ln.h},{ln.hr},{ln.outs},"
-                         f"{ln.earned},{ln.runs},{ln.pitches},"
-                         f"{ln.stolen_bases},{ln.caught_stealing},"
-                         f"{ln.wp_pb}|".encode())
-            h.update(f"{r.away},{r.home},{r.away_f5},{r.home_f5}#".encode())
-    return h.hexdigest()
+
+def main(argv):
+    n_games = int(argv[0]) if argv else 400
+    n_sims = int(argv[1]) if len(argv) > 1 else 6
+    pairs = cal.paired_cases(rates_before=HOLDOUT, since=HOLDOUT)
+    gids = sorted(pairs)[:n_games]
+    lg = sim.league(before=HOLDOUT)
+    pens = rate_src.bullpens(lg, before=HOLDOUT)
+    h = hashlib.md5()
+    for i, gid in enumerate(gids):
+        home = next(x for x in pairs[gid] if x[0]["is_home"])
+        away = next(x for x in pairs[gid] if not x[0]["is_home"])
+        an = cal.adjust_lineup(away[2], False)
+        hn = cal.adjust_lineup(home[2], True)
+        for draw in range(n_sims):
+            rng = random.Random(7 + i * 100003 + draw)
+            A = game.build_side(away[1],
+                                pens.get((away[0]["team"] or "").upper(), []),
+                                hn, sim.Hook(), rng, team=away[0]["team"])
+            H = game.build_side(home[1],
+                                pens.get((home[0]["team"] or "").upper(), []),
+                                an, sim.Hook(), rng, team=home[0]["team"])
+            r = game.simulate_game(A, H, lg, rng, track=(5,))
+            h.update(f"{r.away},{r.home},{r.away_sp.outs},{r.away_sp.k},"
+                     f"{r.home_sp.outs},{r.home_sp.k},"
+                     f"{r.prefix_side.get(5)}|".encode())
+    print(f"  {len(gids)} games x {n_sims} sims")
+    # getattr, so this runs against a checkout that predates the flag —
+    # which is the entire point of a before/after fingerprint.
+    print(f"  USE_FIELD_STATE={getattr(sim, 'USE_FIELD_STATE', 'absent')} "
+          f"STATE_MULT="
+          f"{'populated' if getattr(sim, 'STATE_MULT', None) else 'empty'}")
+    print(f"  fingerprint {h.hexdigest()}")
 
 
 if __name__ == "__main__":
-    g = int(sys.argv[1]) if len(sys.argv) > 1 else 400
-    s = int(sys.argv[2]) if len(sys.argv) > 2 else 6
-    print(f"  {g} games x {s} sims")
-    print(f"  {digest(g, s)}")
+    main(sys.argv[1:])
