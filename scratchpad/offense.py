@@ -42,6 +42,7 @@ from __future__ import annotations
 import multiprocessing as mp
 import os
 import random
+import zlib
 import statistics as st
 import sys
 from collections import defaultdict
@@ -72,7 +73,12 @@ def _one(args):
     """Per (game, batter): slot, mean predicted runs, mean predicted rbi."""
     gid, n_sims, seed = args
     pair = _CASES[gid]
-    rng = random.Random(seed)
+    # SEED VARIES BY GAME. `seed=0` for every game puts draw i at the same
+    # position in the stream for all of them, which correlates the per-draw
+    # errors across games and inflates the standard error of any LEVEL or
+    # SHARE by about 3.4x (measured: block sd 0.385 against 0.113). Every
+    # number in sections A and C is a level or a share.
+    rng = random.Random((zlib.crc32(gid.encode()) & 0xFFFF) * 1009 + seed)
     # Sum AND sum of squares: the within-batter-game variance across draws
     # is what the attenuation correction needs, and recomputing it later is
     # impossible once the draws are gone.
@@ -330,20 +336,23 @@ def concentration(conc, cut):
     # more will have a bigger top line for that reason alone. Matched on
     # runs, the question is purely "given N runs, how many men drove them
     # in", which is what clustering is actually about.
-    print(f"\n  GIVEN THE SAME TEAM TOTAL — mean top RBI, and P(3+ rbi)")
+    print(f"\n  GIVEN THE SAME TEAM TOTAL — the top hitter's rbi and runs")
     print(f"  {'team runs':>10}{'n model':>9}{'n act':>7}"
           f"{'top rbi m':>11}{'top rbi a':>11}{'diff':>8}"
-          f"{'P3+ m':>8}{'P3+ a':>8}{'diff':>8}")
+          f"{'top r m':>10}{'top r a':>10}{'diff':>8}")
     for n in range(0, 10):
         mm = [x for x in conc if x[0] == n]
         aa = [x for x in a_rows if x[0] == n]
         if len(aa) < 25 or len(mm) < 25:
             continue
         tm, ta = st.mean(x[1] for x in mm), st.mean(x[1] for x in aa)
-        pm = sum(1 for x in mm if x[1] >= 3) / len(mm)
-        pa = sum(1 for x in aa if x[1] >= 3) / len(aa)
+        # RUNS SCORED as well as rbi. An rbi depends on who happened to be
+        # on base ahead of the hitter, so a gap in it can be a property of
+        # the STAT rather than of the model; runs scored is the less
+        # arbitrary of the two and the conclusion leans on it.
+        rm, ra = st.mean(x[2] for x in mm), st.mean(x[2] for x in aa)
         print(f"  {n:>10}{len(mm):>9,}{len(aa):>7,}{tm:>11.3f}{ta:>11.3f}"
-              f"{tm - ta:>+8.3f}{pm:>8.1%}{pa:>8.1%}{pm - pa:>+8.1%}")
+              f"{tm - ta:>+8.3f}{rm:>10.3f}{ra:>10.3f}{rm - ra:>+8.3f}")
     print("\n  READ THE SECOND LINE FIRST. If the model is short on team")
     print("  runs to begin with, it is short on big individual games for")
     print("  that reason alone and the first block says nothing about")

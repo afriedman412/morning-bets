@@ -112,7 +112,12 @@ def _corr(pairs):
 def measure(rows, stats, denom_key) -> dict:
     """Split-half reliability and the implied stabilisation point."""
     def counts(g):
-        d = {k: (g.get(src) or 0) for k, src in stats.items()}
+        # A source may be a COLUMN NAME or a callable. BABIP's numerator is
+        # (H - HR) and no column holds it, which is how the batter path came
+        # to be measured with home runs in the numerator and out of the
+        # denominator — a rate that is not BABIP by any definition.
+        d = {k: (src(g) if callable(src) else (g.get(src) or 0))
+             for k, src in stats.items()}
         d["_den"] = denom_key(g)
         return d
 
@@ -148,20 +153,36 @@ def report() -> None:
         _rows(_BAT),
         {"k_pct": "so", "bb_pct": "bb", "hr_pct": "hr"},
         lambda g: (g.get("ab") or 0) + (g.get("bb") or 0))
-    # BABIP needs its own denominator: balls in play.
+    # BABIP needs its own denominator: balls in play. And its own
+    # NUMERATOR — hits on balls in play, which excludes the home run.
     bip = measure(
-        _rows(_BAT), {"babip": "h"},
+        _rows(_BAT),
+        {"babip": lambda g: max((g.get("h") or 0) - (g.get("hr") or 0), 0)},
         lambda g: max((g.get("ab") or 0) - (g.get("so") or 0)
                       - (g.get("hr") or 0), 0))
     bat.update(bip)
-    _table(bat, SHIPPED)
+    _table(bat, SHIPPED, who="bat")
 
     print("\nSTARTING PITCHERS (denominator: batters faced, approximated)")
+    pit_rows = _rows(_PIT)
     pit = measure(
-        _rows(_PIT),
+        pit_rows,
         {"k_pct": "k", "bb_pct": "bb", "hr_pct": "hr"},
         lambda g: (g.get("o") or 0) + (g.get("h") or 0) + (g.get("bb") or 0))
-    _table(pit, SHIPPED)
+    # PITCHER BABIP WAS SIMPLY MISSING. Nothing said why, and the shipped
+    # 500 is therefore the legacy all-players import — the same class of
+    # unmeasured number that left pitcher k_pct at 57 when it should have
+    # been 132. The denominator goes through `balls_in_play` because a
+    # boxscore's `bf - k - bb - hr` counts OUTS and outs are not balls in
+    # play; using the raw figure would understate k by the same 3.3%.
+    from src.context.sources.rates import balls_in_play
+    pit.update(measure(
+        pit_rows,
+        {"babip": lambda g: max((g.get("h") or 0) - (g.get("hr") or 0), 0)},
+        lambda g: balls_in_play(
+            (g.get("o") or 0) + (g.get("h") or 0) + (g.get("bb") or 0),
+            g.get("k"), g.get("bb"), g.get("hr"))))
+    _table(pit, SHIPPED, who="pit")
 
     print("\n  k is the plate appearances at which a player's own rate is")
     print("  worth half its weight against the league. LOWER means the")
@@ -172,9 +193,20 @@ def report() -> None:
     print("  thing the model has.")
 
 
-def _table(res, shipped):
+def _table(res, shipped, who="bat"):
+    """`who` selects the row of `STABILISE_MEASURED` that actually ships.
+
+    The comparison column used to read the IMPORTED `STABILISE` dict for
+    both populations, which is not what runs — `USE_MEASURED_STABILISE` is
+    True. Every pitcher row therefore compared against a number nothing
+    uses, and all three read as UNDER-shrunk when two of them are over-.
+    """
+    from src.context.sources.rates import STABILISE_MEASURED, \
+        USE_MEASURED_STABILISE
+    live = (STABILISE_MEASURED.get(who, {}) if USE_MEASURED_STABILISE
+            else shipped)
     print(f"  {'stat':<9}{'players':>9}{'PA/half':>9}{'r half':>9}"
-          f"{'r full':>9}{'k measured':>12}{'k shipped':>11}")
+          f"{'r full':>9}{'k measured':>12}{'IN USE':>9}{'imported':>10}")
     for stat, d in res.items():
         if d.get("k") is None:
             print(f"  {stat:<9}{d['n_players']:>9}"
@@ -182,7 +214,8 @@ def _table(res, shipped):
             continue
         print(f"  {stat:<9}{d['n_players']:>9}{d['n_per_half']:>9.0f}"
               f"{d['r_half']:>9.3f}{d['r_full']:>9.3f}"
-              f"{d['k']:>12.0f}{shipped.get(stat, 0):>11}")
+              f"{d['k']:>12.0f}{live.get(stat, 0):>9}"
+              f"{shipped.get(stat, 0):>10}")
 
 
 if __name__ == "__main__":

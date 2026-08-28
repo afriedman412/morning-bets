@@ -1,0 +1,13 @@
+  25 sims per side x 4 salts, cut 2026-07-01, shipped value 500
+
+                       CRPS    runs     sd  shutout  5+ runs  covered5
+  babip 500 (imported)  1.63261    2.42   2.25    21.5%    16.5%     68.8%
+  babip 3068 (measured)  1.63473    2.42   2.25    21.2%    16.4%     68.6%
+  ACTUAL                       2.44   2.32    22.0%    17.6%     74.1%
+
+  per salt, babip 500 (imported)1.63261 1.61747 1.66154 1.65317
+  per salt, babip 3068 (measured)1.63473 1.62717 1.65485 1.65246
+
+  paired CRPS difference (babip 3068 (measured) - babip 500 (imported)), NEGATIVE = the second arm wins
+    +0.00110 +/- 0.00340   z +0.3
+    noise floor (sd of a single arm across salts) 0.01727

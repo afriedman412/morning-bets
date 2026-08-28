@@ -82,6 +82,26 @@ STABILISE = {
 #: OUTS starts to break (-2.5 at x5.0), so the peak is not an artifact of
 #: scoring one channel.
 #:
+#: A PITCHER'S BABIP WAS NEVER MEASURED AT ALL (2026-08-28). `stabilise`
+#: printed a babip row for BATTERS and omitted it for pitchers with no
+#: reason given, so the 500 here is the legacy all-players import — the same
+#: class of unmeasured number that left k_pct at 57. Counted now over 365
+#: starters: split-half 0.057, implied k 3068. A pitcher's balls-in-play
+#: rate barely repeats, which is the standing DIPS result and is already
+#: encoded next door in `PRIOR_DECAY["babip"] = 0.0`.
+#:
+#: THE POINT ESTIMATE IS SOFT AND THE DIRECTION IS NOT. At r_half 0.057 with
+#: a standard error of 0.052 over 365 arms, k runs from about 1,500 to
+#: 36,000 across one standard error — but EVERY value consistent with the
+#: data is at least 3x the shipped 500. The split half also shares park,
+#: defence and teammates between its halves, which INFLATES the correlation,
+#: so the true-talent constant is higher still. Do not re-tune this to a
+#: third decimal; it is a direction, not a knife edge.
+#:
+#: SCORED: F5 CRPS +0.0011 +/- 0.0034 (neutral, the bar for a measurement
+#: replacing a guess), hits discrimination flat, home-run discrimination
+#: +0.0254 (+3.2 sigma) and monotone across the sweep.
+#:
 #: HOME RUNS ARE DELIBERATELY LEFT ALONE AT 934, and the reason is the rule
 #: about contradictory numbers. `stabilise` now reads 2130 for pitcher
 #: hr_pct — but method of moments on the same arms says 946, and the holdout
@@ -91,7 +111,7 @@ STABILISE = {
 #: `scratchpad/hr_spread.py`.
 STABILISE_MEASURED = {
     "bat": {"k_pct": 32, "bb_pct": 80, "hr_pct": 160, "babip": 184},
-    "pit": {"k_pct": 132, "bb_pct": 138, "hr_pct": 934, "babip": 500},
+    "pit": {"k_pct": 132, "bb_pct": 138, "hr_pct": 934, "babip": 3068},
 }
 
 #: Off restores the imported constants exactly, for both populations. Every

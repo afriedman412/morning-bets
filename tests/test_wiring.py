@@ -651,7 +651,19 @@ def check_the_rates_neutralise_defence_out_of_the_observed_babip():
         rate_src._defence_targets = real
     a = good["NYY"][0]["babip"]
     b = none["ZZZ"][0]["babip"]
-    assert a > b + 0.002, (a, b)
+    # THE EXPECTED GAP IS DERIVED, NOT HARDCODED. It was `> 0.002`, which
+    # was implicitly calibrated to a babip shrinkage constant of 500 and was
+    # only just clearing its own bar; raising the constant to the measured
+    # 3068 dropped the real gap to 0.0005 and failed a check whose mechanism
+    # was working perfectly. The neutralisation enters the OBSERVED rate, so
+    # what survives into the stored one is the delta times the shrink
+    # weight — pin that, and the check stops depending on a constant it is
+    # not about.
+    bip = rate_src.balls_in_play(90 + 20 + 10, 30, 10, 3)
+    k = (rate_src.STABILISE_MEASURED["pit"]["babip"]
+         if rate_src.USE_MEASURED_STABILISE else rate_src.STABILISE["babip"])
+    want = 0.020 * bip / (bip + k)
+    assert abs((a - b) - want) < 1e-9, (a, b, a - b, want)
 
 
 def check_the_side_applies_defence_to_the_bullpen_too():

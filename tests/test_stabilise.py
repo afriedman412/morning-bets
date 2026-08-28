@@ -143,3 +143,26 @@ def check_the_shrinkage_constants_reach_a_real_rate():
         assert stale > got + 0.005, (stale, got)
     finally:
         rates.STABILISE_MEASURED["pit"] = orig
+
+
+def check_pitcher_babip_is_not_the_unmeasured_import():
+    """500 was the legacy all-players value; nothing had ever measured it.
+
+    `stabilise.report` printed a babip row for batters and silently omitted
+    it for pitchers, so this constant sat at an import while every other
+    entry in the table had been counted. Measured over 365 starters the
+    split half is 0.057 and the implied k is around 3,000.
+
+    THE RANGE IS ASSERTED, NOT THE POINT. One standard error on that
+    correlation spans k from roughly 1,500 to 36,000, so pinning 3068 would
+    be a test of a coin flip. What the data does say is that a pitcher keeps
+    far LESS of his own balls-in-play rate than 500 implies — which is the
+    DIPS result, and the same file already encodes it next door as
+    `PRIOR_DECAY["babip"] = 0.0`.
+    """
+    k = rates.STABILISE_MEASURED["pit"]["babip"]
+    assert k >= 1500, k
+    assert k > rates.STABILISE_MEASURED["bat"]["babip"] * 5, k
+    # And it must be the LEAST trusted pitcher rate on the board.
+    assert k > max(v for s, v in rates.STABILISE_MEASURED["pit"].items()
+                   if s != "babip"), k

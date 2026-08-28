@@ -1,0 +1,59 @@
+  HOLDOUT: rates before 2026-07-01, scored on games from 2026-07-01
+  531 games x 40 sims
+
+  9,520 simulated batter-games, 9,369 matched to a boxscore line (98%)
+
+  A. LEVEL BY LINEUP SLOT — the batting-order machine.
+   slot       n   pred r   act r    diff  pred rbi  act rbi    diff
+      1   1,051    0.589   0.578  +0.011     0.453    0.452  +0.001
+      2   1,044    0.558   0.528  +0.030     0.491    0.466  +0.026
+      3   1,062    0.510   0.515  -0.005     0.527    0.493  +0.034
+      4   1,057    0.489   0.481  +0.008     0.554    0.542  +0.012
+      5   1,042    0.458   0.470  -0.012     0.492    0.494  -0.003
+      6   1,033    0.428   0.412  +0.015     0.442    0.399  +0.043
+      7   1,017    0.419   0.414  +0.006     0.433    0.407  +0.026
+      8   1,038    0.413   0.378  +0.035     0.413    0.394  +0.019
+      9   1,025    0.404   0.375  +0.030     0.392    0.310  +0.082
+
+  B. DIFFERENTIATION — regress ACTUAL on PREDICTED.
+  slope 1.0 = the spread across hitters is right;
+  above 1 = the model bunches them toward a common bat.
+
+  unit            stat        n  sd(pred)   MC sd   raw b  TRUE b  z vs 1
+  batter-game     r       9,369    0.1429  0.1042   0.292   0.624    -3.6
+  batter-game     rbi     9,369    0.1651  0.1327   0.245   0.691    -2.1
+  player (20+ g)  r         238    0.0744  0.0196   0.672   0.722    -2.2
+  player (20+ g)  rbi       238    0.0769  0.0249   0.678   0.758    -1.5
+
+  C. CONCENTRATION — 42,480 simulated team-games against 1,062 real ones.
+  The team total is scored elsewhere; this asks whether the runs
+  land on the same NUMBER of hitters.
+
+  quantity                              model   actual     diff
+  a hitter drives in 2+               62.220%  60.452%  +1.768%
+  a hitter drives in 3+               28.329%  26.930%  +1.398%
+  a hitter drives in 4+                9.649%   8.757%  +0.892%
+  a hitter scores 3+                   7.721%   7.250%  +0.471%
+  two hitters drive in 2+             26.902%  25.989%  +0.913%
+
+  mean top RBI in a team-game           1.967    1.923   +0.044
+  mean team runs                        4.266    4.358   -0.092
+
+  GIVEN THE SAME TEAM TOTAL — the top hitter's rbi and runs
+   team runs  n model  n act  top rbi m  top rbi a    diff   top r m   top r a    diff
+           0    2,970     76      0.000      0.000  +0.000     0.000     0.000  +0.000
+           1    4,844    116      0.979      0.966  +0.013     1.000     1.000  +0.000
+           2    5,923    141      1.287      1.255  +0.032     1.069     1.121  -0.052
+           3    5,974    163      1.678      1.607  +0.071     1.198     1.141  +0.057
+           4    5,523    129      2.033      1.992  +0.041     1.395     1.333  +0.061
+           5    4,636    113      2.349      2.265  +0.083     1.620     1.558  +0.062
+           6    3,708    100      2.631      2.550  +0.081     1.847     1.790  +0.057
+           7    2,803     61      2.861      2.689  +0.172     2.034     1.918  +0.116
+           8    2,131     57      3.107      3.070  +0.036     2.172     2.228  -0.056
+           9    1,383     29      3.325      3.207  +0.118     2.324     2.379  -0.055
+
+  READ THE SECOND LINE FIRST. If the model is short on team
+  runs to begin with, it is short on big individual games for
+  that reason alone and the first block says nothing about
+  clustering. The claim needs the top-RBI gap to be LARGER in
+  relative terms than the run gap.

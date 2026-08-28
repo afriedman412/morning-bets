@@ -38,14 +38,24 @@ BAT_ARMS = (({"k_pct": 32, "bb_pct": 80, "hr_pct": 160, "babip": 184},
              "bat shipped"),
             ({"k_pct": 51, "bb_pct": 122, "hr_pct": 193, "babip": 250},
              "bat measured"))
+#: `--pit-babip` swaps the pitcher's BABIP constant. It had NEVER BEEN
+#: MEASURED — `stabilise.report` omitted the pitcher babip row entirely, so
+#: the shipped 500 is the legacy all-players import, the same class of
+#: unmeasured number that left pitcher k_pct at 57. Counted now over 365
+#: starters: split-half 0.057, implied k 3068. A pitcher's balls-in-play
+#: rate barely repeats, which is the standing DIPS result and is already
+#: encoded next door in `PRIOR_DECAY["babip"] = 0.0`.
+PIT_BABIP_ARMS = ((500, "babip 500 (imported)"),
+                  (3068, "babip 3068 (measured)"))
 WHO = "pit"
+STAT = "k_pct"
 
 
 def arm(k, n_sims, salt=0):
     if WHO == "bat":
         rate_src.STABILISE_MEASURED["bat"] = dict(k)
     else:
-        rate_src.STABILISE_MEASURED["pit"]["k_pct"] = k
+        rate_src.STABILISE_MEASURED["pit"][STAT] = k
     # Every cache downstream of a rate has to go, or the second arm scores
     # the first arm's numbers. `_PRIOR` especially: it is built by
     # `pitcher_rates`, so it carries the shrinkage constant inside it.
@@ -61,13 +71,17 @@ def arm(k, n_sims, salt=0):
 
 def main(argv):
     global WHO, ARMS
+    global STAT
     if "--bat" in argv:
         argv = [a for a in argv if a != "--bat"]
         WHO, ARMS = "bat", BAT_ARMS
+    if "--pit-babip" in argv:
+        argv = [a for a in argv if a != "--pit-babip"]
+        STAT, ARMS = "babip", PIT_BABIP_ARMS
     n = int(argv[0]) if argv else 25
     salts = list(range(int(argv[1]) if len(argv) > 1 else 4))
     orig = (dict(rate_src.STABILISE_MEASURED["bat"]) if WHO == "bat"
-            else rate_src.STABILISE_MEASURED["pit"]["k_pct"])
+            else rate_src.STABILISE_MEASURED["pit"][STAT])
     print(f"  {n} sims per side x {len(salts)} salts, cut {CUT},"
           f" shipped value {orig}\n")
     print(fitf5.HEAD)
@@ -88,7 +102,7 @@ def main(argv):
         if WHO == "bat":
             rate_src.STABILISE_MEASURED["bat"] = orig
         else:
-            rate_src.STABILISE_MEASURED["pit"]["k_pct"] = orig
+            rate_src.STABILISE_MEASURED["pit"][STAT] = orig
     fitf5.report_actual(res)
     a, b = [got[k if WHO != "bat" else id(k)] for k, _ in ARMS]
     d = [y - x for x, y in zip(a, b)]

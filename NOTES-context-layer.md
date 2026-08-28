@@ -4925,3 +4925,86 @@ row behind them. Every "actual" figure in `scratchpad/offense.py` is
 understated by that much, and a team-game with missing rows lands in a lower
 run bucket than it belongs in — which matters for the run-matched
 concentration table, though not enough to move a +0.072 result.
+
+### PITCHER BABIP WAS NEVER MEASURED. 500 -> 3068.
+
+Found by continuing the staleness audit into the one constant with no
+measurement behind it. `stabilise.report` printed a babip row for BATTERS
+and silently omitted it for pitchers — no reason given anywhere — so the
+shipped 500 was the legacy all-players import, the same class of number that
+left `k_pct` at 57.
+
+    STARTING PITCHERS
+      stat     players  PA/half  r half  r full  k measured  IN USE
+      babip        365      368   0.057   0.107        3068     500
+
+A pitcher's balls-in-play rate barely repeats. That is the standing DIPS
+result and the file ALREADY ENCODES IT NEXT DOOR: `PRIOR_DECAY["babip"] =
+0.0`, measured separately, says a BABIP is worth nothing a year later. The
+shipped 500 was inconsistent with a constant twenty lines above it.
+
+**THE POINT ESTIMATE IS SOFT AND THE DIRECTION IS NOT.** At r_half 0.057
+with a standard error of 0.052 over 365 arms, k spans roughly 1,500 to
+36,000 across ONE standard error:
+
+    r_half 0.005 -> k 36,616   a starter keeps  0.9% of his own babip
+    r_half 0.057 -> k  3,044                    9.8%
+    r_half 0.109 -> k  1,504                   18.0%
+    shipped k 500                              39.8%
+
+Every value consistent with the data is at least 3x the shipped one, and the
+split half SHARES park, defence and teammates between its halves, which
+inflates the correlation — so the true-talent constant is higher still. It
+is a direction, not a knife edge, and it must not be re-tuned to a decimal.
+
+SCORED. F5 CRPS +0.0011 +/- 0.0034, neutral, which is the bar for a
+measurement replacing a guess. Discrimination, holdout, `unshrink --only
+pit:babip`: hits FLAT (-0.1) and home runs +0.0254 (+3.2 sigma), monotone
+across x2, x4, x6.1. The flat hits row is worth carrying — that is the
+channel babip drives most directly and it says the gain is not where the
+mechanism predicts.
+
+### AND THE BATTER BABIP NUMERATOR WAS WRONG
+
+`measure(_rows(_BAT), {"babip": "h"}, ...)` used H as the numerator against a
+denominator that excludes home runs. BABIP is (H - HR) / (AB - K - HR). With
+the numerator corrected the batter figure moves 250 -> 447 and r_half 0.407
+-> 0.277 — the contamination made a hitter's balls-in-play rate look 79%
+more reliable than it is.
+
+**THIS INVALIDATES ONE ARM OF TODAY'S EARLIER TEST.** The batter-row A/B
+that lost on F5 used 51/122/193/**250**, and the honest measured row is
+51/122/193/**447**. The babip element was wrong in the direction of too
+little shrinkage. Re-run before concluding anything about the batter
+constants.
+
+### A TEST THRESHOLD THAT WAS SECRETLY A FUNCTION OF THIS CONSTANT
+
+`check_the_rates_neutralise_defence_out_of_the_observed_babip` asserted the
+stored gap was `> 0.002`. That number was implicitly calibrated to k=500 —
+it produced 0.0026 and was only just clearing its own bar — so raising the
+constant failed a check whose mechanism was working perfectly. The gap that
+survives into a stored rate is the delta times the SHRINK WEIGHT, so the
+check now derives what it expects from the shipped constant and pins it
+exactly. Verified by mutation on `bullpens`, which is the call site it
+actually exercises — the first mutation attempt patched `pitcher_rates` and
+passed, because this check has never gone near it.
+
+### THE CONCENTRATION FINDING IS RETRACTED
+
+Re-run with per-game seeds, and with RUNS SCORED beside rbi because an rbi
+depends on who happened to be on base ahead of the hitter:
+
+                          before seeding fix    after      run levels
+    top RBI                  +0.072 (z +2.7)  +0.057 (z +2.1)   9/9 positive
+    top RUNS SCORED                  not run  +0.025 (z +1.1)   5/9 mixed
+
+**ON THE NON-ARBITRARY STAT THERE IS NOTHING.** And the residual rbi gap has
+a known cause that is not a modelling defect: `_credit` awards an rbi for
+every run on a batted event where MLB awards none on a double play or an
+error, measured at 0.982 rbi per run against 0.978 for real starters — worth
+0.008 to 0.031 on a 1.92-rbi top hitter, a large fraction of what is left.
+
+"The model puts runs on too few hitters" is WITHDRAWN. The other two
+findings survive the reseeding unchanged: the batting order is right, and
+hitters are over-separated (player-level slope 0.722 on runs, z -2.2).

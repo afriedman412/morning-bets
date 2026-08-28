@@ -54,6 +54,22 @@ error of any ABSOLUTE level or share by **3.4x**. It cancels in a paired A/B
 and does not cancel in a level. Vary the seed by game — crc32 of the game id.
 It turned a z +3.5 home-run-share result into z +1.4.
 
+**PITCHER BABIP 500 -> 3068, SHIPPED.** It had NEVER been measured —
+`stabilise` omitted the pitcher babip row — so 500 was the legacy import.
+Split-half 0.057 over 365 arms. F5 neutral (+0.0011 +/- 0.0034), home-run
+discrimination +3.2 sigma, hits flat. The point estimate is soft (k spans
+1,500-36,000 over one standard error) and the DIRECTION is not; do not
+re-tune it.
+
+**THE BATTER BABIP NUMERATOR WAS WRONG** — H instead of (H - HR) — so the
+measured batter figure is 447, not the 250 used in today's batter-row A/B.
+That A/B lost on F5 with a wrong babip element. RE-RUN IT.
+
+**THE CONCENTRATION FINDING IS WITHDRAWN.** On RUNS SCORED it is +0.025
+(z +1.1), signs mixed. It only appears on rbi, and `_credit` over-awards rbi
+by rule (MLB gives none on a double play or an error). The batting order and
+the hitter over-separation both survive the reseeding.
+
 **HOW RUNS ARRIVE — the home-run share of runs is NOT RESOLVED.** +1.53% on a
 July cut, -1.33% on a May cut, neither over 1.6 sigma. So the rbi
 concentration finding has NO mechanism identified: sequencing is not
