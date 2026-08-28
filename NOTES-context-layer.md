@@ -4425,3 +4425,46 @@ WHAT IS STILL MISSING: reliever lines are discarded on each arm change
 (`cur_line = StartResult()`), so a whole-side per-batter tally needs the
 lines merged before they are dropped. The starter's innings are covered,
 which is most of them and matches how everything else here is scored.
+
+### PITCHER-level differentiation — the cleaner test, and home runs are the finding
+
+Prompted by the right question: differentiation of WHAT? The earlier slope
+regression was per START — one row per starter-start, predicted mean against
+actual outcome, 3,278 rows. That is MATCHUP differentiation, since a start's
+prediction moves with the pitcher, the opposing nine, the park and the hook.
+Calling it "pitcher differentiation" was sloppy.
+
+The pitcher-level version collapses each arm to his mean predicted and mean
+actual and regresses across pitchers. 181 with 8+ starts:
+
+    ch        n  sd(pred)   MC sd  sd(true)   raw b  TRUE b  z vs 1
+    er      181     0.244   0.074     0.232   1.313   1.448    +2.3
+    h       181     0.457   0.084     0.450   1.302   1.347    +3.7
+    hr      181     0.083   0.033     0.076   2.359   2.805   +10.0
+    bb      181     0.372   0.052     0.369   1.135   1.157    +3.0
+    k       181     1.023   0.080     1.019   1.116   1.123    +4.4
+    outs    181     1.071   0.155     1.060   1.405   1.434    +6.5
+
+**IT IS THE MORE TRUSTWORTHY MEASUREMENT.** Averaging 8+ starts per pitcher
+cuts Monte Carlo noise by root-n, so the attenuation correction falls to
+x1.02-x1.19 and the RAW slopes are already the answer. The start-level
+version needed corrections up to x2.9, which is why its home-run number was
+the softest thing in that table. Run the pitcher-level version first next
+time.
+
+**HOME RUNS ARE THE FINDING, AT +10 SIGMA.** The model separates pitchers on
+home runs less than HALF as much as reality does. Three independent lines
+agree on that one channel and no other: the start-level slope (most
+compressed, 2.59), the pitcher-level slope (2.36 raw, minimal correction),
+and the holdout shrinkage sweep (the only channel wanting LESS shrinkage,
++2.0 sigma).
+
+The suspect is named: `STABILISE_MEASURED["pit"]["hr_pct"] = 934`. A pitcher
+with 600 batters faced keeps 39% of his own home-run rate and takes 61%
+league average. Every other channel is between 1.12 and 1.45 — real, but
+ordinary — while home runs are 2.36.
+
+NOT CHANGED YET. The right move is a home-run-specific constant validated on
+the holdout, not a global factor, and the holdout gain for a 4x reduction was
++2.0 sigma, so the size is modest even though the compression is large. That
+is consistent with home runs being a small share of runs.
