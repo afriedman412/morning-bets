@@ -115,10 +115,12 @@ external signal that curve has ever accepted.
 
 **STILL OPEN:** boundary share 0.609 against a real 0.669.
 Reality ends starts at the end of an inning; the model ends them mid-inning.
-Both of today's fits found the boundary curve takes NO in-game state —
-margin, |margin| and strikeout rate all null or sign-unstable on it — so
-whatever governs it is not the game situation. That is now the best-defined
-unknown on this item.
+The boundary curve takes NO IN-GAME state — margin, |margin| and strikeout
+rate are all null or sign-unstable on it — but it does take BULLPEN state
+(item 8b), which is external to the game. So the shape of the answer is
+"the boundary decision is about resources, not about the night", and 8b is
+the first piece of it. Wiring 8b is the next move on this item; whether it
+closes the 0.669 gap is UNMEASURED and should not be assumed.
 
 **8b. WIRE BULLPEN AVAILABILITY INTO BOTH HOOK CURVES. MEASURED
 2026-08-29, NOT WIRED — the best-evidenced unshipped mechanism on this
