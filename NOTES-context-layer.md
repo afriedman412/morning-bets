@@ -6865,3 +6865,108 @@ baseline. The mutation caught it: uncentring the term left the check green.
 The assertion has to compare against a hook with the coefficient set to zero,
 so that "contributes nothing at the baseline" is what is actually tested.
 VERIFY BY MUTATION OR THE CHECK IS DECORATION.
+
+## DAY SEVENTEEN, PART THREE — `PITCH_COST` IS EXONERATED, AND THE K TAIL IS A K-SPECIFIC DISPERSION DEFICIT
+
+**TODO ITEM 7'S NAMED FIRST SUSPECT IS WRONG.** The item says "`PITCH_COST`
+charges 4.97 pitches for a strikeout against 3.25 for an out, so a dominant
+night actively SHORTENS a simulated start." The premise is arithmetically
+incomplete: a dominant night also needs FEWER BATTERS, and the two cancel.
+
+QUESTION    Is the pitch cost of an outcome flat across pitchers, as one
+            league table assumes? And does the extra cost of a strikeout
+            actually shorten an outing?
+TEST        73,506 pitcher-games with a 300+ batter book elsewhere, 696
+            pitchers, quintiled on a LEAVE-ONE-GAME-OUT strikeout rate so
+            the grouping cannot contain the rows it grades.
+            `scratchpad/pitch_cost_spread.py`.
+
+    quintile   K rate   per K   per out   per BB   per hit    /PA
+    Q1          0.186   4.863     3.303    5.763     3.269   3.764
+    Q5          0.296   4.808     3.368    5.748     3.367   3.986
+
+**PITCHES PER STRIKEOUT IS FLAT** — 4.863 to 4.808, a 1.1% decline. Real but
+negligible (per-game 4.8797 +/- 0.0100 against 4.8111 +/- 0.0123). Elite
+strikeout arms do NOT get their strikeouts materially cheaper. The flat table
+is right.
+
+**AND THE DENOMINATOR THAT DECIDES START LENGTH IS PITCHES PER OUT, WHICH IS
+FLAT TOO:**
+
+    quintile   K rate   outs/PA   pitches/out   pitches to 18 outs
+    Q1          0.186     0.690         5.454                 98.2
+    Q3          0.228     0.701         5.504                 99.1
+    Q5          0.296     0.721         5.527                 99.5
+
+A strikeout arm spends 5.9% more per BATTER and retires 4.5% more of them,
+and the two cancel: everyone needs about 99 pitches for six innings. **PITCHES
+PER BATTER WAS THE WRONG DENOMINATOR, AND IT IS THE denominator THE ITEM WAS
+WRITTEN ON.**
+
+**THE SIMULATOR REPRODUCES THE CANCELLATION ALMOST EXACTLY**
+(`scratchpad/pitch_cost_sim.py`, 12,888 simulated starts, bucketed on the
+pitcher's MODELLED rate):
+
+    quintile   sim outs/PA   sim p/out   sim to 18   | real to 18
+    Q1               0.694       5.460        98.3          98.2
+    Q3               0.703       5.511        99.2          99.1
+    Q5               0.725       5.430        97.7          99.5
+
+If anything the simulator FAVOURS its strikeout arms slightly on pitch
+budget. **THE PITCH-BUDGET CHANNEL IS CLOSED. Do not re-open it.**
+(CAVEAT CARRIED: the real table includes relievers and the simulated one is
+starters only, so the LEVELS are not comparable. The within-table flatness,
+which is the claim, is established on each side independently.)
+
+## THE ACTUAL CAUSE: THE MISSING VARIANCE IS STRIKEOUT-SPECIFIC
+
+The sharpness term was rejected because it "closes 78-85% of the K tail and
+costs an equal amount of outs CRPS". **THAT IS TRUE OF THE SPECIFICATION IT
+WAS TESTED IN AND NOT OF THE MECHANISM.** `dispersion.LOAD` is a single
+latent quality factor loading on FOUR rates — `k_pct` -1.0, `bb_pct` +1.0,
+`hr_pct` +1.0, `babip` +1.0 — so a "sharp night" also suppresses walks,
+homers and balls in play. Traffic is what the hook integrates, so the draw
+was widening the LENGTH distribution as hard as the strikeout one.
+
+Re-opened legitimately, because the DATA changed: the hook acquired a
+dominance channel this morning. Pre-registered before running.
+
+**FIRST, THE INTERACTION, AND IT IS A NEAR-NULL.** 2x2 on sigma x dominance,
+paired seeds. The outs CRPS cost of sigma 0.10 falls from +0.0307 (dominance
+off) to +0.0278 (on) — 9%, in the predicted direction and far too small to
+rescue the term. The hypothesis that a correct length response would pay for
+the noise is REFUTED at the size that matters.
+
+**THEN, THE SPECIFICATION CHANGE, AND IT IS LARGE.** Loading the draw on
+`k_pct` ALONE, everything else at 0.0:
+
+                            base   full-load   K-only   K-only   actual
+                            s=0     s=0.10     s=0.10   s=0.20
+    K sd                   2.28        2.35      2.34     2.49     2.49
+    o8.5 gap             -0.032      -0.026    -0.026   -0.010   (se 0.009)
+    K CRPS               1.3240      1.3240    1.3205   1.3144
+    outs sd                4.04        4.15      4.06     4.05     4.04
+    outs CRPS            2.0819      2.1097    2.0938   2.0941
+    boundary share        0.607       0.607     0.609    0.609    0.669
+
+**K-only at 0.20 lands the strikeout sd EXACTLY (2.49 against 2.49), closes
+69% of the o8.5 gap (-0.032 -> -0.010, now inside 1.1 sigma where it was
+-3.5), improves K CRPS by 0.0096 — and leaves the OUTS sd on target at 4.05
+against 4.04, where the four-channel draw overshoots to 4.15.** The outs CRPS
+cost is +0.0122 against the four-channel +0.0278, for triple the K benefit.
+
+**IT IS NOT SHIPPED AND MUST NOT BE SHIPPED ON THIS EVIDENCE. sigma = 0.20
+WAS CHOSEN BY ME TO MAKE THE K SD LAND ON 2.49, WHICH IS SOLVING FOR A
+SPREAD** — the exact move CLAUDE.md forbids, and the one every absorbed
+constant in this project's history has in common. What is ESTABLISHED is the
+SHAPE of the defect: the missing variance is STRIKEOUT-SPECIFIC and not a
+general quality factor, which is why every previous test of this mechanism
+read as a wash. What is NOT established is the magnitude.
+
+**THE NEXT TEST, AND IT IS THE ONE THAT MATTERS:** COUNT the extra-binomial
+strikeout variance in real starts — how much a real pitcher's start-to-start
+K rate varies beyond what his season rate and that night's lineup imply — and
+use THAT sigma. Note this is a different quantity from the closed
+per-pitcher dispersion question (split-half 0.072 over 107 arms): that asked
+WHICH pitchers are more variable, this asks how variable the league is. A
+null on the former says nothing about the latter.

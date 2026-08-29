@@ -71,22 +71,50 @@ count alone. A burner and a backup catcher are the identical baserunner.
 Reliability is settled, SENSITIVITY is not. Run `leverage.py` first —
 reliability without sensitivity is how park died three times.
 
-**7. Condition the hook on how the night is going.**
-The single biggest defect, and it causes two of the three worst numbers on
-the board.
-K per 27 outs by length: model 8.42 / 8.05 / **7.51**, actual 8.33 / 7.98 /
-**8.49**. The middle buckets are right to a tenth, then the model keeps
-declining where reality JUMPS. A real seven-inning start is a SELECTED
-population, earned by missing bats; the model has no selection. It therefore
-prices a high-K over at ~60% of true (o8.5 0.060 against 0.095, -3.9 sigma).
-Boundary share 0.598 against a real 0.669 (5.0 sigma) — 5.8 points short at
-exactly 18 outs, the most common real outcome, and long at 11, 14 and 20.
+**7. The K tail. LARGELY DIAGNOSED 2026-08-29 — READ BEFORE RESUMING.**
+Two of the three things this item said are now settled and one of them was
+WRONG. What remains is a single, well-specified measurement.
+
+**DONE AND SHIPPED:** the hook now conditions on how the night is going.
+`late_mid_per_k_rate` -1.5130 (z -9.5) and `mid_per_abs_margin` -0.0824
+(z -10.4), both counted on 322,205 real removal decisions, both mid-inning
+only — the boundary curve took neither term. Selection now runs the right
+way: E[K] by start length moves toward the actual in five of six buckets.
+
+**THE FIRST SUSPECT WAS WRONG AND `PITCH_COST` IS CLOSED.** "A strikeout
+costs 4.97 pitches against 3.25, so a dominant night shortens a start" is
+arithmetically incomplete — a dominant night also needs FEWER BATTERS and
+the two cancel. Counted on 73,506 pitcher-games, everybody needs about 99
+pitches for six innings (Q1 98.2, Q5 99.5), and the simulator reproduces
+that to a tenth. PITCHES PER BATTER WAS THE WRONG DENOMINATOR. Do not
+re-open the pitch-budget channel.
+
+**THE HOOK FIX IS NOT SUFFICIENT AND THAT IS MEASURED:** at x4 the fitted
+coefficient P(K>=9) reaches only 0.0649 against a real 0.0950, while
+boundary share and outs both degrade. The manager's response to dominance is
+real and is not the main cause.
+
+**WHAT IS LEFT, AND IT IS ONE MEASUREMENT.** The residual is a
+STRIKEOUT-SPECIFIC dispersion deficit (K sd 2.28 against 2.49). The old
+sharpness sweep failed because `dispersion.LOAD` is one latent factor on
+FOUR rates, so it widened traffic — and traffic is what the hook integrates
+— wrecking the outs distribution for the K gain. **Loaded on `k_pct` ALONE
+it lands K sd exactly (2.49), closes 69% of the o8.5 gap, improves K CRPS
+0.0096, and leaves outs sd on target (4.05 against 4.04) at less than half
+the outs CRPS cost.**
+**DO NOT SHIP THAT — the sigma was chosen to hit the target, which is
+solving for a spread.** COUNT the extra-binomial strikeout variance in real
+starts (how far a pitcher's start-to-start K rate moves beyond his season
+rate and that night's lineup) and use the counted value. This is NOT the
+closed per-pitcher dispersion question (split-half 0.072): that asked WHICH
+arms are variable, this asks how variable the league is.
+
+**STILL OPEN, UNTOUCHED:** boundary share 0.607 against a real 0.669.
 Reality ends starts at the end of an inning; the model ends them mid-inning.
-It also sends too many starters past the sixth (o18.5 0.224 against 0.173).
-FIRST SUSPECT: `PITCH_COST` charges 4.97 pitches for a strikeout against
-3.25 for an out, so a dominant night actively SHORTENS a simulated start.
-DO NOT re-run the per-start sharpness sweep — it closes 78-85% of the K tail
-and costs an equal amount of outs CRPS. It is a symptom patch on this.
+Both of today's fits found the boundary curve takes NO in-game state —
+margin, |margin| and strikeout rate all null or sign-unstable on it — so
+whatever governs it is not the game situation. That is now the best-defined
+unknown on this item.
 
 **8. Role-based bullpen deployment, and fatigue.**
 `build_side` samples 8 arms weighted by appearances and `next_arm` walks that
