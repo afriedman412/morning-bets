@@ -52,6 +52,17 @@ model that carries fatigue does not exist yet.
 """
 from __future__ import annotations
 
+#: NEVER FIT ON ROWS THAT WILL BE SCORED ON. Same cutoff `shape.py` and
+#: `fitf5` evaluate from — one cutoff for the whole project, because two is
+#: how one of them drifts. See CLAUDE.md; this was got wrong on 2026-08-29.
+HOLDOUT_CUT = "2026-07-01"
+
+
+def train_only(rows):
+    """Rows strictly before the holdout. Call it before ANY fit."""
+    return [r for r in rows if r.get("date", "") < HOLDOUT_CUT]
+
+
 import json
 import os
 import sys

@@ -71,6 +71,34 @@ on a target is fitting — it hands a counted quantity back to a search,
 which is what every absorbed constant in this project's history has in
 common.
 
+## NEVER FIT ON ROWS YOU WILL SCORE ON. THE CUTOFF IS 2026-07-01.
+
+Set 2026-08-29 after shipping six constants in one day that were all fitted
+on 2023 through 2026-08-27 and then scored on `shape.py`, which evaluates
+2026-07-01 onward. Roughly 10-20% of every fitting sample was inside its own
+evaluation set, and I did not notice until the user asked.
+
+**REFITTED PROPERLY THEY ALL MOVED BY 0.1 TO 0.4 SE AND NOTHING CHANGED.
+THAT IS NOT A DEFENCE.** The holdout was a large fraction of a large sample
+and the effects were strong; a marginal one would have shipped contaminated
+and been reported as clean. Discipline that only works when the answer is
+obvious is not discipline.
+
+THE RULE, and it is mechanical so it cannot be forgotten:
+
+  * Anything fitted on `boundary.decisions` rows, `/tmp/hook_rows.json`, or
+    any per-decision table filters to `date < HOLDOUT` BEFORE fitting.
+  * `HOLDOUT` is 2026-07-01, the same cutoff `shape.py`, `fitf5` and
+    `calibrate.paired_cases(rates_before=..., since=...)` already use. One
+    cutoff for the whole project — two cutoffs is how one of them drifts.
+  * State the row count of the TRAINING set, not the full table, when
+    reporting a coefficient. "322,205 decisions" was the number quoted all
+    day and it was never the number fitted on.
+
+`calibrate.build_cases` already separates `rates_before` from `since` for
+exactly this reason and its docstring says so. The scratchpad fitters did
+not, and that asymmetry is what made the mistake easy.
+
 ## THE LEVERAGE FLOOR IS A BETTING THRESHOLD, NOT A TRUTH THRESHOLD
 
 **THE GOAL IS BETTER SIMULATION OVERALL, NOT JUST BEATING THE VIG. ANYTHING

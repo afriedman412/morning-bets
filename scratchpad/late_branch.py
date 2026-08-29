@@ -58,6 +58,16 @@ import numpy as np
 
 from src.context import sim
 
+#: NEVER FIT ON ROWS THAT WILL BE SCORED ON. Same cutoff `shape.py` and
+#: `fitf5` evaluate from — one cutoff for the whole project, because two is
+#: how one of them drifts. See CLAUDE.md; this was got wrong on 2026-08-29.
+HOLDOUT_CUT = "2026-07-01"
+
+
+def train_only(rows):
+    """Rows strictly before the holdout. Call it before ANY fit."""
+    return [r for r in rows if r.get("date", "") < HOLDOUT_CUT]
+
 ROWS = "/tmp/hook_rows.json"
 
 
@@ -104,6 +114,7 @@ def offset(rows, boundary: bool) -> tuple:
 def main(argv):
     thr = int(argv[0]) if argv else 90
     rows = json.load(open(ROWS))
+    rows = train_only(rows)   # THE GUARD, ACTUALLY CALLED
     for name, boundary in (("BOUNDARY", True), ("MID-INNING", False)):
         pop = [r for r in rows if bool(r["ends_inning"]) == boundary]
         print(f"\n{'=' * 62}\n{name}   {len(pop):,} real decisions\n{'=' * 62}")

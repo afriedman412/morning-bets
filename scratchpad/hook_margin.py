@@ -50,6 +50,16 @@ import json
 
 import numpy as np
 
+#: NEVER FIT ON ROWS THAT WILL BE SCORED ON. Same cutoff `shape.py` and
+#: `fitf5` evaluate from — one cutoff for the whole project, because two is
+#: how one of them drifts. See CLAUDE.md; this was got wrong on 2026-08-29.
+HOLDOUT_CUT = "2026-07-01"
+
+
+def train_only(rows):
+    """Rows strictly before the holdout. Call it before ANY fit."""
+    return [r for r in rows if r.get("date", "") < HOLDOUT_CUT]
+
 CACHE = "/tmp/hook_rows.json"
 CUTOFF = "2026-07-15"
 
@@ -173,6 +183,7 @@ def control(rows, base, extra, size, label):
 
 def main():
     rows = json.load(open(CACHE))
+    rows = train_only(rows)   # THE GUARD, ACTUALLY CALLED
     mid = [r for r in rows if not r["ends_inning"]]
     bnd = [r for r in rows if r["ends_inning"]]
     print(f"{len(rows):,} starter decisions, {min(r['date'] for r in rows)} "
