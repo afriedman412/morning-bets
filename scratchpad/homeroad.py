@@ -153,8 +153,8 @@ def _rate_one(gid):
     Innings 1-8 only, matching the run window above: the ninth is forfeited
     asymmetrically and would bias a top/bottom comparison by composition.
     """
-    out = {"home": [0, 0, 0, 0, 0], "away": [0, 0, 0, 0, 0]}
-    # pa, k, hits, walks, home runs
+    out = {"home": [0] * 8, "away": [0] * 8}
+    # pa, k, hits, walks+hbp, home runs, UNINTENTIONAL walks, hbp, sacrifices
     try:
         for play, _b, _o, _a, _h in pbp.plays(gid):
             ab = play.get("about") or {}
@@ -170,6 +170,21 @@ def _rate_one(gid):
             c[2] += ev in HIT_EV
             c[3] += ev in ("walk", "intent_walk", "hit_by_pitch")
             c[4] += ev == "home_run"
+            # SPLIT OUT, because the model keeps them apart: `bb_pct` is
+            # walks and HBP is drawn off the top on its own rate. A combined
+            # figure applied to `bb_pct` would not match the code path.
+            # `walk` excludes intentional walks, which statsapi types
+            # separately and which are a MANAGER decision rather than a
+            # pitching outcome — and late-inning strategy is exactly where
+            # home and away situations differ most.
+            c[5] += ev == "walk"
+            c[6] += ev == "hit_by_pitch"
+            # SACRIFICES are drawn off the top too, alongside HBP, so they
+            # are the other channel that could want a constant. Bunting is a
+            # MANAGER decision and batting last changes late-inning
+            # strategy, so a split here is plausible a priori.
+            c[7] += ev in ("sac_fly", "sac_bunt", "sac_fly_double_play",
+                           "sac_bunt_double_play")
     except Exception:
         return None
     return out
@@ -184,13 +199,13 @@ def scan_rates():
     gids = [g for g in gids if pbp.have(g)]
     with mp.get_context("fork").Pool(max(1, (os.cpu_count() or 4) - 2)) as p:
         got = [g for g in p.map(_rate_one, gids, chunksize=16) if g]
-    agg = {"home": [0] * 5, "away": [0] * 5}
+    agg = {"home": [0] * 8, "away": [0] * 8}
     for g in got:
         for k in agg:
-            for i in range(5):
+            for i in range(8):
                 agg[k][i] += g[k][i]
-    hp, hk, hh, hb, hhr = agg["home"]
-    ap, ak, ah, ab, ahr = agg["away"]
+    hp, hk, hh, hb, hhr, hbb, hhbp, hsac = agg["home"]
+    ap, ak, ah, ab, ahr, abb, ahbp, asac = agg["away"]
     print(f"  THE RATE SPLIT THE CONSTANTS WERE SET FROM, RECOUNTED")
     print(f"  {len(got):,} games, {hp + ap:,} plate appearances,"
           f" innings 1-8\n")
@@ -199,7 +214,10 @@ def scan_rates():
     for lbl, (hn, an), ship in (("K per PA", (hk, ak), 1.026 ** 2),
                                 ("hits per PA", (hh, ah), 0.990 ** 2),
                                 ("walks+hbp/PA", (hb, ab), 1.0),
-                                ("HR per PA", (hhr, ahr), 1.0)):
+                                ("  unintent walks", (hbb, abb), 0.975 ** 2),
+                                ("  hit by pitch", (hhbp, ahbp), 1.0),
+                                ("HR per PA", (hhr, ahr), 1.0),
+                                ("sacrifices/PA", (hsac, asac), 1.0)):
         hr_, ar_ = hn / hp, an / ap
         # se of the RATIO by the delta method on two binomials.
         vh = hr_ * (1 - hr_) / hp

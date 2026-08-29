@@ -844,19 +844,25 @@ def check_home_multipliers_come_from_the_measured_split():
         quantity        home     away    ratio       se      z     was
         K per PA      0.2294   0.2180   1.0522   0.0048  +11.0  1.0692
         hits per PA   0.2184   0.2228   0.9804   0.0045   -4.4  0.9624
-        walks+hbp     0.0930   0.0977   0.9516   0.0071   -6.8  (none)
+        unint. walks  0.0804   0.0847   0.9493   0.0077   -6.6  (none)
 
     Applied as HALF the contrast each way — see the centring check below.
 
     WALKS ARE THEIR OWN CHANNEL as of the recount. They used to ride
     `HOME_OPP_CONTACT` with hits and home runs, which charged them less than
-    half their measured effect: 0.9516 against hits' 0.9804. It is the
+    half their measured effect: 0.9493 against hits' 0.9804. It is the
     largest of the three splits and was the one without a parameter.
+
+    COUNTED ON UNINTENTIONAL WALKS ALONE, because that is what `bb_pct` is —
+    HBP is drawn off the top on its own rate. The first count bundled the
+    two (0.9516) and would have charged this channel for an event it does
+    not contain. Broken out, hit-by-pitch has NO home/away split at all
+    (0.9992, z -0.0), so it correctly gets no constant.
     """
     from src.context import calibrate as cal
     assert abs(cal.HOME_OPP_K - 1.026) < 0.005, cal.HOME_OPP_K
     assert abs(cal.HOME_OPP_CONTACT - 0.990) < 0.005, cal.HOME_OPP_CONTACT
-    assert abs(cal.HOME_OPP_BB - 0.975) < 0.005, cal.HOME_OPP_BB
+    assert abs(cal.HOME_OPP_BB - 0.974) < 0.005, cal.HOME_OPP_BB
     # Directions: the visiting nine strike out MORE, hit LESS and walk LESS.
     assert cal.HOME_OPP_K > 1.0
     assert cal.HOME_OPP_CONTACT < 1.0

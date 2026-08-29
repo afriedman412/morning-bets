@@ -6561,3 +6561,63 @@ CONCLUSION  SHIPPED. `HOME_OPP_K` 1.034 -> 1.026, `HOME_OPP_CONTACT`
 NEXT STEPS  The remaining per-club gap is now the GLOBAL under-scoring
             (-4.5%, both clubs alike), which is items 7, 9 and 11 — not a
             home/road question. Nothing further to do on 11d.
+
+### CORRECTION to PART FOUR, same session — the walk channel was counted on the wrong denominator
+
+The user asked whether "pitchers walk fewer batters at home" was measured or
+deduced. It was measured — but the count was WALKS PLUS HIT-BY-PITCH, and
+that does not match the code path, which is the one condition that makes a
+recount a measurement rather than a tune. `bb_pct` is walks; HBP is drawn
+off the top on `hbp_rate` and is not in it. Applying a walks+HBP figure to
+`bb_pct` charges the channel for an event it does not contain.
+
+BROKEN OUT, on the same 679,329 plate appearances:
+
+    channel                 home     away    ratio      se      z
+    walks + hbp (used)    0.0930   0.0977   0.9516  0.0071   -6.8
+    unintentional walks   0.0804   0.0847   0.9493  0.0077   -6.6
+    hit by pitch          0.0110   0.0110   0.9992  0.0230   -0.0
+
+THE EFFECT IS ENTIRELY WALKS. Hit-by-pitch has NO home/away split at all,
+which is also the answer to whether it wants a constant of its own: it does
+not. Intentional walks are excluded — statsapi types them separately and
+they are a manager decision, not a pitching outcome.
+
+`HOME_OPP_BB` 0.975 -> 0.974. **THE ORIGINAL VALUE WAS RIGHT BY LUCK, NOT BY
+DESIGN** — HBP is only ~12% of the combined channel and has a ratio of
+essentially exactly 1.0, so bundling it barely diluted the number (0.2
+sigma). The provenance was wrong even though the value was not, and a
+constant whose stated basis does not match what it multiplies is one
+refactor away from being wrong for real.
+
+RESCORED: model home-away over innings 1-8 is 0.263 (was 0.247 at the
+bundled value) against a counted 0.306, se ~0.054 — 0.8 sigma.
+414 checks, fingerprint ab32efb1 -> c7f3e41d.
+
+### Auditing the rest of the cascade, prompted by the same question
+
+HBP being "drawn off the top" does NOT mean it sits outside the plate
+appearance — it is the second draw in the cascade, after the sacrifice and
+before the strikeout, with everything below renormalised by
+`cond = 1 - sac - hbp`. That is a sequential decomposition of a multinomial
+and is equivalent to one draw over all outcomes. HBP is a full outcome and
+already carries a state multiplier and a starter/reliever split.
+
+WHICH RAISES THE CHANNEL THE AUDIT HAD MISSED: `sac` is drawn off the top
+too, and bunting is a MANAGER decision, so batting last is a plausible
+a-priori reason for a split. Counted:
+
+    sacrifices per PA     0.0088   0.0096   0.9207  0.0232   -3.4
+
+REAL AND NOT WORTH BUILDING, and the arithmetic is the whole argument.
+Sacrifices are ~0.9% of plate appearances, so an 8% split is ~0.03
+sacrifices a team-game; at roughly -0.05 runs each that is **~0.0015 runs**,
+twenty times below the "small but counted ships" threshold and a thousand
+times below the gaps still open. It would also need plumbing that does not
+exist — `sac_rate` is a per-arm constant and `adjust_lineup` edits
+`BatterRates`, which do not carry one.
+
+RECORDED SO IT IS NOT RE-DISCOVERED: the home/road audit of the cascade is
+now COMPLETE. K (+11.0), hits (-4.4) and walks (-6.6) have constants; HBP
+(-0.0) needs none; home runs (-2.2) ride contact within 0.7 sigma of their
+own count; sacrifices (-3.4) are real and negligible.

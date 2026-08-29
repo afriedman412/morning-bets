@@ -372,17 +372,35 @@ HOME_OPP_K = 1.026
 HOME_OPP_CONTACT = 0.990
 #: WALKS GET THEIR OWN, counted in the same pass. They used to ride
 #: `HOME_OPP_CONTACT` alongside hits, home runs and babip, and they do not
-#: behave like them: the home/away split is 0.9516 on walks against 0.9804 on
-#: hits, so one shared knob was charging walks less than half their measured
-#: effect. It is the LARGEST home/road split of the four channels and the
-#: best measured — z -6.8 over 679,329 plate appearances — and it was the one
-#: with no parameter of its own.
+#: behave like them: 0.9493 on walks against 0.9804 on hits, so one shared
+#: knob was charging walks less than half their measured effect. It is the
+#: LARGEST home/road split of the channels here and the best measured —
+#: z -6.6 over 679,329 plate appearances — and it had no parameter at all.
+#:
+#: COUNTED ON UNINTENTIONAL WALKS ALONE, WHICH IS WHAT `bb_pct` IS. The first
+#: count bundled walks with hit-by-pitch (0.9516, z -6.8) and that does NOT
+#: match the code path: HBP is drawn OFF THE TOP on `hbp_rate`, so a combined
+#: figure applied to `bb_pct` would charge this channel for an event it does
+#: not contain. Broken out, the effect is entirely walks:
+#:
+#:     channel               home     away    ratio      se      z
+#:     unintentional walks 0.0804   0.0847   0.9493  0.0077   -6.6
+#:     hit by pitch        0.0110   0.0110   0.9992  0.0230   -0.0
+#:
+#: HIT-BY-PITCH HAS NO HOME/AWAY SPLIT AT ALL, so it correctly gets no
+#: constant. Intentional walks are excluded too — statsapi types them
+#: separately and they are a MANAGER decision, not a pitching outcome.
 #:
 #: Home runs stay on the contact constant deliberately: their own count is
 #: 0.9710 (z -2.2), which sits 0.7 sigma from what the contact constant
 #: already gives them, so splitting them out would be adding a parameter to
 #: chase noise.
-HOME_OPP_BB = 0.975
+#:
+#: WHICH SIDE THIS BELONGS TO IS NOT DECIDABLE FROM THE COUNT. "Home pitchers
+#: walk fewer" and "visiting hitters walk less" are the same split read from
+#: either end, and nothing here separates them. It is applied to the LINEUP
+#: for the same reason the other two are — see the block above.
+HOME_OPP_BB = 0.974
 AWAY_OPP_K = 1.0 / HOME_OPP_K
 AWAY_OPP_CONTACT = 1.0 / HOME_OPP_CONTACT
 AWAY_OPP_BB = 1.0 / HOME_OPP_BB

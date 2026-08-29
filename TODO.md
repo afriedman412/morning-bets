@@ -31,7 +31,7 @@ Before touching anything:
   1. `git status` must be CLEAN. If it is not, find out what is in the tree
      before adding to it — `scratchpad/mutate.py` refuses to run dirty, and
      an unexplained diff in `sim.py` is indistinguishable from your own.
-  2. `venv/bin/python -m tests.run` — 408 checks, ~45s. Know it was green
+  2. `venv/bin/python -m tests.run` — 414 checks, ~45s. Know it was green
      BEFORE you started.
   3. `venv/bin/python -m scratchpad.fingerprint 400 6` — one hash over
      2,400 simulated games. Record it. Any change that is meant to be inert
@@ -123,12 +123,14 @@ runs a side.
 Full-game totals are a stated product that has never once been scored against
 a settled price. `scratchpad/tonight.py` is the workaround.
 
-**11. The first inning is under-scored by 12.0%.**
-RE-MEASURED 2026-08-29 on the same instrument and the same games
-(`where_runs.py --cut 2026-05-15 --profile`): -0.122 runs, z -2.5, against
-the earlier -13.3% / z -2.7. Reality's first is its highest-scoring inning
-(1.021), the model's is near its lowest (0.898). ESTABLISHED and unmoved by
-everything shipped since.
+**11. The first inning is under-scored by 10.7%.**
+RE-MEASURED TWICE on 2026-08-29, the same instrument and the same games
+(`where_runs.py --cut 2026-05-15 --profile`): -13.3% / z -2.7 originally,
+-12.0% / z -2.5 mid-day, and -0.109 runs / z -2.2 after the half-inning fix.
+Reality's first is its highest-scoring inning (1.021), the model's is near
+its lowest (0.912). ESTABLISHED and unmoved by everything shipped since —
+the half-inning fix cannot touch it, since both halves are symmetric before
+the ninth.
 **ITS STATED CAUSE IS NOW WEAK, AND THE NOTE OVERSOLD IT.** The reason to
 suspect `TTO_MULT` was a "monotonic decay shaped like a lineup pass" across
 innings 1-3. Innings 2 and 3 were NEVER individually significant — z -1.4
@@ -147,8 +149,8 @@ before the half-innings were corrected. Runs per extra half is still short at
 Two sigma on a quantity nobody pre-registered — treat as a direction.
 
 **11d-residual. The model produces less home-field advantage than the league
-has — 0.247 runs against a counted 0.306. NOT AN ITEM YET.**
-1.1 sigma, a direction and not a finding, recorded so it is not re-derived.
+has — 0.263 runs against a counted 0.306. NOT AN ITEM YET.**
+0.8 sigma, a direction and not a finding, recorded so it is not re-derived.
 **DO NOT CLOSE IT BY TUNING `HOME_OPP_*`** — each is counted at 4-11 sigma on
 its own rate, and moving them to hit a run target is the forbidden
 solve-for-a-level. The residual belongs to home/road channels with NO
@@ -240,10 +242,15 @@ controlling for the arm.
 `HOME_OPP_K` 1.034 -> 1.026 and `HOME_OPP_CONTACT` 0.981 -> 0.990, both
 overstated by 3.5-4.1 sigma against a recount on 679,329 plate appearances.
 THE REAL FINDING IS THE FOURTH CHANNEL: walks were riding the contact
-constant at 0.9804 where their own count is 0.9516 (z -6.8), the LARGEST of
-the three splits and the one with no parameter. New `HOME_OPP_BB` 0.975.
+constant at 0.9804 where their own count is 0.9493 (z -6.6), the LARGEST of
+the three splits and the one with no parameter. New `HOME_OPP_BB` 0.974.
 Recounting alone OVERSHOT (model home-away 0.382 -> 0.174 against a counted
-0.306); the walk channel brought it to 0.247. That overshoot is why the
+0.306); the walk channel brought it to 0.263.
+COUNTED ON UNINTENTIONAL WALKS ALONE — `bb_pct` is walks and HBP is drawn
+off the top on its own rate, so a walks+HBP figure would not match the code
+path. HBP has NO home/away split (0.9992, z -0.0). The cascade audit is
+COMPLETE: sacrifices split too (0.9207, z -3.4) but are worth ~0.0015 runs
+and need plumbing that does not exist. That overshoot is why the
 constants were NOT nudged back up — it was read as a missing mechanism and
 the same scan named it. Away/home asymmetry on team totals 0.208 -> 0.044.
 Real home-field advantage COUNTED on this league is 0.306 runs (se 0.044,

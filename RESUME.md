@@ -82,18 +82,24 @@ Recounted on 679,329 plate appearances (`scratchpad/homeroad.py --all`):
     quantity        home     away    ratio      se      z     was
     K per PA      0.2294   0.2180   1.0522  0.0048  +11.0  1.0692
     hits per PA   0.2184   0.2228   0.9804  0.0045   -4.4  0.9624
-    walks+hbp     0.0930   0.0977   0.9516  0.0071   -6.8  (none)
+    unint. walks  0.0804   0.0847   0.9493  0.0077   -6.6  (none)
+    hit by pitch  0.0110   0.0110   0.9992  0.0230   -0.0  (none)
     HR per PA     0.0307   0.0316   0.9710  0.0132   -2.2  (none)
+    sacrifices    0.0088   0.0096   0.9207  0.0232   -3.4  (none)
 
 `HOME_OPP_K` 1.034 -> 1.026, `HOME_OPP_CONTACT` 0.981 -> 0.990, and a NEW
-`HOME_OPP_BB` 0.975. Walks were riding the contact constant at 0.9804 where
-their own count is 0.9516 — the largest split of the three, charged less than
-half. Home runs stay on contact on purpose (0.7 sigma from what they already
-get; splitting them would chase noise).
+`HOME_OPP_BB` 0.974. Walks were riding the contact constant at 0.9804 where
+their own count is 0.9493 — the largest split, charged less than half.
+COUNTED ON UNINTENTIONAL WALKS ALONE, because `bb_pct` is walks and HBP is
+drawn off the top on its own rate; a bundled walks+HBP figure would not match
+the code path. HBP turns out to have NO split at all, so it correctly gets no
+constant. Home runs stay on contact on purpose (0.7 sigma from what they
+already get). Sacrifices split too but are worth ~0.0015 runs — real,
+recorded, not built. THE CASCADE AUDIT IS COMPLETE.
 
 **THE STEP THAT MATTERS IS THE MIDDLE ONE.** Model home-away, innings 1-8:
 
-    old constants 0.382 -> recounted 0.174 -> + walk channel 0.247
+    old constants 0.382 -> recounted 0.174 -> + walk channel 0.263
     actual: 0.205 (holdout, se 0.147) / 0.306 (all games, se 0.044)
 
 Recounting ALONE OVERSHOT. The tempting move was to pick K and contact values
@@ -103,11 +109,11 @@ scan named it at 6.8 sigma.
 
 Away/home asymmetry on full-game team totals **0.208 -> 0.044**; both clubs
 now sit inside the global -4.5% under-scoring instead of pulling opposite
-ways. 413 -> 414 checks, fingerprint 5a39453e -> ab32efb1. The wiring check
+ways. 413 -> 414 checks, fingerprint 5a39453e -> c7f3e41d. The wiring check
 is mutation-verified: putting walks back on the contact knob fails exactly
 `check_the_walk_multiplier_reaches_bb_pct_and_nothing_else`.
 
-**DO NOT TUNE `HOME_OPP_*` TO CLOSE THE REMAINING 0.247-vs-0.306.** It is 1.1
+**DO NOT TUNE `HOME_OPP_*` TO CLOSE THE REMAINING 0.263-vs-0.306.** It is 0.8
 sigma, and each constant is counted at 4-11 sigma on its own rate. The
 residual belongs to channels with no home/road parameter at all: fielding
 errors, baserunning, and batting last.
