@@ -6975,3 +6975,96 @@ null on the former says nothing about the latter.
 30cbdcad after the blowout term -> **8af9d134** after the dominance term,
 which is the shipped state. 414 -> 417 checks. Nothing in part three
 changed a shipped constant, so the fingerprint is unchanged by it.
+
+## DAY SEVENTEEN, PART FOUR — THE STRIKEOUT DISPERSION IS COUNTED: SIGMA 0.16, AND IT REFUTES MY OWN TUNED VALUE
+
+**THE LEAGUE CARRIES REAL PER-START STRIKEOUT DISPERSION AND IT IS 0.154
+RAW / 0.163 CALIBRATED, at 6.2 sigma from zero.** Counted, not fitted.
+`scratchpad/k_dispersion.py`, 4,777 starts over three holdout windows
+(2024/2025/2026, rates frozen before 1 July of each), 555 pitcher-windows
+with two or more starts.
+
+THE ESTIMATOR. Each start is a POISSON-BINOMIAL under the model: the
+batters faced are independent draws whose per-plate-appearance strikeout
+probabilities already carry log5, the specific nine, the times-through-the-
+order decay and the home/road split. mu_i = sum p_ij, var_i = sum
+p_ij(1-p_ij). Under k_pct -> k_pct * exp(sigma z) the per-start variance
+gains mu_i^2 sigma^2, so sigma^2 = (S - sum var_i) / sum mu_i^2.
+
+**S IS BUILT FROM WITHIN-PITCHER DEVIATIONS, AND THAT IS THE WHOLE DESIGN.**
+A pitcher's rate carries estimation error which is CONSTANT across his
+starts; an across-start variance would swallow it and read as dispersion.
+That is precisely the trap that killed the home-run compression finding on
+day fourteen. Deviations are taken inside each pitcher-window with the exact
+(1 - 1/m) correction, so any persistent per-pitcher bias — including the
+model being 2.5% light on K over these windows — cancels by construction.
+
+**AND THE PITCHER KEY CARRIES THE WINDOW.** A pitcher's rate is re-estimated
+in each holdout window, so pooling his 2024 and 2026 starts under one key
+would put the difference between two RATE ESTIMATES into the within-pitcher
+deviation and read as dispersion.
+
+POSITIVE CONTROL, and it is what makes the number reportable:
+
+    injected   recovered sig2   recovered sigma
+        0.00         -0.00167           -0.0409
+        0.10         +0.00486           +0.0697
+        0.20         +0.03622           +0.1903
+        0.30         +0.09534           +0.3088
+
+The zero row is the estimator's own bias and is subtracted. **THE CONTROL
+ALSO SHOWS THE ESTIMATOR UNDERSHOOTS AT SMALL SIGMA** — 0.10 comes back as
+0.070 — so the raw answer is inverted through the injected->recovered curve,
+which is legitimate only because that curve was built by INJECTION and not
+fitted to the real data.
+
+    raw sig2       +0.02203
+    minus bias     -0.00167
+    COUNTED        +0.02369   95% CI [+0.01615, +0.03119]   sd 0.00384
+    calibrated      0.02642   =>  SIGMA 0.1625
+
+**THE TUNED VALUE IS REFUTED BY THE COUNT. 0.20 means sig2 0.04000; the
+league counts 0.0264, which is 4.2 sd away.** I chose 0.20 yesterday because
+it made K sd land exactly on 2.49, and this is what that shortcut was worth:
+it overstated the mechanism by 50% in variance. The count was worth doing.
+
+**SCORED AT THE COUNTED VALUE** (K-only loading, sigma 0.16, 1,074 holdout
+starts x 40 sims, against the shipped engine):
+
+                    shipped   sigma 0.16   tuned 0.20    actual
+    K sd               2.28         2.41         2.49      2.49
+    o8.5 gap         -0.032       -0.018       -0.010   (se 0.009)
+    o9.5 gap         -0.017       -0.007       -0.003   (se 0.006)
+    K CRPS           1.3240       1.3195       1.3144
+    outs sd            4.04         4.06         4.05      4.04
+    outs CRPS        2.0819       2.0883       2.0941
+    boundary share    0.607        0.607        0.609     0.669
+
+At the COUNTED 0.16 it closes 62% of the K sd gap and 44% of the o8.5 gap —
+taking the tail from 3.5 sigma wrong to 2.0 — improves K CRPS by 0.0045, and
+costs 0.0064 of outs CRPS against the four-channel version's 0.0278. The
+outs sd stays on target at 4.06 against 4.04.
+
+**WHAT IS ESTABLISHED AND WHAT IS NOT.** ESTABLISHED: the league has
+per-start strikeout dispersion at sigma ~0.16, measured out of sample with a
+fired control and a within-pitcher design that removes rate error. NOT
+ESTABLISHED: that the OTHER channels are undispersed. This counted `k_pct`
+and nothing else. The four-channel draw failing is evidence that loading
+walks, homers and balls in play at the SAME sigma is wrong — it is NOT
+evidence that their true dispersion is zero, and each deserves its own count.
+
+**NOT YET WIRED.** `dispersion.perturb` is a scratchpad instrument; the
+shipped engine has no per-start rate draw. Wiring it into `game.build_side`
+behind a flag, with tests and a mutation check, is the next step and is
+mechanical now that the value is counted.
+
+**A BOOTSTRAP THAT EXCLUDED ITS OWN POINT ESTIMATE, AND HOW IT WAS CAUGHT.**
+The first interval came back [+0.00928, +0.02299] around a point of +0.02369
+— outside its own CI, which is impossible for an honest percentile
+bootstrap. Cause: `estimate` regroups rows by pitcher, so a pitcher drawn
+twice merged into ONE group of 2m rows rather than appearing as two groups,
+changing the deviations being squared. Each draw now gets a unique key.
+The first version of the interval was also taken on percentiles of the
+SIGNED SQUARE ROOT rather than of sig2, which is the quantity with a
+symmetric sampling distribution. **AN INTERVAL THAT DOES NOT CONTAIN ITS
+POINT ESTIMATE IS A BUG REPORT, NOT A WIDE ERROR BAR.**
