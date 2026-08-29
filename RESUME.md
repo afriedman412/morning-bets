@@ -227,9 +227,16 @@ the ten largest gaps on the board — Skubal o8.5 ours 0.154 against a market
 0.285, o9.5 0.074 against 0.165, o10.5 0.031 against 0.115. The market was
 closer to right than we were.
 
-**THE RULE: add about 3.5 points to any over at 8.5+, subtract about 3 at
-3.5, and treat the model's number as usable between 5.5 and 7.5.** Do not
-bet a high-K under on this model's say-so.
+**SOFTENED 2026-08-29, NOT DELETED.** The per-start strikeout draw
+(`sim.START_K_SIGMA`, counted at 0.1625) closed a third of this. The table
+above is the PRE-FIX state; current gaps are o3.5 +0.008, o8.5 -0.021,
+o9.5 -0.010, o10.5 -0.006, so the model now prices a high-K over at about
+78% of true rather than 60%.
+
+**THE RULE NOW: add about 2 points to an over at 8.5+, and treat the
+model's number as usable from 4.5 to 7.5.** The lean is still there and it
+still runs one way — 2.3 sigma at o8.5 is better than 3.5 and is not zero —
+so a high-K under still wants a second reason behind it.
 
 WHY, LOCALISED: the length is right (mean outs 15.95 against 15.82) and the
 K LEVEL is right (4.86 against 4.84). What is wrong is the JOINT. K per 27
