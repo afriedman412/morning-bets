@@ -7068,3 +7068,81 @@ The first version of the interval was also taken on percentiles of the
 SIGNED SQUARE ROOT rather than of sig2, which is the quantity with a
 symmetric sampling distribution. **AN INTERVAL THAT DOES NOT CONTAIN ITS
 POINT ESTIMATE IS A BUG REPORT, NOT A WIDE ERROR BAR.**
+
+## DAY SEVENTEEN, PART FIVE — TONIGHT'S STUFF IS WIRED IN
+
+`sim.START_K_SIGMA = 0.1625`, `sim.sharpen`, applied in `game.build_side`
+to the STARTER ONLY, behind `sim.USE_START_SHARPNESS`. The counted value
+from part four ships; the tuned 0.20 does not.
+
+**CENTRED, AND IT IS NOT COSMETIC.** A bare `exp(sigma*z)` has mean
+`exp(sigma^2/2)` — at 0.1625 that is +1.33% of strikeouts on EVERY start, a
+level change nobody measured riding in on a spread that was counted. The
+draw is `exp(sigma*z - sigma^2/2)`, mean exactly one. The measurement was
+taken around each pitcher's own rate, so his shipped `k_pct` is the average
+of his nightly stuff, not his floor.
+
+**STARTERS ONLY.** Nothing was counted for relievers and a one-inning outing
+cannot separate a flat slider from three bad swings. Importing the starter's
+number would be the "measured on starters, applied to every arm" error that
+hit-by-pitch, sacrifices and wild pitches all carried.
+
+**SCORED, AND THE FIRST SCORING WAS WRONG.** The paired comparison uses a
+sigma of 1e-12, so the variate is still consumed and both arms run on the
+SAME random stream:
+
+    line          sigma~0   sigma 0.1625    actual     se
+    K mean           4.82           4.81      4.84
+    K sd             2.27           2.39      2.49
+    o3.5 gap       +0.026         +0.008             0.014
+    o4.5 gap       +0.014         +0.007             0.015
+    o5.5 gap       -0.003         -0.006             0.015
+    o6.5 gap       -0.014         -0.008             0.013
+    o7.5 gap       -0.015         -0.003             0.011
+    o8.5 gap       -0.032         -0.021             0.009
+    o9.5 gap       -0.018         -0.010             0.006
+    o10.5 gap      -0.012         -0.006             0.005
+    K CRPS         1.3399         1.3420
+    outs CRPS      2.1106         2.1211
+    outs sd          4.03           4.06      4.04
+    boundary share  0.611          0.609     0.669
+
+**EVERY STRIKEOUT LINE ON THE BOARD MOVES TOWARD REALITY**, the sd closes
+55% of its gap, and o8.5 goes from 3.5 sigma wrong to 2.3. Outs sd and
+boundary share are untouched, which is the point of loading on `k_pct`
+alone.
+
+**THE CRPS COSTS ARE NOT RESOLVABLE AND I NEARLY REPORTED THEM AS A
+REGRESSION.** The first scoring compared the wired engine against
+`shape_DOM`, which consumed TWO FEWER VARIATES PER DRAW — the new draw
+shifts the stream — and read K CRPS 1.3240 -> 1.3420 and outs 2.0819 ->
+2.1211. Properly paired the costs are +0.0021 and +0.0105, while the same
+engine on two different streams differs by 0.029 on outs CRPS. **THE SEED
+MOVES IT ~3x FURTHER THAN THE MECHANISM DOES.** A stream shift is not a
+paired A/B, and adding any draw to the engine creates one.
+
+That CRPS reads flat-to-slightly-worse on a tail repair is the EXPECTED
+result, not a refutation: CRPS is dominated by the bulk, and this mechanism
+buys aggregate CALIBRATION rather than per-start DISCRIMINATION. It makes
+the model hedge — which is more honest across a season and blurrier on any
+one start, and CRPS charges for blur.
+
+421 checks (was 417). Four new, all mutation-verified: uncentring fails the
+mean-one assertion, loading walks fails the strikeouts-only assertion,
+consuming a variate at sigma 0 fails the inertness assertion, and removing
+the `build_side` call fails the wiring assertion.
+Fingerprint 8af9d134 -> **1aefb445**.
+
+**ONE TEST WAS SCOPED, AND IT IS NOT A LOOSENING.**
+`check_strikeouts_cannot_exceed_outs` stresses the invariant with a 0.45
+pitcher against a 0.40 lineup — a ~0.65 matchup, chosen deliberately. A
++2 sigma night takes it past 0.89, where walks and home runs can no longer
+fit underneath and `pa_from` raises BY DESIGN. No real matchup is within
+sight of that. Sharpness is held off there and
+`check_strikeouts_cannot_exceed_outs_with_sharpness_on` covers the same
+invariant at rates that occur in baseball, so no coverage was dropped.
+
+**WHAT THIS CHANGES FOR PRICING.** The operator page says "DO NOT BET THE
+MODEL'S HIGH-STRIKEOUT UNDERS" because at 8.5+ the model priced an over at
+~60% of true. It now prices it at ~78%. The rule should be softened rather
+than deleted — 2.3 sigma is better than 3.5 and is not zero.

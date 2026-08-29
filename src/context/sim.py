@@ -32,8 +32,9 @@ needs the network.
 from __future__ import annotations
 
 import contextlib
+import math
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from src import db
 from src.context import scope
@@ -1644,6 +1645,77 @@ class Hook:
 #: The selection runs backwards. That is TODO item 7 in one number, and it
 #: is why the sim's k_rate at the hook needs no correction as an INPUT.
 K_RATE_BASELINE = 0.2276
+
+#: TONIGHT'S STUFF. A starter's strikeout rate is drawn once per start
+#: around his own rate — some nights the slider bites and some nights it
+#: does not — and until 2026-08-29 the engine had NO per-start rate
+#: variation at all. Every night a pitcher was exactly himself and all the
+#: spread came from the dice.
+#:
+#: COUNTED, NOT FITTED, and the count refuted the fitted value.
+#: `scratchpad/k_dispersion.py`: 4,777 starts across three holdout windows
+#: (2024/2025/2026, rates frozen before 1 July of each), 555
+#: pitcher-windows with two or more starts. Each start is a
+#: POISSON-BINOMIAL under the model — the expected strikeouts already carry
+#: log5, the specific nine, the times-through-the-order decay and the
+#: home/road split, so anything the model already contains cannot show up
+#: here as dispersion.
+#:
+#:     raw sig2      +0.02203
+#:     minus bias    -0.00167   (the estimator's own, from its zero row)
+#:     COUNTED        0.02369   95% CI [0.01615, 0.03119], sd 0.00384
+#:     calibrated     0.02642   -> SIGMA 0.1625, 6.2 sigma from zero
+#:
+#: THE FITTED VALUE WAS 0.20 AND IT IS WRONG BY 4.2 SD. It was chosen the
+#: day before because it made the strikeout sd land exactly on 2.49, which
+#: is solving for a spread. It overstated the mechanism by 50% in variance.
+#: This is the clearest case in the project's history of a counted quantity
+#: correcting a tuned one, and it went against the person who tuned it.
+#:
+#: THE CALIBRATED VALUE SHIPS, NOT THE RAW ONE. The positive control shows
+#: the estimator UNDERSHOOTS at small sigma (0.10 comes back as 0.070), so
+#: the raw 0.154 is inverted through the injected-to-recovered curve to get
+#: what must be INJECTED to reproduce reality. That inversion is legitimate
+#: only because the curve was built by injection rather than fitted.
+#:
+#: STRIKEOUTS ONLY, and the restriction is the finding. The four-channel
+#: version of this — one latent quality factor also loading on walks, home
+#: runs and balls in play — was measured and rejected: it widened TRAFFIC,
+#: which is what the hook integrates, so it wrecked the outs distribution
+#: for the strikeout gain. Loading `k_pct` alone costs 0.0064 of outs CRPS
+#: against that version's 0.0278. CARRY THE CAVEAT: this counted `k_pct`
+#: and nothing else. That the other channels are UNDISPERSED is NOT
+#: established — only that they are not dispersed by the same factor at the
+#: same size. Each deserves its own count.
+START_K_SIGMA = 0.1625
+
+#: Off restores the pre-measurement engine exactly, and it must consume no
+#: random variate when off or every downstream draw shifts and the A/B
+#: stops being paired.
+USE_START_SHARPNESS = True
+
+
+def sharpen(p: "PitcherRates", rng: random.Random,
+            sigma: float | None = None) -> "PitcherRates":
+    """One start's stuff, as a multiplier on the strikeout rate alone.
+
+    CENTRED ON PURPOSE, and this is not cosmetic. A bare `exp(sigma * z)`
+    has mean `exp(sigma^2 / 2)` — at 0.1625 that is +1.33% of strikeouts
+    added to every start, which is a LEVEL change nobody measured riding in
+    on a SPREAD that was. Subtracting `sigma^2 / 2` makes the multiplier
+    mean exactly one, so this buys dispersion and leaves the calibrated
+    strikeout level alone. The same rule as `K_RATE_BASELINE` above.
+
+    The measurement was taken around each pitcher's OWN rate, so a mean-one
+    multiplier is what it implies: his shipped `k_pct` is the average of his
+    nightly stuff, not his floor.
+    """
+    s = START_K_SIGMA if sigma is None else sigma
+    if not s:
+        return p
+    z = rng.gauss(0.0, 1.0)
+    return replace(p, k_pct=p.k_pct * math.exp(s * z - s * s / 2.0))
+
 
 MID_INNING_RUN_OFFSET = {0: 0.0, 1: 0.296, 2: 1.380, 3: 1.707, 4: 2.914}
 

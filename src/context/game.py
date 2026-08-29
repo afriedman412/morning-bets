@@ -830,6 +830,19 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
     h = hook or sim.Hook()
     if apply_leash:
         h = sim.for_start(h, team, starter.name)
+    if sim.USE_START_SHARPNESS:
+        # TONIGHT'S STUFF, drawn ONCE for the start and for the STARTER
+        # ONLY. Counted at sigma 0.1625 on 4,777 real starts; see
+        # `sim.START_K_SIGMA`. Relievers get nothing because nothing was
+        # counted for them — a one-inning outing cannot separate a flat
+        # slider from three bad swings, and importing the starter's number
+        # would be exactly the "measured on starters, applied to every arm"
+        # error that hit-by-pitch, sacrifices and wild pitches all had.
+        #
+        # HERE AND NOT IN THE RATES because it is a property of the NIGHT,
+        # not of the pitcher: his shipped `k_pct` is the average of his
+        # nightly stuff and must keep meaning that everywhere else.
+        starter = sim.sharpen(starter, rng)
     d = rate_src.defence_delta(team)
     if d:
         # TONIGHT'S GLOVES, applied to the SIDE and therefore to every arm

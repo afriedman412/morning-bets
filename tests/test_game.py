@@ -824,3 +824,58 @@ def check_the_engine_passes_the_field_state_to_the_plate_appearance():
             f"field state never reached the engine: {base:.2f} -> {hot:.2f}")
     finally:
         sim.STATE_MULT, sim.USE_FIELD_STATE = keep, keep_flag
+
+
+def check_tonights_stuff_is_drawn_per_start_and_is_mean_one():
+    """`sim.sharpen` is the per-start strikeout draw, counted at 0.1625.
+
+    THREE PROPERTIES, and the second is the one that is easy to lose. A
+    bare exp(sigma*z) has mean exp(sigma^2/2) — at 0.1625 that is +1.33%
+    of strikeouts added to EVERY start, a level change nobody measured
+    riding in on a spread that was counted.
+    """
+    import math
+    import statistics as st
+    p = sim.PitcherRates(name="x", k_pct=0.23, bb_pct=0.08,
+                         hr_pct=0.03, babip=0.29)
+    rng = random.Random(4)
+    v = [sim.sharpen(p, rng).k_pct / 0.23 for _ in range(40000)]
+
+    # 1. CENTRED: the multiplier averages one.
+    assert abs(st.mean(v) - 1.0) < 0.01, st.mean(v)
+    # 2. THE COUNTED SPREAD, on the log scale it was measured on.
+    sd = st.pstdev([math.log(x) for x in v])
+    assert abs(sd - sim.START_K_SIGMA) < 0.005, sd
+    # 3. IT ONLY TOUCHES STRIKEOUTS. The four-channel version was measured
+    #    and rejected — it widened traffic, which is what the hook reads.
+    one = sim.sharpen(p, random.Random(9))
+    assert one.bb_pct == p.bb_pct and one.hr_pct == p.hr_pct
+    assert one.babip == p.babip
+
+
+def check_sharpness_off_consumes_no_random_variate():
+    """OFF must restore the previous engine EXACTLY, not merely closely.
+
+    A draw taken and discarded shifts every downstream variate, so an A/B
+    against the flag would compare two different random streams and read
+    as a mechanism. Same rule as `USE_FIELD_STATE`'s empty table.
+    """
+    a, b = random.Random(7), random.Random(7)
+    p = sim.PitcherRates(name="x", k_pct=0.23, bb_pct=0.08,
+                         hr_pct=0.03, babip=0.29)
+    assert sim.sharpen(p, a, sigma=0.0).k_pct == p.k_pct
+    assert a.random() == b.random(), "sigma=0 consumed a variate"
+
+
+def check_only_the_starter_gets_tonights_stuff():
+    """Relievers get no draw, because none was counted for them.
+
+    A one-inning outing cannot separate a flat slider from three bad
+    swings. Importing the starter's sigma would repeat the exact error
+    that hit-by-pitch, sacrifices and wild pitches all carried — measured
+    on starters, applied to every arm.
+    """
+    import inspect
+    src = inspect.getsource(game.build_side)
+    assert "sim.sharpen(starter" in src, "the starter is not sharpened"
+    assert "sharpen(a" not in src and "sharpen(arm" not in src

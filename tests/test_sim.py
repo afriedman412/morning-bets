@@ -489,11 +489,39 @@ def check_strikeouts_stabilise_faster_than_home_runs():
 def check_strikeouts_cannot_exceed_outs():
     """Every strikeout is an out. A model that lets K drift above outs is
     producing a start that cannot happen, and on a K prop that error runs
-    entirely in the over's favour."""
+    entirely in the over's favour.
+
+    SHARPNESS IS OFF HERE ON PURPOSE, and it is a scoping decision rather
+    than a loosening. A 0.45 pitcher against a 0.40 lineup is already a
+    ~0.65 matchup — chosen deliberately to stress this invariant — and a
+    +2 sigma night takes it past 0.89, where the walk and home run rates
+    can no longer coexist and `pa_from` raises by design. No real matchup
+    is within sight of that. The invariant is about the LOOP, not about the
+    draw, so the draw is held fixed; the companion check below covers it
+    with sharpness ON at rates that occur in baseball.
+    """
     rng = random.Random(21)
+    orig, sim.USE_START_SHARPNESS = sim.USE_START_SHARPNESS, False
+    try:
+        for _ in range(600):
+            r = fx.one_side(_pitcher(k_pct=0.45), _lineup(k_pct=0.40),
+                            LG, sim.Hook(), rng)
+            assert r.k <= r.outs, (r.k, r.outs)
+    finally:
+        sim.USE_START_SHARPNESS = orig
+
+
+def check_strikeouts_cannot_exceed_outs_with_sharpness_on():
+    """The same invariant, with tonight's-stuff drawn, at real rates.
+
+    Exists so that scoping the check above does not quietly drop coverage
+    of `K <= outs` under the mechanism that was just added.
+    """
+    rng = random.Random(23)
+    assert sim.USE_START_SHARPNESS, "the shipped flag is off"
     for _ in range(600):
-        r = fx.one_side(_pitcher(k_pct=0.45), _lineup(k_pct=0.40),
-                               LG, sim.Hook(), rng)
+        r = fx.one_side(_pitcher(k_pct=0.32), _lineup(k_pct=0.25),
+                        LG, sim.Hook(), rng)
         assert r.k <= r.outs, (r.k, r.outs)
 
 
