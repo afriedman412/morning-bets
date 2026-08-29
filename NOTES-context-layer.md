@@ -6621,3 +6621,128 @@ RECORDED SO IT IS NOT RE-DISCOVERED: the home/road audit of the cascade is
 now COMPLETE. K (+11.0), hits (-4.4) and walks (-6.6) have constants; HBP
 (-0.0) needs none; home runs (-2.2) ride contact within 0.7 sigma of their
 own count; sacrifices (-3.4) are real and negligible.
+
+## DAY SEVENTEEN (2026-08-29) — THE HOOK, ONE PIECE AT A TIME. PART ONE: THE BLOWOUT TERM
+
+**`Hook.mid_per_margin` AND `Hook.per_margin` HAVE BEEN ZERO SINCE THEY WERE
+CREATED, AND THE REASON IS THAT THEY ARE THE WRONG SHAPE.** Their docstring
+posed the question well — "a big lead buys a starter rope because the game is
+safe, and also gets him lifted because there is nothing left to protect" —
+and then encoded it as a SIGNED term, which cannot represent either reading.
+
+QUESTION    Does the score reach the manager's hook, and by how much per run?
+            Unit of observation: one real starter removal decision.
+HYPOTHESIS  Two rival mechanisms, named before running and NOT the same:
+            SIGNED margin (he is treated differently when his own club leads)
+            and UNSIGNED |margin| (the game is decided either way, so the
+            decision stops being about winning). Only the second is symmetric.
+TEST        322,205 real decisions, 2023-2026, from `boundary.decisions`.
+            Each curve fitted on ITS OWN population — 73,637 boundary rows at
+            an 11.49% pull rate, 248,568 mid-inning rows at 2.42% — with an
+            unregularised logistic and standard errors from the observed
+            Fisher information. `scratchpad/hook_margin.py`.
+            POWER STATED FIRST: se 0.0066 and 0.0061, resolving 0.020 and
+            0.018 log-odds per run at 3 sigma. POSITIVE CONTROL: a 0.05
+            injection recovered at +0.050 and +0.054, so the harness sees an
+            effect of the size in question.
+
+**THE RESULT, AND THE SIGNED FORM IS A CLEAN NULL ON BOTH CURVES:**
+
+    curve         signed margin       z        |margin|         z
+    boundary    +0.00479 +/-0.0066  +0.7   +0.01267 +/-0.0078  +1.6
+    mid-inning  -0.00566 +/-0.0061  -0.9   -0.08240 +/-0.0079  -10.4
+
+**THE BOUNDARY DECISION TAKES NEITHER TERM** and its |margin| coefficient
+does not survive the stability gate — per season +2.5 / +1.4 / -0.9 / +0.5,
+sign-flipping. A manager deciding whether to send his starter back out does
+not care what the scoreboard says, once pitches, runs, baserunners and the
+inning are known. That is a genuine null with a fired control behind it.
+
+**THE MID-INNING DECISION TAKES THE UNSIGNED ONE AT 10.4 SIGMA, AND IT IS
+STABLE:** -0.0887 / -0.0734 / -0.0837 / -0.0950 across 2023/2024/2025/2026,
+same sign every year, never under 4.5 sigma. Controlled for `inning`,
+`outs_before` and `bf`, so it is not the game clock arriving on the wrong
+coefficient — uncontrolled it reads -0.0733 and controlled -0.0824, i.e. the
+control makes it BIGGER.
+
+**THE RAW MARGINAL POINTS THE OTHER WAY, AND CHECKING THAT IS WHAT MADE THIS
+REPORTABLE.** Pull rate by |margin| within a pitch band RISES at 60-75
+pitches, 0.014 -> 0.025. The two numbers were never in conflict: |margin| is
+entangled with runs allowed (mean 0.71 at |m|<2 against 2.33 at |m| 4-6),
+because a starter losing badly is usually losing badly BECAUSE of him. Hold
+runs and pitches fixed and it is monotone in every row —
+
+    runs=1, 75-95 pitches, by |margin| 0-1 / 2-3 / 4-5 / 6+
+        0.073   0.074   0.051   0.027
+
+— and the Hook already carries `runs`, so the CONDITIONAL effect is the one
+it needs. The unconditional table would have killed the mechanism.
+
+**SHIPPED as `mid_per_abs_margin = -0.0824`** on the late mid-inning branch.
+Fitted on EVERY mid-inning row rather than late ones, because `early_innings`
+is 0 and that branch therefore fires at every inning — the population it is
+fitted on is the population it is evaluated on. Late rows alone give -0.1053
+(z -12.4); early rows give +0.0196 (z +0.5) but carry only 549 pulls in
+137,139 rows and resolve 0.109 at 3 sigma, so EARLY IS UNDERPOWERED, NOT A
+NULL. Shipping the pooled, smaller value is the conservative reading.
+
+**SCORED ON OUTCOMES**, 537 holdout games x 20 sims, arms PAIRED on seeds,
+rates frozen before 2026-07-01 (`scratchpad/blowout_ab.py`):
+
+                          OFF    SHIPPED   CONTROL x4    ACTUAL
+    boundary share     0.5903     0.6151       0.6744    0.6695
+    starter outs      15.6799    15.8203      16.1222    15.820
+      sd               4.0334     4.0234       3.9904     4.040
+    starter K          4.7880     4.8281       4.9108     4.840
+    F5 runs / side     2.4495     2.4495       2.4511     2.437
+
+The pre-registered prediction was that the boundary share must RISE, since
+the term only ever removes mid-inning pulls. It closes 31% of the gap. The
+CONTROL at x4 lands on 0.6744 and overshoots outs to 16.12, which is how a
+reachable term is supposed to behave and is what makes the shipped column
+small rather than uninformative.
+
+**THE OUTS LEVEL LANDING ON 15.8203 AGAINST A REAL 15.820 IS A COINCIDENCE
+AND MUST NOT BE READ AS A FIT.** Nothing in the fitting procedure saw an out
+total — the target was `removed`, a manager's decision. Falsifier 2 was
+"outs overshoot", and it did not fire; that is the falsifier passing, not the
+coefficient being tuned.
+
+**F5 IS DEAD FLAT (2.4495 -> 2.4495) AND THAT IS THE EXPECTED RESULT**, not a
+refutation. The term changes WHICH ARM throws the late innings of a decided
+game, and F5 stops at the fifth. Reported as a did-not-harm check.
+
+**INDEPENDENTLY CONFIRMED ON `shape.py`**, same direction, different harness:
+boundary share 0.588 -> 0.611, mean outs 15.65 -> 15.78, outs CRPS 2.0868 ->
+2.0827, and o12.5 through o17.5 all improve. The cost is at the deep end —
+o18.5 +0.028 -> +0.035 and o20.5 +0.015 -> +0.023, so the model now sends
+slightly MORE starters past the sixth, which was already a defect.
+
+**THE K TAIL IS UNTOUCHED**, as it should be: o8.5 -0.036 -> -0.034, K CRPS
+1.3242 -> 1.3246. This is a margin mechanism, not the dominance mechanism
+TODO item 7 is about, and it does not pretend to be.
+
+**A HARNESS BUG WORTH RECORDING, BECAUSE IT IS THE DEFINITION TRAP AGAIN.**
+The first A/B scored the boundary share as `outs % 3 == 0 AND NOT
+pulled_mid_inning` and read 0.520 where the same engine scores 0.588.
+`calibrate._boundary` is `outs % 3 == 0` and nothing else — necessarily, since
+the 0.669 ACTUAL is computed from real out totals where no
+`pulled_mid_inning` flag exists. A stricter model column against an unchanged
+actual column is the same apples-to-oranges error as a denominator mistake.
+NAME THE DEFINITION, not just the denominator.
+
+415 checks (was 414). `check_margin_defaults_to_no_effect` was DELETED rather
+than loosened — its premise ("both margin terms ship at zero, so this changed
+no number") is obsolete by design — and replaced by two stricter checks:
+`check_the_signed_margin_terms_stay_at_zero` and
+`check_the_blowout_term_is_symmetric_and_suppresses_mid_inning_pulls`. Both
+mutation-verified: wiring the coefficient onto signed `margin` fails the
+symmetry assertion, and flipping its sign fails the direction assertion.
+Fingerprint c7f3e41d -> 30cbdcad.
+
+**AND THE STALE-CACHE TRAP FIRED AGAIN, ON A DIFFERENT FILE.**
+`/tmp/hook_rows.json` was dated Aug 25 11:13; the labelling fix that moved
+48.2% of the wrong rows out of the boundary training set landed Aug 27 00:09.
+Every number above would have been computed on mislabelled rows had the cache
+been trusted. CHECK THE MTIME OF A CACHE AGAINST THE COMMIT DATE OF THE CODE
+THAT PRODUCES IT.

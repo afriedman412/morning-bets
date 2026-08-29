@@ -1,0 +1,65 @@
+  400 games, 16,308 decisions
+  800 games, 30,600 decisions
+  1200 games, 47,024 decisions
+  1600 games, 63,753 decisions
+  2000 games, 79,956 decisions
+  2400 games, 94,329 decisions
+  2800 games, 109,381 decisions
+  3200 games, 124,370 decisions
+  3600 games, 139,321 decisions
+  4000 games, 154,084 decisions
+  4400 games, 168,822 decisions
+  4800 games, 180,498 decisions
+  5200 games, 193,212 decisions
+  5600 games, 206,268 decisions
+  6000 games, 218,953 decisions
+  6400 games, 232,099 decisions
+  6800 games, 245,198 decisions
+  7200 games, 256,548 decisions
+  7600 games, 266,669 decisions
+  8000 games, 277,764 decisions
+  8400 games, 289,326 decisions
+  8800 games, 300,259 decisions
+  9200 games, 311,102 decisions
+  9600 games, 321,246 decisions
+
+322,205 decisions: 248,568 mid-inning, 73,637 at an inning boundary
+  removal rate: mid 0.0242, boundary 0.1149
+
+=== POOLED, the shipped shape (one model, no current-inning features) ===
+
+  pooled / shipped features
+    301,030 train / 21,175 test   base rate 0.045   AUC 0.9243   log loss 0.1094
+    pitches +2.136  outs_before +0.832  bf +0.387  runs +0.154  damage +0.125  tto -0.093  inning +0.081  br +0.071
+
+  pooled + leash and quality
+    301,030 train / 21,175 test   base rate 0.045   AUC 0.9336   log loss 0.1053
+    pitches +2.185  outs_before +0.848  leash -0.447  bf +0.444  runs +0.178  inning +0.165  tto -0.147  br +0.105
+
+  pooled + current-inning features
+    301,030 train / 21,175 test   base rate 0.045   AUC 0.9369   log loss 0.1040
+    pitches +2.239  outs_before +0.749  bf +0.748  leash -0.459  inn_br +0.446  br -0.242  damage +0.206  runs +0.145
+
+=== SPLIT ===
+
+  MID-INNING hazard
+    232,229 train / 16,339 test   base rate 0.024   AUC 0.9288   log loss 0.0729
+    pitches +2.108  inning +1.309  bf -0.972  inn_br +0.849  leash -0.459  br +0.434  runs +0.363  inn_runs -0.273
+
+  BOUNDARY hazard
+    68,801 train / 4,836 test   base rate 0.114   AUC 0.9465   log loss 0.1710
+    pitches +2.619  inning +0.955  leash -0.570  tto -0.334  br +0.212  inn_runs +0.197  damage +0.174  runs +0.117
+
+  SPLIT combined over 21,175 test decisions   AUC 0.9451   log loss 0.0953
+  pooled/shipped                                   AUC 0.9243   log loss 0.1094
+  pooled + current-inning                          AUC 0.9369   log loss 0.1040
+
+=== does a TRAILING leash beat a season one? ===
+
+  MID, trailing-5 leash
+    232,229 train / 16,339 test   base rate 0.024   AUC 0.9291   log loss 0.0727
+    pitches +2.143  inning +1.280  bf -0.912  inn_br +0.838  leash_recent -0.484  br +0.420  runs +0.354  inn_runs -0.272
+
+  BOUNDARY, trailing-5 leash
+    68,801 train / 4,836 test   base rate 0.114   AUC 0.9461   log loss 0.1712
+    pitches +2.597  inning +0.915  leash_recent -0.530  tto -0.348  inn_runs +0.200  br +0.188  damage +0.175  runs +0.109

@@ -1285,8 +1285,60 @@ class Hook:
     #: because the game is safe, and also gets him lifted because there is
     #: nothing left to protect — which is exactly why it should be fitted
     #: against observed removal timing rather than asserted.
+    #: BOTH MEASURED 2026-08-29 AND BOTH STAY AT ZERO. 322,205 real starter
+    #: decisions, 2023-2026, each curve fitted on its own population with an
+    #: unregularised logistic and standard errors from the observed Fisher
+    #: information (`scratchpad/hook_margin.py`):
+    #:
+    #:     curve        signed margin coefficient      z
+    #:     boundary        +0.00479 +/- 0.00664      +0.7
+    #:     mid-inning      -0.00566 +/- 0.00611      -0.9
+    #:
+    #: Powered to resolve 0.020 and 0.018 log-odds per run at 3 sigma, and a
+    #: 0.05 injection is recovered at +0.050 and +0.054 — so these are
+    #: answers, not an absent instrument.
+    #:
+    #: THE SIGNED FORM IS THE MIS-SPECIFICATION, WHICH IS THE WHOLE POINT.
+    #: The docstring above asks whether a manager treats a starter
+    #: differently when his own club is ahead, and the answer is no. What he
+    #: responds to is the game being DECIDED, in either direction, which a
+    #: signed term cannot represent and which `mid_per_abs_margin` below
+    #: carries at 10.4 sigma. Fitting only the signed term returns
+    #: approximately zero and would have closed the question the wrong way.
     per_margin: float = 0.0
     mid_per_margin: float = 0.0
+    #: THE BLOWOUT TERM: log-odds per run of |score gap| on the MID-INNING
+    #: decision. Negative — the further apart the score, the less likely a
+    #: manager interrupts an inning to make a change. Counted on 248,568
+    #: real mid-inning decisions.
+    #:
+    #: -0.08240 +/- 0.00792 (z -10.4), controlled for `inning`,
+    #: `outs_before` and `bf` so it cannot be a game-clock effect arriving
+    #: on the wrong coefficient — uncontrolled it reads -0.07329, so the
+    #: clock is not what this is.
+    #:
+    #: STABILITY GATE PASSED, four seasons, same sign every year and never
+    #: under 4.5 sigma: -0.0887 / -0.0734 / -0.0837 / -0.0950 for
+    #: 2023/2024/2025/2026.
+    #:
+    #: THE RAW MARGINAL POINTS THE OTHER WAY AND IS THE CONFOUNDED ONE.
+    #: Pull rate by |margin| within a pitch band RISES at 60-75 pitches
+    #: (0.014 -> 0.025), because |margin| is entangled with runs allowed
+    #: (mean 0.71 at |m|<2 against 2.33 at |m| 4-6) — a starter losing badly
+    #: is usually losing badly BECAUSE of him. Hold runs and pitches fixed
+    #: and it is monotone in every row (at one run allowed, 75-95 pitches:
+    #: 0.073 / 0.074 / 0.051 / 0.027 across |m| 0-1 / 2-3 / 4-5 / 6+). The
+    #: Hook already carries `runs`, so the CONDITIONAL effect is the one it
+    #: needs.
+    #:
+    #: FITTED ON EVERY MID-INNING ROW, NOT ON LATE ONES, because
+    #: `early_innings` is 0 and this branch therefore fires at every inning
+    #: — the population it is fitted on is the population it is evaluated
+    #: on. Late rows alone give -0.10531 (z -12.4) and early rows +0.01962
+    #: (z +0.5); the early number is UNDERPOWERED, not a null, since 137,139
+    #: rows carry only 549 pulls and it resolves 0.109 at 3 sigma. Shipping
+    #: the pooled and smaller value is the conservative reading of that.
+    mid_per_abs_margin: float = -0.0824
     #: REFIT ON LATE-ONLY DECISIONS. The pooled fit averaged 20,994 late
     #: rows at a 6.29% pull rate together with 26,693 early ones at 0.65%,
     #: and the early population dominates by count — so the late curve came
@@ -1468,6 +1520,11 @@ class Hook:
                         + self.late_mid_per_run * runs
                         + self.late_mid_per_onbase * on_base
                         + self.mid_per_margin * margin
+                        # THE BLOWOUT TERM. Unsigned on purpose: a manager
+                        # stops interrupting innings once the game is
+                        # decided, and it is decided in both directions.
+                        # The signed term above measures zero.
+                        + self.mid_per_abs_margin * abs(margin)
                         + self.mid_per_inning_run
                         * inning_run_offset(inning_runs))
 

@@ -162,15 +162,42 @@ def check_margin_reaches_the_hook():
         game.USE_LEARNED_HOOK = orig
 
 
-def check_margin_defaults_to_no_effect():
-    """Both margin terms ship at zero, so adding the capability changed no
-    existing number. A non-zero default would have silently re-tuned every
-    price in the project."""
+def check_the_signed_margin_terms_stay_at_zero():
+    """The SIGNED margin coefficients measured null and must not acquire a
+    value by drift.
+
+    322,205 real removal decisions: boundary +0.00479 +/- 0.00664 (z +0.7),
+    mid-inning -0.00566 +/- 0.00611 (z -0.9), both powered to resolve 0.02
+    log-odds per run at 3 sigma. A manager does NOT treat a starter
+    differently for his own club being ahead rather than behind — what he
+    responds to is the game being decided either way, which is
+    `mid_per_abs_margin` and is guarded separately below.
+    """
     h = sim.Hook()
     assert h.per_margin == 0.0 and h.mid_per_margin == 0.0
-    base = h.mid_removal_p(90, 3, 2, 1.0, margin=0)
-    for m in (-8, -3, 3, 8):
-        assert h.mid_removal_p(90, 3, 2, 1.0, margin=m) == base, m
+
+
+def check_the_blowout_term_is_symmetric_and_suppresses_mid_inning_pulls():
+    """`mid_per_abs_margin` is UNSIGNED, and that is the finding.
+
+    Counted at -0.0824 +/- 0.0079 (z -10.4) over 248,568 mid-inning
+    decisions, stable in sign across all four seasons. Two properties have
+    to hold and neither is implied by the other:
+
+      1. SYMMETRY. Up five and down five are the same decision. Wiring the
+         coefficient onto the signed `margin` instead of `abs(margin)`
+         passes any level check and fails this one.
+      2. DIRECTION. A wider gap means FEWER mid-inning changes — the
+         manager stops interrupting an inning once the game is decided.
+    """
+    h = sim.Hook()
+    assert h.mid_per_abs_margin < 0.0
+    tied = h.mid_removal_p(90, 3, 2, 1.0, margin=0)
+    for m in (2, 5, 8):
+        ahead = h.mid_removal_p(90, 3, 2, 1.0, margin=m)
+        behind = h.mid_removal_p(90, 3, 2, 1.0, margin=-m)
+        assert abs(ahead - behind) < 1e-12, f"not symmetric at {m}"
+        assert ahead < tied, f"a {m}-run gap did not suppress the pull"
 
 
 def check_inherited_runners_are_simulated_not_estimated():
