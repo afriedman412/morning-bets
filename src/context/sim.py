@@ -1373,6 +1373,50 @@ class Hook:
     #: significant (-0.4 / -0.7 / -1.0 / -1.4). Sign-stable but weak; that
     #: is a DIRECTION, not a finding, and it is recorded rather than wired.
     late_mid_per_k_rate: float = -1.5130
+    #: THE BULLPEN, and it is the FIRST mechanism that belongs on BOTH
+    #: curves. Margin and dominance are mid-inning only; the boundary
+    #: decision took neither, and was deaf to every in-game signal tried —
+    #: signed margin +0.7 sigma, |margin| sign-flipping across seasons,
+    #: strikeout rate -2.1 with no season individually significant. It is
+    #: not deaf. "Does he come back out" is a RESOURCE decision.
+    #:
+    #: Counted on 322,205 real decisions with 100% coverage
+    #: (`scratchpad/pen_state.py`), fitted with these two columns alone so
+    #: the coefficients match what ships:
+    #:
+    #:     column      boundary                 mid-inning
+    #:     pen_back2   -0.09362 +/-0.0168 (-5.6)  -0.08883 +/-0.0160 (-5.6)
+    #:     pen_rest    +0.18820 +/-0.0293 (+6.4)  +0.17132 +/-0.0272 (+6.3)
+    #:
+    #: IT IS ABOUT AVAILABILITY, NOT VOLUME, and that is the finding. Raw
+    #: reliever pitch totals are NULL on both curves — yesterday's pen
+    #: pitches -0.8 and -0.5, three-day pitches +1.5 and +1.6. What predicts
+    #: the hook is how many arms CANNOT go: `pen_back2` counts relievers who
+    #: worked on BOTH of the club's last two days, which is the real
+    #: unavailability rule a manager uses. A used-up pen keeps the starter
+    #: out there; a rested one gets him lifted.
+    #:
+    #: STABILITY GATE PASSED 8/8 — sign held in all four seasons on both
+    #: curves. All four pre-registered signs correct. Control fired.
+    #:
+    #: BOTH CONFOUNDS RUN AGAINST THE RESULT, which is why it is believable.
+    #: A club whose pen is gassed probably lost a long game yesterday, so it
+    #: is a bad club with a bad starter — and a bad starter is pulled
+    #: EARLIER, pushing `pen_back2` POSITIVE. It comes out negative. And an
+    #: off day rests the STARTER too, which should make him go deeper and
+    #: push `pen_rest` NEGATIVE. It comes out positive.
+    #:
+    #: CENTRED on `PEN_BACK2_BASELINE` / `PEN_REST_BASELINE`, the same rule
+    #: as `K_RATE_BASELINE`: these buy discrimination between games and must
+    #: not move the calibrated level.
+    #:
+    #: IT NEEDS NO RELIEVER DEPLOYMENT MODEL. These are CLUB-LEVEL counts
+    #: read off the schedule. Which specific arm gets the call is a separate
+    #: question and this does not depend on it.
+    per_pen_back2: float = -0.09362
+    per_pen_rest: float = 0.18820
+    mid_per_pen_back2: float = -0.08883
+    mid_per_pen_rest: float = 0.17132
     #: REFIT ON LATE-ONLY DECISIONS. The pooled fit averaged 20,994 late
     #: rows at a 6.29% pull rate together with 26,693 early ones at 0.65%,
     #: and the early population dominates by count — so the late curve came
@@ -1499,8 +1543,14 @@ class Hook:
 
     def removal_p(self, pitches: int, runs: int, innings: int,
                   baserunners: int = 0, margin: int = 0,
-                  inning_runs: int = 0) -> float:
-        """P(pulled) evaluated at the end of a completed inning."""
+                  inning_runs: int = 0,
+                  pen: tuple[float, float] | None = None) -> float:
+        """P(pulled) evaluated at the end of a completed inning.
+
+        `pen` is (arms unavailable, days of club rest) from
+        `sim.pen_state`. None means league-neutral and contributes exactly
+        zero — see `per_pen_back2` for why this curve has it at all.
+        """
         if self.early_innings and innings <= self.early_innings:
             return _sigmoid(self.intercept + self.early_bnd_offset
                             + self.team_offset
@@ -1516,13 +1566,31 @@ class Hook:
                         + self.per_run * runs
                         + self.per_baserunner * baserunners
                         + self.per_margin * margin
-                        + self.per_inning * innings)
+                        + self.per_inning * innings
+                        + self._pen(pen, self.per_pen_back2,
+                                    self.per_pen_rest))
+
+    @staticmethod
+    def _pen(pen, c_back2: float, c_rest: float) -> float:
+        """The bullpen contribution, CENTRED, shared by both curves.
+
+        One helper rather than two copies: the centring rule is the thing
+        most likely to be got right once and wrong the second time, and
+        this project has a recorded case of exactly that (two copies of a
+        centring rule is how one of them ended up one-sided).
+        """
+        if pen is None:
+            return 0.0
+        back2, rest = pen
+        return (c_back2 * (back2 - PEN_BACK2_BASELINE)
+                + c_rest * (rest - PEN_REST_BASELINE))
 
     def mid_removal_p(self, pitches: int, runs: int, on_base: int,
                       inning_damage: float = 0.0, margin: int = 0,
                       inning_runs: int = 0, inning: int = 0,
                       inning_br: int = 0,
-                      k_rate: float | None = None) -> float:
+                      k_rate: float | None = None,
+                      pen: tuple[float, float] | None = None) -> float:
         """P(pulled) evaluated after a batter, inning still alive.
 
         `inning_runs` is what is going wrong RIGHT NOW; `runs` is the whole
@@ -1566,6 +1634,8 @@ class Hook:
                         + self.late_mid_per_k_rate
                         * ((K_RATE_BASELINE if k_rate is None else k_rate)
                            - K_RATE_BASELINE)
+                        + self._pen(pen, self.mid_per_pen_back2,
+                                    self.mid_per_pen_rest)
                         + self.mid_per_inning_run
                         * inning_run_offset(inning_runs))
 
@@ -1645,6 +1715,19 @@ class Hook:
 #: The selection runs backwards. That is TODO item 7 in one number, and it
 #: is why the sim's k_rate at the hook needs no correction as an INPUT.
 K_RATE_BASELINE = 0.2276
+
+#: League means of the two bullpen columns, over the same 322,205 decisions
+#: they were fitted on. Both hook curves centre on these, so a club with an
+#: ordinary pen contributes exactly nothing and the calibrated removal level
+#: is untouched — the same rule as `K_RATE_BASELINE`.
+#:
+#: `pen_back2` runs p10 0 to p90 2; `pen_rest` p10 1 to p90 2.
+PEN_BACK2_BASELINE = 0.6943
+PEN_REST_BASELINE = 1.1791
+
+#: Off restores the pre-measurement engine exactly. No random variate is
+#: involved either way, so OFF is bit-identical rather than merely close.
+USE_PEN_STATE = True
 
 #: TONIGHT'S STUFF. A starter's strikeout rate is drawn once per start
 #: around his own rate — some nights the slider bites and some nights it
@@ -1730,6 +1813,8 @@ def inning_run_offset(runs: int) -> float:
 _HERE = __file__.rsplit("/", 1)[0]
 _PATIENCE_PATH = _HERE + "/hook_patience.json"
 _LEASH_PATH = _HERE + "/hook_leash.json"
+_PENSTATE_PATH = _HERE + "/hook_penstate.json"
+_PENSTATE: dict | None = None
 _PATIENCE: dict | None = None
 _LEASH: dict | None = None
 
@@ -1795,6 +1880,29 @@ def patience(team: str | None) -> float:
     if _PATIENCE is None:
         _PATIENCE = _load(_PATIENCE_PATH)
     return float(_PATIENCE.get((team or "").upper(), 0.0))
+
+
+def pen_state(team: str | None, date: str | None) -> tuple[float, float]:
+    """(arms unavailable, days of club rest) for one club on one date.
+
+    Returns the LEAGUE BASELINE when unknown, so a missing club or a date
+    with no schedule behind it contributes exactly zero to the hook rather
+    than a guess. Same missing-group rule as `patience` and `leash`.
+
+    THE FIRST GAME OF A SEASON HAS NO YESTERDAY and legitimately falls
+    through to the baseline; so does any club whose previous game is not in
+    the cache. That is a real gap in coverage rather than a neutral input,
+    and it is why `USE_PEN_STATE` stays switchable.
+    """
+    if not USE_PEN_STATE or not team or not date:
+        return PEN_BACK2_BASELINE, PEN_REST_BASELINE
+    global _PENSTATE
+    if _PENSTATE is None:
+        _PENSTATE = _load(_PENSTATE_PATH)
+    v = _PENSTATE.get(f"{team.upper()}|{date}")
+    if not v:
+        return PEN_BACK2_BASELINE, PEN_REST_BASELINE
+    return float(v[0]), float(v[1])
 
 
 def leash(pitcher_name: str | None) -> float:

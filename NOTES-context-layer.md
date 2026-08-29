@@ -7225,3 +7225,62 @@ parked as "hook-adjacent by construction". The APPROACH is what changed: it
 was previously conceived as a deployment question and is here a two-column
 feature on the removal decision, which is a different thing and is measured
 on real decisions rather than scored on runs.
+
+## DAY SEVENTEEN, PART SEVEN — BULLPEN STATE WIRED, AND IT DOES NOT CLOSE THE BOUNDARY SHARE
+
+The pre-registered question was whether wiring the bullpen mechanism closes
+the 0.609-vs-0.669 boundary-share gap. **THE ANSWER IS NO, AND THE CONTROL
+IS WHAT MAKES THAT A RESULT RATHER THAN A SHRUG.**
+
+SHIPPED: `per_pen_back2` -0.09362 / `per_pen_rest` +0.18820 on the boundary
+curve, `mid_per_pen_back2` -0.08883 / `mid_per_pen_rest` +0.17132
+mid-inning, centred on `PEN_BACK2_BASELINE` 0.6943 and `PEN_REST_BASELINE`
+1.1791, behind `sim.USE_PEN_STATE`. Refitted with ONLY these two columns so
+the coefficients match what ships; they barely moved from the full fit
+(-5.6/+6.4 against -5.3/+6.3).
+
+`sim.pen_state(team, date)` reads a persisted `hook_penstate.json`, 39,178
+keys. Unknown club or unknown date returns the league baseline, which
+contributes exactly zero — never another club's bullpen.
+
+**SCORED, 1,074 holdout starts x 40 sims:**
+
+                        OFF     SHIPPED    x5 CONTROL    ACTUAL
+    boundary share    0.609       0.609         0.606     0.669
+    starter outs      15.75       15.75         15.73     15.82
+      sd               4.06        4.07          4.18      4.04
+    outs CRPS        2.1211      2.1170        2.1572
+    starter K          4.81        4.81          4.80      4.84
+
+**THE CONTROL FIRES AND THE BOUNDARY SHARE STILL DOES NOT MOVE.** At x5 the
+outs sd goes 4.07 -> 4.18, so the term unambiguously reaches the decision —
+and the share sits at 0.606. This is not an unreachable-mechanism null; it
+is an answer.
+
+**WHY, AND IT SHARPENS THE REMAINING PROBLEM.** The term is CENTRED, so it
+changes WHICH games get an early hook and not HOW MANY do. The boundary
+share is a LEVEL and every mechanism tried today is a SPREAD: margin,
+dominance and now the bullpen all leave it at 0.607-0.611. **THE BOUNDARY
+SHARE GAP NEEDS A LEVEL FIX — the shape of the boundary curve itself —
+NOT ANOTHER FEATURE.** Three well-powered features in one day have now
+failed to move it, which is the most informative thing known about it.
+
+**IT SHIPS ANYWAY**, under the leverage-floor rule: counted on real
+decisions, stability-gated 8/8, control fired, reaches the decision, and
+neutral-to-slightly-better on outs CRPS (2.1211 -> 2.1170). It buys
+discrimination between games — a club with a used-up pen genuinely gets a
+longer start — which is what the objective asks for even when no summary
+statistic moves. It is NOT credited with anything it did not do.
+
+**A SILENT NULL, CAUGHT BY CHECKING COVERAGE.** The first persisted table
+was keyed on FULL CLUB NAMES from the games table; the replay path carries
+an ABBREVIATION ('COL'). Coverage was 0/1074 and every score came back
+"no effect" — a completely believable result for a small mechanism. The
+table now carries both key forms and coverage is 100%. **CLAUDE.md's "IDs,
+NOT NAMES" rule has now cost this project twice. PRINT THE COVERAGE BEFORE
+READING THE SCORE.**
+
+421 -> 425 checks, four mutation-verified: uncentring fails the centring
+assertion, flipping the boundary sign and dropping the boundary term both
+fail the direction assertion, and removing the lookup fails the wiring
+assertion. Fingerprint 1aefb445 -> see below.

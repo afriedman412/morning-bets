@@ -99,10 +99,12 @@ def _one(args):
         za, zh = rng.gauss(0, 1), rng.gauss(0, 1)
         A = game.build_side(perturb(away[1], za, _SIGMA),
                             _PENS.get((away[0]["team"] or "").upper(), []),
-                            hn, sim.Hook(), rng, team=away[0]["team"])
+                            hn, sim.Hook(), rng, team=away[0]["team"],
+                            date=away[0].get("date"))
         H = game.build_side(perturb(home[1], zh, _SIGMA),
                             _PENS.get((home[0]["team"] or "").upper(), []),
-                            an, sim.Hook(), rng, team=home[0]["team"])
+                            an, sim.Hook(), rng, team=home[0]["team"],
+                            date=home[0].get("date"))
         r = game.simulate_game(A, H, _LG, rng)
         ao[r.away_sp.outs] += 1
         ho[r.home_sp.outs] += 1

@@ -195,6 +195,12 @@ class Side:
     idx: int = 0                            # batting-order pointer
     pen_i: int = 0
     starter_out: bool = False
+    #: (arms unavailable, days of club rest) for THIS club tonight, from
+    #: `sim.pen_state`. None means league-neutral and contributes zero to
+    #: either hook curve. Carried on the SIDE because it is a property of
+    #: the club and the date, not of the pitcher on the mound — every arm
+    #: that takes the ball tonight faces the same depleted pen behind him.
+    pen_state: tuple[float, float] | None = None
     #: RESOLVED MATCHUPS, nine of them, rebuilt when the arm changes.
     #:
     #: The point of `sim.resolve` is that a plate appearance's inputs get
@@ -466,7 +472,8 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
                             # folds the current play in before emitting,
                             # because the manager obviously saw it.
                             k_rate=(ln.k / ln.batters
-                                    if ln.batters else None)))
+                                    if ln.batters else None),
+                            pen=side.pen_state))
                     or ln.pitches >= side.hook.hard_pitch_cap):
                 ln.pulled_mid_inning = True
                 ln.left_on_base, ln.outs_when_pulled = fr.on_base, fr.outs
@@ -596,7 +603,8 @@ def _end_of_inning(side: Side, rng: random.Random, inning: int,
             or (_hook_may_pull(side, ln)
                 and rng.random() < side.hook.removal_p(
                     ln.pitches, ln.runs, inning, ln.h + ln.bb, margin,
-                    inning_runs=side.last_inning_runs))
+                    inning_runs=side.last_inning_runs,
+                    pen=side.pen_state))
             or ln.pitches >= side.hook.hard_pitch_cap):
         if not ln.covered_f5:
             ln.runs_f5, ln.outs_f5 = ln.runs, ln.outs
@@ -787,7 +795,8 @@ def simulate_game(away: Side, home: Side, lg: dict,
 def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
                lineup: list[sim.BatterRates], hook: sim.Hook | None,
                rng: random.Random, depth: int = PEN_DEPTH,
-               team: str | None = None, apply_leash: bool = True) -> Side:
+               team: str | None = None, apply_leash: bool = True,
+               date: str | None = None) -> Side:
     """Draw a bullpen for one club and assemble its pitching side.
 
     Arms are sampled WITHOUT replacement and weighted by appearances: a
@@ -877,6 +886,7 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
         starter = _role(starter, sim.HBP_RATE_SP, sim.SAC_RATE_SP)
         arms = [_role(a, sim.HBP_RATE_RP, sim.SAC_RATE_RP) for a in arms]
     return Side(starter=starter, pen=arms, lineup=lineup, hook=h,
+                pen_state=sim.pen_state(team, date),
                 forced_exit_outs=_draw_early_exit(h, rng))
 
 

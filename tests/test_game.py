@@ -879,3 +879,76 @@ def check_only_the_starter_gets_tonights_stuff():
     src = inspect.getsource(game.build_side)
     assert "sim.sharpen(starter" in src, "the starter is not sharpened"
     assert "sharpen(a" not in src and "sharpen(arm" not in src
+
+
+def check_bullpen_state_reaches_both_hook_curves():
+    """The FIRST mechanism that belongs on both curves.
+
+    Margin and dominance are mid-inning only — the boundary decision took
+    neither. It is not deaf: it is deaf to the GAME and responds to
+    RESOURCES. Counted at z -5.6/+6.4 (boundary) and -5.6/+6.3
+    (mid-inning) over 322,205 real decisions.
+
+    Direction on both: a pen with arms that cannot go keeps the starter
+    out there; a rested pen gets him lifted.
+    """
+    h = sim.Hook()
+    neutral = (sim.PEN_BACK2_BASELINE, sim.PEN_REST_BASELINE)
+    for call in (lambda pen: h.removal_p(90, 3, 6, 4, 0, pen=pen),
+                 lambda pen: h.mid_removal_p(90, 3, 2, 1.0, margin=0,
+                                             pen=pen)):
+        base = call(neutral)
+        assert call((3.0, 1.0)) < base, "a gassed pen did not extend him"
+        assert call((0.0, 2.0)) > base, "a rested pen did not shorten him"
+
+
+def check_bullpen_state_is_centred_on_both_curves():
+    """At the league mean the term contributes EXACTLY nothing.
+
+    Asserted against the coefficients being zero, not against `pen=None` —
+    comparing to None only proves None is neutral, which an uncentred
+    build passes happily. That exact mistake was made and caught by
+    mutation on the dominance term hours earlier.
+    """
+    h = sim.Hook()
+    off = sim.Hook(per_pen_back2=0.0, per_pen_rest=0.0,
+                   mid_per_pen_back2=0.0, mid_per_pen_rest=0.0)
+    neutral = (sim.PEN_BACK2_BASELINE, sim.PEN_REST_BASELINE)
+    assert abs(h.removal_p(90, 3, 6, 4, 0, pen=neutral)
+               - off.removal_p(90, 3, 6, 4, 0, pen=neutral)) < 1e-12
+    assert abs(h.mid_removal_p(90, 3, 2, 1.0, margin=0, pen=neutral)
+               - off.mid_removal_p(90, 3, 2, 1.0, margin=0,
+                                   pen=neutral)) < 1e-12
+
+
+def check_an_unknown_club_gets_the_league_pen_not_a_guess():
+    """Missing-group rule, and this one has a real gap behind it.
+
+    The first game of a season has no yesterday, and a club whose previous
+    game is not cached has no lookup. Both fall through to the league
+    baseline, which contributes zero — never another club's bullpen.
+    """
+    assert sim.pen_state(None, None) == (sim.PEN_BACK2_BASELINE,
+                                         sim.PEN_REST_BASELINE)
+    assert sim.pen_state("NOWHERE FC", "2026-08-01") == (
+        sim.PEN_BACK2_BASELINE, sim.PEN_REST_BASELINE)
+
+
+def check_the_engine_looks_up_pen_state_by_date():
+    """A table keyed one way and a caller keying it another is a SILENT
+    null: it produced 0% coverage and a believable "the mechanism does not
+    help" before the coverage was checked.
+
+    The replay path carries an ABBREVIATION ('COL') and the games table a
+    full name, so the persisted table carries both.
+    """
+    import inspect
+    src = inspect.getsource(game.build_side)
+    assert "sim.pen_state(team, date)" in src, "build_side skips the lookup"
+    import json
+    import os
+    from src.context import sim as _s
+    assert os.path.exists(_s._PENSTATE_PATH)
+    tbl = json.load(open(_s._PENSTATE_PATH))
+    assert any(k.startswith("COL|") for k in tbl), "no abbreviation keys"
+    assert any(k.startswith("COLORADO ROCKIES|") for k in tbl), "no name keys"
