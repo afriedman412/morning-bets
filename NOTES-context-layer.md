@@ -7314,3 +7314,81 @@ cached. A club whose previous game is uncached would read `pen_back2` 0 —
 project's rule is that an unknown resolves to league-neutral rather than to
 a guess that moves the estimate the wrong way. So the builder must return
 the baseline unless every game in the lookback window is cached.
+
+## DAY SEVENTEEN, PART EIGHT — A THIRD HOOK BRANCH FOR HIGH PITCH COUNTS
+
+**THE FIRST THING ALL DAY TO MOVE THE BOUNDARY SHARE.** Margin, dominance
+and bullpen availability all left it at 0.607-0.611; this takes it to 0.625.
+
+QUESTION    Do the SHIPPED curves under-pull a starter at high pitch counts?
+HYPOTHESIS  Yes on both branches, more at the boundary. Pre-registered
+            consequence: fewer very long starts and a HIGHER boundary share.
+TEST        Every real decision scored through the SHIPPED `sim.Hook` rather
+            than a refitted logistic, so the miss measured is the one that
+            ships. `scratchpad/late_branch.py`, 322,205 decisions.
+
+    pitches      boundary shipped/actual    mid shipped/actual
+     0-60           0.0093 / 0.0105           0.0029 / 0.0030
+     60-75          0.1123 / 0.0570           0.0268 / 0.0172
+     75-90          0.3542 / 0.2659           0.0783 / 0.0671
+     90-100         0.6406 / 0.7837           0.1721 / 0.2036
+     100-130        0.8087 / 0.9717           0.3101 / 0.4026
+
+**THE CURVE IS TOO FLAT, NOT MERELY TOO LAX AT THE TOP.** It over-pulls by
+2x at 60-75 pitches and under-pulls by 20% at 100+. That is one shape error
+with two symptoms, and it is the clearest statement yet of what is wrong
+with the hook.
+
+SHIPPED: `high_pitch_threshold` 90, `high_pitch_bnd` +0.8550 (24 sigma),
+`high_pitch_mid` +0.2893 (13 sigma). Solved by bisection to match the
+observed rate, not searched, so neither can pin at a grid edge.
+
+**A BRANCH, NOT A REFIT, AND THE DISTINCTION IS LOAD-BEARING.** Refitting
+the whole boundary curve on late rows was measured and made things worse
+(mean outs 16.49 -> 16.74) because it is evaluated at every pitch count.
+The rule — fit on the restricted population only when the curve fires only
+there and something else covers the rest — is satisfied by a gated branch
+with the existing curves untouched below it. Same shape as `early_innings`.
+
+**THE OFFSETS RISE EVERY SEASON:** boundary +0.63 / +0.84 / +0.95 / +1.01
+and mid +0.02 / +0.31 / +0.34 / +0.47 across 2023-2026. Managers are getting
+quicker with a tiring starter. THE POOLED VALUE SHIPS as the conservative
+choice — it under-corrects today by ~15% and cannot be accused of chasing a
+trend. Revisit with a recency-weighted count, never by picking last season.
+
+**SCORED**, 1,096 holdout starts x 40 sims:
+
+                      before    after   actual     se
+    boundary share     0.609    0.625    0.672  0.014
+    outs CRPS         2.1170   2.0839
+    mean outs          15.75    15.61    15.83  0.122
+      sd                4.07     3.92     4.02
+    o18.5 gap         +0.035   +0.010           0.011
+    o20.5 gap         +0.024   +0.006           0.010
+    o15.5 gap         -0.049   -0.057           0.015
+    o16.5 gap         -0.033   -0.043           0.015
+    o17.5 gap         -0.023   -0.037           0.015
+
+**THE LONG-START OVER-PRODUCTION IS ESSENTIALLY FIXED** — o18.5 and o20.5
+both fall inside one standard error, from +3.2 and +2.4 sigma. Outs CRPS
+improves 0.033, which is LARGER than the 0.029 seed-to-seed wobble measured
+earlier today, so it is a real win and the first one on outs all day.
+
+**THE COST IS THE MIDDLE BAND, AND IT WAS PREDICTED BY THE SAME TABLE.**
+Fixing the top while 60-90 still over-pulls shifts the whole distribution
+short: mean outs 15.75 -> 15.61 (0.7 sigma, inside noise) and o15.5/o16.5/
+o17.5 each about a point worse. The 60-90 over-pull is now the binding
+defect and the measurement for it already exists above.
+
+**NEXT AND OBVIOUS:** a middle branch, or the same treatment applied to
+60-90 with a NEGATIVE offset. The counted values are in the table. That
+should restore the level while keeping the tail fix, and is the natural
+completion of this piece rather than a new idea.
+
+434 -> 436 checks, three mutations caught: zeroing either coefficient fails
+the fires-on-both-curves check, and removing the threshold gate fails the
+leaves-early-counts-alone check. Fingerprint f5453dc2 -> see below.
+
+**A BOOKKEEPING CORRECTION:** the check count quoted through the day as 425
+was stale. Runner count and defined count agree exactly (434 before these
+two, 436 after) and nothing is silently skipped.

@@ -68,7 +68,7 @@ import statistics as st
 import sys
 from collections import defaultdict
 
-from src.context import sim, store
+from src.context import store
 from src.context.sources import rates as rate_src
 
 STATS = ("k_pct", "bb_pct", "hr_pct", "babip")
@@ -82,7 +82,6 @@ OWN_CUTS = (40, 80, 150, 300)
 MIN_OUT = 100
 #: Batters faced required in a season for it to enter the prior.
 MIN_PRIOR_BF = 100
-#: `sim` is imported for the league cache the shipped path shares.
 
 _Q = """
 select g.date date, p.player_name name,

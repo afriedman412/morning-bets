@@ -1413,6 +1413,52 @@ class Hook:
     #: IT NEEDS NO RELIEVER DEPLOYMENT MODEL. These are CLUB-LEVEL counts
     #: read off the schedule. Which specific arm gets the call is a separate
     #: question and this does not depend on it.
+    #: THE HIGH-PITCH-COUNT BRANCH. A log-odds offset added to BOTH curves
+    #: once a starter passes `high_pitch_threshold`, because the shipped
+    #: curves are TOO FLAT: they pull too many men in the middle of a start
+    #: and too few at the end of one.
+    #:
+    #: COUNTED by scoring every real decision through the SHIPPED hook —
+    #: not through a refitted logistic — so the miss corrected is the one
+    #: that actually ships (`scratchpad/late_branch.py`):
+    #:
+    #:     pitches      boundary shipped/actual   mid shipped/actual
+    #:      0-60           0.0093 / 0.0105          0.0029 / 0.0030
+    #:      60-75          0.1123 / 0.0570          0.0268 / 0.0172
+    #:      75-90          0.3542 / 0.2659          0.0783 / 0.0671
+    #:      90-100         0.6406 / 0.7837          0.1721 / 0.2036
+    #:      100-130        0.8087 / 0.9717          0.3101 / 0.4026
+    #:
+    #: Above 90 pitches the offsets are +0.8550 +/- 0.0358 (boundary, 24
+    #: sigma) and +0.2893 +/- 0.0219 (mid-inning, 13 sigma). Solved by
+    #: bisection to match the observed rate, not searched on a grid, so
+    #: neither can pin at an edge.
+    #:
+    #: WHY A BRANCH AND NOT A REFIT. Refitting the WHOLE boundary curve on
+    #: late rows was tried and makes the simulation worse (mean outs 16.49
+    #: -> 16.74): that curve is evaluated at every pitch count, so
+    #: calibrating it on late rows alone makes it under-pull early. The
+    #: rule is "fit on the restricted population only when the curve fires
+    #: only there and something else covers the rest" — which is exactly a
+    #: branch gated above a threshold with the existing curves unchanged
+    #: below. Same shape as `early_innings` at the other end of a start.
+    #:
+    #: THE POOLED VALUE SHIPS AND IT IS THE CONSERVATIVE ONE. The offsets
+    #: RISE monotonically across seasons — boundary +0.63 / +0.84 / +0.95 /
+    #: +1.01 and mid +0.02 / +0.31 / +0.34 / +0.47 for 2023-2026 — which
+    #: looks like managers getting quicker with a tiring starter every
+    #: year. Shipping 2026 alone would correct more and rest on a quarter
+    #: of the sample; the pooled figure under-corrects today by about 15%
+    #: and cannot be accused of chasing a trend. Revisit with a
+    #: recency-weighted count, not by picking the last season.
+    #:
+    #: WHAT THIS DOES NOT FIX, and it is in the table above: the curves
+    #: also OVER-pull between 60 and 90 pitches (ratio 1.97 and 1.55 at
+    #: 60-75). The real defect is that one logistic is too flat across the
+    #: whole range. This branch corrects the top half only.
+    high_pitch_threshold: int = 90
+    high_pitch_bnd: float = 0.8550
+    high_pitch_mid: float = 0.2893
     per_pen_back2: float = -0.09362
     per_pen_rest: float = 0.18820
     mid_per_pen_back2: float = -0.08883
@@ -1568,7 +1614,9 @@ class Hook:
                         + self.per_margin * margin
                         + self.per_inning * innings
                         + self._pen(pen, self.per_pen_back2,
-                                    self.per_pen_rest))
+                                    self.per_pen_rest)
+                        + (self.high_pitch_bnd
+                           if pitches >= self.high_pitch_threshold else 0.0))
 
     @staticmethod
     def _pen(pen, c_back2: float, c_rest: float) -> float:
@@ -1636,6 +1684,8 @@ class Hook:
                            - K_RATE_BASELINE)
                         + self._pen(pen, self.mid_per_pen_back2,
                                     self.mid_per_pen_rest)
+                        + (self.high_pitch_mid
+                           if pitches >= self.high_pitch_threshold else 0.0)
                         + self.mid_per_inning_run
                         * inning_run_offset(inning_runs))
 

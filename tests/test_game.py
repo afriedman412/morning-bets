@@ -952,3 +952,42 @@ def check_the_engine_looks_up_pen_state_by_date():
     tbl = json.load(open(_s._PENSTATE_PATH))
     assert any(k.startswith("COL|") for k in tbl), "no abbreviation keys"
     assert any(k.startswith("COLORADO ROCKIES|") for k in tbl), "no name keys"
+
+
+def check_the_high_pitch_branch_fires_on_both_curves():
+    """A third hook branch above `high_pitch_threshold`, counted because
+    the shipped curves under-pull a tiring starter.
+
+    Real pull rate above 90 pitches is 0.8285 at a boundary where the
+    shipped curve gave 0.6806, and 0.2344 mid-inning against 0.1934. The
+    offsets are +0.8550 (24 sigma) and +0.2893 (13 sigma).
+
+    BOTH curves carry it. The boundary decision is the one that matters
+    most here — a starter at 100 pitches is pulled 97% of the time in real
+    baseball and the shipped curve gave 81%.
+    """
+    h = sim.Hook()
+    t = h.high_pitch_threshold
+    assert h.high_pitch_bnd > 0 and h.high_pitch_mid > 0
+    # BOUNDARY: crossing the threshold must raise the pull probability.
+    assert h.removal_p(t, 3, 6, 4, 0) > h.removal_p(t - 1, 3, 6, 4, 0)
+    # MID-INNING: same, and it is a separate coefficient on a separate
+    # curve — wiring one and not the other is the failure this guards.
+    assert (h.mid_removal_p(t, 3, 2, 1.0, margin=0)
+            > h.mid_removal_p(t - 1, 3, 2, 1.0, margin=0))
+
+
+def check_the_high_pitch_branch_leaves_early_counts_alone():
+    """It is a BRANCH, not a refit, and that distinction is load-bearing.
+
+    Refitting the whole boundary curve on late rows was measured and made
+    the simulation WORSE (mean outs 16.49 -> 16.74) because that curve is
+    evaluated at every pitch count. Below the threshold nothing may move.
+    """
+    h = sim.Hook()
+    off = sim.Hook(high_pitch_bnd=0.0, high_pitch_mid=0.0)
+    for p in (40, 60, 75, 89):
+        assert abs(h.removal_p(p, 3, 6, 4, 0)
+                   - off.removal_p(p, 3, 6, 4, 0)) < 1e-12, p
+        assert abs(h.mid_removal_p(p, 3, 2, 1.0, margin=0)
+                   - off.mid_removal_p(p, 3, 2, 1.0, margin=0)) < 1e-12, p
