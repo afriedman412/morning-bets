@@ -43,6 +43,12 @@ DAMAGE = {"walk": 1.0, "intent_walk": 1.0, "hit_by_pitch": 1.0,
 ONBASE = {"single", "double", "triple", "home_run", "walk", "intent_walk",
           "hit_by_pitch", "field_error"}
 
+#: A STRIKEOUT, for the purpose of "is he dealing tonight". Both variants
+#: are counted because both are a swing-and-miss the pitcher earned — the
+#: double play that follows is the runner's fault, not evidence he was any
+#: less dominant on the batter.
+K_EVENTS = {"strikeout", "strikeout_double_play"}
+
 
 def exits(game_id: str, data: dict | None = None) -> list[dict]:
     """One row per STARTER, describing how his outing ended.
@@ -272,8 +278,12 @@ def decisions(game_id: str, data: dict | None = None) -> list[dict]:
     plays = [p for p in (data.get("allPlays") or [])
              if ((p.get("result") or {}).get("eventType") or "") not in SKIP]
     starter: dict = {}
+    # `k` carries HOW WELL HE IS PITCHING TONIGHT, which no other column
+    # here does — every existing one is traffic or workload. The hook has
+    # never been able to tell a dominant night from a lucky one, and a real
+    # seven-inning start is a SELECTED population earned by missing bats.
     cum: dict = defaultdict(lambda: {"pitches": 0, "bf": 0, "runs": 0,
-                                     "br": 0, "dmg": 0.0})
+                                     "br": 0, "dmg": 0.0, "k": 0})
     inn: dict = defaultdict(lambda: {"runs": 0, "br": 0, "dmg": 0.0,
                                      "inning": 0, "outs": 0})
     out: list[dict] = []
@@ -324,6 +334,7 @@ def decisions(game_id: str, data: dict | None = None) -> list[dict]:
         c["bf"] += 1
         c["runs"] += runs_now
         c["br"] += 1 if ev in ONBASE else 0
+        c["k"] += 1 if ev in K_EVENTS else 0
         c["dmg"] += DAMAGE.get(ev, 0.0)
         c["pitches"] += sum(1 for e in (play.get("playEvents") or [])
                             if e.get("isPitch"))
@@ -345,6 +356,13 @@ def decisions(game_id: str, data: dict | None = None) -> list[dict]:
             # five-run inning that ended with the bases empty.
             "onbase": removal._on_base(play),
             "margin": margin, "abs_margin": abs(margin),
+            # DOMINANCE, as a count and as a rate. The count grows with the
+            # outing and would partly re-express `bf`; the rate is what
+            # "he is dealing" actually means and is the one to screen on.
+            # Both travel so the question can be asked either way rather
+            # than settled by whichever happened to be emitted.
+            "k": c["k"],
+            "k_rate": c["k"] / c["bf"] if c["bf"] else 0.0,
             "removed": bool(nxt_pid and nxt_pid != pid),
         })
     return out

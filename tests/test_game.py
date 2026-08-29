@@ -200,6 +200,58 @@ def check_the_blowout_term_is_symmetric_and_suppresses_mid_inning_pulls():
         assert ahead < tied, f"a {m}-run gap did not suppress the pull"
 
 
+def check_a_dealing_starter_survives_the_mid_inning_hook_longer():
+    """`late_mid_per_k_rate` is the only input to either hook curve that is
+    not traffic or workload.
+
+    Counted at -1.5130 +/- 0.1587 (z -9.5) over 248,568 mid-inning
+    decisions, every season negative. Three properties, and the third is
+    the one that is easy to lose:
+
+      1. DIRECTION. Higher strikeout rate, lower chance of being pulled.
+      2. IT REACHES THE DECISION at all — a term wired onto an argument the
+         engine never passes is invisible to every level check.
+      3. IT IS CENTRED. At the league baseline the term contributes exactly
+         nothing, so it buys discrimination between starts without moving
+         the calibrated level. An uncentred version would subtract 0.34
+         log-odds from every mid-inning decision, which is a level change
+         nobody measured.
+    """
+    h = sim.Hook()
+    assert h.late_mid_per_k_rate < 0.0
+
+    # CENTRING, ASSERTED AGAINST THE TERM BEING ABSENT. Comparing
+    # k_rate=BASELINE against k_rate=None only proves None defaults to the
+    # baseline — an uncentred build passes that happily, which it did.
+    # The real claim is that at the baseline the term contributes NOTHING,
+    # so the comparison has to be against a hook with the coefficient off.
+    off = sim.Hook(late_mid_per_k_rate=0.0)
+    at_base = h.mid_removal_p(90, 3, 2, 1.0, margin=0,
+                              k_rate=sim.K_RATE_BASELINE)
+    absent = off.mid_removal_p(90, 3, 2, 1.0, margin=0,
+                               k_rate=sim.K_RATE_BASELINE)
+    assert abs(at_base - absent) < 1e-12, "the term is not centred"
+
+    unaware = h.mid_removal_p(90, 3, 2, 1.0, margin=0, k_rate=None)
+    assert abs(at_base - unaware) < 1e-12, "None does not mean league-neutral"
+
+    dealing = h.mid_removal_p(90, 3, 2, 1.0, margin=0, k_rate=0.40)
+    struggling = h.mid_removal_p(90, 3, 2, 1.0, margin=0, k_rate=0.05)
+    assert dealing < at_base < struggling, "dominance does not reach the hook"
+
+
+def check_the_engine_passes_a_live_strikeout_rate_to_the_hook():
+    """The coefficient above is worthless if `game.py` never hands it a
+    rate. Guarded separately from the curve because the two fail
+    independently — and a missing argument defaults to None, which is
+    silently neutral rather than loud.
+    """
+    import inspect
+    src = inspect.getsource(game._half_inning)
+    assert "k_rate=" in src, "the mid-inning hook call passes no k_rate"
+    assert "ln.batters" in src, "k_rate is not built from a live count"
+
+
 def check_inherited_runners_are_simulated_not_estimated():
     """A starter pulled mid-inning hands over the bases and the outs.
 

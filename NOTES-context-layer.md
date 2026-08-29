@@ -6746,3 +6746,122 @@ Fingerprint c7f3e41d -> 30cbdcad.
 Every number above would have been computed on mislabelled rows had the cache
 been trusted. CHECK THE MTIME OF A CACHE AGAINST THE COMMIT DATE OF THE CODE
 THAT PRODUCES IT.
+
+## DAY SEVENTEEN, PART TWO — THE HOOK COULD NOT TELL A DOMINANT NIGHT FROM A LUCKY ONE
+
+**EVERY INPUT TO BOTH HOOK CURVES WAS TRAFFIC OR WORKLOAD** — pitches, runs,
+baserunners, bases occupied, inning, batters faced. Nothing said how well he
+was THROWING. That is TODO item 7's mechanism stated as a code fact, and it
+is why the model's K per 27 outs keeps declining in long starts where
+reality's jumps: a real seven-inning start is a SELECTED population, earned
+by missing bats, and the simulator had no selection at all.
+
+QUESTION    Conditional on everything the hook already reads, does strikeout
+            rate so far change the removal decision?
+HYPOTHESIS  Negative coefficient — the better he is going, the less likely he
+            is interrupted. FALSIFIER: inside the resolvable band, or
+            sign-unstable across seasons.
+TEST        `boundary.decisions` gained a `k`/`k_rate` column (verified
+            against the boxscore on a sample game: counted 4 and 3 against a
+            boxscore 4 and 3). Rows rebuilt, 322,205 decisions.
+            `scratchpad/hook_dominance.py`.
+
+**THE CONTROL SET IS THE WHOLE ARGUMENT AND IS STATED FIRST.** A strikeout is
+an out that allowed no baserunner, and it costs ~4.97 pitches against ~3.25
+for a ball in play. So `pitches`, `bf`, `runs`, `inn_br`, `onbase`, `inning`
+AND `abs_margin` all go in together; dropping any one hands its variance
+straight to the strikeout column.
+
+    curve         k_rate coefficient      z     per season
+    mid-inning   -1.5130 +/- 0.1587    -9.5   -1.80/-1.11/-1.21/-1.83
+    boundary     -0.3342 +/- 0.1614    -2.1   -0.14/-0.23/-0.29/-0.46
+
+Positive controls fired on both (-2.0 injected, -2.03 and -1.71 recovered).
+
+**MID-INNING SHIPS, BOUNDARY DOES NOT.** The boundary coefficient is
+sign-stable but no season is individually significant and the pooled z is
+-2.1 — a DIRECTION, not a finding. Recorded, not wired. Note this is the
+SECOND time in one day the same split appeared: the mid-inning decision takes
+in-game state and the boundary decision does not.
+
+**SIZE:** the p10-p90 spread of `k_rate` is 0.444, so a dealing starter
+carries -0.672 log-odds against a struggling one at the SAME pitch count,
+runs, traffic and inning — a bit under half the odds of being pulled.
+
+**IT SHIPS CENTRED, AND THE BLOWOUT TERM DID NOT — THAT ASYMMETRY IS
+DELIBERATE.** `mid_per_abs_margin` arrived when mean outs were WRONG (15.68
+against 15.82) and moved the level onto the actual. This one arrives when the
+level is RIGHT, so uncentred it would subtract 1.5130 x 0.2276 = 0.344
+log-odds from every mid-inning decision — a level change nobody measured,
+riding in on a spread coefficient that was. Centred, it buys discrimination
+and leaves the level alone.
+
+**THE BASELINE IS 0.2276, THE MEAN OF THE PER-DECISION RATES, NOT THE 0.2260
+RATIO OF SUMS — AND THE GAP BETWEEN THOSE TWO IS THE DEFECT ITSELF.** This
+looked like an input bug for twenty minutes and is the most useful number of
+the day. Measured at the hook, 20,712 simulated calls against 248,568 real:
+
+                              mean of ratios   ratio of sums
+        REAL                          0.2276          0.2260
+        SIM (before the term)         0.2002          0.2254
+
+The RATIO OF SUMS agrees to four decimals — the simulator's strikeout rate is
+right, as everything else here has said. What differs is how decisions are
+WEIGHTED. In reality the mean of ratios sits ABOVE the ratio of sums because
+a high-strikeout starter lasts longer and accumulates more decisions. In the
+simulator it sits BELOW, because `PITCH_COST` bills a strikeout 4.97 pitches
+against 3.25 for a ball in play, **so a dominant night actively SHORTENS a
+simulated start. The selection runs backwards.** Item 7 in one number.
+
+**SCORED**, 537 holdout games x 20 sims, paired seeds
+(`scratchpad/hook_ab.py`, which generalises `blowout_ab.py` and is the only
+harness here that prints K BY START LENGTH):
+
+                          OFF    SHIPPED         x4     ACTUAL
+    boundary share     0.6151     0.6108     0.5969     0.6695
+    starter outs      15.8203    15.7861    15.6333    15.8212
+      sd               4.0234     4.0640     4.1910     4.0403
+    starter K          4.8281     4.8191     4.7797     4.8389
+      sd               2.2302     2.2571     2.3364     2.4893
+      P(K >= 9)        0.0596     0.0609     0.0649     0.0950
+    F5 runs / side     2.4495     2.4499     2.4466
+
+    E[K] by start length
+    0-8   outs        2.150      2.024      1.677      1.725
+    9-11  outs        3.324      3.242      2.986      3.054
+    12-14 outs        4.135      4.084      3.952      3.961
+    15-17 outs        4.855      4.844      4.821      4.818
+    18-20 outs        5.500      5.550      5.724      5.397
+    21-27 outs        6.172      6.270      6.509      6.836
+
+**THE SELECTION NOW RUNS THE RIGHT WAY:** short starts lose strikeouts and
+long ones gain them, in five of six buckets toward the actual. K sd 2.2302 ->
+2.2571 against a real 2.4893, and on `shape.py` the tail closes 11-15%
+(o8.5 -0.036 -> -0.032, o9.5 -0.020 -> -0.017), outs CRPS 2.0868 -> 2.0819
+and K CRPS 1.3242 -> 1.3240 across both of today's terms.
+
+**THE COSTS, STATED PLAINLY:** boundary share 0.6151 -> 0.6108 and mean outs
+15.8203 -> 15.7861, both small and both away from the actual. `k_rate` is
+right-skewed (mean 0.2276, median 0.2000), so mean-centring leaves more
+decisions below the centre than above and the net effect adds a few
+mid-inning pulls. Mean-centring is kept because it is what the regression
+implies; median-centring would be a choice nobody measured.
+
+**AND THE MECHANISM IS NOT SUFFICIENT, WHICH IS THE MOST IMPORTANT LINE
+HERE.** At x4 the measured coefficient P(K>=9) reaches only 0.0649 against a
+real 0.0950 — 15% of a 4-sigma gap — while boundary share and outs both
+degrade. **So the manager's response to dominance is real, measured and
+NOT the main cause of the dead K tail.** `PITCH_COST` remains the named
+suspect and is the next test.
+
+417 checks (was 415). `check_a_dealing_starter_survives_the_mid_inning_hook_longer`
+and `check_the_engine_passes_a_live_strikeout_rate_to_the_hook`, both
+mutation-verified.
+
+**A TEST THAT LOOKED LIKE IT GUARDED CENTRING AND DID NOT.** The first
+version asserted `mid_removal_p(k_rate=BASELINE) == mid_removal_p(k_rate=None)`,
+which an UNCENTRED build passes happily — it only proves None defaults to the
+baseline. The mutation caught it: uncentring the term left the check green.
+The assertion has to compare against a hook with the coefficient set to zero,
+so that "contributes nothing at the baseline" is what is actually tested.
+VERIFY BY MUTATION OR THE CHECK IS DECORATION.

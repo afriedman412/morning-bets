@@ -458,7 +458,15 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
                         and rng.random() < side.hook.mid_removal_p(
                             ln.pitches, ln.runs, fr.on_base, fr.damage,
                             margin, inning_runs=fr.runs, inning=inning,
-                            inning_br=fr.br))
+                            inning_br=fr.br,
+                            # HOW THE NIGHT IS GOING. `ln.k` and
+                            # `ln.batters` both already include the plate
+                            # appearance just resolved, which is what the
+                            # fitted rows do too — `boundary.decisions`
+                            # folds the current play in before emitting,
+                            # because the manager obviously saw it.
+                            k_rate=(ln.k / ln.batters
+                                    if ln.batters else None)))
                     or ln.pitches >= side.hook.hard_pitch_cap):
                 ln.pulled_mid_inning = True
                 ln.left_on_base, ln.outs_when_pulled = fr.on_base, fr.outs

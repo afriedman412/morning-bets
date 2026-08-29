@@ -1,0 +1,95 @@
+322,205 starter decisions, 2023-04-07 to 2026-08-27
+  k_rate mean 0.2323  sd 0.1788  p10 0.0000  p90 0.4444
+  A COEFFICIENT IS PER UNIT OF RATE, so multiply by 0.444 to read the p10-to-p90 swing in log-odds.
+
+==================================================================
+BOUNDARY
+==================================================================
+
+  POWER — BOUNDARY strikeout rate
+    k_rate        se 0.16106   resolves 0.48319 log-odds/run at 3 sigma
+
+  POWER — BOUNDARY strikeout count
+    k             se 0.00789   resolves 0.02367 log-odds/run at 3 sigma
+
+  POSITIVE CONTROLS
+    k_rate x-2.0: injected -2.0000  recovered -1.70997 +/- 0.17864  (SEEN)
+    k count x-0.10: injected -0.1000  recovered -0.08588 +/- 0.00839  (SEEN)
+
+  BOUNDARY + strikeout RATE
+    n 73,637   pulls 8,463   base rate 0.1149
+    feature              coef        se       z
+    pitches          +0.09947   0.00211   +47.1
+    runs             +0.14702   0.01299   +11.3
+    br               +0.10095   0.02040    +4.9
+    inning           +0.43733   0.06336    +6.9
+    bf               -0.00575   0.02251    -0.3
+    tto              -0.41973   0.05553    -7.6
+    abs_margin       +0.01137   0.00775    +1.5
+    k_rate           -0.33423   0.16142    -2.1  <--
+    intercept       -10.71710   0.11866
+
+  BOUNDARY + strikeout COUNT
+    n 73,637   pulls 8,463   base rate 0.1149
+    feature              coef        se       z
+    pitches          +0.09973   0.00212   +47.1
+    runs             +0.14692   0.01299   +11.3
+    br               +0.09925   0.02042    +4.9
+    inning           +0.43531   0.06338    +6.9
+    bf               -0.00140   0.02263    -0.1
+    tto              -0.41801   0.05553    -7.5
+    abs_margin       +0.01140   0.00775    +1.5
+    k                -0.01893   0.00790    -2.4  <--
+    intercept       -10.79957   0.11287
+
+  --- BOUNDARY k_rate: PER SEASON ---
+    2023  n  14,594  k_rate    -0.13943 +/- 0.38136  z  -0.4
+    2024  n  18,735  k_rate    -0.22712 +/- 0.31937  z  -0.7
+    2025  n  21,808  k_rate    -0.29188 +/- 0.29550  z  -1.0
+    2026  n  18,500  k_rate    -0.45767 +/- 0.31666  z  -1.4
+
+==================================================================
+MID-INNING
+==================================================================
+
+  POWER — MID-INNING strikeout rate
+    k_rate        se 0.15563   resolves 0.46690 log-odds/run at 3 sigma
+
+  POWER — MID-INNING strikeout count
+    k             se 0.00746   resolves 0.02238 log-odds/run at 3 sigma
+
+  POSITIVE CONTROLS
+    k_rate x-2.0: injected -2.0000  recovered -2.02898 +/- 0.18678  (SEEN)
+    k count x-0.10: injected -0.1000  recovered -0.10197 +/- 0.00898  (SEEN)
+
+  MID-INNING + strikeout RATE
+    n 248,568   pulls 6,018   base rate 0.0242
+    feature              coef        se       z
+    pitches          +0.08057   0.00191   +42.2
+    inn_br           +0.51448   0.01343   +38.3
+    runs             +0.20030   0.01186   +16.9
+    onbase           +0.38261   0.02024   +18.9
+    inning           +0.26736   0.02959    +9.0
+    bf               -0.01750   0.01064    -1.6
+    abs_margin       -0.08326   0.00793   -10.5
+    k_rate           -1.51303   0.15870    -9.5  <--
+    intercept       -11.26819   0.10280
+
+  MID-INNING + strikeout COUNT
+    n 248,568   pulls 6,018   base rate 0.0242
+    feature              coef        se       z
+    pitches          +0.08032   0.00191   +42.0
+    inn_br           +0.51673   0.01346   +38.4
+    runs             +0.20033   0.01187   +16.9
+    onbase           +0.38235   0.02025   +18.9
+    inning           +0.26642   0.02963    +9.0
+    bf               -0.00281   0.01032    -0.3
+    abs_margin       -0.08300   0.00793   -10.5
+    k                -0.06867   0.00757    -9.1  <--
+    intercept       -11.57122   0.10098
+
+  --- MID-INNING k_rate: PER SEASON ---
+    2023  n  49,107  k_rate    -1.79730 +/- 0.37714  z  -4.8
+    2024  n  62,963  k_rate    -1.11108 +/- 0.31892  z  -3.5
+    2025  n  73,550  k_rate    -1.21363 +/- 0.28554  z  -4.3
+    2026  n  62,948  k_rate    -1.83046 +/- 0.31108  z  -5.9

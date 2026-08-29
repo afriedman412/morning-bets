@@ -1339,6 +1339,39 @@ class Hook:
     #: rows carry only 549 pulls and it resolves 0.109 at 3 sigma. Shipping
     #: the pooled and smaller value is the conservative reading of that.
     mid_per_abs_margin: float = -0.0824
+    #: THE DOMINANCE TERM: log-odds per unit of STRIKEOUT RATE SO FAR on the
+    #: mid-inning decision. Negative — the better he is going, the less
+    #: likely he is interrupted. This is the mechanism TODO item 7 is about.
+    #:
+    #: WHY THE HOOK NEEDED ONE AT ALL. Every other input to both curves is
+    #: TRAFFIC or WORKLOAD — pitches, runs, baserunners, bases occupied, the
+    #: inning. Nothing told it how well he was throwing, so the simulator
+    #: could not tell a dominant night from a lucky one, and a real
+    #: seven-inning start is a SELECTED population earned by missing bats.
+    #: Measured consequence: K per 27 outs by length runs 8.42 / 8.05 /
+    #: 7.51 against a real 8.33 / 7.98 / 8.49 — the model keeps DECLINING
+    #: where reality JUMPS.
+    #:
+    #: -1.5130 +/- 0.1587 (z -9.5) over 248,568 real mid-inning decisions,
+    #: controlled for `pitches`, `bf`, `runs`, `inn_br`, `onbase`, `inning`
+    #: AND `abs_margin`. That control set is the whole argument: a strikeout
+    #: is an out that allowed no baserunner and costs ~4.97 pitches against
+    #: ~3.25 for a ball in play, so dropping any one of those columns hands
+    #: its variance straight to this one.
+    #:
+    #: STABILITY GATE PASSED: -1.797 / -1.111 / -1.214 / -1.830 for
+    #: 2023/2024/2025/2026, every year negative, z -3.5 to -5.9.
+    #:
+    #: SIZE IN BASEBALL TERMS: the p10-to-p90 spread of `k_rate` is 0.444,
+    #: so a dealing starter carries -0.672 log-odds against a struggling one
+    #: at the SAME pitch count, runs, traffic and inning — a bit under half
+    #: the odds of being pulled mid-inning.
+    #:
+    #: THE BOUNDARY CURVE GETS NO SUCH TERM. Same fit on its own 73,637
+    #: rows gives -0.334 +/- 0.161, z -2.1, with no season individually
+    #: significant (-0.4 / -0.7 / -1.0 / -1.4). Sign-stable but weak; that
+    #: is a DIRECTION, not a finding, and it is recorded rather than wired.
+    late_mid_per_k_rate: float = -1.5130
     #: REFIT ON LATE-ONLY DECISIONS. The pooled fit averaged 20,994 late
     #: rows at a 6.29% pull rate together with 26,693 early ones at 0.65%,
     #: and the early population dominates by count — so the late curve came
@@ -1487,7 +1520,8 @@ class Hook:
     def mid_removal_p(self, pitches: int, runs: int, on_base: int,
                       inning_damage: float = 0.0, margin: int = 0,
                       inning_runs: int = 0, inning: int = 0,
-                      inning_br: int = 0) -> float:
+                      inning_br: int = 0,
+                      k_rate: float | None = None) -> float:
         """P(pulled) evaluated after a batter, inning still alive.
 
         `inning_runs` is what is going wrong RIGHT NOW; `runs` is the whole
@@ -1525,6 +1559,12 @@ class Hook:
                         # decided, and it is decided in both directions.
                         # The signed term above measures zero.
                         + self.mid_per_abs_margin * abs(margin)
+                        # THE DOMINANCE TERM, and it is CENTRED. See the
+                        # parameter's docstring for why the level must not
+                        # move here when it does move for the blowout term.
+                        + self.late_mid_per_k_rate
+                        * ((K_RATE_BASELINE if k_rate is None else k_rate)
+                           - K_RATE_BASELINE)
                         + self.mid_per_inning_run
                         * inning_run_offset(inning_runs))
 
@@ -1562,6 +1602,49 @@ class Hook:
 #: shape. Turning it on before the 7-11 range is understood buys the deep
 #: tail at the cost of the bulk, which is the trade `calibrate.loss` is
 #: reporting.
+#: The league mean strikeout rate at a mid-inning removal decision, counted
+#: on the same 248,568 rows `late_mid_per_k_rate` was fitted on — the MEAN
+#: OF THE PER-DECISION RATE, which is the statistic the term is centred
+#: against, not the ratio of the summed totals (0.2260). The two differ for
+#: a reason that is the whole point of the mechanism; see below.
+#:
+#: THE DOMINANCE TERM IS CENTRED ON THIS, AND THE BLOWOUT TERM IS NOT.
+#: The difference is deliberate and is about what each one is for:
+#:
+#:   * `mid_per_abs_margin` ships UNCENTRED because the level was WRONG when
+#:     it arrived — mean outs sat at 15.68 against a real 15.82 — and the
+#:     term moved it onto the actual without anything being solved for.
+#:   * this one ships CENTRED because the level is now RIGHT. Uncentred it
+#:     would subtract 1.5130 * 0.2323 = 0.351 log-odds from every
+#:     mid-inning decision and suppress pulls across the board, which is a
+#:     LEVEL change nobody measured riding in on a SPREAD coefficient that
+#:     was.
+#:
+#: Centring makes the term mean-zero over the league, so it buys
+#: DISCRIMINATION between starts — which is the defect — and leaves the
+#: calibrated level alone. Solving the intercept to absorb an uncentred
+#: shift would be fitting a level, which this project forbids.
+#:
+#: THE MEAN-OF-RATIOS AND THE RATIO-OF-SUMS DISAGREE, AND THAT DISAGREEMENT
+#: IS THE DEFECT ITSELF — worth reading before anyone "fixes" this constant
+#: to the tidier 0.2260. Measured at the hook, 20,712 simulated calls
+#: against 248,568 real decisions:
+#:
+#:                        mean of ratios   ratio of sums
+#:     REAL                      0.2276          0.2260
+#:     SIM (before this term)    0.2002          0.2254
+#:
+#: The ratio of sums agrees to four decimals — the simulator's strikeout
+#: RATE is right, as every other measurement here has said. What differs is
+#: how the decisions are WEIGHTED. In reality the mean of ratios sits ABOVE
+#: the ratio of sums, because a high-strikeout starter lasts longer and
+#: therefore accumulates more decisions. In the simulator it sits BELOW,
+#: because `PITCH_COST` bills a strikeout 4.97 pitches against 3.25 for a
+#: ball in play, so a dominant night actively SHORTENS a simulated start.
+#: The selection runs backwards. That is TODO item 7 in one number, and it
+#: is why the sim's k_rate at the hook needs no correction as an INPUT.
+K_RATE_BASELINE = 0.2276
+
 MID_INNING_RUN_OFFSET = {0: 0.0, 1: 0.296, 2: 1.380, 3: 1.707, 4: 2.914}
 
 
