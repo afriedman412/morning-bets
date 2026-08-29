@@ -7146,3 +7146,82 @@ invariant at rates that occur in baseball, so no coverage was dropped.
 MODEL'S HIGH-STRIKEOUT UNDERS" because at 8.5+ the model priced an over at
 ~60% of true. It now prices it at ~78%. The rule should be softened rather
 than deleted — 2.3 sigma is better than 3.5 and is not zero.
+
+## DAY SEVENTEEN, PART SIX — THE BOUNDARY CURVE DOES TAKE SOMETHING, AND IT IS THE BULLPEN
+
+**THE FIRST EXTERNAL SIGNAL THE BOUNDARY DECISION HAS EVER ACCEPTED.** Every
+fit today found it deaf to the game — signed margin +0.7 sigma, |margin|
+sign-flipping across seasons, strikeout rate -2.1 with no season individually
+significant — while its share sits at 0.609 against a real 0.669. The
+hypothesis was that "does he come back out" is not a reaction to the game at
+all but a RESOURCE decision. It is.
+
+QUESTION    Conditional on everything the curves already read, does the
+            state of the club's bullpen change the removal decision?
+TEST        `scratchpad/pen_state.py`. Per (game, pitching club), reliever
+            pitch counts reconstructed from play-by-play across 9,978 games,
+            then each club's previous three games looked up by schedule.
+            Joined to all 322,205 decisions — 100% coverage. `leash` is in
+            the control set so the starter's own typical length is absorbed.
+
+**IT IS ABOUT AVAILABILITY, NOT VOLUME, AND THAT IS THE FINDING.** Raw pitch
+totals are null; counts of arms that CANNOT go are strong:
+
+    column           BOUNDARY z   MID-INNING z   predicted
+    pen_back2            -5.3          -5.2      negative  YES
+    pen_rest             +6.3          +6.2      positive  YES
+    pen_heavy_1          -1.9          -3.0      negative  YES
+    pen_pitches_1        -0.8          -0.5      negative  null
+    pen_pitches_3        +1.5          +1.6      negative  null
+    pen_arms_1           +0.8          +0.4      negative  null
+    pen_load             -0.5          -1.1      positive  null
+
+`pen_back2` is the number of relievers who worked on BOTH of the club's last
+two days — the actual unavailability rule a manager uses. `pen_rest` is days
+since the club last played. A pen that is used up keeps the starter out
+there; a rested pen gets him hooked. All four pre-registered signs are right
+and the three that carry it are the three that describe WHO CAN PITCH rather
+than HOW MUCH WAS THROWN. Positive control fired (0.01 injected, +0.0102
+recovered).
+
+**STABILITY GATE PASSED 8/8.** Sign held in all four seasons on BOTH curves:
+
+    pen_back2  boundary   -0.108 / -0.108 / -0.089 / -0.075
+    pen_back2  mid        -0.045 / -0.049 / -0.120 / -0.118
+    pen_rest   boundary   +0.079 / +0.173 / +0.190 / +0.288
+    pen_rest   mid        +0.160 / +0.258 / +0.052 / +0.237
+
+**BOTH CONFOUNDS RUN AGAINST THE RESULT, WHICH IS WHY IT IS BELIEVABLE.**
+(1) A club whose pen threw 120 pitches yesterday probably played a long or
+losing game, which correlates with a bad club and a bad starter, and a bad
+starter is pulled EARLIER — pushing `pen_back2` POSITIVE. It comes out
+negative. (2) After an off day the STARTER is rested too, which should make
+him go DEEPER and push `pen_rest` NEGATIVE. It comes out positive.
+
+**SIZE.** `pen_rest` p10 1 to p90 2, so one day of rest is +0.186 log-odds
+at a boundary. `pen_back2` p10 0 to p90 2, so the swing is -0.20. Both are
+comparable to `mid_per_abs_margin` (-0.0824 per run over a p90 of 6) and
+smaller than the dominance term's -0.67 p10-to-p90 swing. Real, and in the
+size class of the two terms shipped this morning.
+
+**NOTE `pen_pitches_1` IS A PROXY THAT ONLY WORKS ALONE.** Fitted without
+`pen_back2` and `pen_heavy_1` it reads negative in all four seasons (-2.6 /
+-1.7 / -0.9 / -1.6); with them it collapses to -0.8. It was carrying the
+availability signal in the absence of anything better, which is what a
+proxy does.
+
+**NOT WIRED, AND THE PATH IS SPECIFIC.** Neither curve takes a bullpen
+argument and `Side` has no usage state; the pen is redrawn independently
+every game AND every draw. Wiring needs: two coefficients on BOTH curves
+(this is the first mechanism that belongs on both), `pen_back2` and
+`pen_rest` carried onto `Side`, a supplier that reads the club's last two
+games, and CENTRING on the league mean so the level does not move — the
+same rule `K_RATE_BASELINE` follows. It does NOT need a reliever deployment
+model: these are club-level counts, and which specific arm gets the call is
+a separate question that this measurement does not depend on.
+
+**AND IT REOPENS A DEAD-LIST ITEM LEGITIMATELY.** "Bullpen availability" was
+parked as "hook-adjacent by construction". The APPROACH is what changed: it
+was previously conceived as a deployment question and is here a two-column
+feature on the removal decision, which is a different thing and is measured
+on real decisions rather than scored on runs.

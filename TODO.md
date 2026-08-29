@@ -109,12 +109,35 @@ rate and that night's lineup) and use the counted value. This is NOT the
 closed per-pitcher dispersion question (split-half 0.072): that asked WHICH
 arms are variable, this asks how variable the league is.
 
-**STILL OPEN, UNTOUCHED:** boundary share 0.607 against a real 0.669.
+**THE BOUNDARY SHARE NOW HAS A MECHANISM — SEE ITEM 8b.** Bullpen
+availability reaches the boundary decision at 5-6 sigma and is the first
+external signal that curve has ever accepted.
+
+**STILL OPEN:** boundary share 0.609 against a real 0.669.
 Reality ends starts at the end of an inning; the model ends them mid-inning.
 Both of today's fits found the boundary curve takes NO in-game state —
 margin, |margin| and strikeout rate all null or sign-unstable on it — so
 whatever governs it is not the game situation. That is now the best-defined
 unknown on this item.
+
+**8b. WIRE BULLPEN AVAILABILITY INTO BOTH HOOK CURVES. MEASURED
+2026-08-29, NOT WIRED — the best-evidenced unshipped mechanism on this
+list.**
+`pen_back2` (relievers who worked both of the club's last two days) and
+`pen_rest` (days since the club last played) reach the removal decision at
+z -5.3/+6.3 on the BOUNDARY curve and -5.2/+6.2 mid-inning, sign-stable in
+all four seasons on both curves, all pre-registered signs correct, positive
+control fired. Raw pitch totals are null — it is about WHO CAN PITCH, not
+how much was thrown.
+BOTH CONFOUNDS RUN AGAINST IT: a used-up pen correlates with a bad club and
+a bad starter (pulled earlier, pushes positive), and an off day rests the
+starter too (should push negative). It survives both.
+**THIS IS THE FIRST MECHANISM THAT BELONGS ON BOTH CURVES.** Margin and
+dominance were mid-inning only.
+WIRING, and it does NOT need a deployment model — these are club-level
+counts: two coefficients on both curves, the two columns carried on `Side`,
+a supplier reading the club's last two games, and CENTRING on the league
+mean so the level does not move. `scratchpad/pen_state.py` has the fit.
 
 **8. Role-based bullpen deployment, and fatigue.**
 `build_side` samples 8 arms weighted by appearances and `next_arm` walks that
