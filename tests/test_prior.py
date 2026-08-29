@@ -202,3 +202,87 @@ def check_the_postseason_ranges_cover_the_wild_card_round():
     assert 2026 not in r, r
     clause = rates.postseason_clause("g")
     assert "2025-09-30" in clause and "not (" in clause, clause
+
+
+# ── the counted effective prior sample (TODO item 12) ──────────────────
+def check_the_pooled_form_is_exactly_a_two_stage_shrink():
+    """`k_override` is algebra, not a knob, and this is the algebra.
+
+    Pooling own, prior and league at once must equal shrinking `own`
+    toward `T = (m*prior + k*lg)/(m+k)` with the constant `m + k`. If that
+    identity ever breaks, `USE_MEASURED_PRIOR_PA` silently becomes a third
+    construction that nobody measured.
+    """
+    lg, prior_rate, own = 0.2165, 0.3007, 0.3059
+    for stat in ("k_pct", "bb_pct"):
+        k = rates.stabilise_k(stat, "pit")
+        m = rates.PRIOR_EFFECTIVE_PA[stat]
+        for n in (0, 40, 85, 300, 900):
+            pooled = ((n * own + m * prior_rate + k * lg) / (n + m + k))
+            target = (m * prior_rate + k * lg) / (m + k)
+            staged = rates._shrink(own, target, n, stat, who="pit",
+                                   k_override=m + k)
+            # n == 0 is the one case `_shrink` short-circuits: no current
+            # evidence returns the target, which IS the pooled answer.
+            assert abs(pooled - staged) < 1e-12, (stat, n, pooled, staged)
+
+
+def check_a_prior_is_never_worth_more_than_its_own_sample():
+    """THE SCREEN THAT KEPT TWO STATS OUT, and it is not a style rule.
+
+    `m` is the prior's effective batters faced. Its rate carries its own
+    binomial noise PLUS a year of talent drift, so `m` can only ever be
+    BELOW the sample it was computed from. babip's sweep asked for 800
+    against a raw prior of 291 — that is a failed measurement, not a strong
+    one, and it is excluded for that reason rather than for being large.
+    """
+    #: Median raw prior sample, from `scratchpad/priorsample.py`.
+    raw = {"k_pct": 403, "bb_pct": 444, "hr_pct": 495, "babip": 291}
+    for stat, m in rates.PRIOR_EFFECTIVE_PA.items():
+        assert m < raw[stat], (stat, m, raw[stat])
+    assert "babip" not in rates.PRIOR_EFFECTIVE_PA, \
+        "babip wanted 800 against a raw 291 — unresolved, not counted"
+    assert "hr_pct" not in rates.PRIOR_EFFECTIVE_PA, \
+        "hr_pct's argmin moves 400/400/800 by season — unresolved"
+
+
+def check_pool_k_is_inert_unless_the_flag_is_on():
+    """Every default path must be bit-for-bit what it was.
+
+    `pool_k` returning a number instead of None when the flag is off would
+    change every pitcher rate in the project without any flag being set.
+    """
+    prior = {"A": {"k_pct": 0.30, "pa": 600.0}}
+    orig = rates.USE_MEASURED_PRIOR_PA
+    try:
+        rates.USE_MEASURED_PRIOR_PA = False
+        assert rates.pool_k("A", "k_pct", prior) is None
+        assert rates.prior_effective_pa("A", "k_pct", prior) is None
+        rates.USE_MEASURED_PRIOR_PA = True
+        # On, but only for the counted stats and only for a pitcher who
+        # HAS a prior. A rookie must fall through untouched.
+        k = rates.stabilise_k("k_pct", "pit")
+        assert rates.pool_k("A", "k_pct", prior) == k + 250
+        assert rates.pool_k("A", "babip", prior) is None
+        assert rates.pool_k("Nobody", "k_pct", prior) is None
+    finally:
+        rates.USE_MEASURED_PRIOR_PA = orig
+
+
+def check_the_uncounted_stats_keep_the_shipped_double_shrink():
+    """The flag must not turn `USE_RAW_PRIOR` on for hr and babip.
+
+    `USE_MEASURED_PRIOR_PA` needs the prior RAW, and the arm that leaves a
+    raw prior in place was scored and LOST at z +2.6. `_reshrink_uncounted`
+    puts the first shrink back on exactly the stats with no counted `m`;
+    if it stops doing so, those two silently become the losing arm.
+    """
+    import inspect
+    src = inspect.getsource(rates._load_seasons)
+    assert "_reshrink_uncounted" in src, \
+        "the raw prior must be re-shrunk for the uncounted stats"
+    body = inspect.getsource(rates._reshrink_uncounted)
+    assert "if stat in PRIOR_EFFECTIVE_PA:" in body and "continue" in body, \
+        "the skip must key on PRIOR_EFFECTIVE_PA, not a hard-coded list"
+    # And it must use BALLS IN PLAY for babip, not batters faced.
+    assert "balls_in_play(" in body and 'stat == "babip"' in body, body

@@ -177,21 +177,35 @@ def balls_in_play(bf: float, k, bb, hr) -> float:
     return raw / BIP_PER_OUT_UNIT if USE_COUNTED_BIP else raw
 
 
+def stabilise_k(stat: str, who: str = "bat") -> float:
+    """The shrinkage constant `_shrink` would use. One place, not three."""
+    if USE_MEASURED_STABILISE:
+        return (STABILISE_MEASURED.get(who, {}).get(stat)
+                or STABILISE.get(stat, 200))
+    return STABILISE.get(stat, 200)
+
+
 def _shrink(observed: float | None, lg: float, n: float, stat: str,
-            who: str = "bat") -> float:
+            who: str = "bat", k_override: float | None = None) -> float:
     """Weighted average of the player's rate and the league's.
 
     `who` selects the population — "bat" or "pit". It has a default because
     the batter path is the larger caller, but passing the wrong one is a
     silent six-fold error on home runs, so every call site names it.
+
+    `k_override` exists for ONE caller and it is exact algebra, not a knob.
+    Pooling three sources at once,
+
+        (n*own + m*prior + k*lg) / (n + m + k)
+
+    is identical to shrinking `own` toward the two-source target
+    `T = (m*prior + k*lg)/(m+k)` with the constant `m + k` in place of `k`.
+    So `shrink_target` builds T and the call site passes `m + k` here. See
+    `PRIOR_EFFECTIVE_PA`. Nothing else may pass it.
     """
     if observed is None or n <= 0:
         return lg
-    if USE_MEASURED_STABILISE:
-        k = STABILISE_MEASURED.get(who, {}).get(stat) \
-            or STABILISE.get(stat, 200)
-    else:
-        k = STABILISE.get(stat, 200)
+    k = stabilise_k(stat, who) if k_override is None else k_override
     w = n / (n + k)
     return w * observed + (1 - w) * lg
 
@@ -563,7 +577,30 @@ def shrink_target(name: str, team: str | None, stat: str, lg: dict,
     p = prior.get(name)
     if not p:
         return base
-    return _shrink(p[stat], base, p.get("pa", 0), stat, who="pit")
+    m = prior_effective_pa(name, stat, prior)
+    n = p.get("pa", 0) if m is None else m
+    return _shrink(p[stat], base, n, stat, who="pit")
+
+
+def prior_effective_pa(name: str, stat: str, prior: dict) -> float | None:
+    """The COUNTED effective sample of this pitcher's prior, or None.
+
+    None means "not counted for this stat" and the shipped construction is
+    left alone — it is not a zero and it is not a guess.
+    """
+    if not USE_MEASURED_PRIOR_PA or name not in prior:
+        return None
+    return PRIOR_EFFECTIVE_PA.get(stat)
+
+
+def pool_k(name: str, stat: str, prior: dict) -> float | None:
+    """`m + k` for the second shrink, or None to leave `_shrink` alone.
+
+    See `_shrink`'s `k_override`: this is the denominator that makes the
+    two-stage shrink equal to pooling own, prior and league at once.
+    """
+    m = prior_effective_pa(name, stat, prior)
+    return None if m is None else stabilise_k(stat, "pit") + m
 
 
 def set_prior(season: int | None, lg_now: dict | None = None,
@@ -623,10 +660,47 @@ def _load_seasons(season: int, back: int, lg_now: dict) -> list:
         # RAW when `USE_RAW_PRIOR`: these rates become the shrink TARGET
         # and `shrink_target` shrinks them once against their own effective
         # sample. Shrinking them here too is the double count.
-        raw = pitcher_rates(lg_prior, yr, shrink=not USE_RAW_PRIOR)
+        raw = pitcher_rates(lg_prior, yr,
+                            shrink=not (USE_RAW_PRIOR
+                                        or USE_MEASURED_PRIOR_PA))
+        if raw and USE_MEASURED_PRIOR_PA and not USE_RAW_PRIOR:
+            _reshrink_uncounted(raw, lg_prior)
         if raw:
             parts.append((k + 1, _prior_adjusted(raw, lg_prior, lg_now)))
     return parts
+
+
+def _reshrink_uncounted(raw: dict, lg_prior: dict) -> None:
+    """Put the shipped first shrink back on the stats with no counted `m`.
+
+    `USE_MEASURED_PRIOR_PA` needs the prior RAW, because the counted `m`
+    replaces both shrink stages at once. But it is counted for `k_pct` and
+    `bb_pct` only, and handing the other two a raw prior would silently
+    turn `USE_RAW_PRIOR` on for them — the arm that was scored and LOST.
+    So those two are shrunk here exactly as `pitcher_rates(shrink=True)`
+    would have, in place.
+
+    THE TARGET IS THE LEAGUE AND THAT IS NOT AN APPROXIMATION: `_LOADING`
+    blocks the lazy prior path while a prior is being built, so
+    `shrink_target` sees an empty prior and returns `lg[stat]`. Stage one
+    is a plain league shrink at that season's own sample.
+
+    Balls in play are RECONSTRUCTED rather than re-queried. With
+    `shrink=False` the rates are the observed ones, so `k = k_pct * pa`
+    exactly, and `balls_in_play` is the same function `pitcher_rates` used
+    to build the denominator it shrank babip against.
+    """
+    for r in raw.values():
+        pa = r.get("pa") or 0
+        if pa <= 0:
+            continue
+        bip = balls_in_play(pa, r["k_pct"] * pa, r["bb_pct"] * pa,
+                            r["hr_pct"] * pa)
+        for stat in ("k_pct", "bb_pct", "hr_pct", "babip"):
+            if stat in PRIOR_EFFECTIVE_PA:
+                continue
+            n = bip if stat == "babip" else pa
+            r[stat] = _shrink(r[stat], lg_prior[stat], n, stat, who="pit")
 
 
 def _blend_priors(parts: list[tuple[int, dict]]) -> dict:
@@ -754,6 +828,50 @@ def _prior_adjusted(prior: dict, lg_prior: dict, lg_now: dict) -> dict:
 USE_RAW_PRIOR = False
 
 
+#: WHAT A PRIOR SEASON'S SAMPLE IS ACTUALLY WORTH, in batters faced.
+#: COUNTED by `scratchpad/priorsample.py` on 2026-08-29, and it is the
+#: measurement `USE_RAW_PRIOR`'s docstring above says has never been made.
+#:
+#: The form is ONE shrink pooling three sources:
+#:
+#:     rate = (n_own*own + m*prior + k_lg*league) / (n_own + m + k_lg)
+#:
+#: scored on OUT-OF-SAMPLE PREDICTION OF THE REST OF A PITCHER'S OWN SEASON
+#: — a fact about pitchers, not about anything that settles. Positive
+#: control recovers a planted `m` exactly at 50/100/200/400/800.
+#:
+#:     stat      raw prior pa   counted m   shipped m_eff   by season
+#:     k_pct          403           250          173        250 250 250
+#:     bb_pct         444           250          192        250 250 300
+#:     hr_pct         495           400          127        400 400 800
+#:     babip          291           800           41       1000 800 600
+#:
+#: `shipped m_eff` is what the DOUBLE shrink amounts to: applying the same
+#: constant twice leaves the prior at weight w^2, which is the pooled form
+#: at `k*w^2/(1-w^2)`. So the shipped path UNDER-weights the prior and
+#: `USE_RAW_PRIOR` (which would use the raw `pa`) OVER-weights it. The
+#: counted value sits between the two, which is exactly why removing one
+#: error while leaving the other scored worse than doing nothing.
+#:
+#: ONLY TWO STATS ARE COUNTED AND THE OTHER TWO ARE DELIBERATELY ABSENT.
+#: A prior cannot be worth MORE batters faced than it contains, so `m` over
+#: the raw sample is a failed measurement rather than a large one: babip
+#: asks for 800 against a raw 291 and its argmin walks 1000/800/600 by
+#: season, because k_lg is 3068 and the loss curve is nearly flat. Home
+#: runs pass the sample test but the argmin moves 400/400/800 and the whole
+#: gain is 1%. Both are UNRESOLVED, keep the shipped construction, and are
+#: not zeros.
+#:
+#: k_pct and bb_pct are interior minima, identical in every target season,
+#: and stable across four current-sample cuts. Those ship.
+PRIOR_EFFECTIVE_PA = {"k_pct": 250, "bb_pct": 250}
+
+#: OFF until scored on F5 CRPS. The measurement above is a fact about
+#: predicting rates; whether it reaches what settles is a separate question
+#: and `scratchpad/priorsample_ab.py` is where it gets asked.
+USE_MEASURED_PRIOR_PA = False
+
+
 def pitcher_rates(
     lg: dict, season: int | None = None, before: str | None = None,
     conn=None, prior: dict | None = None, shrink: bool = True,
@@ -790,14 +908,19 @@ def pitcher_rates(
         return shrink_target(row["name"], _team_of.get(row["name"]), stat,
                              lg, prior, dfn)
 
-    def _s(observed, target, n, stat):
+    def _s(observed, target, n, stat, name=None):
         """`_shrink`, or the raw rate when this call is building a PRIOR.
 
         A prior season is shrunk ONCE, by `shrink_target`, against its own
         effective sample. Shrinking it here as well is the double count.
+
+        `pool_k` is None unless `USE_MEASURED_PRIOR_PA` is on AND this
+        pitcher has a prior for this stat, so the default path is bit-for-
+        bit what it was.
         """
         if shrink:
-            return _shrink(observed, target, n, stat, who="pit")
+            return _shrink(observed, target, n, stat, who="pit",
+                           k_override=pool_k(name, stat, prior))
         return target if (observed is None or n <= 0) else observed
 
     out = {}
@@ -810,16 +933,19 @@ def pitcher_rates(
             "name": r["name"],
             "pa": bf,
             "apps": r["apps"],
-            "k_pct": _s((r["k"] or 0) / bf, _t(r, "k_pct"), bf, "k_pct"),
-            "bb_pct": _s((r["bb"] or 0) / bf, _t(r, "bb_pct"), bf, "bb_pct"),
-            "hr_pct": _s((r["hr"] or 0) / bf, _t(r, "hr_pct"), bf, "hr_pct"),
+            "k_pct": _s((r["k"] or 0) / bf, _t(r, "k_pct"), bf, "k_pct",
+                        r["name"]),
+            "bb_pct": _s((r["bb"] or 0) / bf, _t(r, "bb_pct"), bf, "bb_pct",
+                         r["name"]),
+            "hr_pct": _s((r["hr"] or 0) / bf, _t(r, "hr_pct"), bf, "hr_pct",
+                         r["name"]),
             # NEUTRALISED: what he would have allowed behind an average
             # defence. `game.build_side` puts tonight's defence back on.
             "babip": _s(
                 ((((r["h"] or 0) - (r["hr"] or 0)) / bip)
                  + defence_delta(_team_of.get(r["name"]), season))
                 if bip > 0 else None,
-                _t(r, "babip"), max(bip, 0), "babip"),
+                _t(r, "babip"), max(bip, 0), "babip", r["name"]),
             "raw_k_pct": (r["k"] or 0) / bf,
         }
     return out
@@ -1312,16 +1438,25 @@ def bullpens(lg: dict, season: int | None = None, before: str | None = None,
             "name": r["name"],
             "pa": bf,
             "apps": r["apps"],
+            # `pool_k` reaches relievers too, for the reason `_t` does: a
+            # reliever's median line is 106 batters faced against a
+            # starter's 480, so the target carries 38% of his rate and 11%
+            # of a starter's. A prior correction that stopped at the
+            # rotation would miss the population it matters most in.
             "k_pct": _shrink((r["k"] or 0) / bf, _t("k_pct"), bf,
-                             "k_pct", who="pit"),
+                             "k_pct", who="pit",
+                             k_override=pool_k(r["name"], "k_pct", prior)),
             "bb_pct": _shrink((r["bb"] or 0) / bf, _t("bb_pct"), bf,
-                              "bb_pct", who="pit"),
+                              "bb_pct", who="pit",
+                              k_override=pool_k(r["name"], "bb_pct", prior)),
             "hr_pct": _shrink((r["hr"] or 0) / bf, _t("hr_pct"), bf,
-                              "hr_pct", who="pit"),
+                              "hr_pct", who="pit",
+                              k_override=pool_k(r["name"], "hr_pct", prior)),
             "babip": _shrink(((((r["h"] or 0) - (r["hr"] or 0)) / bip)
                               + defence_delta(r["team"], season))
                              if bip > 0 else None,
-                             _t("babip"), bip, "babip", who="pit"),
+                             _t("babip"), bip, "babip", who="pit",
+                             k_override=pool_k(r["name"], "babip", prior)),
         })
     for arms in out.values():
         arms.sort(key=lambda a: -a["apps"])
