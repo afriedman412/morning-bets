@@ -1,0 +1,320 @@
+RotoWire — Bullpen Pitch Counts (through Fri, 2026-08-28)
+Columns: Mon  Tues  Wed  Thu  Fri | Last 3  Last 5
+
+ANGELS
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Sammy Peralta          22     0   15    0   15 | 30   52
+Ryan Watson             0    20   11    0   17 | 28   48
+Ben Joyce               0    17    0    0   26 | 26   43
+Luke Murphy            12     0   18    0    0 | 18   30
+Jose Fermin             0    29    0    0   15 | 15   44
+Tayler Saucedo          0    32    0    0    6 |  6   38
+
+ASTROS
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+AJ Blubaugh             0     0    0   32    0 | 32   32
+Bennett Sousa           0     8   28    0    0 | 28   36
+Enyel De Los Santos     0     0   28    0    0 | 28   28
+Josh Hader              0    10    0    8   18 | 26   36
+Bryan Abreu             0    15    0    0   17 | 17   32
+Steven Okert            0    18    0   12    0 | 12   30
+Kai-Wei Teng            0     0    5    0    0 |  5    5
+
+ATHLETICS
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Brady Basso             0     0   15    0   16 | 31   31
+Elvis Alvarado          0     7   26    0    0 | 26   33
+Scott Blewett           0     0    0    0   26 | 26   26
+Luis Medina             0    11    0    0   18 | 18   29
+Hogan Harris            0    15    0    0   13 | 13   28
+Kade Morris            41     0    0    0    0 |  0   41
+
+BLUE JAYS
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Michael Lorenzen        0     0    0   42    0 | 42   42
+Spencer Miles           0     0   33    0    0 | 33   33
+Paul Sewald             0    22   12    0   21 | 33   55
+Braydon Fisher          0    12    0   23    0 | 23   35
+Mason Fluharty          0     9   10    0   12 | 22   31
+Tyler Rogers            0    18   18    0    0 | 18   36
+Brendon Little          0    21   16    0    0 | 16   37
+Louis Varland           0     0   15    0    0 | 15   15
+CJ Van Eyk              0     0    0    0   13 | 13   13
+
+BRAVES
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Victor Mederos          0    18   20    0   18 | 38   56
+Didier Fuentes          0     0   36    0    0 | 36   36
+Dylan Dodd              0     2    9    0   11 | 20   22
+Ray Kerr                0     0    0    0   17 | 17   17
+Raisel Iglesias         0    16    0    0   16 | 16   32
+
+BREWERS
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Antonio Senzatela       0    20    0   27    0 | 27   47
+DL Hall                 0     0    0   12   13 | 25   25
+Aaron Ashby             0    11    0    0   24 | 24   35
+Bryse Wilson            0     0   22    0    0 | 22   22
+Grant Anderson          0     0   19    0    0 | 19   19
+Chad Patrick            0    18    0    9    0 |  9   27
+Trevor Megill           0    19    0    0    0 |  0   19
+
+CARDINALS
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Justin Bruihl           0     0    0   41    0 | 41   41
+Gordon Graceffo         0     0    0   38    0 | 38   38
+Luis Gastelum           0     0   13   18    0 | 31   31
+George Soriano          0     0   10   20    0 | 30   30
+Riley O'Brien           0     0   17   11    0 | 28   28
+Ryan Fernandez          0    22    0    0   26 | 26   48
+Ryne Stanek             0     0   14    0   12 | 26   26
+Caleb Ferguson          0    27    0   18    2 | 20   47
+Peter Strzelecki [IL-15] 0   31    0    0    0 |  0   31
+
+CUBS
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Aaron Civale            0     0    0    0   47 | 47   47
+Trent Thornton          0     0   15    0   29 | 44   44
+Daniel Palencia         0    22    0    0   15 | 15   37
+Ryan Zeferjahn         10     0    7    0    0 |  7   17
+Caleb Thielbar         22     0    0    0    0 |  0   22
+Jacob Webb              0    20    0    0    0 |  0   20
+
+DIAMONDBACKS
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Brandyn Garcia          0     0   17    0   24 | 41   41
+Juan Morillo            0     0    8    0   21 | 29   29
+Gerardo Carrillo        0     0    0    0   26 | 26   26
+Kevin Ginkel            0     0    0   25    0 | 25   25
+Dennis Santana          0    19    0    0   24 | 24   43
+Jonathan Loaisiga       0     0    0    9   10 | 19   19
+Taylor Clarke           8     0    0   18    0 | 18   26
+Justin Martinez         0    17    0    0    0 |  0   17
+
+DODGERS
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Tanner Scott            0    10   17    0   13 | 30   40
+Edgardo Henriquez       0     0   15   13    0 | 28   28
+Brock Stewart           0     0   14    0   12 | 26   26
+Evan Phillips           0     6   14    0   10 | 24   30
+Jack Dreyer             0    27    0    4    0 |  4   31
+Alex Vesia              0    12    0    0    1 |  1   13
+
+GIANTS
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Spencer Bivens          0     0   32    0   50 | 82   82
+Ryan Walker            26     0   17   19    0 | 36   62
+Trent Harris            0    16    0   23    0 | 23   39
+Reiver Sanmartin       10     0    6    0   15 | 21   31
+Carson Seymour         12    18    0   19    0 | 19   49
+Braxton Roxby           0     0    0    0   17 | 17   17
+Jason Foley            18     0   16    0    0 | 16   34
+Dylan Smith            25     0   16    0    0 | 16   41
+Sam Hentges             0    10    0    0    0 |  0   10
+Anthony Molina          0    52    0    0    0 |  0   52
+
+GUARDIANS
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Tim Herrin              0     0   21    0    9 | 30   30
+Craig Yoho              0    20    0    0   25 | 25   45
+Erik Sabrowski          0    13   23    0    0 | 23   36
+Hunter Gaddis          12     0   12    0    0 | 12   24
+Colin Holderman        21    10    0    0    0 |  0   31
+Cade Smith             20    15    0    0    0 |  0   35
+Matt Festa              0    25    0    0    0 |  0   25
+Logan Allen             0    50    0    0    0 |  0   50
+
+MARINERS
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Michael Rucker          0     0    0    0   45 | 45   45
+Carlos Vargas           8     0   35    0    0 | 35   43
+Seranthony Dominguez   30     0    0    0   24 | 24   54
+Jose Ferrer             0     2   19    0    0 | 19   21
+Eduard Bazardo          0     0   18    0    0 | 18   18
+Gabe Speier            12     0    6    0    0 |  6   18
+Andres Munoz            0    25    0    0    0 |  0   25
+
+MARLINS
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Patrick Monteverde      0     0    0    0   65 | 65   65
+Victor Vodnik           0     4   13    0    0 | 13   17
+Tyler Zuber            12    13    0    0   12 | 12   37
+Dax Fulton              0     0   10    0    0 | 10   10
+Pete Fairbanks [IL-15]  5     0    0    0    0 |  0    5
+Josh Ekness            16    14    0    0    0 |  0   30
+Michael Petersen        0    22    0    0    0 |  0   22
+Calvin Faucher          0    11    0    0    0 |  0   11
+Jack Ralston            0    10    0    0    0 |  0   10
+
+METS
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Jefry Yan               0    13   26    0    0 | 26   39
+Austin Warren           0    15    0   26    0 | 26   41
+Jonathan Pintaro        0    19    0    0   21 | 21   40
+Dedniel Nunez           0     0    8    0   10 | 18   18
+Nate Lavender           0    20    0    0   11 | 11   31
+Kodai Senga             0     0    0    0    9 |  9    9
+
+NATIONALS
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Will Dion               0     0   56    0    0 | 56   56
+Orlando Ribalta         0     0   30   24    0 | 54   54
+Luis Perales            0     0   53    0    0 | 53   53
+Matt Waldron            0     0   28    0    0 | 28   28
+Max Kranick             0    24    0    0   24 | 24   48
+Clayton Beeter         29     0    5   16    0 | 21   50
+Erik Tolman            12     0    0   20    0 | 20   32
+Tom Cosgrove            0     0    0   19    0 | 19   19
+Brad Lord               0    44    0    0    0 |  0   44
+
+ORIOLES
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Andrew Kittredge        0     0   25    0   14 | 39   39
+Rico Garcia             0     0   26    0   11 | 37   37
+Cam Sanders             0     0    0   37    0 | 37   37
+Grant Wolfram           0     0   26    0    0 | 26   26
+Alex Hoppe              0     0   12    0   14 | 26   26
+Anthony Nunez           0    27    0   21    0 | 21   48
+Josh Walker             0     0   11    0    0 | 11   11
+Yennier Cano            0     5    0    0    3 |  3    8
+
+PADRES
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Griffin Canning         0     0   17    0   27 | 44   44
+Kyle Hart              16     0   27    0    0 | 27   43
+Bradgley Rodriguez     18     0   26    0    0 | 26   44
+David Morgan            0     0    0    0   21 | 21   21
+Wandy Peralta           0     0    0    0   16 | 16   16
+Yuki Matsui            21     0   14    0    0 | 14   35
+Adrian Morejon         20     6    0    0    0 |  0   26
+Jeremiah Estrada [IL-15] 16   0    0    0    0 |  0   16
+Mason Miller           30    14    0    0    0 |  0   44
+
+PHILLIES
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Jonathan Bowlan         0    20    0    0   25 | 25   45
+Alex McFarlane         10     0    0    0   21 | 21   31
+Jose Alvarado          11     0    0    0   19 | 19   30
+Jhoan Duran             0     0   18    0    0 | 18   18
+Tim Mayza               0     0   15    0    0 | 15   15
+Chase Shugart          32     0    0    0    0 |  0   32
+Brooks Raley            0     8    0    0    0 |  0    8
+Orion Kerkering         0    20    0    0    0 |  0   20
+
+PIRATES
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Kirby Yates            19     0   35    0    0 | 35   54
+Lake Bachar             0     0   16    0    0 | 16   16
+Yohan Ramirez          17     0    0    0   15 | 15   32
+Evan Sisk               0     0    0    0   14 | 14   14
+Gregory Soto           14    11    0    0    6 |  6   31
+Luke Weaver            34     0    0    0    0 |  0   34
+Camilo Doval            6    17    0    0    0 |  0   23
+Mason Montgomery       12    24    0    0    0 |  0   36
+
+RANGERS
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Chase Silseth           0     0   20    0   22 | 42   42
+Adam Macko              0     0    0    0   25 | 25   25
+Peyton Gray             0    18   22    0    0 | 22   40
+Jakob Junis             0     0   15    0    0 | 15   15
+Tyler Alexander         0    20    0    0    7 |  7   27
+Jordan Montgomery      23    14    0    0    0 |  0   37
+Cole Winn               0    45    0    0    0 |  0   45
+
+RAYS
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Kevin Kelly             0     0   23    0    5 | 28   28
+Steven Matz             0     0    0    0   22 | 22   22
+Manuel Rodriguez       23     0    0    0   19 | 19   42
+Tyler Wells             0     0   15    0    0 | 15   15
+Bryan Baker            16     0    0    0    0 |  0   16
+Garrett Cleavinger     14     0    0    0    0 |  0   14
+Casey Legumina          0    27    0    0    0 |  0   27
+
+RED SOX
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Jovani Moran            0     0   33    0    0 | 33   33
+Tyron Guerrero          0    26    0    0    6 |  6   32
+Greg Weissert           0    12    0    0    5 |  5   17
+Aroldis Chapman        18     0    0    0    0 |  0   18
+Brayan Bello           42     0    0    0    0 |  0   42
+Erik Miller            16    13    0    0    0 |  0   29
+Alec Gamboa             0    20    0    0    0 |  0   20
+
+REDS
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Luis Mey                0     0    0    0   29 | 29   29
+Julian Garcia          23     0   26    0    0 | 26   49
+Brock Burke             0     0   14    0   10 | 24   24
+Emilio Pagan           11     0   16    0    7 | 23   34
+Tony Santillan          0     0   21    0    0 | 21   21
+Sam Moll               13    19    0    0   18 | 18   50
+
+ROCKIES
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Juan Mejia             20     0    0   21   11 | 32   52
+Zach Agnos              0     0   26    0    0 | 26   26
+Mark Manfredi           0    18    0    0   24 | 24   42
+Jimmy Herget            0     7    0   19    0 | 19   26
+Nick Frasso             0     0    0   18    0 | 18   18
+Brennan Bernardino      0    13    0    0   14 | 14   27
+Jordan Romano           0    13    0    0    0 |  0   13
+Jaden Hill              0     5    0    0    0 |  0    5
+
+ROYALS
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Steven Cruz             0    12    0    0   22 | 22   34
+Alex Lange              0     0    0   15    0 | 15   15
+Anthony Gose            0     0    0   12    0 | 12   12
+Jose Cuas               0     0    0    9    0 |  9    9
+John Schreiber          0    13    0    0    0 |  0   13
+Nate Pearson            0    25    0    0    0 |  0   25
+Connor Thomas           0    10    0    0    0 |  0   10
+
+TIGERS
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Tyler Kinley            0     0   10    0   23 | 33   33
+Drew Sommers            0    22    0    0   27 | 27   49
+Jacob Waguespack        0    18    0    0   20 | 20   38
+Tyler Holton           15     8    0    0   19 | 19   42
+Kyle Finnegan           0     0   12    0    0 | 12   12
+Tanner Rainey          31     0    0    0    0 |  0   31
+Kenley Jansen           0    16    0    0    0 |  0   16
+
+TWINS
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Taylor Rogers           0     0    0    0   38 | 38   38
+Kody Funderburk         0     0   18    0   18 | 36   36
+Travis Adams            0     0    0    0   26 | 26   26
+Andrew Morris           1     0   16    0    0 | 16   17
+Jeff Hoffman            0     0    6    0    0 |  6    6
+Tommy Nance            16     0    0    0    0 |  0   16
+Yoendrys Gomez         20     0    0    0    0 |  0   20
+A.J. Minter             0    23    0    0    0 |  0   23
+
+WHITE SOX
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Sean Newcomb            0     0   39    0    0 | 39   39
+Hagen Smith             0    43    0    0   33 | 33   76
+Grant Taylor            0     2    0    0   27 | 27   29
+Bryan Hudson            0    14    0    0   16 | 16   30
+Huascar Brazoban [IL-15] 21   0    0    0    0 |  0   21
+Trevor Richards        61     0    0    0    0 |  0   61
+Tyler Schweitzer [OUT] 36     0    0    0    0 |  0   36
+Jordan Hicks            0    24    0    0    0 |  0   24
+
+YANKEES
+Player                Mon  Tues  Wed  Thu  Fri | L3   L5
+Paul Blackburn          0     0   22    0   19 | 41   41
+Justin Topa             0     0    0   34    0 | 34   34
+Brent Headrick          0    27    0    0   21 | 21   48
+Yerry De Los Santos     0    17    0   14    0 | 14   31
+Michael Fulmer          0     0   13    0    0 | 13   13
+David Bednar            0     0    0    0   12 | 12   12
+Tim Hill                0     0    9    0    0 |  9    9
+Fernando Cruz [IL-15]   0    20    0    0    0 |  0   20
+
+---
+Source: RotoWire bullpen pitch-count report (bullpen_828.pdf).
+Injury tags carried through as printed: IL-15, OUT.

@@ -123,8 +123,13 @@ def usage():
 
 def club_games():
     """{team: [(date, game_id, side)]} sorted, plus a game->date map."""
+    # ALL SCHEDULED GAMES, not just Final ones. A club's row for TODAY is
+    # computed from its PREVIOUS games, so today's game needs a slot in the
+    # ordering even though it has not been played. Restricting to Final —
+    # which the first version did — left every live slate with no row at
+    # all, so the mechanism was inert exactly where it would be bet.
     q = ("select game_id, date, away_team, home_team from games "
-         "where sport='mlb' and status='Final' order by date")
+         "where sport='mlb' order by date")
     by: dict = defaultdict(list)
     dates: dict = {}
     with db.connect() as c:
@@ -181,6 +186,17 @@ def build():
             yr = d[:4]
             own = (use.get((g, s)) or {}).get("pitches", 0)
             strength = ((season_p[yr] - own) / max(season_n[yr] - 1, 1))
+            # THE MISSING-GROUP RULE, and it has teeth here. `pen_back2`
+            # needs the club's last TWO games to be cached. If either is
+            # missing the count comes out 0 — "nobody is unavailable",
+            # which reads as a FULLY RESTED pen. That is a WRONG value, not
+            # a neutral one, and this project's rule is that an unknown
+            # resolves to league-neutral rather than to a guess that moves
+            # the estimate the wrong way. So the row is not emitted at all
+            # and `sim.pen_state` falls through to the baseline.
+            if len(prev) < 2 or not all(
+                    (pg, ps) in use for _pd, pg, ps in prev[-2:]):
+                continue
             feats[(g, s)] = {
                 "pen_pitches_1": (u1 or {}).get("pitches", 0),
                 "pen_arms_1": (u1 or {}).get("arms", 0),
