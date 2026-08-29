@@ -13,6 +13,8 @@ from src.context import estimate, snapshot
 from src.context.movement import _is_pregame
 from src.grading import _is_bettable_line, bounds_for
 from src import kalshi
+from src.context import price
+from src.context.sources import rates
 
 
 # ── parallel ───────────────────────────────────────────────────────────
@@ -194,3 +196,73 @@ def check_ticker_date_parses_and_rejects_junk():
 def check_threshold_for_line():
     assert kalshi.threshold_for(15.5) == 16
     assert kalshi.threshold_for(0.5) == 1
+
+
+# ── the shrinkage weight on a priced row ───────────────────────────────
+#
+# THE DEFECT THESE GUARD. On 2026-08-29 Blake Snell was priced off 85
+# batters faced, which is 39% his own record and 61% shrink target, and he
+# passed every existing filter — 4 starts, over MIN_BF, not an opener, not
+# a swingman. The 19-point "edge" the board showed was our own shrinkage
+# and nothing printed said so.
+def check_shrink_weight_matches_the_constant_rates_actually_uses():
+    """A COPY of 132 here is the failure mode, not the arithmetic.
+
+    `STABILISE_MEASURED["pit"]["k_pct"]` moved 57 -> 132 on 2026-08-28. Any
+    second home for that number goes stale silently and the column would
+    then describe a shrink nobody applies.
+    """
+    k = rates.STABILISE_MEASURED["pit"]["k_pct"]
+    assert rates.USE_MEASURED_STABILISE, "this check reads the measured path"
+    for pa in (85, 311, 428, 600):
+        assert abs(price.shrink_weight(pa) - pa / (pa + k)) < 1e-12, pa
+    # Snell's actual line, and the number that should have been on screen.
+    snell = price.shrink_weight(85)
+    assert abs(snell - 0.3917) < 5e-4, snell
+
+
+def check_shrink_weight_is_zero_for_a_pitcher_with_no_record():
+    """None and 0 must not divide, and must not read as 'all his own'."""
+    assert price.shrink_weight(None) == 0.0
+    assert price.shrink_weight(0) == 0.0
+
+
+def check_the_thin_bar_is_above_what_min_bf_admits():
+    """The gate and the flag have to disagree or the flag is decorative.
+
+    `MIN_BF` is 80 batters faced, which is a weight of 0.38 — so the
+    existing filter admits arms that are mostly shrink target by
+    construction. If THIN_WEIGHT ever drops below that, every row the gate
+    lets through is unmarked and this column stops carrying information.
+    """
+    at_the_gate = price.shrink_weight(price.MIN_BF)
+    assert at_the_gate < price.THIN_WEIGHT, (at_the_gate, price.THIN_WEIGHT)
+    # And it must not be so high that a full season is flagged: a starter
+    # with 600 batters faced is 82% his own and is not a thin-sample arm.
+    assert price.shrink_weight(600) > price.THIN_WEIGHT
+
+
+def check_a_thin_arm_is_marked_in_the_report():
+    """The mark must reach the PRINTED row. A weight computed and not
+    displayed is the same as no weight — that is exactly the state this
+    replaced, where `pitcher_pa` was already on every row and never shown.
+    """
+    import io
+    import contextlib
+    rows = [{"stat": "k", "player": "Thin Arm", "line": 4.5, "ours": 0.30,
+             "market": 0.49, "gap": -0.19, "se": 0.005, "z": -38.0,
+             "opp": "MIL", "home": False, "confirmed_lineup": False,
+             "pitcher_pa": 85, "shrink_w": price.shrink_weight(85)},
+            {"stat": "k", "player": "Full Season", "line": 5.5, "ours": 0.52,
+             "market": 0.50, "gap": 0.02, "se": 0.005, "z": 4.0,
+             "opp": "TEX", "home": True, "confirmed_lineup": True,
+             "pitcher_pa": 600, "shrink_w": price.shrink_weight(600)}]
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        price.report(rows)
+    out = buf.getvalue()
+    assert "0.39*" in out, out
+    assert "Thin Arm" in out and "85 BF" in out, out
+    # The healthy arm must NOT be marked, or the flag says nothing.
+    assert "0.82*" not in out, out
+    assert "Full Season" not in out.split("arm(s) marked")[1], out

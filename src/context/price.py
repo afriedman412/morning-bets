@@ -64,6 +64,46 @@ MIN_AVG_OUTS = 11.0
 #: neither role.
 MIN_START_SHARE = 0.5
 
+#: Below this share of a shipped rate being the PITCHER'S OWN record, the
+#: row is marked. `pa / (pa + k)` — the weight `rates._shrink` applies.
+#:
+#: WHY THIS IS A COLUMN AND NOT ANOTHER GATE. Blake Snell on 2026-08-29
+#: passed every filter above — 4 starts, 85 batters faced, not an opener,
+#: not a swingman — and 61% of his shipped strikeout rate was the shrink
+#: target rather than him. The model priced him near 5.7 K against a market
+#: near 6.7 and showed a 19-point edge on the under that was our own
+#: shrinkage. NOTHING ON THE BOARD SAID SO, which is the whole defect: the
+#: existing filters answer "is this a starter", and the question that
+#: mattered was "how much of this number is him".
+#:
+#: `MIN_BF` cannot cover it. At the 80-batter bar the weight is already
+#: 0.38, so the gate admits arms that are mostly shrink target by
+#: construction, and raising the bar would decline arms worth pricing. The
+#: number travels with the row instead.
+THIN_WEIGHT = 0.60
+
+
+def shrink_weight(pa: float | None, stat: str = "k_pct") -> float:
+    """Share of a pitcher's shipped rate that is his own record.
+
+    Reads the SAME constant `rates._shrink` does rather than a copy of it.
+    A second hard-coded 132 here is exactly how a shrinkage constant goes
+    stale in one place and not the other — `k_pct` was 57 for months
+    because it lived in more than one head.
+
+    STAT MATTERS AND THE DEFAULT IS THE LEAD. `k_pct` is the channel the
+    priced markets turn on; home runs shrink against k=934, so the same
+    pitcher is far more league on that channel than this column shows.
+    """
+    if not pa or pa <= 0:
+        return 0.0
+    if rate_src.USE_MEASURED_STABILISE:
+        k = (rate_src.STABILISE_MEASURED.get("pit", {}).get(stat)
+             or rate_src.STABILISE.get(stat, 200))
+    else:
+        k = rate_src.STABILISE.get(stat, 200)
+    return pa / (pa + k)
+
 
 def slate(date_str: str) -> list[dict]:
     """Today's games with probable starters, venue and both club codes."""
@@ -376,6 +416,7 @@ def price_slate(date_str: str | None = None, stats=("k", "outs"),
                 "opp": ctx["opp"], "home": ctx["is_home"],
                 "confirmed_lineup": ctx["confirmed"],
                 "pitcher_pa": p["pa"],
+                "shrink_w": shrink_weight(p["pa"]),
             })
     # RANKED BY GAP OVER SIMULATION ERROR, not by raw gap.
     #
@@ -413,17 +454,36 @@ def report(rows: list[dict], top: int = 30) -> None:
         print("  ** a large SIGNED mean means we disagree with the whole "
               "board in one direction — that is a defect, not an edge **")
     print(f"\n  {'stat':<5}{'player':<20}{'bet':<12}{'ours':>7}{'mkt':>7}"
-          f"{'gap':>8}{'+/-':>6}{'z':>7}  opp  lineup")
+          f"{'gap':>8}{'+/-':>6}{'z':>7}{'pa':>6}{'own':>7}  opp  lineup")
     for r in rows[:top]:
         flag = "conf" if r["confirmed_lineup"] else "PROJ"
+        w = r.get("shrink_w")
+        # The marker goes on the WEIGHT, not at the end of the line, so it
+        # cannot be read as belonging to the lineup column next to it.
+        own = "     -" if w is None else \
+            f"{w:>6.2f}{'*' if w < THIN_WEIGHT else ' '}"
         print(f"  {r['stat']:<5}{r['player'][:18]:<20}"
               f"{f'o{r['line']:g}':<12}{r['ours']:>7.3f}{r['market']:>7.3f}"
               f"{r['gap']:>+8.3f}{r['se']:>6.3f}"
-              f"{r.get('z', 0.0):>+7.1f}  {r['opp']:<4} {flag}")
+              f"{r.get('z', 0.0):>+7.1f}{r.get('pitcher_pa', 0):>6.0f}{own}"
+              f"  {r['opp']:<4} {flag}")
     print("\n  SORTED BY z = gap / simulation error, not by raw gap. The")
     print("  probability estimate is least reliable where the gap is")
     print("  largest, so a big tail gap and a big central gap are not the")
     print("  same evidence. `gap` is still shown; it is no longer the key.")
+    thin = sorted({r["player"] for r in rows
+                   if (r.get("shrink_w") or 1.0) < THIN_WEIGHT})
+    if thin:
+        print(f"\n  ** {len(thin)} arm(s) marked `*`: under {THIN_WEIGHT:.0%}"
+              f" of the strikeout rate priced here is the pitcher's own")
+        print("     record — the rest is the shrink target. A gap on one of")
+        print("     these can be OUR SHRINKAGE rather than his talent, and")
+        print("     it is largest on the thinnest arm. `pa` is his batters")
+        print("     faced this season; `own` is pa / (pa + 132).")
+        for nm in thin:
+            r = next(x for x in rows if x["player"] == nm)
+            print(f"       {nm[:24]:<26}{r['pitcher_pa']:>5.0f} BF"
+                  f"   own {r['shrink_w']:.2f}")
 
 
 if __name__ == "__main__":
