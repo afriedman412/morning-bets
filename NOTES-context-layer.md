@@ -6970,3 +6970,8 @@ use THAT sigma. Note this is a different quantity from the closed
 per-pitcher dispersion question (split-half 0.072 over 107 arms): that asked
 WHICH pitchers are more variable, this asks how variable the league is. A
 null on the former says nothing about the latter.
+
+**FINGERPRINT LEDGER FOR DAY SEVENTEEN.** c7f3e41d at the start ->
+30cbdcad after the blowout term -> **8af9d134** after the dominance term,
+which is the shipped state. 414 -> 417 checks. Nothing in part three
+changed a shipped constant, so the fingerprint is unchanged by it.
