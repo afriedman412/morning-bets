@@ -249,7 +249,7 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
             pitcher, faces, abbr, hook = specs[side]
             sides[side] = game.build_side(
                 pitcher, pens.get((abbr or "").upper(), []), faces, hook,
-                rng, team=abbr, apply_leash=False)
+                rng, team=abbr, apply_leash=False, date=d)
         # TRACK THE FIFTH BY DEFAULT. `prefix_side` is only populated for
         # innings named here, and this passed nothing — so every caller got
         # an empty dict and `scratchpad/tonight.py` printed the first-five

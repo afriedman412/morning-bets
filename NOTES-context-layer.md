@@ -7284,3 +7284,33 @@ READING THE SCORE.**
 assertion, flipping the boundary sign and dropping the boundary term both
 fail the direction assertion, and removing the lookup fails the wiring
 assertion. Fingerprint 1aefb445 -> see below.
+
+**THE FINGERPRINT DID NOT MOVE AT FIRST, AND THAT WAS THE REAL BUG.**
+1aefb445 unchanged after wiring, because `build_side` only looks the pen up
+when handed a DATE and only `shape.py` had been given one. Eight callers
+construct sides; the mechanism was live in a single scratchpad harness and
+inert in `calibrate.replay`, `price.py` and the fingerprint itself. Now
+wired in all three and the hash moves 1aefb445 -> **f5453dc2**.
+
+**AN INERT MECHANISM AND AN ABSENT ONE PRODUCE THE SAME TABLE.** The
+scoring above was run through `shape.py`, which was wired, so those numbers
+stand. But had the boundary-share question been asked through
+`calibrate.replay` it would have returned the same "no effect" for an
+entirely different reason. A fingerprint that refuses to move after a
+non-inert change is the cheapest possible detector of this and it worked.
+
+**LIVE SLATES CURRENTLY FALL BACK TO LEAGUE-NEUTRAL, AND ANYONE PRICING
+TONIGHT SHOULD KNOW IT.** `hook_penstate.json` is built from games with
+status Final, and the pipeline DB is Final through 2026-08-27 — so there is
+no row for today and `pen_state` returns the baseline, contributing exactly
+zero. That is the SAFE failure (never another club's bullpen) but it means
+the mechanism is inert precisely where it would be bet.
+
+THE EXTENSION, and it is not a one-liner because of the missing-group rule:
+building a row for today needs the club's schedule INCLUDING unplayed
+games, while the lookback must come only from games whose play-by-play is
+cached. A club whose previous game is uncached would read `pen_back2` 0 —
+"fully rested" — which is a WRONG value rather than a neutral one, and this
+project's rule is that an unknown resolves to league-neutral rather than to
+a guess that moves the estimate the wrong way. So the builder must return
+the baseline unless every game in the lookback window is cached.

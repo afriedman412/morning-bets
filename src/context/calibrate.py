@@ -532,10 +532,10 @@ def replay(pair, lg, pens, rng, innings=9, track=(), apply_leash=True,
         park = park_for(home[0].get("venue_id"))
     A = game.build_side(away[1], pens.get((away[0]["team"] or "").upper(), []),
                         an, hook, rng, team=away[0]["team"],
-                        apply_leash=apply_leash)
+                        apply_leash=apply_leash, date=away[0].get("date"))
     H = game.build_side(home[1], pens.get((home[0]["team"] or "").upper(), []),
                         hn, hook, rng, team=home[0]["team"],
-                        apply_leash=apply_leash)
+                        apply_leash=apply_leash, date=home[0].get("date"))
     if HOME_HOOK:
         H.hook = sim.Hook(**{
             **H.hook.__dict__,

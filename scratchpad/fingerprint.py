@@ -39,10 +39,12 @@ def main(argv):
             rng = random.Random(7 + i * 100003 + draw)
             A = game.build_side(away[1],
                                 pens.get((away[0]["team"] or "").upper(), []),
-                                hn, sim.Hook(), rng, team=away[0]["team"])
+                                hn, sim.Hook(), rng, team=away[0]["team"],
+                                date=away[0].get("date"))
             H = game.build_side(home[1],
                                 pens.get((home[0]["team"] or "").upper(), []),
-                                an, sim.Hook(), rng, team=home[0]["team"])
+                                an, sim.Hook(), rng, team=home[0]["team"],
+                                date=home[0].get("date"))
             r = game.simulate_game(A, H, lg, rng, track=(5,))
             h.update(f"{r.away},{r.home},{r.away_sp.outs},{r.away_sp.k},"
                      f"{r.home_sp.outs},{r.home_sp.k},"
