@@ -835,6 +835,23 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
     the global hook with everyone on the league curve for the same reason:
     searching global parameters while per-pitcher offsets absorb the error
     drives them somewhere meaningless.
+
+    HOW TO CALL THIS, and every rule here exists because a caller broke it:
+
+      * PASS `team` AND `date`. Both feed lookups that return a NEUTRAL
+        VALUE when the argument is missing — `sim.pen_state` the league
+        baseline, `rate_src.defence_delta` nothing at all — so an omitted
+        argument does not raise, it silently switches a shipped mechanism
+        off. Bullpen availability is live on both hook curves in `price.py`
+        and was contributing exactly zero in `ladder`, `fitf5`, `f5_market`
+        and `scratchpad/score_boundary` for that reason alone.
+        `check_every_build_side_call_passes_team_and_date` enforces it.
+      * APPLY THE PER-START HOOK EXACTLY ONCE. `sim.for_start` ADDS to
+        `team_offset`, so a caller that pre-applies it and then leaves
+        `apply_leash` at its default gets the pitcher's leash counted twice.
+        Either hand over a finished hook with `apply_leash=False` — which is
+        what `price.py` does, once per matchup rather than once per draw —
+        or pass a bare hook and let this apply it.
     """
     # THIS FUNCTION RUNS ONCE PER SIDE PER DRAW and was 22% of a simulated
     # game, so the two wasteful things it did are worth naming.

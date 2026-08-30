@@ -81,12 +81,20 @@ def simulate_prefixes(cases_by_game, pens, lg, n_sims=40, seed=7,
         acc = {p: 0.0 for p in prefixes}
         for draw in range(n_sims):
             rng = random.Random(seed + i * 100003 + draw)
+            # `date` REACHES THE HOOK, and leaving it off is not neutral.
+            # `sim.pen_state` falls back to the league baseline when the
+            # date is missing, so `per_pen_back2` and `per_pen_rest` — which
+            # are live on BOTH curves in `price.py` — contributed exactly
+            # zero here. The ladder is the instrument the run-level claims
+            # rest on, so it has to build the same side production does.
             A = game.build_side(
                 away[1], pens.get((away[0]["team"] or "").upper(), []),
-                an, None, rng, team=away[0]["team"])
+                an, None, rng, team=away[0]["team"],
+                date=away[0].get("date"))
             H = game.build_side(
                 home[1], pens.get((home[0]["team"] or "").upper(), []),
-                hn, None, rng, team=home[0]["team"])
+                hn, None, rng, team=home[0]["team"],
+                date=home[0].get("date"))
             res = game.simulate_game(A, H, lg, rng, innings=max(prefixes),
                                      track=prefixes)
             for p in prefixes:

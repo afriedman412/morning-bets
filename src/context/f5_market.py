@@ -90,10 +90,20 @@ def _f5_totals(pair, home_abbr, lg, pens, n_sims, seed):
     rng = random.Random(seed)
     out = []
     for _ in range(n_sims):
+        # `apply_leash=False` BECAUSE THE HOOK ABOVE IS ALREADY FINISHED.
+        # `sim.for_start` adds to `team_offset`, so leaving the default on
+        # top of a hook that has already been through it charged this
+        # module's starters their own leash TWICE. `team` and `date` still
+        # have to travel — they feed the bullpen state and the defence,
+        # neither of which rides on the hook.
         A = game.build_side(away[1], pens.get((away[0]["team"] or "").upper(),
-                                              []), away_faces, a_hook, rng)
+                                              []), away_faces, a_hook, rng,
+                            team=away[0]["team"], apply_leash=False,
+                            date=away[0].get("date"))
         H = game.build_side(home[1], pens.get((home[0]["team"] or "").upper(),
-                                              []), home_faces, h_hook, rng)
+                                              []), home_faces, h_hook, rng,
+                            team=home[0]["team"], apply_leash=False,
+                            date=home[0].get("date"))
         out.append(game.simulate_game(A, H, lg, rng).total_f5)
     return out
 

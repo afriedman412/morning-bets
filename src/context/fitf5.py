@@ -15,9 +15,22 @@ sample.
 
 WHAT THIS FITS INSTEAD. Runs allowed through five by ONE pitching side, which
 is what a first-five market settles on. A parameter that does not move that
-number does not need identifying — that is what "does not matter" means. So
-the club and pitcher offsets are simply not applied here, and whether that
-costs anything is measured rather than assumed (`--offsets`).
+number does not need identifying — that is what "does not matter" means.
+
+THE OFFSETS ARE APPLIED, AND THIS PARAGRAPH USED TO SAY THEY WERE NOT.
+Corrected 2026-08-30. `evaluate(offsets=True)` is the default and it is the
+SIM-READY arm — the per-start hook exactly as `price.py` builds it — because
+this number decides what ships, and a scorer that is not the engine being
+scored can accept a mechanism the board then rejects. `offsets=False` is the
+flat arm and is what a global hook SEARCH wants, for the reason
+`calibrate.run(flat=True)` exists: per-pitcher offsets absorb the error a
+global search is trying to attribute.
+
+The old claim was not a design choice that drifted, it was never true —
+`game.build_side` applies the leash unless told not to, so 1,222 of 1,254
+sides carried one. `--offsets` did not catch it because it varied a field
+that nothing read; it now switches the argument above and measures what the
+choice is worth.
 
 WHY SIDES AND NOT GAME TOTALS. `games` carries `away_score_f5` and
 `home_score_f5` separately: 512 games but 909 side observations with a
@@ -159,8 +172,7 @@ where sport = 'mlb' and away_score_f5 is not null
 _SIDES: dict[tuple, list] = {}
 
 
-def side_cases(before=None, since=None, rates_before=None,
-               offsets=False) -> list[dict]:
+def side_cases(before=None, since=None, rates_before=None) -> list[dict]:
     """One row per pitching side of a settled game with a modelled starter.
 
     `runs` is what that side ACTUALLY allowed through five, which is the
@@ -168,10 +180,15 @@ def side_cases(before=None, since=None, rates_before=None,
     exactly backwards, so it is read off the `is_home` flag rather than by
     matching abbreviations.
 
-    `offsets=False` is the point of the rebuild: no club patience, no
-    pitcher leash. Pass True to measure what dropping them costs.
+    THE `offsets` ARGUMENT WAS REMOVED 2026-08-30. It computed a per-side
+    `offset` field that NOTHING EVER READ — the hook offsets come from
+    `game.build_side`, not from a case row — so switching it changed the
+    memo key and nothing else. Whether the offsets are applied is now
+    `evaluate(offsets=...)`, which is the argument that actually reaches
+    the hook. A knob that is wired to nothing is worse than no knob: it
+    reads as a control that has been exercised.
     """
-    key = (before, since, rates_before, offsets)
+    key = (before, since, rates_before)
     if key in _SIDES:
         return _SIDES[key]
 
@@ -185,8 +202,6 @@ def side_cases(before=None, since=None, rates_before=None,
         if not g:
             continue
         home = bool(s["is_home"])
-        off = (sim.patience(s["team"]) + sim.leash(pitcher.name)
-               if offsets else 0.0)
         out.append({
             "game_id": s["game_id"], "date": g["date"], "team": s["team"],
             "is_home": home, "pitcher": pitcher,
@@ -196,7 +211,6 @@ def side_cases(before=None, since=None, rates_before=None,
             # Whether the starter himself covered all five. The only channel
             # through which the hook reaches an F5 number at all.
             "covered": s["o"] >= 15,
-            "offset": off,
             # Seeded per side, not per run, so every candidate parameter set
             # is scored against the same draws. Without common random
             # numbers a coordinate descent on a noisy objective walks
@@ -260,7 +274,7 @@ def game_pairs(cases: list[dict]) -> list[tuple]:
 
 
 def evaluate(cases: list[dict], params: dict | None = None, n_sims=60,
-             lg=None, salt=0) -> dict:
+             lg=None, salt=0, offsets=True) -> dict:
     """Score one parameter set. Lower `loss` is better.
 
     `salt` shifts every per-side seed. Its only purpose is measuring the
@@ -269,6 +283,19 @@ def evaluate(cases: list[dict], params: dict | None = None, n_sims=60,
     resolve. A coordinate descent that accepts moves below that floor is
     fitting seeds, and it will report an improvement that a holdout then
     fails to reproduce.
+
+    `offsets=True` IS THE SIM-READY ARM AND IT IS THE DEFAULT: the per-start
+    hook is applied exactly as `price.py` applies it, so a number scored
+    here is a number about the engine that actually prices. Pass False for
+    the flat arm — no pitcher leash — which is what a global hook search
+    wants, since offsets fitted per pitcher otherwise absorb the error the
+    search is trying to attribute (`calibrate.run(flat=True)`, same reason).
+
+    IT WAS NEITHER, AND THAT IS WHY THE ARGUMENT EXISTS. The module header
+    claimed the offsets were not applied here; `game.build_side` applied the
+    leash anyway on 1,222 of 1,254 sides, because `apply_leash` defaults to
+    True and nothing overrode it. The behaviour was the sim-ready arm all
+    along — this only makes it deliberate, and makes the flat arm reachable.
     """
     lg = lg or sim.league()
     p = defaults()
@@ -295,14 +322,21 @@ def evaluate(cases: list[dict], params: dict | None = None, n_sims=60,
                 # teammates, which preserves every aggregate and destroys
                 # the matchup — see check_replay_does_not_hand_a_pitcher_
                 # his_own_teammates.
+                # `team` and `date` reach the BULLPEN STATE and the
+                # DEFENCE, neither of which is a hook offset — so passing
+                # them does not reopen the flat-fit question above. Club
+                # patience is zero for every club on file, so the hook is
+                # unchanged by the addition. See `game.build_side`.
                 A = game.build_side(
                     away["pitcher"],
                     pens.get((away["team"] or "").upper(), []),
-                    away["lineup"], base, rng)
+                    away["lineup"], base, rng, team=away["team"],
+                    apply_leash=offsets, date=away.get("date"))
                 H = game.build_side(
                     home["pitcher"],
                     pens.get((home["team"] or "").upper(), []),
-                    home["lineup"], base, rng)
+                    home["lineup"], base, rng, team=home["team"],
+                    apply_leash=offsets, date=home.get("date"))
                 # STOP AT FIVE. Nothing in innings 6-9 can reach a
                 # first-five number, and this objective reads only
                 # `runs_f5` and `line.outs` — `total_rps` is the F5 GAME
@@ -655,17 +689,24 @@ def offsets_cost(cutoff: str, n_sims=60) -> None:
     number through one channel — whether the starter is still in through the
     fifth — and he is roughly three-quarters of the time. That is an
     argument, not a measurement. This is the measurement.
+
+    THE ARMS USED TO BE TWO CASE LISTS DIFFERING BY A FIELD NOTHING READ, so
+    this printed two scores of the SAME configuration and the difference was
+    zero by construction — a null that could not have come out any other
+    way. The arms are now the `offsets` argument to `evaluate`, which is the
+    thing that actually reaches the hook. Same cases, same seeds, one
+    switch.
     """
     lg = sim.league()
-    flat = side_cases(since=cutoff, rates_before=cutoff, offsets=False)
-    adj = side_cases(since=cutoff, rates_before=cutoff, offsets=True)
-    moved = sum(1 for c in adj if c["offset"])
-    print(f"{len(flat)} sides on/after {cutoff}, "
+    cases = side_cases(since=cutoff, rates_before=cutoff)
+    moved = sum(1 for c in cases if sim.leash(c["pitcher"].name))
+    print(f"{len(cases)} sides on/after {cutoff}, "
           f"{moved} carry a non-zero offset\n")
     print(HEAD)
-    fa = evaluate(flat, None, n_sims=n_sims, lg=lg)
+    fa = evaluate(cases, None, n_sims=n_sims, lg=lg, offsets=False)
     report("flat", fa)
-    report("patience+leash", evaluate(adj, None, n_sims=n_sims, lg=lg))
+    report("patience+leash",
+           evaluate(cases, None, n_sims=n_sims, lg=lg, offsets=True))
     report_actual(fa)
 
 

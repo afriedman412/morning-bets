@@ -454,6 +454,49 @@ def check_nothing_prices_through_the_fixtures():
     assert not bad, bad
 
 
+def check_every_build_side_call_passes_team_and_date():
+    """Both arguments feed lookups whose MISSING VALUE IS NEUTRAL.
+
+    `sim.pen_state` returns the league baseline without a date and
+    `rate_src.defence_delta` returns nothing without a team, so omitting
+    either does not raise — it silently switches off a shipped mechanism and
+    leaves a plausible number behind. Measured 2026-08-30: bullpen
+    availability is live on both hook curves in `price.py` and was
+    contributing EXACTLY ZERO in `ladder`, `fitf5`, `f5_market`,
+    `team_market`, `total_market` and `marginals`, which between them
+    include the instruments the F5 claims rest on.
+
+    That is the same failure mode as `pitcher_rates` returning league
+    average for an unknown arm: a fallback designed to be safe makes an
+    absent input indistinguishable from a present one. The difference is
+    that this one is checkable from the source, so it is checked here rather
+    than rediscovered by a flat A/B.
+
+    STRUCTURAL ON PURPOSE. A behavioural check would have to know what each
+    caller's number should be; this only has to know that the argument was
+    passed, which is exactly the property that was violated.
+    """
+    import ast
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent / "src"
+    bad = []
+    for f in sorted(root.rglob("*.py")):
+        for node in ast.walk(ast.parse(f.read_text())):
+            if not isinstance(node, ast.Call):
+                continue
+            fn = node.func
+            name = (fn.attr if isinstance(fn, ast.Attribute)
+                    else getattr(fn, "id", None))
+            if name != "build_side":
+                continue
+            kw = {k.arg for k in node.keywords}
+            for want in ("team", "date"):
+                if want not in kw:
+                    bad.append(f"{f.relative_to(root.parent)}:"
+                               f"{node.lineno} missing {want}=")
+    assert not bad, bad
+
+
 def check_the_hook_argument_reaches_the_replayed_game():
     """`calibrate.run(hook=...)` must actually use the hook it is given.
 

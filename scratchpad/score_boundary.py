@@ -188,12 +188,20 @@ def _one(args):
         da, dh = Counter(), Counter()
         for draw in range(_SIMS):
             rng = random.Random(7 + i * 100003 + draw)
+            # `date` IS NOT OPTIONAL HERE. Without it `sim.pen_state`
+            # returns the league baseline, so `per_pen_back2` and
+            # `per_pen_rest` contribute EXACTLY ZERO and this script scores
+            # a hook with bullpen availability switched off — silently, and
+            # on both curves, since the fallback is a neutral value rather
+            # than an error.
             A = game.build_side(away[1],
                                 _PENS.get((away[0]["team"] or "").upper(), []),
-                                hn, hook, rng, team=away[0]["team"])
+                                hn, hook, rng, team=away[0]["team"],
+                                date=away[0].get("date"))
             H = game.build_side(home[1],
                                 _PENS.get((home[0]["team"] or "").upper(), []),
-                                an, hook, rng, team=home[0]["team"])
+                                an, hook, rng, team=home[0]["team"],
+                                date=home[0].get("date"))
             r = game.simulate_game(A, H, _LG, rng)
             da[r.away_sp.outs] += 1
             dh[r.home_sp.outs] += 1

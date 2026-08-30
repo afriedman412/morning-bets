@@ -157,11 +157,15 @@ def check_rps_debias_never_goes_negative():
 
 
 # ── the objective ──────────────────────────────────────────────────────
-def _case(runs, seed=1, offset=0.0, game="G1", home=True, **kw):
+def _case(runs, seed=1, game="G1", home=True, **kw):
+    # NO `offset` KEY. `side_cases` used to emit one and nothing read it —
+    # the hook offsets come from `game.build_side` — so it read as a control
+    # that had been exercised when it was wired to nothing. Removed with the
+    # argument that produced it; `evaluate(offsets=...)` is the real switch.
     return {"game_id": game, "date": "2026-08-01",
             "team": "HOM" if home else "AWY",
             "is_home": home, "pitcher": _pitcher(), "lineup": _lineup(),
-            "runs": runs, "covered": True, "offset": offset, "seed": seed,
+            "runs": runs, "covered": True, "seed": seed,
             **kw}
 
 
@@ -183,6 +187,37 @@ def check_evaluate_is_deterministic():
     a = fitf5.evaluate(cases, None, n_sims=12, lg=dict(LG))
     b = fitf5.evaluate(cases, None, n_sims=12, lg=dict(LG))
     assert a["loss"] == b["loss"], (a["loss"], b["loss"])
+
+
+def check_the_offsets_argument_reaches_the_hook():
+    """`evaluate(offsets=False)` must actually drop the pitcher leash.
+
+    THE BUG THIS EXISTS FOR, and it is the reason the argument exists at
+    all. The module header claimed the offsets were not applied here. They
+    were: `game.build_side` applies them unless `apply_leash=False`, and
+    nothing passed it, so 1,222 of 1,254 real sides carried a leash the
+    docstring said they did not. The control that should have caught it —
+    `side_cases(offsets=...)` — varied a case field that nothing read, so it
+    compared two identical configurations and returned a guaranteed null.
+
+    So this asserts the switch REACHES THE ENGINE, which is what the old one
+    failed to do. A leash is installed for the fixture's own pitcher, since
+    `sim.leash` reads a fitted table that an offline check cannot assume.
+    """
+    cases = _pair(2, game="A") + _pair(3, game="B", seed=9)
+    name = cases[0]["pitcher"].name
+    orig = sim._LEASH
+    try:
+        # Big enough that the two arms cannot land on the same starts by
+        # luck: this pulls the starter far earlier than the league curve.
+        sim._LEASH = {name: 1.75}
+        on = fitf5.evaluate(cases, None, n_sims=12, lg=dict(LG),
+                            offsets=True)
+        off = fitf5.evaluate(cases, None, n_sims=12, lg=dict(LG),
+                             offsets=False)
+    finally:
+        sim._LEASH = orig
+    assert on["loss"] != off["loss"], (on["loss"], off["loss"])
 
 
 def check_evaluate_applies_its_parameters():

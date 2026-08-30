@@ -139,10 +139,12 @@ def run(by, actual, lg, pens, n_sims=N_SIMS, seed=7) -> dict:
             rng = random.Random(seed + i * 100003 + draw)
             A = game.build_side(
                 away[1], pens.get((away[0]["team"] or "").upper(), []),
-                away_faces, None, rng)
+                away_faces, None, rng, team=away[0]["team"],
+                date=away[0].get("date"))
             H = game.build_side(
                 home[1], pens.get((home[0]["team"] or "").upper(), []),
-                home_faces, None, rng)
+                home_faces, None, rng, team=home[0]["team"],
+                date=home[0].get("date"))
             r = game.simulate_game(A, H, lg, rng, track=PREFIXES)
             for lbl, _k, attr in START_MARGINALS:
                 d_away[lbl][getattr(r.away_sp, attr)] += 1

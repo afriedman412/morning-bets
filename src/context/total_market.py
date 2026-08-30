@@ -70,12 +70,18 @@ def _totals(pair, home_abbr, lg, pens, n_sims, seed) -> list[int] | None:
     rng = random.Random(seed)
     out = []
     for _ in range(n_sims):
+        # `apply_leash=False` because `a_hook`/`h_hook` have already been
+        # through `sim.for_start`, which ADDS — see `game.build_side`.
         A = game.build_side(away[1],
                             pens.get((away[0]["team"] or "").upper(), []),
-                            away_faces, a_hook, rng)
+                            away_faces, a_hook, rng,
+                            team=away[0]["team"], apply_leash=False,
+                            date=away[0].get("date"))
         H = game.build_side(home[1],
                             pens.get((home[0]["team"] or "").upper(), []),
-                            home_faces, h_hook, rng)
+                            home_faces, h_hook, rng,
+                            team=home[0]["team"], apply_leash=False,
+                            date=home[0].get("date"))
         out.append(game.simulate_game(A, H, lg, rng).total)
     return out
 
