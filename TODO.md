@@ -20,6 +20,13 @@ only runner and batter IDs carried through the same pass; item 13
 (per-pitcher hbp/wp) is the same pass grouped by pitcher. Extend that scan
 rather than writing a third one.
 
+**TWO FIGURES IN THE OLDER NOTES ARE RETRACTED (2026-08-30).** The model is
+NOT light on runs. Verified on 1,645 games: F5 -0.047 (0.6 sigma), F3
+-0.024, F7 -0.040. The "3% fewer runs" and "4.5% light" lines are from a
+previous engine and do not reproduce. Only the first inning survives, at
+-1.7 sigma. Anything reasoning from a run deficit — runline pricing above
+all — needs re-deriving.
+
 ## WORKING ONE ITEM PER SESSION — read this first
 
 Items are written to be picked up COLD. If one is not self-contained enough
@@ -71,75 +78,54 @@ count alone. A burner and a backup catcher are the identical baserunner.
 Reliability is settled, SENSITIVITY is not. Run `leverage.py` first —
 reliability without sensitivity is how park died three times.
 
-**7. The K tail. LARGELY DIAGNOSED 2026-08-29 — READ BEFORE RESUMING.**
-Two of the three things this item said are now settled and one of them was
-WRONG. What remains is a single, well-specified measurement.
+**7. TURN ON THE COUNTED PITCH HAZARD. Two checks stand in the way and
+neither may be loosened.** This is the top item.
 
-**DONE AND SHIPPED:** the hook now conditions on how the night is going.
-`late_mid_per_k_rate` -1.5130 (z -9.5) and `mid_per_abs_margin` -0.0824
-(z -10.4), both counted on 322,205 real removal decisions, both mid-inning
-only — the boundary curve took neither term. Selection now runs the right
-way: E[K] by start length moves toward the actual in five of six buckets.
+`sim.USE_PITCH_HAZARD` is False. `PITCH_HAZARD_BND` / `PITCH_HAZARD_MID` are
+COUNTED on 294,884 training rows and wired. They replace the pitch backbone
+of both curves — `intercept`, the logistic pitch term, `per_pitch_over` and
+the `high_pitch_*` branch. Everything else rides on top unchanged.
 
-**THE FIRST SUSPECT WAS WRONG AND `PITCH_COST` IS CLOSED.** "A strikeout
-costs 4.97 pitches against 3.25, so a dominant night shortens a start" is
-arithmetically incomplete — a dominant night also needs FEWER BATTERS and
-the two cancel. Counted on 73,506 pitcher-games, everybody needs about 99
-pitches for six innings (Q1 98.2, Q5 99.5), and the simulator reproduces
-that to a tenth. PITCHES PER BATTER WAS THE WRONG DENOMINATOR. Do not
-re-open the pitch-budget channel.
+WHY: the parametric curve PULLS TWICE TOO MANY MEN BETWEEN 60 AND 85
+PITCHES (boundary 0.19 against a real 0.10 at 70-78) and too few at 95+,
+even after the high-pitch branch. One shape error; a table has no shared
+slope for a correction to travel along, which is what ends the whack-a-mole.
 
-**THE HOOK FIX IS NOT SUFFICIENT AND THAT IS MEASURED:** at x4 the fitted
-coefficient P(K>=9) reaches only 0.0649 against a real 0.0950, while
-boundary share and outs both degrade. The manager's response to dominance is
-real and is not the main cause.
+  (a) `check_the_boundary_curve_is_the_fitted_one` pins removal_p(105) into
+      (0.55, 0.95). The table gives 0.957, the REAL 100-110 rate is 0.972 —
+      that band never contained the truth. Re-pin against the counted
+      hazard. THE CHECK IS WRONG HERE.
+  (b) `check_the_first_inning_is_immune_to_a_bullpen_flag` — NOT obviously
+      the check's fault. Once first-inning pulls happen at a realistic rate,
+      toggling `USE_MEASURED_RELIEF_HOOK` moves F1 with an EMPTY PEN. The
+      check was passing VACUOUSLY. Answer whether the engine handles a
+      first-inning removal into an empty pen correctly BEFORE touching it.
 
-**WHAT IS LEFT, AND IT IS ONE MEASUREMENT.** The residual is a
-STRIKEOUT-SPECIFIC dispersion deficit (K sd 2.28 against 2.49). The old
-sharpness sweep failed because `dispersion.LOAD` is one latent factor on
-FOUR rates, so it widened traffic — and traffic is what the hook integrates
-— wrecking the outs distribution for the K gain. **Loaded on `k_pct` ALONE
-it lands K sd exactly (2.49), closes 69% of the o8.5 gap, improves K CRPS
-0.0096, and leaves outs sd on target (4.05 against 4.04) at less than half
-the outs CRPS cost.**
-**DO NOT SHIP THAT — the sigma was chosen to hit the target, which is
-solving for a spread.** COUNT the extra-binomial strikeout variance in real
-starts (how far a pitcher's start-to-start K rate moves beyond his season
-rate and that night's lineup) and use the counted value. This is NOT the
-closed per-pitcher dispersion question (split-half 0.072): that asked WHICH
-arms are variable, this asks how variable the league is.
+THEN score: boundary share (0.625 against a real 0.672), outs CRPS, and the
+12.5-17.5 band. PRE-REGISTERED PREDICTION: the middle band improves, because
+that is where the old curve is out by a factor of two. Falsifier: it does
+not, which would mean the boundary share defect is not in the pitch term.
 
-**THE BOUNDARY SHARE NOW HAS A MECHANISM — SEE ITEM 8b.** Bullpen
-availability reaches the boundary decision at 5-6 sigma and is the first
-external signal that curve has ever accepted.
+**7b. WHAT IS ALREADY DONE ON THE K TAIL — do not re-run.**
+Dominance shipped (`late_mid_per_k_rate`), the per-start strikeout draw
+counted and shipped (`START_K_SIGMA` 0.1625, which refuted a tuned 0.20),
+and `PITCH_COST` CLOSED — its premise was arithmetically wrong, since a
+dominant night also needs fewer batters and everyone needs ~99 pitches for
+six innings. o8.5 is now -2.3 sigma, from -3.5.
 
-**STILL OPEN:** boundary share 0.609 against a real 0.669.
-Reality ends starts at the end of an inning; the model ends them mid-inning.
-The boundary curve takes NO IN-GAME state — margin, |margin| and strikeout
-rate are all null or sign-unstable on it — but it does take BULLPEN state
-(item 8b), which is external to the game. So the shape of the answer is
-"the boundary decision is about resources, not about the night", and 8b is
-the first piece of it. Wiring 8b is the next move on this item; whether it
-closes the 0.669 gap is UNMEASURED and should not be assumed.
+**7c. A DIRECT PROP MODEL IS TESTED AND DEAD.** The learned removal model
+beats `sim.Hook` on decision AUC 0.912 to 0.876 and gives a boundary share
+of 0.341 against a real 0.672. Do not rebuild props as a separate model.
 
-**8b. WIRE BULLPEN AVAILABILITY INTO BOTH HOOK CURVES. MEASURED
-2026-08-29, NOT WIRED — the best-evidenced unshipped mechanism on this
-list.**
-`pen_back2` (relievers who worked both of the club's last two days) and
-`pen_rest` (days since the club last played) reach the removal decision at
-z -5.3/+6.3 on the BOUNDARY curve and -5.2/+6.2 mid-inning, sign-stable in
-all four seasons on both curves, all pre-registered signs correct, positive
-control fired. Raw pitch totals are null — it is about WHO CAN PITCH, not
-how much was thrown.
-BOTH CONFOUNDS RUN AGAINST IT: a used-up pen correlates with a bad club and
-a bad starter (pulled earlier, pushes positive), and an off day rests the
-starter too (should push negative). It survives both.
-**THIS IS THE FIRST MECHANISM THAT BELONGS ON BOTH CURVES.** Margin and
-dominance were mid-inning only.
-WIRING, and it does NOT need a deployment model — these are club-level
-counts: two coefficients on both curves, the two columns carried on `Side`,
-a supplier reading the club's last two games, and CENTRING on the league
-mean so the level does not move. `scratchpad/pen_state.py` has the fit.
+**8c. EVALUATE THE DOUBLE-SHRUNK PRIOR FIX.** Fitted already, never scored —
+it was waiting on the hook work. See item 12 for the defect and the Snell
+case. DO NOT re-run `USE_RAW_PRIOR`; it was measured and loses.
+
+**8d. RE-MEASURE `scratchpad/outs_adjust.py`.** Its correction table was
+measured BEFORE the high-pitch branch, so it under-states the middle-band
+error and over-states the long lines. It was used to price a live board on
+2026-08-29 and should not be used again until re-measured — and it will need
+re-measuring AGAIN after item 7 ships.
 
 **8. Role-based bullpen deployment, and fatigue.**
 `build_side` samples 8 arms weighted by appearances and `next_arm` walks that
@@ -176,7 +162,7 @@ runs a side.
 Full-game totals are a stated product that has never once been scored against
 a settled price. `scratchpad/tonight.py` is the workaround.
 
-**11. The first inning is under-scored by 10.7%.**
+**11. The first inning is under-scored — STILL LIVE AT -1.7 SIGMA (2026-08-30 ladder, 1,645 games). It is the ONLY surviving run-level defect; F3/F5/F7 are all inside noise.**
 RE-MEASURED TWICE on 2026-08-29, the same instrument and the same games
 (`where_runs.py --cut 2026-05-15 --profile`): -13.3% / z -2.7 originally,
 -12.0% / z -2.5 mid-day, and -0.109 runs / z -2.2 after the half-inning fix.
@@ -288,6 +274,26 @@ controlling for the arm.
 
 
 ---
+
+## Shipped 2026-08-29/30 (days seventeen and eighteen) — the hook
+
+Full write-ups in `NOTES-context-layer.md`. All counted on real removal
+DECISIONS, never on runs, and all now refit-verified on training rows only.
+
+  * `mid_per_abs_margin` -0.0824 — the BLOWOUT term, unsigned. The signed
+    form measures zero on both curves, so the specified parameter was the
+    wrong shape and would have closed the question as a null.
+  * `late_mid_per_k_rate` -1.5130 — DOMINANCE. Until this, every input to
+    both hook curves was traffic or workload.
+  * `START_K_SIGMA` 0.1625 — per-start strikeout variation, COUNTED, and it
+    refuted a tuned 0.20 by 4.2 sd. The clearest case in the project's
+    history of a count correcting a fit.
+  * `per_pen_back2` / `per_pen_rest` on BOTH curves — bullpen availability,
+    the first external signal the boundary decision ever accepted. About WHO
+    CANNOT GO, not pitches thrown. Needs no deployment model.
+  * `high_pitch_*` — a third branch above 90 pitches. Fixed o18.5/o20.5 and
+    made the middle band worse, which is what motivated item 7.
+  * The HOLDOUT RULE in CLAUDE.md, with `train_only()` in the fitters.
 
 ## Shipped 2026-08-29 — delete from above, recorded in the notes
 

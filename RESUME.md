@@ -5,6 +5,66 @@ there, ordered, with what is established and what is not on each item. This
 file is the LOG — what was measured and what it meant. When something
 ships, delete it from `TODO.md` and write the result here.
 
+## DAYS SEVENTEEN AND EIGHTEEN (2026-08-29/30) — THE HOOK. READ THIS FIRST.
+
+Full write-ups in `NOTES-context-layer.md` under DAY SEVENTEEN parts one to
+eight and DAY EIGHTEEN. Backlog in `TODO.md`.
+
+**SHIPPED AND ON.** All counted on real removal DECISIONS, never on runs.
+
+  1. `mid_per_abs_margin` -0.0824 (z -10.4) — a manager stops interrupting
+     an inning once the game is DECIDED, in either direction. The SIGNED
+     form measures zero on both curves; the unsigned one is the mechanism.
+     Fitting the signed term alone would have closed the question wrongly.
+  2. `late_mid_per_k_rate` -1.5130 (z -9.5) — the hook can finally tell a
+     dealing starter from a lucky one. Every other input to both curves is
+     traffic or workload.
+  3. `START_K_SIGMA` 0.1625 — a per-start strikeout draw, COUNTED. It
+     refuted my own tuned 0.20 by 4.2 sd. K sd 2.27 -> 2.39 (real 2.49) and
+     the o8.5 tail goes from 3.5 sigma wrong to 2.3.
+  4. Bullpen availability on BOTH curves (`per_pen_back2`, `per_pen_rest`,
+     z -5.6/+6.4) — the first external signal the boundary decision has ever
+     accepted. It is about WHO CANNOT GO, not how many pitches were thrown.
+  5. `high_pitch_*` — a third branch above 90 pitches. Fixed o18.5/o20.5 and
+     MADE THE MIDDLE BAND WORSE. See the whack-a-mole note below.
+
+**CLOSED, AND ONE WAS A WRONG PREMISE.** `PITCH_COST` is exonerated: "a
+strikeout costs 4.97 pitches so a dominant night shortens a start" ignores
+that it also needs FEWER BATTERS, and everybody needs ~99 pitches for six
+innings. PITCHES PER BATTER WAS THE WRONG DENOMINATOR.
+
+**A DIRECT PROP MODEL WAS TESTED AND LOSES.** The learned removal model
+beats `sim.Hook` on decision AUC (0.912 vs 0.876) and produces a boundary
+share of 0.341 against a real 0.672. Being better at the manager's call is
+not being better at the innings. Do not rebuild props as a separate model.
+
+**TWO STALE FIGURES RETRACTED. THE MODEL IS NOT LIGHT ON RUNS.** Verified on
+1,645 games: F5 -0.047 (0.6 sigma), F3 -0.024, F7 -0.040. The "3% fewer
+runs" and "4.5% light" figures in the older notes below are from a previous
+engine and DO NOT REPRODUCE. Only the first inning survives, at -1.7 sigma.
+This matters for pricing: the run-light bias was being used to reason about
+runlines and it does not exist.
+
+**THE OPEN DEFECT, AND IT IS ONE THING.** Boundary share 0.625 against a
+real 0.672 — the model ends starts mid-inning where reality ends them
+between innings. Margin, dominance and bullpen all failed to move it; the
+high-pitch branch moved it 0.609 -> 0.625 and cost the middle band. Cause
+found on day eighteen: the parametric pitch curve PULLS TWICE TOO MANY MEN
+BETWEEN 60 AND 85 PITCHES. A COUNTED HAZARD TABLE is measured and wired and
+PARKED OFF behind `sim.USE_PITCH_HAZARD` pending two checks — see TODO.
+
+**THE PROCESS FAILURE OF THE WEEK, now a rule in CLAUDE.md.** Every hook
+constant on day seventeen was fitted on rows it was then scored against
+(8.5% overlap). Refitted properly they all move 0.1-0.4 se and nothing
+changes — which is luck, not method. `HOLDOUT_CUT` and `train_only()` now
+exist in the fitters AND ARE CALLED.
+
+**FOR PRICING TONIGHT:** outs props are the WEAKEST market and the biggest
+apparent edges there are most likely our own defect.
+`scratchpad/outs_adjust.py` carries a betting-layer correction whose table
+is STALE — measured before the high-pitch branch — and must be re-measured
+before use.
+
 ## DAY SIXTEEN (2026-08-29) — THE HALF-INNINGS WERE REVERSED. READ THIS FIRST.
 
 Full write-up in `NOTES-context-layer.md` under DAY SIXTEEN, PART THREE.
