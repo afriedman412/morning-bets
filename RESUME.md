@@ -1,5 +1,31 @@
 # BEFORE YOU START — read this or you will redo work
 
+## HOW TO READ THESE FOUR FILES (added 2026-08-30, when they passed 12,000 lines)
+
+    CLAUDE.md   641 lines. THE RULES. Read in full, once, every session.
+                Everything in it was bought with a mistake.
+    TODO.md     361 lines. THE BACKLOG. What to do next, ordered, each item
+                written to be picked up cold. START HERE after CLAUDE.md.
+    RESUME.md   THE LOG, newest first. The block below this one is the
+                current state; everything under "Resume here — state as of
+                2026-08-27" is HISTORY and is partly superseded.
+    NOTES-...   7,454 lines, append-only, oldest first. The full record with
+                every measurement and falsifier. DO NOT READ FORWARD — go to
+                the end and read backwards until you have what you need.
+
+**THE THREE THINGS THAT WILL WASTE YOUR DAY IF YOU MISS THEM:**
+
+  1. **Figures in the history sections are from older engines.** Two were
+     retracted on 2026-08-30 (the run deficit) and both were being used to
+     price bets. Re-derive any number older than the current state block
+     before you reason from it. Retracted claims are tagged in place.
+  2. **The dead list records HOW a thing was tried, not that it is
+     unknowable.** Re-opening is legitimate when the approach or the data
+     changes. Say which.
+  3. **Never fit on rows you will score on.** `HOLDOUT_CUT` is 2026-07-01.
+     This was got wrong on six constants in one day.
+
+
 **THE BACKLOG LIVES IN `TODO.md` AS OF 2026-08-29.** What to do next is
 there, ordered, with what is established and what is not on each item. This
 file is the LOG — what was measured and what it meant. When something
@@ -169,6 +195,7 @@ scan named it at 6.8 sigma.
 
 Away/home asymmetry on full-game team totals **0.208 -> 0.044**; both clubs
 now sit inside the global -4.5% under-scoring instead of pulling opposite
+**[RETRACTED 2026-08-30 — see the day 17/18 block at the top of RESUME.md. Verified on 1,645 games the model is NOT light on runs: F5 -0.047 at 0.6 sigma. This figure is from a previous engine.]**
 ways. 413 -> 414 checks, fingerprint 5a39453e -> c7f3e41d. The wiring check
 is mutation-verified: putting walks back on the contact knob fails exactly
 `check_the_walk_multiplier_reaches_bb_pct_and_nothing_else`.
@@ -495,6 +522,7 @@ subtracted two different populations. Subs take 4.0% of plate appearances at
 **THE REAL OFFENCE NUMBER, AND IT IS THE BEST STATEMENT OF THE GAP:** the
 model sends EXACTLY the right number of men to the plate (37.64 against a
 corrected 37.64) and scores 3.0% fewer runs. ~0.13 runs a team-game, 2.6x
+**[RETRACTED 2026-08-30 — see the day 17/18 block at the top of RESUME.md. Verified on 1,645 games the model is NOT light on runs: F5 -0.047 at 0.6 sigma. This figure is from a previous engine.]**
 the floor. `mlb_batting` has no hbp or sacrifice column, so `ab + bb`
 understates plate appearances by 2.00% — correct for it or the model reads
 as sending 2% MORE men up, which it does not.

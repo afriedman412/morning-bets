@@ -2,6 +2,38 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## THE RULES, IN ONE SCREEN (added 2026-08-30 — the full text of each is below)
+
+Every line here was bought with a specific mistake. The section under each
+carries the failure that motivates it; read those once, then use this index.
+
+  1. **THE OBJECTIVE IS ACCURATE SIMULATION AGAINST WHAT HAPPENED.** CLV is
+     not the objective and must never decide whether a mechanism helped.
+  2. **A FLAT MEAN IS NOT A NEUTRAL RESULT.** Judge the SHAPE against
+     actuals. CRPS is dominated by the bulk and reads neutral on a tail fix.
+  3. **THE LEVERAGE FLOOR DECIDES PRIORITY, NOT ADMISSIBILITY.** Small and
+     MEASURED ships. Small and FITTED never does.
+  4. **COUNT IT, DO NOT IMPORT IT.** Every imported baseball effect has
+     measured zero; every constant counted on this league was wrong as
+     shipped.
+  5. **DO NOT SOLVE FOR A LEVEL.** Scaling a table until the mean lands on
+     a target is fitting. A tuned 0.20 was refuted by a counted 0.16.
+  6. **NEVER FIT ON ROWS YOU WILL SCORE ON.** `HOLDOUT_CUT` = 2026-07-01.
+  7. **A NULL IS A CLAIM.** Positive-control every screen; a mis-specified
+     mechanism and an absent effect look identical.
+  8. **A GRID-EDGE PARAMETER IS A MISSING MECHANISM**, four for four.
+  9. **FIT A CURVE ON THE POPULATION IT FIRES IN**, and only when something
+     else covers the rest.
+  10. **NAME THE DENOMINATOR — AND THE DEFINITION.** Uniform error across
+      independent channels is a denominator, not a set of bugs.
+  11. **WHEN A NEW NUMBER CONTRADICTS AN OLD ONE, CHECK THEY MEASURE THE
+      SAME THING** before acting.
+  12. **RUN INVESTIGATIONS AS LABELLED STAGES**, state the POWER and the
+      STANDARD ERROR before the result.
+  13. **DO NOT LOOSEN A TEST TO ADMIT A CHANGE.** Verify every check by
+      MUTATION — one that guards nothing looks identical to one that does.
+  14. **HUNT LEVEL ERRORS AND STRUCTURAL GAPS FIRST**, then refinements.
+
 ## THE OBJECTIVE — read this before anything else
 
 **`AF_PLAN.md` is the authority on what this project is for. Read it. It is

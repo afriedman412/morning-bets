@@ -6345,6 +6345,7 @@ EVALUATE    THE DECOMPOSITION DID NOT LOOK LIKE A BULLPEN AT ALL:
 
             Item 11b: -17.4% / z -2.9 -> +2.0% / z +0.3. CLOSED.
             The whole-game gap: -7.1% / z -4.1 -> -4.5% / z -2.6.
+**[RETRACTED 2026-08-30 — see the day 17/18 block at the top of RESUME.md. Verified on 1,645 games the model is NOT light on runs: F5 -0.047 at 0.6 sigma. This figure is from a previous engine.]**
 
             THE PRE-REGISTERED FALSIFIER PASSES. The user set it before the
             work: the ninth must move WITHOUT innings 1-5 moving, or the
