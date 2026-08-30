@@ -136,6 +136,18 @@ def _mixture():
 
 VARIANTS["mixture"] = _mixture()
 
+#: THE COUNTED PITCH HAZARD, and it is the one variant here that is NOT a
+#: set of Hook fields — `USE_PITCH_HAZARD` is a module flag, because a table
+#: cannot be expressed as a coefficient. `_one` sets it per variant, inside
+#: the worker, so the arms stay paired on identical seeds like every other
+#: column. Shipped fields otherwise: the table replaces the pitch BACKBONE
+#: of both curves and everything else rides on top unchanged.
+VARIANTS["hazard"] = {}
+
+#: Which variants carry the flag on. Anything not named here runs with the
+#: parametric backbone, which is the shipped state.
+HAZARD_ARMS = {"hazard"}
+
 VARIANTS["pre-fix"] = {
     "intercept": -4.2384, "pitch_center": 47.6812, "pitch_scale": 10.8972,
     "per_run": 0.0089, "per_baserunner": 0.0379, "per_inning": -0.1087,
@@ -168,6 +180,10 @@ def _one(args):
     hn = cal.adjust_lineup(home[2], True)
     out = []
     for name, fields in VARIANTS.items():
+        # SET INSIDE THE WORKER, not in the parent. Each child owns its own
+        # copy of the module global, and the arms alternate within one call
+        # rather than across pool runs — which is what keeps them paired.
+        sim.USE_PITCH_HAZARD = name in HAZARD_ARMS
         hook = sim.Hook(**fields) if fields else sim.Hook()
         da, dh = Counter(), Counter()
         for draw in range(_SIMS):
@@ -193,6 +209,20 @@ def main(argv):
     pos = [a for a in argv if not a.startswith("-")]
     _SIMS = int(pos[0]) if pos else 40
     cap = int(pos[1]) if len(pos) > 1 else None
+    # `--arms shipped,hazard` scores a PAIR rather than the whole museum.
+    # Every column costs a full pass over the holdout, and a two-arm
+    # question does not need the four curves that were settled in August.
+    for a in argv:
+        if a.startswith("--arms"):
+            want = a.split("=", 1)[1] if "=" in a else argv[argv.index(a) + 1]
+            keep = [k.strip() for k in want.split(",")]
+            for k in keep:
+                if k not in VARIANTS:
+                    raise SystemExit(f"unknown arm {k!r}; "
+                                     f"have {list(VARIANTS)}")
+            for k in list(VARIANTS):
+                if k not in keep:
+                    del VARIANTS[k]
     if "--no-leash" in argv:
         # Set BEFORE the pool forks. A spawned child would re-import at the
         # default and silently turn it back on.

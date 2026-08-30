@@ -8,11 +8,13 @@ description: Price tonight's slate for line shopping — strikeouts, outs and fi
 One command, one screen, three markets off ONE set of simulated games.
 
 ```
-venv/bin/python -m scratchpad.board [DATE] [n_sims] [--band 150] [--all]
+venv/bin/python -m scratchpad.board [DATE] [n_sims] [--band 170] [--all]
 ```
 
-Defaults: today, 20,000 sims, fair prices inside ±150. `--all` drops the
-band. A single game: pass the date and grep the pitcher.
+Defaults: today, 20,000 sims, fair prices inside ±170 — exactly
+`0.3704 <= P(over) <= 0.6296`, since a price inside the band on one side is
+inside it on the other. `--all` drops the band; `--band=250` widens it. A
+single game: pass the date and grep the pitcher.
 
 **20,000 sims is the floor before any number is compared to a price.** At
 400 the simulation error on a central probability is ~2.5 points, which is

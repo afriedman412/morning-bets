@@ -1,6 +1,6 @@
 """THE LINE-SHOPPING BOARD — every startable line on a slate, one screen.
 
-    venv/bin/python -m scratchpad.board [DATE] [n_sims] [--band 150] [--all]
+    venv/bin/python -m scratchpad.board [DATE] [n_sims] [--band 170] [--all]
 
 WHAT THIS IS. The board built ad-hoc on 2026-08-29/30 across a dozen inline
 `python -c` invocations, made repeatable. It prices STRIKEOUTS, OUTS and
@@ -23,11 +23,13 @@ WHAT IT IS NOT. It is not a bet list. It prints fair prices and the market's
 where one exists; deciding to fire is the operator's job and `BETTING.md` is
 the page that governs it.
 
-THE BAND. `--band 150` keeps only rows whose fair price is inside +/-150 on
-both sides, which is exactly `0.400 <= P(over) <= 0.600`. Both sides are in
+THE BAND. `--band 170` keeps only rows whose fair price is inside +/-170 on
+both sides, which is exactly `0.3704 <= P(over) <= 0.6296`. Both sides are in
 or out together, so there is only one filter. `--all` disables it. The band
 is not a quality filter — it is a shopping filter, because a line priced
-outside it is not one you will find a usable number on.
+outside it is not one you will find a usable number on. Widened from 150 on
+2026-08-30: at 150 the ladder was cutting off rows that a book will still
+quote, and the point of the filter is what is shoppable, not what is close.
 
 THE HALF-INNING TRAP, and it cost a day on 2026-08-29. `GameResult.prefix`
 is the GAME total through N innings; `prefix_side[N]` is a PAIR and its
@@ -57,6 +59,10 @@ OUTS_LINES = (11.5, 12.5, 13.5, 14.5, 15.5, 16.5, 17.5, 18.5, 19.5, 20.5)
 #: second is the one Kalshi lists (`KXMLBF5TOTAL`).
 F5_TEAM_LINES = (0.5, 1.5, 2.5, 3.5, 4.5)
 F5_GAME_LINES = (3.5, 4.5, 5.5, 6.5)
+
+#: Default price band, in American odds, applied to the FAIR price on both
+#: sides. See THE BAND in the docstring.
+BAND = 170.0
 
 
 def american(p: float) -> str:
@@ -174,10 +180,10 @@ def main(argv):
     flags = [a for a in argv if a.startswith("--")]
     d = args[0] if args else _date.today().isoformat()
     n = int(args[1]) if len(args) > 1 else 20000
-    band = None if "--all" in flags else 150.0
+    band = None if "--all" in flags else BAND
     for f in flags:
         if f.startswith("--band"):
-            band = float(f.split("=", 1)[1]) if "=" in f else 150.0
+            band = float(f.split("=", 1)[1]) if "=" in f else BAND
 
     lg = sim.league()
     # Rates strictly BEFORE the date: a start cannot inform its own price.
