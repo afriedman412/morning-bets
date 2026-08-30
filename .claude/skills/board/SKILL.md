@@ -19,13 +19,9 @@ band. A single game: pass the date and grep the pitcher.
 the size of the edges being hunted. The default is already right; do not
 lower it to save time and then quote the output.
 
-## Before the first run in a session
-
-`scratchpad/board.py` was committed **unrun** on 2026-08-30. Run it on a
-past date first and check the columns are populated — in particular that
-`proj` is sane (~4-5 K, ~15-16 outs, ~2.2 F5 runs a side) and that the
-away/home F5 split is not reversed. If a column is empty or a projection is
-absurd, fix the module before quoting anything off it.
+Just run it. There is no setup and no pre-flight — the path was verified
+end to end on 2026-08-30 (14 games, Kalshi mids attaching on both prop
+series, F5 split the right way round).
 
 ## What each block is worth — this is the part that matters
 

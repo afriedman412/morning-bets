@@ -444,9 +444,24 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
         # carries the "just arrived" protection itself — 1.5% for his first
         # two batters against a 14.1% peak once he has faced the men he came
         # in for — so it does not need to be hard-coded here.
-        if side.starter_out and USE_MEASURED_RELIEF_HOOK:
+        if side.starter_out:
+            # THE ROLL IS DRAWN WHETHER OR NOT THE FLAG USES IT, and that is
+            # the point rather than an oversight. `USE_MEASURED_RELIEF_HOOK`
+            # is an A/B switch, and a switch that consumes a DIFFERENT NUMBER
+            # of random numbers is not an A/B — every event after it lands on
+            # a different draw, so the two arms stop being the same game.
+            #
+            # It was harmless only because the model almost never pulled a
+            # starter inside the first inning (0.5% of half-innings), so
+            # `check_the_first_inning_is_immune_to_a_bullpen_flag` passed
+            # VACUOUSLY. The counted pitch hazard makes early pulls realistic
+            # and the check starts failing on a stream shift that has nothing
+            # to do with baseball: with an empty pen `current` returns the
+            # starter, so the same arm faces the same batters either way.
             rl = side.cur_line
-            if rng.random() < relief.mid_removal(rl.runs, rl.batters):
+            roll = rng.random()
+            if (USE_MEASURED_RELIEF_HOOK
+                    and roll < relief.mid_removal(rl.runs, rl.batters)):
                 side.next_arm(fr.outs)
         elif not side.starter_out and USE_LEARNED_HOOK:
             if rng.random() < removal.predict(

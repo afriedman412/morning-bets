@@ -42,17 +42,30 @@ def check_the_first_inning_is_immune_to_a_bullpen_flag():
     to seeding. On real pens F1 can move a little for an honest reason — a
     starter knocked out in the first hands the ball over inside F1 — and a
     check that tolerated that could not tell the two causes apart.
+
+    IT ALSO FORCES THE PULL, and until 2026-08-30 it did not. The relief hook
+    only fires once the starter is out, and the shipped curves pull inside
+    the first inning in 0.5% of half-innings — so the branch this check
+    exists to police was almost never reached and the check PASSED
+    VACUOUSLY. Turning on the counted pitch hazard doubled early pulls and it
+    began failing at once. `mid_removal_p` is pinned to 1.0 here so the
+    starter comes out after the first batter of every half-inning and the
+    relief branch is exercised on every batter after him, which is the state
+    the check claims to cover.
     """
     by = _cases()
     pens = {"HOM": [], "AWY": []}
     orig = game.USE_MEASURED_RELIEF_HOOK
+    orig_mid = sim.Hook.mid_removal_p
     try:
+        sim.Hook.mid_removal_p = lambda *a, **k: 1.0
         game.USE_MEASURED_RELIEF_HOOK = False
         a = ladder.simulate_prefixes(by, pens, dict(LG), n_sims=8, seed=3)
         game.USE_MEASURED_RELIEF_HOOK = True
         b = ladder.simulate_prefixes(by, pens, dict(LG), n_sims=8, seed=3)
     finally:
         game.USE_MEASURED_RELIEF_HOOK = orig
+        sim.Hook.mid_removal_p = orig_mid
     for gid in a:
         assert a[gid][1] == b[gid][1], (gid, a[gid][1], b[gid][1])
 

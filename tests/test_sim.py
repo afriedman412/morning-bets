@@ -1880,8 +1880,28 @@ def check_the_boundary_curve_is_the_fitted_one():
     # evaluated at a mid-range state, so exact agreement is not expected —
     # the bands are wide enough to catch a curve that is out by a factor,
     # which is what every version of this defect has been.
+    #
+    # RE-PINNED 2026-08-30, AND THE OLD BAND AT 105 NEVER CONTAINED THE
+    # TRUTH. It required (0.55, 0.95) against a counted 0.972, so a curve
+    # that reproduced the real hazard exactly would have FAILED — the band
+    # was pinned against the parametric curve's own value (0.880) rather
+    # than against the count it is supposed to police, which is the same
+    # mistake the comment above records for the legacy comparison.
+    # `PITCH_HAZARD_BND` reads 0.957 here and was failing on that alone.
+    #
+    # Every band below now CONTAINS the counted rate, and two of the three
+    # are TIGHTER than what they replace. 65 pitches is new and it is the
+    # cell that matters most: the parametric curve gives 0.103 against a
+    # counted 0.050, which is the factor-of-two over-pull between 60 and 85
+    # that the counted table exists to fix.
+    #
+    #     pitches   counted   parametric   counted table
+    #        65      0.050       0.103        0.050
+    #        75      0.130       0.208        0.101
+    #       105      0.972       0.880        0.957
     pre = sim.Hook(**sim.PRE_OUTS_FIX_BOUNDARY)
-    for pitches, lo, hi in ((75, 0.08, 0.35), (105, 0.55, 0.95)):
+    for pitches, lo, hi in ((65, 0.03, 0.15), (75, 0.08, 0.25),
+                            (105, 0.80, 0.995)):
         got = h.removal_p(pitches, 2, 5, 4)
         assert lo < got < hi, (pitches, got)
     # And the pre-fix curve's defining defect: it under-pulls deep, which is

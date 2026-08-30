@@ -91,15 +91,30 @@ PITCHES (boundary 0.19 against a real 0.10 at 70-78) and too few at 95+,
 even after the high-pitch branch. One shape error; a table has no shared
 slope for a correction to travel along, which is what ends the whack-a-mole.
 
-  (a) `check_the_boundary_curve_is_the_fitted_one` pins removal_p(105) into
-      (0.55, 0.95). The table gives 0.957, the REAL 100-110 rate is 0.972 —
-      that band never contained the truth. Re-pin against the counted
-      hazard. THE CHECK IS WRONG HERE.
-  (b) `check_the_first_inning_is_immune_to_a_bullpen_flag` — NOT obviously
-      the check's fault. Once first-inning pulls happen at a realistic rate,
-      toggling `USE_MEASURED_RELIEF_HOOK` moves F1 with an EMPTY PEN. The
-      check was passing VACUOUSLY. Answer whether the engine handles a
-      first-inning removal into an empty pen correctly BEFORE touching it.
+**BOTH CHECKS ARE ANSWERED (2026-08-30) AND BOTH NOW PASS UNDER EITHER FLAG
+STATE. What is left is the switch-on and the scoring.**
+
+  (a) DONE. `check_the_boundary_curve_is_the_fitted_one` pinned
+      removal_p(105) into (0.55, 0.95) against a counted 0.972, so a curve
+      that reproduced the real hazard EXACTLY would have failed — the band
+      was pinned against the parametric curve's own value (0.880) rather
+      than against the count. Re-pinned so every band CONTAINS the counted
+      rate; 65 pitches added, since that is where the over-pull lives
+      (parametric 0.103 against a counted 0.050). Two of three bands are
+      TIGHTER than what they replaced. The legacy curve still fails them.
+  (b) DONE, AND IT WAS NOT THE ENGINE. With an empty pen `Side.current`
+      returns the STARTER, so the same arm faces the same batters whatever
+      the flag says — the F1 movement could not be baseball. It was the
+      RELIEF-HOOK ROLL BEING DRAWN INSIDE THE FLAG: toggling
+      `USE_MEASURED_RELIEF_HOOK` consumed a different number of random
+      numbers, and both halves of the first inning share one stream. The
+      roll is now drawn unconditionally and used conditionally, which is
+      bit-identical in the shipped state — fingerprint unchanged at
+      481232184167. The check itself was the second half of the defect: it
+      only reached the branch when the model pulled early, which it did in
+      0.5% of half-innings, so it passed VACUOUSLY. It now pins
+      `mid_removal_p` to 1.0 to force the pull. Mutation-verified — putting
+      the draw back inside the flag fails it in BOTH hazard states.
 
 THEN score: boundary share (0.625 against a real 0.672), outs CRPS, and the
 12.5-17.5 band. PRE-REGISTERED PREDICTION: the middle band improves, because

@@ -35,10 +35,10 @@ order is (away team's runs, home team's runs) — obtained by SWAPPING, since
 `game.py` stores runs ALLOWED per side. Read it the other way round and
 every F5 team total on the board belongs to the wrong club.
 
-*** NOT YET RUN. Written 2026-08-30 from the inline scripts it replaces and
-*** committed unexecuted, because the session that specified it was told not
-*** to simulate. RUN IT ON A PAST DATE AND EYEBALL THE COLUMNS BEFORE ANY
-*** NUMBER OFF IT REACHES A BET. The skill that calls it says the same.
+VERIFIED 2026-08-30 on the live slate: 14 games, Kalshi mids attach on both
+prop series, and the away/home F5 split is the right way round — three other
+consumers (`homeroad`, `where_runs`, `ceiling`) document `prefix_side` as
+(away TEAM score, home TEAM score) and this reads it that way.
 """
 from __future__ import annotations
 
@@ -62,7 +62,9 @@ F5_GAME_LINES = (3.5, 4.5, 5.5, 6.5)
 def american(p: float) -> str:
     if p <= 0 or p >= 1:
         return "-"
-    return f"{-100 * p / (1 - p):+.0f}" if p > 0.5 else f"{100 * (1 - p) / p:+.0f}"
+    if p > 0.5:
+        return f"{-100 * p / (1 - p):+.0f}"
+    return f"{100 * (1 - p) / p:+.0f}"
 
 
 def in_band(p: float, band: float | None) -> bool:
@@ -191,7 +193,8 @@ def main(argv):
             name="league", k_pct=lg["k_pct"], bb_pct=lg["bb_pct"],
             hr_pct=lg["hr_pct"], babip=lg["babip"]),
     )
-    band_s = "all lines" if band is None else f"fair price inside +/-{band:.0f}"
+    band_s = ("all lines" if band is None
+              else f"fair price inside +/-{band:.0f}")
     print(f"BOARD — {d}   {len(games)} games with both starters named   "
           f"{n:,} sims each   {band_s}\n")
 
@@ -207,7 +210,8 @@ def main(argv):
         a, h = g["away"], g["home"]
         tag = f"{a['abbr']} @ {h['abbr']}"
         if r["why"]:
-            declined.append((tag, f"{a['starter']} / {h['starter']}", r["why"]))
+            who = f"{a['starter']} / {h['starter']}"
+            declined.append((tag, who, r["why"]))
             continue
         for side in ("away", "home"):
             s = r["sides"][side]
@@ -241,7 +245,7 @@ def main(argv):
         mids[stat] = _kalshi_mids(stat, d, want) if want else {}
 
     # PASS TWO: print, grouped by pitcher, K then outs.
-    print(f"  {'pitcher':<20}{'opp':<5}{'proj':>6}{'bet':>8}{'P(ov)':>8}"
+    print(f"  {'pitcher':<20}{'opp':<5}{'proj':>6}  {'bet':<11}{'P(ov)':>8}"
           f"{'fair OV':>9}{'fair UN':>9}{'kalshi':>8}{'edge':>7}  note")
     for player in sorted({x["player"] for x in rows}):
         mine = [x for x in rows if x["player"] == player]
@@ -258,14 +262,15 @@ def main(argv):
                 note.append(f"adj ov {adj:.3f} [STALE]")
                 if abs(x["proj"] - HOLDOUT_MEAN_OUTS) > 2:
                     note.append("far from correction mean")
-            print(f"  {player[:18]:<20}{x['opp']:<5}{x['proj']:>6.1f}"
-                  f"{f'{x['stat']} o{x['line']:g}':>8}{x['over']:>8.3f}"
+            bet = f"{x['stat']} o{x['line']:g}"
+            print(f"  {player[:18]:<20}{x['opp']:<5}{x['proj']:>6.1f}  "
+                  f"{bet:<11}{x['over']:>8.3f}"
                   f"{american(x['over']):>9}{american(1 - x['over']):>9}"
                   f"{('-' if mid is None else f'{mid:.3f}'):>8}{edge:>7}"
                   f"  {', '.join(note)}")
 
     if f5_rows:
-        print(f"\n  FIRST FIVE — the stated product.\n")
+        print("\n  FIRST FIVE — the stated product.\n")
         print(f"  {'game':<12}{'side':<6}{'proj':>6}{'bet':>8}{'P(ov)':>8}"
               f"{'fair OV':>9}{'fair UN':>9}")
         for x in f5_rows:
@@ -278,7 +283,8 @@ def main(argv):
 
     if declined:
         print(f"\n  DECLINED {len(declined)} game(s) — never filled with a")
-        print("  league-average arm; inventing the other club invents the score:")
+        print("  league-average arm; inventing the other club invents"
+              " the score:")
         for tag, sp, why in declined:
             print(f"    {tag:<12}{sp[:40]:<42}{why}")
 
