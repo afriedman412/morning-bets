@@ -7392,3 +7392,63 @@ leaves-early-counts-alone check. Fingerprint f5453dc2 -> see below.
 **A BOOKKEEPING CORRECTION:** the check count quoted through the day as 425
 was stale. Runner count and defined count agree exactly (434 before these
 two, 436 after) and nothing is silently skipped.
+
+## DAY EIGHTEEN — THE COUNTED PITCH HAZARD. MEASURED, WIRED, AND PARKED OFF.
+
+The end of the whack-a-mole: the pitch backbone of both hook curves as a
+COUNTED TABLE instead of one logistic. `scratchpad/pitch_hazard.py`,
+294,884 TRAINING decisions (before 2026-07-01, the rule set yesterday).
+
+**WHAT THE PARAMETRIC CURVE GOT WRONG**, its own predictions against reality
+— and note the `shipped` column ALREADY INCLUDES yesterday's high-pitch
+branch, so this is the miss that survived that patch:
+
+    pitches   boundary shipped/real     mid shipped/real
+     45-60       0.0264 / 0.0155        0.0101 / 0.0054
+     60-70       0.0865 / 0.0416        0.0255 / 0.0134
+     70-78       0.1907 / 0.1021        0.0507 / 0.0298
+     78-85       0.3366 / 0.2207        0.0863 / 0.0594
+     95-100      0.8463 / 0.9093        0.2888 / 0.2610
+     100+        0.9074 / 0.9719        0.4076 / 0.4013
+
+**IT PULLS ROUGHLY TWICE TOO MANY MEN BETWEEN 60 AND 85 PITCHES.** That is
+the middle-band defect the third branch made worse, seen at its source.
+
+SOLVED CONDITIONAL on the other shipped terms, never read off as a marginal
+rate — a bucket's raw rate already contains the runs and traffic that occur
+at that pitch count, and substituting it directly double-counts them.
+
+**EXPRESSED AS AN OFFSET FROM `intercept`, NOT AS AN ABSOLUTE LEVEL, AND
+GETTING THAT WRONG COST SIX CHECKS.** Callers disable the hook by driving
+`intercept` / `mid_intercept` to -99 — team_offset, the patience fits and
+every never-pull test use that idiom. A backbone with its own absolute level
+goes on pulling people regardless. `late_mid_offset` has a docstring saying
+exactly this and I did it anyway.
+
+**BUCKET WIDTH IS A MECHANISM, NOT A PRESENTATION CHOICE.** The first cut
+used 0-45 as one bucket and charged a 20-pitch starter the same hazard as a
+44-pitch one, raising first-inning removals from ~0.0005 to ~0.006. Refined
+to 0/25/40/50/60/70/78/85/90/95/100.
+
+**PARKED OFF. TWO CHECKS FAIL AND NEITHER IS ALLOWED TO BE LOOSENED AWAY:**
+
+  1. `check_the_boundary_curve_is_the_fitted_one` pins removal_p(105) into
+     (0.55, 0.95). The table gives 0.957 and the REAL 100-110 rate is 0.972,
+     so THAT BAND NEVER CONTAINED THE TRUTH — it was drawn around the old
+     curve. Re-pin against the counted hazard, which is what the check's own
+     comment says it is for. This one is the check's fault.
+  2. `check_the_first_inning_is_immune_to_a_bullpen_flag` — NOT obviously
+     the check's fault, and the more interesting one. Once first-inning
+     pulls actually happen, toggling `USE_MEASURED_RELIEF_HOOK` moves F1
+     even with an EMPTY pen. **THE CHECK WAS PASSING VACUOUSLY** because the
+     old curve never exercised that path. That is precisely the attribution
+     bug it was written to catch, so it gets answered rather than widened.
+
+Fingerprint unchanged at 00584230 with the flag off, so nothing shipped
+moved. 436 checks green.
+
+**NEXT, IN ORDER:** answer (2) — does an empty pen handle a first-inning
+removal correctly? — then re-pin (1) against the counted rate, then switch
+on and score boundary share, outs CRPS and the 12.5-17.5 band. The
+prediction to hold it to: the middle band should improve, because that is
+where the old curve is out by a factor of two.

@@ -1605,18 +1605,22 @@ class Hook:
                             * inning_run_offset(inning_runs)
                             + self.early_bnd_per_run * runs
                             + self.per_margin * margin)
-        return _sigmoid(self.intercept + self.team_offset
-                        + (pitches - self.pitch_center) / self.pitch_scale
-                        + self.per_pitch_over * max(0.0,
-                                                    pitches - self.pitch_knee)
+        base = (self.intercept - PITCH_HAZARD_BND_ANCHOR
+                + pitch_hazard(pitches, PITCH_HAZARD_BND)
+                if USE_PITCH_HAZARD else
+                (self.intercept
+                 + (pitches - self.pitch_center) / self.pitch_scale
+                 + self.per_pitch_over * max(0.0, pitches - self.pitch_knee)
+                 + (self.high_pitch_bnd
+                    if pitches >= self.high_pitch_threshold else 0.0)))
+        return _sigmoid(base + self.team_offset
                         + self.per_run * runs
                         + self.per_baserunner * baserunners
                         + self.per_margin * margin
                         + self.per_inning * innings
                         + self._pen(pen, self.per_pen_back2,
                                     self.per_pen_rest)
-                        + (self.high_pitch_bnd
-                           if pitches >= self.high_pitch_threshold else 0.0))
+                        )
 
     @staticmethod
     def _pen(pen, c_back2: float, c_rest: float) -> float:
@@ -1664,9 +1668,15 @@ class Hook:
                             * inning_run_offset(inning_runs)
                             + self.early_per_inning_br * inning_br
                             + self.mid_per_margin * margin)
-        return _sigmoid(self.mid_intercept + self.late_mid_offset
+        mbase = (self.mid_intercept - PITCH_HAZARD_MID_ANCHOR
+                 + pitch_hazard(pitches, PITCH_HAZARD_MID)
+                 if USE_PITCH_HAZARD else
+                 (self.mid_intercept + self.late_mid_offset
+                  + self.late_mid_per_pitch * pitches
+                  + (self.high_pitch_mid
+                     if pitches >= self.high_pitch_threshold else 0.0)))
+        return _sigmoid(mbase
                         + self.team_offset
-                        + self.late_mid_per_pitch * pitches
                         + self.late_mid_per_inning_br * inning_br
                         + self.late_mid_per_run * runs
                         + self.late_mid_per_onbase * on_base
@@ -1684,8 +1694,6 @@ class Hook:
                            - K_RATE_BASELINE)
                         + self._pen(pen, self.mid_per_pen_back2,
                                     self.mid_per_pen_rest)
-                        + (self.high_pitch_mid
-                           if pitches >= self.high_pitch_threshold else 0.0)
                         + self.mid_per_inning_run
                         * inning_run_offset(inning_runs))
 
@@ -1848,6 +1856,108 @@ def sharpen(p: "PitcherRates", rng: random.Random,
         return p
     z = rng.gauss(0.0, 1.0)
     return replace(p, k_pct=p.k_pct * math.exp(s * z - s * s / 2.0))
+
+
+#: THE REMOVAL HAZARD BY PITCH COUNT, COUNTED — the pitch backbone of both
+#: hook curves, replacing `intercept`, `(pitches - pitch_center)/pitch_scale`,
+#: `per_pitch_over` and the `high_pitch_*` branch.
+#:
+#: WHY A TABLE. The shipped pitch term was ONE smooth logistic across 20 to
+#: 110 pitches, and this file already recorded that the FORM cannot fit:
+#: no combination of centre, scale and cap reaches mean 84 AND median 89 AND
+#: 12.2% over 100. So every patch moved mass into the next bucket — the
+#: `high_pitch_*` branch fixed o18.5 and o20.5 and made o15.5/o16.5/o17.5
+#: worse by a point each. A table ends that, because the buckets are
+#: INDEPENDENT: there is no shared slope for a correction to travel along.
+#: Same discipline as `PITCH_COST`, `STATE_MULT` and the advancement rates,
+#: every one of which found the imported curve was wrong.
+#:
+#: WHAT THE OLD CURVE GOT WRONG, its own predictions against reality on the
+#: 294,884 TRAINING decisions:
+#:
+#:     pitches   boundary shipped/real     mid shipped/real
+#:      45-60       0.0264 / 0.0155        0.0101 / 0.0054
+#:      60-70       0.0865 / 0.0416        0.0255 / 0.0134
+#:      70-78       0.1907 / 0.1021        0.0507 / 0.0298
+#:      78-85       0.3366 / 0.2207        0.0863 / 0.0594
+#:      95-100      0.8463 / 0.9093        0.2888 / 0.2610
+#:      100+        0.9074 / 0.9719        0.4076 / 0.4013
+#:
+#: It pulls roughly TWICE too many men between 60 and 85 pitches and too few
+#: at 95+, even after the high-pitch branch had already corrected the top.
+#: One shape error with two faces; the table has neither.
+#:
+#: SOLVED CONDITIONAL ON THE OTHER TERMS, not read off as a marginal rate.
+#: The raw pull rate in a bucket already contains the average runs and
+#: traffic that occur at that pitch count, so substituting it directly would
+#: count those twice. Each value is the intercept that makes the mean
+#: predicted probability match the observed rate GIVEN the shipped
+#: runs/traffic/inning/blowout/dominance terms. Bisection, so no grid edge.
+#:
+#: TRAIN ROWS ONLY (before 2026-07-01). Finer buckets through the cliff,
+#: where the boundary hazard runs 0.44 -> 0.70 -> 0.91 in fifteen pitches.
+#: Smallest cell 1,209 rows. Monotone in every season on both branches.
+#: `scratchpad/pitch_hazard.py`.
+#: THE ANCHORS THE TABLE IS EXPRESSED AGAINST, and they are the whole reason
+#: it composes. The table is applied as an OFFSET from the curve's own
+#: intercept, never as an absolute level: callers DISABLE the hook by
+#: driving `intercept` / `mid_intercept` to -99 — `team_offset`, the
+#: patience fits and every never-pull test use that idiom — and a backbone
+#: carrying its own absolute level goes on pulling people regardless.
+#: `late_mid_offset` has a docstring saying exactly this and it was got
+#: wrong here anyway; six checks caught it.
+#:
+#: At the shipped intercepts the offset cancels and the curve reads the
+#: counted value exactly.
+PITCH_HAZARD_BND_ANCHOR = -5.1370
+PITCH_HAZARD_MID_ANCHOR = -5.0
+
+PITCH_HAZARD_BND = ((0, -5.3504), (25, -5.3196), (40, -5.7343),
+                    (50, -5.2571), (60, -4.6492), (70, -3.8836),
+                    (78, -3.1352), (85, -2.2086), (90, -1.2026),
+                    (95, 0.2150), (100, 1.3943))
+PITCH_HAZARD_MID = ((0, -8.0073), (25, -7.0291), (40, -6.7298),
+                    (50, -6.4396), (60, -5.5773), (70, -4.7341),
+                    (78, -3.9651), (85, -3.2537), (90, -2.6494),
+                    (95, -2.0617), (100, -1.3864))
+
+#: Off restores the parametric backbone AND the `high_pitch_*` branch
+#: exactly, so the two are separately scoreable. They must never both apply
+#: — the branch is a correction TO the curve the table replaces.
+#: OFF PENDING TWO CHECKS, and it stays off until they are answered rather
+#: than shipping green-by-loosening. Turning it on fails exactly two:
+#:
+#:  1. `check_the_boundary_curve_is_the_fitted_one` pins removal_p(105) into
+#:     (0.55, 0.95). The counted table gives 0.957 and the REAL 100-110 rate
+#:     is 0.972 — so that band never contained the truth; it was drawn round
+#:     the old curve. The check needs re-pinning against the counted hazard,
+#:     which is what its own comment says it is for.
+#:  2. `check_the_first_inning_is_immune_to_a_bullpen_flag` fails, and this
+#:     one is NOT obviously the test's fault. The table raises the boundary
+#:     hazard under 25 pitches from ~0.0005 to ~0.006, so first-inning pulls
+#:     now actually happen — and the moment one does, toggling
+#:     `USE_MEASURED_RELIEF_HOOK` moves F1 even with an EMPTY pen. The check
+#:     was passing VACUOUSLY because the old curve never exercised that path.
+#:     Whether the engine or the check is wrong is unresolved; it is exactly
+#:     the attribution bug that check exists to catch, so it gets answered
+#:     before this ships.
+USE_PITCH_HAZARD = False
+
+
+def pitch_hazard(pitches: float, table) -> float:
+    """Counted log-odds baseline at this pitch count. A STEP, not a curve.
+
+    Deliberately not interpolated. The buckets were solved independently and
+    smoothing between them would reintroduce exactly the shared slope this
+    table exists to remove.
+    """
+    out = table[0][1]
+    for lo, v in table:
+        if pitches >= lo:
+            out = v
+        else:
+            break
+    return out
 
 
 MID_INNING_RUN_OFFSET = {0: 0.0, 1: 0.296, 2: 1.380, 3: 1.707, 4: 2.914}
