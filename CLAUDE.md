@@ -30,6 +30,11 @@ carries the failure that motivates it; read those once, then use this index.
       SAME THING** before acting.
   12. **RUN INVESTIGATIONS AS LABELLED STAGES**, state the POWER and the
       STANDARD ERROR before the result.
+  12b. **ONE HOLDOUT IS NOT A MEASUREMENT OF GENERALISATION.** The
+      between-season spread of the baseline error is 0.040 to 0.059 —
+      LARGER than most effects being measured. Score across FOUR FOLDS
+      (`scratchpad/pxi_cv.py`, `hz_cv.py`), report all of them, and set the
+      bar before running.
   13. **DO NOT LOOSEN A TEST TO ADMIT A CHANGE.** Verify every check by
       MUTATION — one that guards nothing looks identical to one that does.
   14. **HUNT LEVEL ERRORS AND STRUCTURAL GAPS FIRST**, then refinements.
@@ -246,6 +251,14 @@ SCREEN, and SEPARATE ESTABLISHED FROM INFERRED IN THE CONCLUSION.
 THEY MEASURE THE SAME THING.** Three positions in two minutes on one question,
 and two of them were never in conflict.
 
+**THE HOOK'S PITCH TERM IS NOW A COUNTED TABLE ON THE MID CURVE
+(2026-08-31).** `USE_PITCH_HAZARD` on, `USE_PITCH_HAZARD_BND` off — the
+parametric backbone survives on the BOUNDARY curve because the counted
+version of it misses its own buckets. It closed the fourth-inning over-pull,
+which turned out to be the same defect as the backbone's over-pull at 60-85
+pitches. **THE BOUNDARY BACKBONE IS THE OPEN JOB** and the biggest cell
+error left is the clean six-inning start: real 0.230 of starts, ours 0.198.
+
 **WHERE THE MODEL IS ACTUALLY WRONG, measured 2026-08-27 and the most
 useful line in these docs for choosing what to work on: THE EVENT RATES ARE
 RIGHT AND THE ADVANCEMENT IS NOT.** Through five innings the model puts
@@ -354,9 +367,14 @@ Run everything through the Makefile's Python virtualenv (`venv/bin/python`).
 ### Play-by-play, and what it unlocked (added 2026-08-24)
 
 - `venv/bin/python -m src.context.sources.pbp --backfill --sync` — WHOLE
-  games, 2,006 of them, 205 MB gzipped, ~2 min over 8 workers. Fetched
-  whole and stored whole: extracting a subset to save disk is a false
-  economy, the API call is identical either way. `plays()` reconstructs
+  games — **10,021 cached as of 2026-08-31, ~1 GB gzipped**, four full
+  seasons — over 8 workers. Fetched whole and stored whole: extracting a
+  subset to save disk is a false economy, the API call is identical either
+  way. **THE COVERAGE IS FOUR SEASONS, NOT ONE, AND THIS LINE SAID 2,006
+  FOR WEEKS.** Reading it cost two turns on 2026-08-31 insisting that only
+  2026 could be replayed. `cal.paired_cases(season=2024,
+  rates_before=..., since=...)` returns 958 paired games in nine seconds;
+  PASS `season=` OR it infers the current one and returns nothing. `plays()` reconstructs
   base-out-score state BEFORE every play; `stints()` gives one row per
   pitcher per game with the state he walked into.
 - `... -m src.context.advance` — advancement rates COUNTED on this league.
@@ -391,7 +409,7 @@ Run everything through the Makefile's Python virtualenv (`venv/bin/python`).
   discrimination between starts, not a better-shaped start. Club patience
   stays off; that is the sixth finding against it.
 - `... -m src.context.tto` — times through the order. K% falls 19% from the
-  first pass to the third. `--` no args runs all 2,006 games.
+  first pass to the third. `--` no args runs every cached game.
 - `... -m src.context.stabilise` — the four shrinkage constants, measured.
   Batter rates were over-shrunk 2.2x, pitcher HR under-shrunk 2.7x.
 - `venv/bin/python -m scratchpad.leverage` — SCREEN A MECHANISM BEFORE
@@ -442,7 +460,7 @@ Run everything through the Makefile's Python virtualenv (`venv/bin/python`).
 - `... calibrate --patience` / `--leash` — fit club and pitcher removal offsets as RESIDUALS. Order matters: club first, pitcher against the remainder, or the manager gets counted twice.
 - `... calibrate --holdout YYYY-MM-DD` — refit on the training window only, score on unseen starts.
 - `venv/bin/python -m src.context.sources.starters --backfill` — ground truth for who started. `grading.py` sets this going forward; the backfill is for history.
-- `make test` / `make test ARGS=sim` — 328 offline checks, ~95s. It got
+- `make test` / `make test ARGS=sim` — 464 offline checks, ~45s. It got
   slower on 2026-08-25 and that is the deletion, not a regression: a check
   that used to walk one pitching side now plays a whole game.
 - `venv/bin/python -m scratchpad.mutate` — MUTATION SWEEP. Flips one shipped
@@ -667,7 +685,7 @@ market, 0/4 started ones did.
 
 ### Test suite
 
-`make test` (328 checks, ~95s, no network, no pytest). `tests/run.py` collects
+`make test` (464 checks, ~45s, no network, no pytest). `tests/run.py` collects
 every `check_*`. `tests/test_regressions.py` is one check per bug that
 actually shipped, verified by mutation — reintroducing a fix fails exactly
 the check that covers it.
