@@ -1607,13 +1607,14 @@ class Hook:
                             + self.per_margin * margin)
         base = (self.intercept - PITCH_HAZARD_BND_ANCHOR
                 + pitch_hazard(pitches, PITCH_HAZARD_BND)
-                if USE_PITCH_HAZARD else
+                if (USE_PITCH_HAZARD and USE_PITCH_HAZARD_BND) else
                 (self.intercept
                  + (pitches - self.pitch_center) / self.pitch_scale
                  + self.per_pitch_over * max(0.0, pitches - self.pitch_knee)
                  + (self.high_pitch_bnd
                     if pitches >= self.high_pitch_threshold else 0.0)))
         return _sigmoid(base + self.team_offset
+                        + pxi(pitches, innings, PXI_BND)
                         + self.per_run * runs
                         + self.per_baserunner * baserunners
                         + self.per_margin * margin
@@ -1677,6 +1678,7 @@ class Hook:
                      if pitches >= self.high_pitch_threshold else 0.0)))
         return _sigmoid(mbase
                         + self.team_offset
+                        + pxi(pitches, inning, PXI_MID)
                         + self.late_mid_per_inning_br * inning_br
                         + self.late_mid_per_run * runs
                         + self.late_mid_per_onbase * on_base
@@ -1941,8 +1943,118 @@ PITCH_HAZARD_MID = ((0, -8.0073), (25, -7.0291), (40, -6.7298),
 #:     Whether the engine or the check is wrong is unresolved; it is exactly
 #:     the attribution bug that check exists to catch, so it gets answered
 #:     before this ships.
-USE_PITCH_HAZARD = False
+#: SHIPPED ON 2026-08-31, MID CURVE ONLY. See `USE_PITCH_HAZARD_BND`.
+#:
+#: WHAT IT BOUGHT, four-fold cross-validated on the outs ladder
+#: (`scratchpad/hz_cv_mid.py`): the 12.5-17.5 band improves in ALL FOUR
+#: seasons by a consistent -0.016 to -0.018, the long lines are untouched
+#: (0.0157 -> 0.0152), and the mean-outs error HALVES rather than flipping
+#: (0.2 outs short -> 0.08 short; taking both curves overshoots to +0.18
+#: long in every season).
+#:
+#: RUNS ARE UNAFFECTED. Prefix ladder over 508 holdout games: F1 -0.008,
+#: F3 -0.080 -> -0.078, F5 -0.036 -> -0.032, F7 -0.029 -> -0.025. Every
+#: prefix moves under 0.004 runs, all inside a standard error of 0.06-0.17,
+#: and every one moves TOWARD zero.
+USE_PITCH_HAZARD = True
 
+#: THE TWO CURVES SEPARATELY. The comment above says the parametric
+#: backbone and the counted table are separately scoreable and until
+#: 2026-08-31 nothing could actually score them apart. Measured that day,
+#: bucket by bucket against real holdout rates, they behave completely
+#: differently:
+#:
+#:    MID   cell error 0.0203 -> 0.0144. Eight buckets essentially exact
+#:          through 85 pitches; misses LOW only at 90+ (-0.051, -0.058).
+#:    BND   cell error 0.0265 -> 0.0314, WORSE than the curve it replaces,
+#:          and under-pulling across the whole range from 60 up
+#:          (-0.018, -0.020, -0.088, -0.057, -0.084).
+#:
+#: The boundary table under-pulling everywhere is why starters run long:
+#: mean outs overshoots by +0.18 in all four seasons with both on.
+#:
+#: FALSE IS THE SHIPPED STATE: counted MID backbone, parametric BOUNDARY.
+#: Taking both was a dead heat on all-line error (0.0215 against 0.0223)
+#: and lost everywhere else — it nearly doubled the long-line error and
+#: turned a 0.2-out shortfall into a 0.18-out overshoot in every season.
+#: Half the change beat all of it.
+USE_PITCH_HAZARD_BND = False
+
+
+
+#: PITCH COUNT x INNING. Seventy pitches in the third is not the decision
+#: seventy in the fifth is, and neither curve could say so: both read
+#: `pitches` and the inning as SEPARATE ADDITIVE terms, so the difference
+#: between "the wheels came off" and "he is cruising" had nowhere to live.
+#: Counted on day seven (70 pitches pulled at 6.01% in the third against
+#: 1.62% in the fifth, a 3.7x span) and not built until day twenty.
+#:
+#: SOLVED, NOT TABULATED, conditional on every other shipped term
+#: (`scratchpad/pxi.py`), and CENTRED on the row-weighted mean so this
+#: carries SHAPE and not LEVEL — three other terms already control how deep
+#: starters go and this must not become a fourth.
+#:
+#: NOT PITCHES PER INNING. That compression was tried on day seven and it
+#: FOLDS BACK ON ITSELF — high pitches-per-inning early means FEW total
+#: pitches, giving a non-monotone 1.68% / 4.77% / 3.14% against a monotone
+#: 75x span for raw pitch count. A cell table never divides, so it has no
+#: such degeneracy.
+#:
+#: BANDS START AT 45 ON PURPOSE. Sub-45 cells solve to +0.9 and +1.1, which
+#: is the DISASTER TAIL — a starter gone that early was chased or hurt, not
+#: out-managed. That population belongs to the early-exit mixture, and
+#: `early_exit_floor` exists to stop the hook producing those starts on top
+#: of it. Day seven's `early_innings` branches fixed the tail from inside
+#: the curve and paid for it in spread (outs SD 4.47 against a real 3.99).
+#:
+#: READ THE SIGN: negative in the fourth, positive from the sixth. The model
+#: pulls too eagerly in the middle innings and lets the labouring starter
+#: come back out for the sixth. `scratchpad/mid_by_inning.py` shows the same
+#: defect from the other side — mid-inning exits +0.032 of all starts in the
+#: fifth, -0.029 in the sixth.
+PXI_BANDS = (45, 60, 75, 90)
+PXI_INNINGS = (1, 4, 5, 6, 7)
+
+PXI_BND = {(45, 1): 0.0437, (45, 4): -0.1563, (45, 5): 0.4333,
+           (60, 1): 0.0828, (60, 4): -0.6350, (60, 5): -0.1248,
+           (60, 6): 0.4675,
+           (75, 4): -0.1315, (75, 5): -0.0642, (75, 6): 0.2557,
+           (75, 7): 0.6500,
+           (90, 5): 0.3059, (90, 6): 0.8109, (90, 7): 0.5068}
+
+PXI_MID = {(45, 1): 0.0674, (45, 4): -0.4899, (45, 5): 0.1306,
+           (45, 6): 1.2662,
+           (60, 1): 0.0827, (60, 4): -0.4143, (60, 5): -0.1575,
+           (60, 6): 0.6360, (60, 7): 0.5920,
+           (75, 4): -0.1155, (75, 5): -0.0624, (75, 6): 0.4303,
+           (75, 7): 0.6987,
+           (90, 5): 0.0216, (90, 6): 0.4124, (90, 7): 0.5482}
+
+#: Off pending a score, like every other counted mechanism here.
+USE_PITCH_X_INNING = False
+
+
+def pxi(pitches: float, inning: int, table: dict) -> float:
+    """Cell offset, or zero outside the tabulated region.
+
+    ZERO AND NOT NEAREST-NEIGHBOUR. An absent cell is one that had under
+    300 training decisions, which is a cell nobody measured; extrapolating
+    a neighbour into it would ship a number that was never counted. Zero
+    leaves the curve exactly as it is there, which is the honest default.
+    """
+    if not USE_PITCH_X_INNING:
+        return 0.0
+    b = None
+    for edge in PXI_BANDS:
+        if pitches >= edge:
+            b = edge
+    if b is None:
+        return 0.0                      # below 45: the mixture's territory
+    g = None
+    for edge in PXI_INNINGS:
+        if inning >= edge:
+            g = edge
+    return table.get((b, g), 0.0)
 
 def pitch_hazard(pitches: float, table) -> float:
     """Counted log-odds baseline at this pitch count. A STEP, not a curve.

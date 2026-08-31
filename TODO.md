@@ -78,48 +78,66 @@ count alone. A burner and a backup catcher are the identical baserunner.
 Reliability is settled, SENSITIVITY is not. Run `leverage.py` first —
 reliability without sensitivity is how park died three times.
 
-**7. TURN ON THE COUNTED PITCH HAZARD. Two checks stand in the way and
-neither may be loosened.** This is the top item.
+**7. SHIPPED 2026-08-31 — the counted MID hazard. The BOUNDARY backbone is
+what is left, and it is now the top modelling item.**
 
-`sim.USE_PITCH_HAZARD` is False. `PITCH_HAZARD_BND` / `PITCH_HAZARD_MID` are
-COUNTED on 294,884 training rows and wired. They replace the pitch backbone
-of both curves — `intercept`, the logistic pitch term, `per_pitch_over` and
-the `high_pitch_*` branch. Everything else rides on top unchanged.
+`sim.USE_PITCH_HAZARD = True`, `sim.USE_PITCH_HAZARD_BND = False`: counted
+MID backbone, parametric BOUNDARY. Four-fold cross-validated on the outs
+ladder — the 12.5-17.5 band improves in ALL FOUR seasons by a consistent
+-0.016 to -0.018, the long lines are untouched, and the mean-outs error
+halves rather than flipping. Runs unmoved across the prefix ladder. It
+closes the fourth-inning over-pull (+0.033 -> -0.007), because 60-85 pitches
+IS the fourth inning and those were one defect, not two.
 
-WHY: the parametric curve PULLS TWICE TOO MANY MEN BETWEEN 60 AND 85
-PITCHES (boundary 0.19 against a real 0.10 at 70-78) and too few at 95+,
-even after the high-pitch branch. One shape error; a table has no shared
-slope for a correction to travel along, which is what ends the whack-a-mole.
+TAKING BOTH CURVES WAS SCORED AND LOST. Dead heat on all-line error (0.0215
+against 0.0223) and worse on everything else: it nearly doubled the
+long-line error and turned a 0.2-out shortfall into a 0.18-out overshoot in
+every season. Half the change beat all of it.
 
-**BOTH CHECKS ARE ANSWERED (2026-08-30) AND BOTH NOW PASS UNDER EITHER FLAG
-STATE. What is left is the switch-on and the scoring.**
+**7a. RE-SOLVE THE BOUNDARY BACKBONE AGAINST THE MODEL'S OWN STATES.**
+`PITCH_HAZARD_BND` misses its own buckets: cell error 0.0265 -> 0.0314,
+WORSE than the parametric curve it would replace, under-pulling from 60
+pitches up (-0.018, -0.020, -0.088, -0.057, -0.084 against real holdout
+rates). The cells were solved conditional on REAL game states and are being
+applied to OURS, which are calmer.
 
-  (a) DONE. `check_the_boundary_curve_is_the_fitted_one` pinned
-      removal_p(105) into (0.55, 0.95) against a counted 0.972, so a curve
-      that reproduced the real hazard EXACTLY would have failed — the band
-      was pinned against the parametric curve's own value (0.880) rather
-      than against the count. Re-pinned so every band CONTAINS the counted
-      rate; 65 pitches added, since that is where the over-pull lives
-      (parametric 0.103 against a counted 0.050). Two of three bands are
-      TIGHTER than what they replaced. The legacy curve still fails them.
-  (b) DONE, AND IT WAS NOT THE ENGINE. With an empty pen `Side.current`
-      returns the STARTER, so the same arm faces the same batters whatever
-      the flag says — the F1 movement could not be baseball. It was the
-      RELIEF-HOOK ROLL BEING DRAWN INSIDE THE FLAG: toggling
-      `USE_MEASURED_RELIEF_HOOK` consumed a different number of random
-      numbers, and both halves of the first inning share one stream. The
-      roll is now drawn unconditionally and used conditionally, which is
-      bit-identical in the shipped state — fingerprint unchanged at
-      481232184167. The check itself was the second half of the defect: it
-      only reached the branch when the model pulled early, which it did in
-      0.5% of half-innings, so it passed VACUOUSLY. It now pins
-      `mid_removal_p` to 1.0 to force the pull. Mutation-verified — putting
-      the draw back inside the flag fails it in BOTH hazard states.
+THE FIX IS TO ITERATE THE SOLVE, NOT TO RE-CENTRE IT. Ask what value each
+bucket needs so that OUR SIMULATED GAMES produce the REAL rate, run, adjust,
+repeat. That is still measured entirely against real baseball — it just
+checks the answer where it gets used rather than where it was counted.
+Re-centring on our own occupancy was proposed and REJECTED: it makes the
+aggregate land while leaving every individual situation wrong and buries a
+measurement of how far our states sit from real ones. `scratchpad/
+hz_cells.py` is the harness and the bar is fifteen buckets, fifteen real
+rates.
 
-THEN score: boundary share (0.625 against a real 0.672), outs CRPS, and the
-12.5-17.5 band. PRE-REGISTERED PREDICTION: the middle band improves, because
-that is where the old curve is out by a factor of two. Falsifier: it does
-not, which would mean the boundary share defect is not in the pitch term.
+WHAT IT IS WORTH, measured after the ship (`scratchpad/outs_split.py`):
+the biggest single cell error left is the CLEAN SIX-INNING START — real
+0.230 of starts, ours 0.198, and the missing mass sits on four-inning
+walk-offs (+0.023) and starters yanked with two down in the fifth (+0.018).
+And at every round number we under-produce the man who came back out and was
+chased without an out (15 outs: real 14.5% of that spike, ours 9.5%).
+
+**AND RE-MEASURE `scratchpad/outs_adjust.py` THE SAME SITTING.** Twelve
+seconds. Shipping the mid hazard already took a third of the correction's
+job (band |correction| 0.045 -> 0.031); the boundary one will move it again.
+
+**7d. PITCH x INNING — REFUTED ON CROSS-VALIDATION. DO NOT REFIT WITHOUT
+READING THIS.** `sim.USE_PITCH_X_INNING` is False and stays there.
+`PXI_BND` / `PXI_MID` are solved conditional on the other shipped terms and
+wired, and they do not transfer: boundary better in 2 folds of 4 and WORSE in
+2023, mid worse in 3 of 4, and the mid offset trends by season (+0.0428 in
+2023 to +0.0181 in 2026) rather than being the constant a single fold
+suggested. The RAW phenomenon is real — 70 pitches in the third is pulled
+6.01% against 1.62% in the fifth — but the table is not portable, and the
+counted MID hazard that shipped closes the fourth inning anyway. Day twenty
+parts two and three in the notes.
+
+AND PITCHES PER INNING IS OLDER, DEADER GROUND. It folds back on itself:
+high pitches-per-inning EARLY means FEW total pitches, so it measures
+non-monotone (1.68% / 4.77% / 3.14%) against a monotone 75x span for raw
+pitch count. Day seven measured and rejected it; day twenty re-derived the
+same U-shape before finding the note.
 
 **7b. WHAT IS ALREADY DONE ON THE K TAIL — do not re-run.**
 Dominance shipped (`late_mid_per_k_rate`), the per-start strikeout draw
@@ -135,12 +153,6 @@ of 0.341 against a real 0.672. Do not rebuild props as a separate model.
 **8c. EVALUATE THE DOUBLE-SHRUNK PRIOR FIX.** Fitted already, never scored —
 it was waiting on the hook work. See item 12 for the defect and the Snell
 case. DO NOT re-run `USE_RAW_PRIOR`; it was measured and loses.
-
-**8d. RE-MEASURE `scratchpad/outs_adjust.py`.** Its correction table was
-measured BEFORE the high-pitch branch, so it under-states the middle-band
-error and over-states the long lines. It was used to price a live board on
-2026-08-29 and should not be used again until re-measured — and it will need
-re-measuring AGAIN after item 7 ships.
 
 **8. Role-based bullpen deployment, and fatigue.**
 `build_side` samples 8 arms weighted by appearances and `next_arm` walks that

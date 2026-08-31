@@ -12,10 +12,9 @@ to make prices look right would absorb the defect and hide it.
 
 THE DEFECT IT CORRECTS, and it is one thing with one cause. The simulator
 ends starts MID-INNING where reality ends them at inning boundaries:
-boundary share 0.609 against a real 0.669, about 4 sigma. Reality puts 24.4%
-of starts at exactly 18 outs and the model manages 18.8%, so that mass leaks
-into 12, 14, 16 and 17 instead. The level (15.75 against 15.82) and the
-spread (4.07 against 4.04) are both RIGHT — it is placement that is wrong.
+boundary share 0.646 against a real 0.673. The level (15.71 against 15.81)
+and the spread (3.99 against 4.02) are both RIGHT — it is placement that is
+wrong.
 
 WHY A CORRECTION RATHER THAN A FIX. Three well-powered mechanisms failed to
 move the boundary share on 2026-08-29 — margin, strikeout dominance and
@@ -24,30 +23,54 @@ And a directly-fitted removal model, which beats `sim.Hook` on decision AUC
 0.912 to 0.876, produces a boundary share of 0.341: far worse. So the fix is
 not close, and the bias is meanwhile stable enough to price against.
 
-THE TABLE IS MEASURED, NOT TUNED. Holdout, 1,074 real starts, rates frozen
+THE TABLE IS MEASURED, NOT TUNED. Holdout, 1,150 real starts, rates frozen
 before 2026-07-01, model P(over) against the observed frequency
-(`scratchpad/shape.py`). se is ~0.013 on each row, so the 12.5-17.5 band is
-2-5 sigma and the two long lines are ~2-3.
+(`scratchpad/shape.py 40`, output kept at `scratchpad/shape_0831_hz.out`).
 
-    line     model   actual     gap
-    o12.5    0.772    0.811   -0.039
-    o14.5    0.674    0.739   -0.065
-    o15.5    0.497    0.546   -0.049
-    o16.5    0.453    0.486   -0.033
-    o17.5    0.394    0.417   -0.023
-    o18.5    0.208    0.173   +0.035
-    o20.5    0.143    0.119   +0.024
+    line     model   actual     gap      se
+    o12.5    0.786    0.812   -0.026   0.012
+    o14.5    0.695    0.741   -0.046   0.013
+    o15.5    0.503    0.543   -0.040   0.015
+    o16.5    0.458    0.484   -0.026   0.015
+    o17.5    0.398    0.416   -0.018   0.015
+    o18.5    0.189    0.171   +0.018   0.011
+    o20.5    0.130    0.118   +0.011   0.010
+
+RE-MEASURED 2026-08-31, the same day the COUNTED MID-INNING PITCH HAZARD
+shipped (`sim.USE_PITCH_HAZARD`), because a hook change moves the very thing
+this corrects and that is exactly how the previous table went stale.
+
+**THE HOOK TOOK OVER A THIRD OF THE CORRECTION'S JOB.** Every row in the
+12.5-17.5 band shrank: -0.036 to -0.026, -0.067 to -0.046, -0.052 to -0.040,
+-0.040 to -0.026, -0.032 to -0.018. Mean |correction| across the band went
+0.045 to 0.031. The simulator is doing work the table used to do, which is
+the direction this project wants — the correction should be shrinking toward
+nothing, not being tuned to keep prices right.
+
+THE LONG LINES DRIFTED BACK OUT slightly, +0.011 -> +0.018 and +0.008 ->
++0.011, which is the counted table's known top-end permissiveness: it
+under-pulls at 90+ pitches (-0.051 at the 90 bucket, measured against real
+holdout rates) so a few too many starters go deep. Both are still inside
+two standard errors and are not a signal in either direction.
 
 READ THE SIGN BEFORE USING IT: we UNDERSTATE the over from 12.5 to 17.5 and
-OVERSTATE it at 18.5+. The crossover is at 18 outs, which is exactly the
-mass the boundary defect misplaces. So an outs UNDER in the 12.5-17.5 band
-is flattered by 2-6 points and that is where every large edge on a live
-board has been showing up.
+very slightly OVERSTATE it at 18.5+. The crossover is at 18 outs, which is
+exactly the mass the boundary defect misplaces. So an outs UNDER in the
+12.5-17.5 band is flattered by 3-7 points and that is where every large edge
+on a live board has been showing up. **The two long rows are now noise and
+should not be read as a signal in either direction** — they are kept at
+their measured values because this table COUNTS rather than models, and
+rounding a measured 0.008 to zero would be a decision, not a measurement.
+
+IT WILL NEED MEASURING AGAIN on the next hook change — the counted
+BOUNDARY backbone is still off (`sim.USE_PITCH_HAZARD_BND`) and turning it
+on would move these rows the same way. It costs 12 seconds — `venv/bin/python -m scratchpad.shape 40` over 7 workers — so
+there is no excuse for it going stale again.
 
 WHAT IT CANNOT DO. This is a POOLED correction across starts of every
 projected length. It is right on average and is NOT conditioned on the
 pitcher, so applying it to an arm whose projection sits far from the
-holdout mean (15.75 outs) is an extrapolation. Flagged per row.
+holdout mean (15.71 outs) is an extrapolation. Flagged per row.
 """
 from __future__ import annotations
 
@@ -61,19 +84,28 @@ from src.context.sources import rates as rate_src
 #: line -> (model P(over), actual frequency) on the holdout. The correction
 #: is actual - model, applied to P(over).
 MEASURED = {
-    12.5: (0.772, 0.811),
-    14.5: (0.674, 0.739),
-    15.5: (0.497, 0.546),
-    16.5: (0.453, 0.486),
-    17.5: (0.394, 0.417),
-    18.5: (0.208, 0.173),
-    20.5: (0.143, 0.119),
+    12.5: (0.786, 0.812),
+    14.5: (0.695, 0.741),
+    15.5: (0.503, 0.543),
+    16.5: (0.458, 0.484),
+    17.5: (0.398, 0.416),
+    18.5: (0.189, 0.171),
+    20.5: (0.130, 0.118),
 }
+#: Nominal; the per-row figures run 0.010 to 0.015 and are in the docstring.
 SE = 0.013
+
+#: The date the table above was measured, and the engine it was measured on.
+#: Both views print it, because a correction is only as current as the hook
+#: underneath it and the last one went stale silently.
+MEASURED_ON = "2026-08-31"
 
 #: The holdout mean the correction was measured around. A projection far
 #: from this is being extrapolated to, not interpolated.
-HOLDOUT_MEAN_OUTS = 15.75
+#:
+#: It is the MODEL's mean, not reality's 15.81, because what gets compared
+#: against it is a model projection.
+HOLDOUT_MEAN_OUTS = 15.71
 
 
 def correction(line: float) -> float:
@@ -119,7 +151,7 @@ def main(argv):
     print("  raw = the simulator. adj = after the measured boundary-share "
           "bias.")
     print("  the correction is POOLED; `far` flags a projection more than "
-          "2 outs\n  from the 15.75 holdout mean, where it is an "
+          "2 outs\n  from the 15.71 holdout mean, where it is an "
           "extrapolation.\n")
     print(f"  {'pitcher':<20}{'proj':>6}{'line':>7}{'raw ov':>8}{'adj ov':>8}"
           f"{'adj UN':>8}{'fair UN':>9}  note")

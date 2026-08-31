@@ -135,6 +135,13 @@ def _report(label, real, dists, lines, top):
     print(f"    {'sd':<18}{sim_sd:>9.2f}{st.pstdev(real):>9.2f}"
           f"{sim_sd - st.pstdev(real):>+9.2f}")
     if label == "OUTS":
+        # BY THE OUT COUNT, NOT BY THE EVENT, and the two differ. A starter
+        # who comes out for one more inning and is chased before recording
+        # an out has an out count that still divides by three. On the
+        # holdout that is 7.8% of real starts and 6.0% of simulated ones,
+        # so this rule flatters reality more than the model and INFLATES
+        # the gap: -0.048 here against -0.030 read off the removal event.
+        # `scratchpad/bnd_truth.py` reports both; prefer it for a verdict.
         sb = sum(flat[v] for v in flat if v % 3 == 0) / tot
         rb = cal._boundary(real)
         print(f"    {'boundary share':<18}{sb:>9.3f}{rb:>9.3f}{sb - rb:>+9.2f}")

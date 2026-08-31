@@ -22,11 +22,53 @@ run-level defect is the FIRST INNING at -1.7 sigma.**
 
 **THE HOOK IS THE WORK, AND IT IS HALF DONE.** Days 17-18 shipped five
 counted mechanisms: the blowout term, dominance, a per-start strikeout draw,
-bullpen availability on both curves, and a high-pitch branch. Boundary share
-0.609 -> 0.625 against a real 0.672.
+bullpen availability on both curves, and a high-pitch branch.
 
-**WHAT IS IN FLIGHT, AND IT IS ITEM 1 IN `TODO.md`.** A COUNTED PITCH HAZARD
-TABLE is measured and wired and **PARKED OFF** behind `sim.USE_PITCH_HAZARD`.
+**READ THE BOUNDARY SHARE ON THE EVENT RULE, NOT THE OUT COUNT (2026-08-31).**
+`shape.py` infers it from `outs % 3 == 0`, which scores a starter chased in
+a new inning as a clean end of frame — 7.8% of real starts, 6.0% of
+simulated ones, so it INFLATES the gap. Model 0.566 against a real 0.596,
+**-0.030 at 2.1 sigma**, not the -0.048 quoted everywhere before today.
+`scratchpad/bnd_truth.py`.
+
+**THE FOURTH INNING IS 40% OF THE OUTS-LADDER ERROR (2026-08-31), AND IT
+IS THE TOP MODELLING JOB.** Oracle: remove the excess fourth-inning exits
+(3.4% of starts, both curves) and mean |gap| across the outs lines goes
+0.0363 -> 0.0219 with mean outs landing 15.82 against a real 15.81, from
+0.19 short. `scratchpad/starts_query.py`. Upper bound, but the largest
+identified piece of the outs error and on the market priced nightly.
+
+**THE MID-INNING DEFECT IS THE FOURTH INNING, FOUR SEASONS RUNNING
+(2026-08-31).** We pull starters mid-inning in the fourth on 6.9% of starts
+against a real 4.5% — +0.022 to +0.024 in 2023, 2024, 2025 and 2026, every
+one significant, spread 0.002. The third is a smaller consistent positive.
+**THE FIFTH AND SIXTH ARE NOT A TARGET**: the real profile there moves 25-40%
+between seasons and our gap follows it, so anything built against the
+"innings 3-5, short in the sixth" shape is built on 2026.
+`scratchpad/mid_inning_cv.py`.
+
+**AND THE PITCH TERM IS NOT THE ROUTE TO IT.** Three backbones scored on day
+twenty (shipped, counted hazard, hazard+branch): the outs distribution
+reshaped substantially and boundary share sat at -0.050/-0.060/-0.060. Two
+further candidates are dead, both positive-controlled — out count in the
+inning (raw +29.6 sigma, conditional -1.6) and a mid/boundary interaction
+(-7.4 sigma under the old backbone, +3.0 and sign-flipped under the counted
+one, so it was the parametric pitch shape all along).
+
+**SHIPPED 2026-08-31: THE COUNTED MID-INNING PITCH HAZARD.**
+`USE_PITCH_HAZARD = True`, `USE_PITCH_HAZARD_BND = False` — counted MID
+backbone, parametric BOUNDARY. Four-fold cross-validated: outs band better in
+all four seasons by a consistent -0.016 to -0.018, long lines untouched, mean
+outs error halved (0.2 short -> 0.08). Runs unaffected across the ladder.
+**IT CLOSES THE FOURTH-INNING DEFECT** (+0.033 -> -0.007) because 60-85
+pitches IS the fourth inning — one defect, not two. Taking BOTH curves was a
+dead heat on error and lost on everything else, so only half shipped.
+**THE BOUNDARY BACKBONE IS THE OPEN JOB**: it misses its own buckets from 60
+pitches up (cell error 0.0265 -> 0.0314, worse than what it replaces).
+
+**SUPERSEDED — the paragraph below described the pre-ship state.** A COUNTED
+PITCH HAZARD TABLE is measured and wired and **PARKED OFF** behind
+`sim.USE_PITCH_HAZARD`.
 It replaces the parametric pitch backbone, which pulls TWICE TOO MANY MEN
 between 60 and 85 pitches. Two checks fail: one is the check's fault
 (a band that never contained the true 0.972), one is NOT — a bullpen flag
@@ -34,7 +76,20 @@ moves F1 with an empty pen once first-inning pulls become realistic, and
 that check had been passing vacuously. Answer the second, re-pin the first,
 switch on, score.
 
-**FINGERPRINT 00584230.** 436 checks. `venv/bin/python -m tests.run` ~45s.
+**THE BOARD RENDERS A PAGE.** `scratchpad/board.py --html` writes
+`scratchpad/board_<date>.html` off the same run as the terminal dump — one
+payload, two views, so they cannot disagree. Visual system in
+`scratchpad/dashkit.py`, shared with `scratchpad/dash.py`.
+
+**THE OUTS CORRECTION IS CURRENT AGAIN (2026-08-30).** `outs_adjust.py`
+re-measured on the shipped hook, 1,128 holdout starts. Only the long lines
+moved — o18.5 +0.035 -> +0.011, o20.5 +0.024 -> +0.008, both now under one
+sigma, because the high-pitch branch stopped the model over-producing long
+starts. The middle band did not move. **RE-MEASURE IT AGAIN THE DAY THE
+PITCH HAZARD SHIPS**; it costs 12 seconds and it went stale silently last
+time.
+
+**FINGERPRINT CHANGED 2026-08-31 — the hook moved.** 464 checks. `venv/bin/python -m tests.run` ~45s.
 
 ## FIVE THINGS THAT WILL COST YOU A DAY
 

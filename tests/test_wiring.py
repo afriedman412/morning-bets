@@ -889,3 +889,37 @@ def check_the_shrinkage_weight_reaches_the_priced_row():
     out = buf.getvalue()
     assert "0.39*" in out, out
     assert "85 BF" in out, out
+
+
+def check_the_mid_curve_reads_the_counted_hazard_and_the_boundary_does_not():
+    """The 2026-08-31 ship: counted MID backbone, parametric BOUNDARY.
+
+    BOTH HALVES ARE THE DECISION. Taking the mid table alone beat taking
+    both on every axis that was not a dead heat — four-fold cross-validated,
+    the outs band improved by a consistent -0.016 to -0.018 in all four
+    seasons, the long lines were left alone, and the mean-outs error halved
+    instead of flipping to a +0.18 overshoot. The boundary table missed its
+    own buckets against real holdout rates (cell error 0.0265 -> 0.0314),
+    which is why it stays off.
+
+    Mutation-verified: turning the hazard OFF fails this, and turning the
+    BOUNDARY table on fails `check_the_boundary_knee_is_wired_and_ships_inert`.
+    Before this existed, switching the whole mechanism off broke nothing.
+    """
+    h = sim.Hook()
+    # A pitch count where the counted table and the parametric curve
+    # disagree by a lot: the table was built because the curve pulls about
+    # twice too many men through here.
+    mid = h.mid_removal_p(78, 0, 0, inning=5)
+    expected = sim._sigmoid(
+        h.mid_intercept - sim.PITCH_HAZARD_MID_ANCHOR
+        + sim.pitch_hazard(78, sim.PITCH_HAZARD_MID))
+    assert abs(mid - expected) < 1e-9, (mid, expected)
+
+    # And the boundary curve must still be the PARAMETRIC one.
+    bnd = h.removal_p(78, 0, 5)
+    table_bnd = sim._sigmoid(
+        h.intercept - sim.PITCH_HAZARD_BND_ANCHOR
+        + sim.pitch_hazard(78, sim.PITCH_HAZARD_BND)
+        + h.per_inning * 5)
+    assert abs(bnd - table_bnd) > 1e-6, (bnd, table_bnd)

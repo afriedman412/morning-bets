@@ -12,12 +12,24 @@ this is a module and not three scripts.
     STRIKEOUTS   the model's strongest market. Scored against settled
                  prices: 32.9% better than Kalshi's OPEN at predicting the
                  close, worthless against the CLOSE. Bet it early.
-    OUTS         the model's WEAKEST market, and the correction below is
-                 STALE. Read the block on `outs_adjust` before quoting one.
+    OUTS         the model's WEAKEST market even with a current
+                 correction. Read the block on `outs_adjust` before
+                 quoting one.
     F5           the stated product, and the only thing here that has ever
                  beaten a settled price on realised outcomes (0.1890 Brier
                  against Kalshi's 0.1919 over 455 contracts, unconfirmed at
                  that sample).
+
+THE CORRECTION PRICES THE LINE; IT IS NOT AN ANNOTATION. Fixed 2026-08-30
+after the operator asked why every outs under looked like a huge edge. The
+edge column was `raw_over - kalshi_mid` while the measured correction sat in
+a note nobody could act on, so the whole outs block was tilted toward unders
+by the exact size of the bias the correction exists to remove: mean edge
+-0.039 at 2.4 sigma over 16 rows, going to +0.004 at 0.2 sigma once applied.
+It hid overs as well as inventing unders (Imanaga o15.5 +0.049 -> +0.101).
+`priced` is what a row is compared against a market on; `over` stays RAW
+because it is what the simulator said and the simulator's own numbers are
+never corrected in place.
 
 WHAT IT IS NOT. It is not a bet list. It prints fair prices and the market's
 where one exists; deciding to fire is the operator's job and `BETTING.md` is
@@ -41,6 +53,13 @@ VERIFIED 2026-08-30 on the live slate: 14 games, Kalshi mids attach on both
 prop series, and the away/home F5 split is the right way round — three other
 consumers (`homeroad`, `where_runs`, `ceiling`) document `prefix_side` as
 (away TEAM score, home TEAM score) and this reads it that way.
+
+TWO VIEWS, ONE PAYLOAD. `build()` simulates and prices; `print_board()` and
+`board_html.render()` are both readers of what it returns. `--html [PATH]`
+writes the page, `--html-only` skips the terminal dump. A view that recomputes
+anything is a view that can disagree with the other one, which is the failure
+this split exists to prevent — so the samples travel in the payload rather
+than the summary statistics, and both views bin them the same way.
 """
 from __future__ import annotations
 
@@ -51,7 +70,8 @@ from datetime import date as _date
 from src import kalshi, roster
 from src.context import price, sim
 from src.context.sources import rates as rate_src
-from scratchpad.outs_adjust import HOLDOUT_MEAN_OUTS, correction
+from scratchpad.outs_adjust import (HOLDOUT_MEAN_OUTS, MEASURED_ON,
+                                    correction)
 
 K_LINES = (2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5)
 OUTS_LINES = (11.5, 12.5, 13.5, 14.5, 15.5, 16.5, 17.5, 18.5, 19.5, 20.5)
@@ -63,6 +83,10 @@ F5_GAME_LINES = (3.5, 4.5, 5.5, 6.5)
 #: Default price band, in American odds, applied to the FAIR price on both
 #: sides. See THE BAND in the docstring.
 BAND = 170.0
+
+#: Where `--html` writes with no path given. Dated, because a board is only
+#: true for one slate and overwriting yesterday's loses the record.
+HTML_OUT = "scratchpad/board_{date}.html"
 
 
 def american(p: float) -> str:
@@ -117,6 +141,8 @@ def _summarise(i):
             "name": g[side]["starter"],
             "k": [s.k for s in sp],
             "outs": [s.outs for s in sp],
+            # Carried for the page only; the terminal board never prints it.
+            "pitches": [s.pitches for s in sp],
             "f5": (f5_away if side == "away" else f5_home) or None,
         }
     return out
@@ -175,16 +201,35 @@ def _ladder(vals, lines, band):
             if in_band(sum(1 for v in vals if v > ln) / n, band)]
 
 
-def main(argv):
-    args = [a for a in argv if not a.startswith("--")]
-    flags = [a for a in argv if a.startswith("--")]
-    d = args[0] if args else _date.today().isoformat()
-    n = int(args[1]) if len(args) > 1 else 20000
-    band = None if "--all" in flags else BAND
-    for f in flags:
-        if f.startswith("--band"):
-            band = float(f.split("=", 1)[1]) if "=" in f else BAND
+def price_row(stat, line, over, proj, **kw):
+    """One priced row. PURE, so the pricing rule is testable without a slate.
 
+    It was not pure until 2026-08-30 and that is how the correction ended up
+    annotating rows instead of pricing them: the only checks that could
+    reach the rule were rendering checks, and they pass whatever number they
+    are handed. Extracted so `check_outs_rows_are_priced_after_the_...`
+    exercises THIS, not a fixture that reimplements it.
+
+    `over` stays RAW — it is what the simulator said. `priced` is what a
+    market is compared against, and for outs those differ.
+    """
+    row = {"stat": stat, "line": line, "over": over, "proj": proj,
+           "mid": None, "edge": None, "priced": over,
+           "thin_at": price.THIN_WEIGHT, **kw}
+    if stat == "outs":
+        row["adj"] = min(max(over + correction(line), 0.001), 0.999)
+        row["priced"] = row["adj"]
+        row["far"] = abs(proj - HOLDOUT_MEAN_OUTS) > 2
+    return row
+
+
+def build(d, n=20000, band=BAND):
+    """Simulate and price the slate. The ONE computation both views read.
+
+    Returns the payload documented at the top of this module: per game, the
+    raw samples for every priced quantity plus the ladder rows with Kalshi's
+    mid and our edge already attached.
+    """
     lg = sim.league()
     # Rates strictly BEFORE the date: a start cannot inform its own price.
     pr = rate_src.pitcher_rates(lg, before=d)
@@ -199,11 +244,6 @@ def main(argv):
             name="league", k_pct=lg["k_pct"], bb_pct=lg["bb_pct"],
             hr_pct=lg["hr_pct"], babip=lg["babip"]),
     )
-    band_s = ("all lines" if band is None
-              else f"fair price inside +/-{band:.0f}")
-    print(f"BOARD — {d}   {len(games)} games with both starters named   "
-          f"{n:,} sims each   {band_s}\n")
-
     import multiprocessing as mp
     ctx = mp.get_context("fork")
     with ctx.Pool(max(1, min(len(games), (mp.cpu_count() or 2) - 1))) as pool:
@@ -211,7 +251,7 @@ def main(argv):
 
     # PASS ONE: build every row, so the Kalshi fetch is one pass over the
     # tickers we actually need rather than one per pitcher.
-    rows, f5_rows, declined = [], [], []
+    priced, declined = [], []
     for g, r in zip(games, out):
         a, h = g["away"], g["home"]
         tag = f"{a['abbr']} @ {h['abbr']}"
@@ -219,59 +259,88 @@ def main(argv):
             who = f"{a['starter']} / {h['starter']}"
             declined.append((tag, who, r["why"]))
             continue
+        block = {"tag": tag, "away": a["abbr"], "home": h["abbr"], "n": n,
+                 "f5_game": r["f5_game"], "f5_rows": [], "sides": {}}
         for side in ("away", "home"):
             s = r["sides"][side]
             opp = h["abbr"] if side == "away" else a["abbr"]
-            p = pr.get(s["name"]) or {}
-            pa = p.get("pa")
+            pa = (pr.get(s["name"]) or {}).get("pa")
+            w = price.shrink_weight(pa) if pa else None
+            confirmed = bool((h if side == "away" else a).get("lineup"))
+            rows = []
             for stat, lines in (("k", K_LINES), ("outs", OUTS_LINES)):
                 for ln, po in _ladder(s[stat], lines, band):
-                    rows.append({
-                        "player": s["name"], "opp": opp, "tag": tag,
-                        "stat": stat, "line": ln, "over": po,
-                        "proj": st.mean(s[stat]),
-                        "pa": pa, "w": price.shrink_weight(pa) if pa else None,
-                        "confirmed": bool(
-                            (h if side == "away" else a).get("lineup")),
-                    })
+                    rows.append(price_row(
+                        stat, ln, po, st.mean(s[stat]), player=s["name"],
+                        opp=opp, tag=tag, pa=pa, w=w, confirmed=confirmed))
+            block["sides"][side] = {
+                **s, "opp": opp, "pa": pa, "w": w, "thin_at": price.THIN_WEIGHT,
+                "confirmed": confirmed, "rows": rows}
             if s["f5"]:
                 for ln, po in _ladder(s["f5"], F5_TEAM_LINES, band):
-                    f5_rows.append({"tag": tag, "who": g[side]["abbr"],
-                                    "kind": "team", "line": ln, "over": po,
-                                    "proj": st.mean(s["f5"])})
+                    block["f5_rows"].append(
+                        {"tag": tag, "who": g[side]["abbr"], "kind": "team",
+                         "line": ln, "over": po, "proj": st.mean(s["f5"])})
         if r["f5_game"]:
             for ln, po in _ladder(r["f5_game"], F5_GAME_LINES, band):
-                f5_rows.append({"tag": tag, "who": "GAME", "kind": "game",
-                                "line": ln, "over": po,
-                                "proj": st.mean(r["f5_game"])})
+                block["f5_rows"].append(
+                    {"tag": tag, "who": "GAME", "kind": "game", "line": ln,
+                     "over": po, "proj": st.mean(r["f5_game"])})
+        priced.append(block)
 
-    mids = {}
+    all_rows = [r for g in priced for s in g["sides"].values()
+                for r in s["rows"]]
     for stat in ("k", "outs"):
-        want = {(x["player"], x["line"]) for x in rows if x["stat"] == stat}
-        mids[stat] = _kalshi_mids(stat, d, want) if want else {}
+        want = {(x["player"], x["line"]) for x in all_rows
+                if x["stat"] == stat}
+        mids = _kalshi_mids(stat, d, want) if want else {}
+        for x in all_rows:
+            if x["stat"] != stat:
+                continue
+            mid = mids.get((x["player"], x["line"]))
+            if mid is not None:
+                x["mid"], x["edge"] = mid, x["priced"] - mid
 
-    # PASS TWO: print, grouped by pitcher, K then outs.
+    return {"date": d, "n": n, "band": band, "games": priced,
+            "declined": declined, "max_spread": kalshi.MAX_SPREAD * 100,
+            # Travels in the payload so the page can state it. A correction
+            # is only as current as the hook underneath it.
+            "corrected_on": MEASURED_ON}
+
+
+def print_board(payload):
+    """The terminal view. Reads the payload; computes nothing."""
+    d, n, band = payload["date"], payload["n"], payload["band"]
+    games, declined = payload["games"], payload["declined"]
+    band_s = ("all lines" if band is None
+              else f"fair price inside +/-{band:.0f}")
+    print(f"BOARD — {d}   {len(games) + len(declined)} games with both "
+          f"starters named   {n:,} sims each   {band_s}\n")
+
+    rows = [r for g in games for s in g["sides"].values() for r in s["rows"]]
+    f5_rows = [r for g in games for r in g["f5_rows"]]
+
     print(f"  {'pitcher':<20}{'opp':<5}{'proj':>6}  {'bet':<11}{'P(ov)':>8}"
           f"{'fair OV':>9}{'fair UN':>9}{'kalshi':>8}{'edge':>7}  note")
     for player in sorted({x["player"] for x in rows}):
         mine = [x for x in rows if x["player"] == player]
         for x in sorted(mine, key=lambda y: (y["stat"], y["line"])):
-            mid = mids[x["stat"]].get((x["player"], x["line"]))
-            edge = f"{x['over'] - mid:+.3f}" if mid is not None else "    -"
+            mid = x["mid"]
+            edge = f"{x['edge']:+.3f}" if mid is not None else "    -"
             note = []
             if x["w"] is not None and x["w"] < price.THIN_WEIGHT:
                 note.append(f"THIN own {x['w']:.2f}")
             if not x["confirmed"]:
                 note.append("proj lineup")
             if x["stat"] == "outs":
-                adj = min(max(x["over"] + correction(x["line"]), 0.001), 0.999)
-                note.append(f"adj ov {adj:.3f} [STALE]")
-                if abs(x["proj"] - HOLDOUT_MEAN_OUTS) > 2:
+                note.append(f"raw ov {x['over']:.3f} before correction")
+                if x["far"]:
                     note.append("far from correction mean")
             bet = f"{x['stat']} o{x['line']:g}"
+            pv = x["priced"]
             print(f"  {player[:18]:<20}{x['opp']:<5}{x['proj']:>6.1f}  "
-                  f"{bet:<11}{x['over']:>8.3f}"
-                  f"{american(x['over']):>9}{american(1 - x['over']):>9}"
+                  f"{bet:<11}{pv:>8.3f}"
+                  f"{american(pv):>9}{american(1 - pv):>9}"
                   f"{('-' if mid is None else f'{mid:.3f}'):>8}{edge:>7}"
                   f"  {', '.join(note)}")
 
@@ -295,9 +364,10 @@ def main(argv):
             print(f"    {tag:<12}{sp[:40]:<42}{why}")
 
     print("\n  CAVEATS — `BETTING.md` is the governing page.")
-    print("   * OUTS IS THE WEAKEST MARKET HERE and the `adj ov` column is")
-    print("     STALE: the correction table was measured before the")
-    print("     high-pitch hook branch shipped. TODO 8d. Do not quote it.")
+    print("   * OUTS IS STILL THE WEAKEST MARKET HERE. The `adj ov` column")
+    print(f"     is CURRENT — re-measured {MEASURED_ON} on the shipped hook,")
+    print("     1,150 holdout starts — but outs is a manager decision the")
+    print("     model reproduces only in aggregate. CLV z 1.3 against 43.5.")
     print("   * Strikeouts beat the OPEN and not the CLOSE. Bet early or")
     print("     not at all.")
     print("   * `THIN` means under 60% of the rate priced is the pitcher's")
@@ -307,6 +377,31 @@ def main(argv):
     print("     the weakest link in the path.")
     print("   * NEVER price a game in progress. `gamestate` guards the live")
     print("     fetches; a started game should not appear above at all.")
+
+
+def main(argv):
+    args = [a for a in argv if not a.startswith("--")]
+    flags = [a for a in argv if a.startswith("--")]
+    d = args[0] if args else _date.today().isoformat()
+    n = int(args[1]) if len(args) > 1 else 20000
+    band = None if "--all" in flags else BAND
+    html = None
+    for f in flags:
+        if f.startswith("--band"):
+            band = float(f.split("=", 1)[1]) if "=" in f else BAND
+        if f.startswith("--html"):
+            html = (f.split("=", 1)[1] if "=" in f
+                    else HTML_OUT.format(date=d))
+
+    payload = build(d, n=n, band=band)
+    if "--html-only" not in flags:
+        print_board(payload)
+    if html:
+        from scratchpad import board_html
+        page = board_html.render(payload)
+        with open(html, "w") as fh:
+            fh.write(page)
+        print(f"\n  wrote {html}  ({len(page):,} bytes)")
 
 
 if __name__ == "__main__":

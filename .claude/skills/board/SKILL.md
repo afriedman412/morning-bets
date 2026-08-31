@@ -9,6 +9,7 @@ One command, one screen, three markets off ONE set of simulated games.
 
 ```
 venv/bin/python -m scratchpad.board [DATE] [n_sims] [--band 170] [--all]
+                                    [--html[=PATH]] [--html-only]
 ```
 
 Defaults: today, 20,000 sims, fair prices inside ±170 — exactly
@@ -25,6 +26,33 @@ Just run it. There is no setup and no pre-flight — the path was verified
 end to end on 2026-08-30 (14 games, Kalshi mids attaching on both prop
 series, F5 split the right way round).
 
+## The web dashboard
+
+**`--html` writes the page and is the better way to hand this over.** It
+renders to `scratchpad/board_<date>.html` and takes no extra simulation:
+`build()` computes once and the terminal dump and the page are two READERS
+of that one payload, so they can never quote different prices for the same
+line (`check_board_two_views_agree_on_the_fair_price`). `--html-only`
+suppresses the terminal dump when the page is all you want.
+
+The page carries what a flat text table cannot: the full simulated
+DISTRIBUTION behind every price — strikeouts, outs and first-five, with the
+line drawn on the axis — so an edge can be read against the shape it came
+from. Layout encodes the trust ordering rather than listing three markets
+as equals: strikeouts lead, outs is demoted behind its warning, first-five
+gets a card per game.
+
+It is a `<title>` + `<style>` + body FRAGMENT with no doctype — a browser
+opens it directly and the Artifact publisher accepts the same file, so
+publish it as-is when the user wants a link. That is also why the page must
+stay ASCII: there is no `<meta charset>`, so every value from the payload
+goes through `dashkit.esc()`. Accented pitcher names and em dashes in
+decline reasons both reach it.
+
+The visual system lives in `scratchpad/dashkit.py` and is shared with
+`scratchpad/dash.py`, the blind re-simulation page. Change it there, not in
+one page.
+
 ## What each block is worth — this is the part that matters
 
 The three markets are not equally trustworthy and reporting them as a flat
@@ -37,12 +65,19 @@ close, 73.2% direction accuracy, +3.7 cents on five-cent disagreements — and
 contracts). The value is being early. A strikeout edge found at 4pm is
 mostly gone.
 
-**OUTS — the weakest, and the correction is stale.** Outs *are* the hook: a
-manager's decision the model reproduces only in aggregate. CLV z = 1.3
-against strikeouts' 43.5. The `adj ov` column applies a measured boundary-
-share bias correction, but that table was measured **before** the high-pitch
-hook branch shipped, so it is out of date — `TODO.md` item 8d. Print it,
-label it stale, and do not build a recommendation on it.
+**OUTS — the weakest, and that is about outs, not about the correction.**
+Outs *are* the hook: a manager's decision the model reproduces only in
+aggregate. CLV z = 1.3 against strikeouts' 43.5. The `adj ov` column applies
+a measured boundary-share bias correction, **re-measured 2026-08-30 on the
+shipped hook** over 1,128 holdout starts, so it is current —
+`outs_adjust.MEASURED_ON` carries the date and both views print it. Quoting
+it is fine now; it is still the market with the least evidence behind it.
+
+**RE-MEASURE THE CORRECTION THE DAY THE PITCH HAZARD SHIPS**
+(`sim.USE_PITCH_HAZARD`, `TODO.md` item 7). A hook change invalidates the
+table silently — that is how the last one went stale.
+`venv/bin/python -m scratchpad.shape 40` is 12 seconds over 7 workers; copy
+the OUTS line table into `MEASURED` and bump `MEASURED_ON`.
 
 **F5 — the stated product.** The only thing in this project that has ever
 beaten a settled price on realised outcomes: 0.1890 Brier against Kalshi's
@@ -65,8 +100,9 @@ them because the ticker packs both abbreviations into one segment —
   below every season he has thrown.
 - `proj lineup` — no card posted; the opposing nine is projected. Weakest
   link in the whole path.
-- `far from correction mean` — the outs correction is POOLED around 15.75
-  projected outs. Far from that it is an extrapolation.
+- `far from correction mean` — the outs correction is POOLED around 15.61
+  projected outs, which is the MODEL's holdout mean and not reality's 15.80.
+  Far from it the correction is an extrapolation.
 
 ## Rules that bind when reporting this
 

@@ -64,6 +64,7 @@ MODULES = ["tests.test_pure", "tests.test_regressions",
            "tests.test_prior",
            "tests.test_stabilise", "tests.test_tto",
            "tests.test_weather",
+           "tests.test_board",
            "tests.test_store"]
 
 

@@ -115,3 +115,11 @@ scratchpad/sims/
 # in a few minutes by scratchpad/platoon_bat.py. Delete it to force a
 # rebuild after changing the shape of a counts cell.
 scratchpad/bat_splits.json
+
+# Persisted simulation draws, ~3 MB each. Regenerate with
+# `scratchpad/starts_dump.py`; they exist so a question about the outs
+# distribution is a QUERY rather than another engine run.
+scratchpad/starts_*.json
+# A rendered board is true for one slate and is ~230 KB a night.
+# `scratchpad/board.py --html` rebuilds any date.
+scratchpad/board_*.html
