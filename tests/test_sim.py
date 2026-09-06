@@ -2444,9 +2444,11 @@ def check_the_dp_odds_reach_the_matchup():
     finally:
         sim.USE_GB_DP = orig
     # The counted slope is the reason the mechanism exists: a ground-ball
-    # arm raises DP odds by ~31%, a fly-ball arm cuts them ~31%.
-    assert sim.DP_GB_PIT[1][4] > 1.25 and sim.DP_GB_PIT[1][0] < 0.75
-    assert sim.DP_GB_BAT[1][4] > 1.10 and sim.DP_GB_BAT[1][0] < 0.85
+    # arm raises DP odds ~23%, a fly-ball arm cuts them ~19% — the
+    # disjoint-covariate count; the first count's steeper slope was
+    # self-correlation (the covariate window contained the outcomes).
+    assert sim.DP_GB_PIT[1][4] > 1.15 and sim.DP_GB_PIT[1][0] < 0.85
+    assert sim.DP_GB_BAT[1][4] > 1.05 and sim.DP_GB_BAT[1][0] < 0.93
 
 
 def check_an_unknown_gb_is_neutral_and_each_side_stands_alone():
@@ -2502,3 +2504,58 @@ def check_the_dp_roll_reads_the_matchup():
             fr.bases[0] = "runner"
             sim.apply_pa(sim.OUT, r, fr, random.Random(seed), mu=mu)
             assert fr.outs == want, (m_dp, seed, fr.outs)
+
+
+def check_the_hit_mix_reads_both_gb_sides():
+    """A fly-ball pairing must carry the product of both counted XBH
+    odds on the league mix, with the 2B:3B ratio inside the XBH mass
+    preserved exactly. Absolute pins on the counted values too — a
+    table reset to ones agrees with itself (the platoon lesson)."""
+    assert sim.USE_GB_HITMIX, "ships ON; the checks set the flag " \
+        "themselves and would pass with it mutated off"
+    fly_b = sim.BatterRates(name="loft", gb_pct=0.30)
+    fly_p = sim.PitcherRates(name="airball", gb_pct=0.30)
+    orig = sim.USE_GB_HITMIX
+    sim.USE_GB_HITMIX = True
+    try:
+        mix = sim.resolve(fly_b, fly_p, LG).hit_mix
+        base = LG["hit_mix"]
+        x0 = base["2b"] + base["3b"]
+        od = x0 / (1 - x0) * sim.XBH_GB_BAT[1][0] * sim.XBH_GB_PIT[1][0]
+        x = od / (1 + od)
+        assert abs((mix["2b"] + mix["3b"]) - x) < 1e-12
+        assert abs(mix["1b"] + mix["2b"] + mix["3b"] - 1.0) < 1e-12
+        assert abs(mix["2b"] / mix["3b"] - base["2b"] / base["3b"]) < 1e-9
+        assert mix["2b"] + mix["3b"] > x0, "fly-ball pairing must gain XBH"
+    finally:
+        sim.USE_GB_HITMIX = orig
+    # The counted slope is the mechanism: ground-ball bats lose ~11% of
+    # their XBH odds, fly-ball bats gain ~6%; same signs for the arm
+    # (disjoint-covariate count — the steeper first count was leakage).
+    assert sim.XBH_GB_BAT[1][0] > 1.03 and sim.XBH_GB_BAT[1][4] < 0.92
+    assert sim.XBH_GB_PIT[1][0] > 1.05 and sim.XBH_GB_PIT[1][4] < 0.95
+
+
+def check_an_unknown_gb_leaves_the_league_mix():
+    """Silent-neutral per side: both unknown returns the league dict
+    UNTOUCHED (identity, not a copy that might drift), one known side
+    applies alone, and the flag off is off."""
+    b_gb = sim.BatterRates(name="chop", gb_pct=0.60)
+    b_no = sim.BatterRates(name="who")
+    p_gb = sim.PitcherRates(name="worm", gb_pct=0.60)
+    p_no = sim.PitcherRates(name="arm")
+    orig = sim.USE_GB_HITMIX
+    sim.USE_GB_HITMIX = True
+    try:
+        assert sim.resolve(b_no, p_no, LG).hit_mix is LG["hit_mix"]
+        one = sim.resolve(b_gb, p_no, LG).hit_mix
+        x0 = LG["hit_mix"]["2b"] + LG["hit_mix"]["3b"]
+        od = x0 / (1 - x0) * sim.XBH_GB_BAT[1][4]
+        assert abs((one["2b"] + one["3b"]) - od / (1 + od)) < 1e-12
+    finally:
+        sim.USE_GB_HITMIX = orig
+    sim.USE_GB_HITMIX = False
+    try:
+        assert sim.resolve(b_gb, p_gb, LG).hit_mix is LG["hit_mix"]
+    finally:
+        sim.USE_GB_HITMIX = orig

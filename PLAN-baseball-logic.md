@@ -16,9 +16,10 @@ ONE ITEM PER SESSION. Shipped so far: the battery (item 0, 2026-09-05),
 PARK (item 1, 2026-09-05), GIDP advancement (2a, 2026-09-06), PLATOON
 (item 3, 2026-09-06 — `sim.USE_PLATOON`, per-batter falsifier 3/4 folds,
 2026 on all rows), GB plumbing (4a, 2026-09-06), DP-by-GB (4b,
-2026-09-06 — `sim.USE_GB_DP`, slope closed all four folds, q5 -3.9 to
--0.5 sigma, level and XBH controls held). Item 2's sac table is PARKED
-below. Every remaining
+2026-09-06 — `sim.USE_GB_DP`; tables corrected same day for covariate
+leakage, see 4c), hit mix by GB (4c, 2026-09-06 — `sim.USE_GB_HITMIX`,
+XBH quintile gap shrank in all four folds, both levels held). Item 2's
+sac table is PARKED below. Every remaining
 item is scored on battery rows, ordered by runs per day of work and by
 dependency. Do not skip ahead. Before starting any item:
 
@@ -99,24 +100,18 @@ Inert, fingerprint unchanged, quintile rows live in the battery: model
 DP flat vs real 0.224->0.286 by pitcher quintile (q5 -3.9 sigma); model
 XBH flat vs real 0.273->0.228 by batter quintile (q5 +4.4 sigma).
 
-### 4b. Double plays by GB% — SHIPPED 2026-09-06
+### 4b + 4c. DP and hit mix by GB% — SHIPPED 2026-09-06
 
-`sim.USE_GB_DP`: counted on 36,508 pre-cut opportunities
-(`scratchpad/dp_gb.py`), log5 odds construction validated on the 25-cell
-cross (worst |z| 1.9), era gate on the shape 0.891, self-centred 0.9997.
-Slope closed in all four folds; `dp_per_opportunity` and XBH controls
-held. Full result in the notes.
-
-### 4c. Hit mix by GB%
-COUNT: 1B/2B/3B share of hits by batter GB% quintile and by pitcher GB%
-quintile. `hit_mix` is already a field on `Matchup`; TODO's parked note on
-per-hitter hit mix says impute it from power — GB% is the other half of
-that.
-TEST: XBH share per game unchanged at league level; per-quintile share on
-holdout; F5 CRPS as the control, expected flat.
-
-FALSIFIER for 4b/4c: the per-quintile model-vs-real gap does not shrink
-across four folds, or the league-level DP / XBH rates move.
+`sim.USE_GB_DP` and `sim.USE_GB_HITMIX`, both log5 odds constructions
+validated on their 25-cell crosses, both counted with the covariate
+STRICTLY PRIOR to the outcome rows — 4c's scoring run caught the first
+count binning rows inside their own covariate window, which inflated
+both slopes (~2x on XBH) and is the portable lesson: an overlapping
+window smuggles the outcome into its own conditioning and the era gate
+cannot catch it. Falsifier clean on the corrected tables: XBH quintile
+gap shrank in all four folds, DP pooled best of the three states, both
+levels and everything else in the battery held. Full result in the
+notes.
 
 ---
 

@@ -8601,3 +8601,84 @@ but the ACTUAL there (0.2465) is out of line with every other fold's q2
 
 NEXT. 4c: hit mix by GB% quintile into `Matchup.hit_mix` — the XBH
 rows (2026 q5 +4.4 sigma) are the standing target.
+
+## 2026-09-06 — 4c: hit mix by GB% (`sim.USE_GB_HITMIX`), and the
+## leakage correction it forced on 4b's tables
+
+QUESTION. The model hands every pairing `lg["hit_mix"]`, so its XBH
+share of non-HR hits was flat across batter GB quintiles while reality
+slopes down (battery `xbh_by_batter_gb_q5` at +4.4 sigma, 2026). Does a
+per-pairing mix — both sides' GB% as counted odds on the XBH-vs-single
+channel, log5-combined, league 2B:3B split preserved inside the XBH
+mass — close the slope without moving the level?
+
+THE FIRST COUNT WAS WRONG, AND THE SCORING RUN CAUGHT IT. Counted on
+all pre-July rows with GB% frozen at the July cut, the slope was 0.056
+(odds 1.12 -> 0.82 by batter quintile, era gate 0.920) and the wired
+version overshot: 2025 q5 went from 0.1 sigma to -3.1, 2024 q1 to +4.4,
+while the pooled HOLDOUT slope was only ~0.028 — half the counted one.
+THE DEFECT IS THE COVARIATE WINDOW CONTAINING ITS OWN OUTCOME ROWS: a
+single IS a ground ball more often than a double, so every counted
+single mechanically raised the same batter's GB%, and that
+self-correlation doubled the slope. The same defect was in 4b's tables
+(training DP slope 0.108 vs ~0.073 disjoint), and it is exactly the
+low-quintiles-under / high-quintiles-over tilt logged as 4b's watch
+item. Rule 11 in action: the training number and the holdout number
+measured different things, and the DISJOINT one is what the engine
+scores under — the covariate must precede the outcome at count time
+exactly as it does at resolve time.
+
+RECOUNTED BOTH TABLES with the covariate strictly prior to the row
+(May-June rows, GB% frozen before each row's month; coverage 94-98%):
+
+    XBH by batter q   1.058 1.084 1.005 0.970 0.889   (was 1.12 -> 0.82)
+    XBH by pitcher q  1.091 1.051 1.005 0.936 0.923   (was 1.15 -> 0.85)
+    DP  by pitcher q  0.807 0.939 0.983 1.064 1.228   (was 0.69 -> 1.31)
+    DP  by batter  q  0.883 0.959 0.997 1.059 1.109   (was 0.79 -> 1.18)
+
+25-cell crosses still validate log5 (worst |z| 1.2 / 1.8); both centre
+at 1.0000 exactly. Era gates read 0.647 / 0.754 — LOWER than the
+inflated counts' 0.92, and that needed its own se discipline before
+calling it a fail: per-season-cell odds noise (~0.05) against a true
+spread of ~0.06 caps the expected correlation near 0.6-0.7 for a
+perfectly stable shape, and the inflated 0.920 was partly the
+self-correlation, which is stable by construction. Triples-within-XBH
+drifts 0.069 -> 0.095 by batter quintile (ground-ball bats are speed
+types) — ~0.005 of non-HR hits, counted, PARKED, recorded at
+`XBH_GB_BAT`.
+
+VERDICT — the falsifier ("per-quintile gap does not shrink across four
+folds, or the league DP / XBH rates move") DOES NOT FIRE on the
+corrected tables. Battery vs the 4b baseline (3bec154c):
+  * XBH sum|gap| over the five rows shrank in ALL FOUR folds:
+    0.069->0.052, 0.056->0.036, 0.043->0.030, 0.088->0.073. The 2026 q5
+    headline +4.0 -> +2.0 sigma; q1 on zero in three folds. Corrected
+    beats inflated pooled 0.191 vs 0.220.
+  * DP pooled 0.485 (flat) -> 0.405 (overshoot tables) -> 0.366
+    (corrected); the tilt is gone (q1 gaps +0.004/+0.001/+0.006;
+    2023's -0.038 is the era-gated LEVEL, de-meaned shape ~0.01).
+  * Levels under one se in every fold, both channels; every other
+    battery row unmoved — the pre-registered F5-flat control at finer
+    resolution than one CRPS number (4 folds x ~1,000 games).
+
+437 checks green (2 new); mutations re-proven after the pins moved
+(flag off / each table neutralised / resolve ignoring the odds / the
+engine dropping `mu` — each kills exactly its own check). Fingerprint
+0db6300b -> ccdb3903; battery fp 3bec154c -> 7ad09292.
+
+WATCH, NOT CHASE — all three are ODD ACTUALS, not model movement:
+2024 xbh q1 (actual 0.2408, 3+ sigma below every other fold's q1, and
+already a +gap under the FLAT model); 2026 DP q2 (actual 0.2465,
+unchanged from 4b's watch item); 2026 XBH LEVEL (+0.015 — the model's
+overall 2026-H2 XBH share ran +0.012 high before item 4 existed; a
+`lg["hit_mix"]` season-scope question, not a quintile one).
+
+THE PORTABLE LESSON, for every future count that conditions on a
+rate-like covariate: BIN ROWS BY A COVARIATE FROZEN BEFORE THE ROWS.
+An overlapping window smuggles the outcome into its own conditioning
+and the inflation is invisible until a disjoint holdout scores it —
+the era gate cannot catch it, because self-correlation is stable
+across seasons too.
+
+NEXT. Item 5, weather — temperature into the HR channel; the battery
+weather rows are still stubs, so the instrument comes first.

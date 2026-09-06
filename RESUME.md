@@ -16,22 +16,26 @@ it belongs in `NOTES-context-layer.md`.
 
 ## WHERE THINGS STAND (2026-09-06, end of day)
 
-**ITEM 4b SHIPPED (`sim.USE_GB_DP`): the double-play roll reads the
-matchup.** Counted 36,508 pre-cut opportunities (`scratchpad/dp_gb.py` —
-pre-July of ALL four seasons; July-onward is battery scoring territory in
-every season, not just 2026). Odds per GB quintile 0.69->1.31 (pitcher) /
-0.79->1.18 (batter), log5 combination validated on the 25-cell cross
-(worst |z| 1.9), era gate on the shape 0.891, self-centred 0.9997.
-`Matchup.m_dp` from `resolve` (silent-neutral PER SIDE), applied to the
-odds of the era-gated `GIDP_RATE` in `gidp_rate(outs, mu)`, threaded
-`game.py -> apply_pa`. Falsifier did not fire: slope closed in all four
-folds (q5 -3.9 -> -0.5 sigma), `dp_per_opportunity` and XBH controls
-under one se everywhere, NOTHING else in the battery moved. 435 checks,
-four mutations each killed their own guard. Fingerprint 0db6300b;
-baseline `battery_3bec154cc90e.json`. Watch: 2026 q2 actual (0.2465)
-is out of line with every other fold's q2 (~0.213), one cell at -2.9.
-NEXT: 4c — hit mix by GB% into `Matchup.hit_mix`; the XBH quintile rows
-(2026 q5 +4.4 sigma) are the standing target.
+**ITEMS 4b + 4c SHIPPED (`sim.USE_GB_DP`, `sim.USE_GB_HITMIX`): double
+plays and the hit mix both read the matchup's GB profile**, as counted
+odds per quintile combined log5-style (validated on the 25-cell crosses),
+silent-neutral per side, centred at 1.0000 over real rows. THE SESSION'S
+BIG FINDING: 4c's scoring run caught the first counts binning rows
+INSIDE their own covariate window — a counted single raises its own
+batter's GB% — which inflated both slopes (~2x on XBH) and overshot on
+the holdouts. Both tables recounted with GB% frozen BEFORE each row's
+month; corrected falsifier clean: XBH quintile sum|gap| shrank in all
+four folds (0.069->0.052 / 0.056->0.036 / 0.043->0.030 / 0.088->0.073),
+DP pooled 0.485 flat -> 0.366, levels and every other battery row under
+one se. THE PORTABLE RULE: a covariate must be frozen before the rows it
+bins, or the outcome leaks into its own conditioning and the era gate
+cannot see it. 437 checks; every mutation kills exactly its guard.
+Fingerprint ccdb3903; baseline `battery_7ad09292970f.json`. Watch (all
+odd ACTUALS, not model): 2024 xbh q1, 2026 DP q2, 2026 XBH level
+(+0.012 before item 4 existed — a `lg["hit_mix"]` season-scope
+question).
+NEXT: item 5, weather — temperature into the HR channel via `m_hr`;
+battery weather rows are stubs, so the instrument comes first.
 
 **PLATOON SHIPPED (`sim.USE_PLATOON`)** — the league cell as an odds
 multiplier per (batter side, pitcher hand) pairing, counted on 761,719

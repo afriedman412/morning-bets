@@ -541,35 +541,71 @@ LEGACY_GIDP_RATE = 0.11
 
 #: DOUBLE PLAYS READ THE MATCHUP'S GROUND-BALL PROFILE — PLAN item 4b.
 #:
-#: Counted on 36,508 opportunities (`scratchpad/dp_gb.py`, 2026-09-06),
-#: pre-July rows of all four seasons only — July-onward of every season is
-#: battery scoring territory, not just 2026's holdout. The denominator is
-#: the battery's own: a ball-in-play out with a man on first and under two
-#: out, DP = grounded_into_double_play or double_play. The covariate is
-#: the SHRUNK `gb_pct` the engine reads at resolve time, frozen at each
-#: season's cut, so the table and the mechanism share one scale.
+#: Counted by `scratchpad/dp_gb.py` (2026-09-06) on May-June rows of all
+#: four seasons — July-onward of every season is battery scoring
+#: territory, not just 2026's holdout. The denominator is the battery's
+#: own: a ball-in-play out with a man on first and under two out, DP =
+#: grounded_into_double_play or double_play. The covariate is the SHRUNK
+#: `gb_pct` the engine reads at resolve time, and it is STRICTLY PRIOR TO
+#: THE ROW — rows in month m are binned by the map frozen before month m.
+#: The first shipped version binned rows by a covariate window that
+#: CONTAINED them, and since every DP grounder raises its own pitcher's
+#: GB%, the counted slope came out ~1.5x the disjoint one (0.108 vs
+#: 0.073 in rate terms) and the battery showed the overshoot as a
+#: low-quintiles-under / high-quintiles-over tilt in every fold. The
+#: covariate must precede the outcome exactly as it does at scoring time.
 #:
 #: Each tuple is (quintile edges over that shrunk GB%, odds of the
 #: quintile's DP rate against the pooled league's — an ODDS multiplier,
 #: applied to the odds of `GIDP_RATE`, never to the probability). The two
 #: sides combine by multiplication, which IS the log5 construction: the
-#: 25-cell pitcher x batter cross sits within |z| <= 1.9 of that
-#: prediction everywhere, so odds multiply and a product of two RATE
-#: multipliers would have overshot the corners. Centring over real
-#: opportunity rows came back 0.9997 (folded into the pitcher side); the
-#: LEVEL stays with the era-gated `GIDP_RATE` while this carries only the
-#: shape, whose era gate PASSES at 0.891 between-season correlation of
-#: the odds ratios (the level itself steps 2024->2025 and is gated above).
-#:
-#: The slope this closes: real DP/opp runs 0.168 -> 0.276 across pitcher
-#: quintiles and 0.186 -> 0.255 across batter quintiles; the model was
-#: flat at the league rate (battery rows dp_by_pitcher_gb_q1..q5,
-#: q5 at -3.9 sigma before this shipped).
-DP_GB_PIT = ((0.3902, 0.4155, 0.4399, 0.4678),
-             (0.6926, 0.8774, 0.9919, 1.1782, 1.311))
-DP_GB_BAT = ((0.3924, 0.4166, 0.4355, 0.4595),
-             (0.7852, 0.9304, 0.9633, 1.1681, 1.1778))
+#: 25-cell pitcher x batter cross sits within |z| <= 1.8 of that
+#: prediction, so odds multiply and a product of two RATE multipliers
+#: would overshoot the corners. Centring over real opportunity rows came
+#: back 1.0000; the LEVEL stays with the era-gated `GIDP_RATE` while
+#: this carries only the shape (era gate 0.754 between-season
+#: correlation of the odds ratios, against per-cell noise that caps the
+#: expected correlation near 0.7 — the shape is stable, measured at the
+#: resolution 19,354 disjoint opportunities allow).
+DP_GB_PIT = ((0.4001, 0.4251, 0.4438, 0.4682),
+             (0.807, 0.9389, 0.9831, 1.0644, 1.2275))
+DP_GB_BAT = ((0.4013, 0.4221, 0.4375, 0.457),
+             (0.8828, 0.9592, 0.9965, 1.0589, 1.1092))
 USE_GB_DP = True
+
+#: THE HIT MIX READS THE MATCHUP'S GROUND-BALL PROFILE — PLAN item 4c.
+#:
+#: The league table's comment says extra-base share "moves much less
+#: between hitters than the overall hit rate does" and applies one mix to
+#: everyone. The battery falsified that for contact TYPE: real XBH share
+#: of non-HR hits slopes 0.258 -> 0.226 across batter GB quintiles and
+#: 0.264 -> 0.232 across pitcher quintiles while the model sat flat
+#: (xbh_by_batter_gb_q5 at +4.4 sigma, 2026 fold).
+#:
+#: Counted on 42,837 non-HR hits (`scratchpad/hitmix_gb.py`, 2026-09-06),
+#: May-June rows of all four seasons with the covariate STRICTLY PRIOR to
+#: the row — same discipline and same leakage correction as DP_GB_* one
+#: block up (an overlapping covariate window inflated this slope ~2x:
+#: a single IS a grounder more often than a double, so counted singles
+#: raised their own batter's GB%). Same construction: (quintile edges,
+#: odds of the quintile's XBH share against the pooled league's), the two
+#: sides multiplying as odds, which the 25-cell cross validates at worst
+#: |z| 1.2. Centring over real hit rows came back 1.0000 exactly; the
+#: LEVEL stays with `lg["hit_mix"]`, which is already season-scoped.
+#: Era gate 0.647 between-season correlation of the odds ratios, against
+#: per-cell noise that caps the expected value near 0.6 for a perfectly
+#: stable shape at this n — the inflated count's 0.920 was partly the
+#: self-correlation itself, which is stable by construction.
+#:
+#: The 2B:3B split WITHIN the XBH mass stays at league: triples-within-
+#: XBH does drift 0.070 -> 0.092 across batter quintiles (ground-ball
+#: bats are the speed types), but that is ~0.005 of non-HR hits —
+#: counted, parked, and recorded here so it is not rediscovered.
+XBH_GB_BAT = ((0.4043, 0.4234, 0.4386, 0.4589),
+              (1.0576, 1.0844, 1.0047, 0.9702, 0.8892))
+XBH_GB_PIT = ((0.4, 0.4245, 0.4435, 0.4679),
+              (1.0913, 1.0511, 1.0048, 0.9355, 0.9226))
+USE_GB_HITMIX = True
 
 
 def gidp_rate(outs: int, mu: "Matchup | None" = None) -> float:
@@ -1163,6 +1199,25 @@ def resolve(b: BatterRates, p: PitcherRates, lg: dict,
             m_dp *= DP_GB_PIT[1][sum(p.gb_pct >= e for e in DP_GB_PIT[0])]
         if b.gb_pct is not None:
             m_dp *= DP_GB_BAT[1][sum(b.gb_pct >= e for e in DP_GB_BAT[0])]
+    # THE HIT MIX, per pairing. Same silent-neutral-per-side rule as the
+    # DP odds above; the odds land on the XBH-vs-single channel of the
+    # season's league mix and the 2B:3B split inside the XBH mass is
+    # preserved exactly (see XBH_GB_BAT — the split's own drift is
+    # counted and parked).
+    hit_mix = lg["hit_mix"]
+    if USE_GB_HITMIX:
+        m_x = 1.0
+        if b.gb_pct is not None:
+            m_x *= XBH_GB_BAT[1][sum(b.gb_pct >= e for e in XBH_GB_BAT[0])]
+        if p.gb_pct is not None:
+            m_x *= XBH_GB_PIT[1][sum(p.gb_pct >= e for e in XBH_GB_PIT[0])]
+        x0 = hit_mix["2b"] + hit_mix["3b"]
+        if m_x != 1.0 and 0.0 < x0 < 1.0:
+            od = x0 / (1.0 - x0) * m_x
+            x = od / (1.0 + od)
+            hit_mix = {"1b": 1.0 - x,
+                       "2b": x * hit_mix["2b"] / x0,
+                       "3b": x * hit_mix["3b"] / x0}
     return Matchup(
         b_k=b.k_pct, b_bb=b.bb_pct, b_hr=b.hr_pct, b_bab=b.babip,
         p_k=p_k, p_bb=p_bb, p_hr=p_hr, p_bab=p_bab,
@@ -1170,7 +1225,7 @@ def resolve(b: BatterRates, p: PitcherRates, lg: dict,
         lg_hr=lgm["hr_pct"], lg_bab=lgm["babip"],
         m_bb=m_bb, m_k=m_k, m_hr=m_hr, m_bip=m_bip,
         sac=sac_r, hbp=hbp_r, cond=1.0 - sac_r - hbp_r,
-        hit_mix=lg["hit_mix"], m_dp=m_dp)
+        hit_mix=hit_mix, m_dp=m_dp)
 
 
 def pa_outcome(

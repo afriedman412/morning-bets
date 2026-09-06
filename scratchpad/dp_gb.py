@@ -34,7 +34,6 @@ import json
 import multiprocessing as mp
 import statistics as st
 import sys
-from collections import defaultdict
 from itertools import combinations
 
 from src import db
@@ -44,16 +43,26 @@ from scratchpad.battery import EV_INPLAY_OUT, EV_DP
 CACHE = "scratchpad/dp_gb_rows.json"
 CUTS = {s: f"{s}-07-01" for s in (2023, 2024, 2025, 2026)}
 
-#: Per-season {name: shrunk gb} maps, filled in the parent before the
-#: fork so workers inherit them.
+#: THE COVARIATE IS STRICTLY PRIOR TO THE ROW — the correction found by
+#: 4c's scoring run and applied to both tables. The first count binned
+#: April-June rows by GB% counted over April-June, so every counted DP
+#: grounder sat inside its own pitcher's covariate, inflating the slope
+#: (training 0.108 vs ~0.07 on the disjoint battery holdouts, and the
+#: shipped table tilted low-quintiles-under / high-quintiles-over in
+#: every fold). Rows in month m now use the map frozen BEFORE month m,
+#: matching how the engine reads the covariate at scoring time.
+MONTHS = (5, 6)
+
+#: Per-(season, month) {name: shrunk gb} maps, filled in the parent
+#: before the fork so workers inherit them.
 _GB: dict = {}
 
 
 def _one(args):
-    gid, season = args
+    gid, season, month = args
     rows = []
     try:
-        gb_p, gb_b = _GB[season]
+        gb_p, gb_b = _GB[(season, month)]
         for play, bases, outs, _a, _h in pbp.plays(gid):
             ev = (play.get("result") or {}).get("eventType") or ""
             if ev not in EV_INPLAY_OUT or not bases[0] or outs >= 2:
@@ -73,12 +82,15 @@ def backfill():
         games = [(r["game_id"], int(r["date"][:4]), r["date"]) for r in
                  c.execute("select game_id, date from games where "
                            "sport='mlb' and status='Final' order by date")]
-    games = [(g, s) for g, s, d in games
-             if s in CUTS and d < CUTS[s] and pbp.have(g)]
+    games = [(g, s, int(d[5:7])) for g, s, d in games
+             if s in CUTS and d < CUTS[s] and int(d[5:7]) in MONTHS
+             and pbp.have(g)]
     for s in sorted(CUTS):
-        _GB[s] = (battedball.gb_pct_map("pit", s, CUTS[s]),
-                  battedball.gb_pct_map("bat", s, CUTS[s]))
-    print(f"  {len(games):,} pre-cut cached games", flush=True)
+        for m in MONTHS:
+            cut = f"{s}-{m:02d}-01"
+            _GB[(s, m)] = (battedball.gb_pct_map("pit", s, cut),
+                           battedball.gb_pct_map("bat", s, cut))
+    print(f"  {len(games):,} May-June pre-cut cached games", flush=True)
     with mp.get_context("fork").Pool(8) as p:
         got = p.map(_one, games, chunksize=16)
     rows = [r for g in got if g for r in g]
@@ -108,10 +120,12 @@ def report(rows):
           f"{len(known) / len(rows):.1%}")
     lg = sum(r[3] for r in known) / len(known)
     seasons = sorted({r[0] for r in known})
+    cols = []
+    for s in seasons:
+        sl = [r for r in known if r[0] == s]
+        cols.append(f"   {s} {sum(r[3] for r in sl) / len(sl):.4f}")
     print(f"  pooled league DP/opp {lg:.4f} on {len(known):,} rows"
-          + "".join(f"   {s} "
-                    f"{sum(r[3] for r in known if r[0] == s) / max(1, sum(1 for r in known if r[0] == s)):.4f}"
-                    for s in seasons))
+          + "".join(cols))
 
     pe = _edges([r[1] for r in known])
     be = _edges([r[2] for r in known])
