@@ -1230,9 +1230,10 @@ def check_the_game_carries_the_air_to_both_sides():
 
 
 def check_every_simulate_game_call_passes_the_air():
-    """Every `simulate_game` call in `src/` must pass `hr_air=` — the
-    same presence rule as `park`, and for the same reason: an omitted
-    argument doesn't raise, it silently prices every game at 70 degrees."""
+    """Every `simulate_game` call in `src/` must pass `hr_air=` AND
+    `ump_kbb=` — the same presence rule as `park`, and for the same
+    reason: an omitted argument doesn't raise, it silently prices every
+    game at 70 degrees with a league-average zone."""
     import ast
     import pathlib
     root = pathlib.Path(__file__).resolve().parent.parent / "src"
@@ -1246,7 +1247,8 @@ def check_every_simulate_game_call_passes_the_air():
                     else getattr(fn, "id", None))
             if name != "simulate_game":
                 continue
-            if "hr_air" not in {k.arg for k in node.keywords}:
+            kws = {k.arg for k in node.keywords}
+            if not {"hr_air", "ump_kbb"} <= kws:
                 bad.append(f"{f.relative_to(root.parent)}:{node.lineno}")
     assert not bad, bad
 
@@ -1301,6 +1303,80 @@ def check_the_shared_air_lookup_reads_the_wind_column():
         assert cal.air_mult_for({"game_id": "absent"}) == 1.0
     finally:
         cal._WEATHER = orig
+
+
+def check_ump_kbb_ships_on_and_is_counted():
+    """Flag defaults ON; an unknown umpire or unrecorded crew is exactly
+    neutral; the shipped table is non-flat with WALKS the wider channel
+    (the counted headline — bb tau is 2.5x k tau) and was fitted before
+    the holdout."""
+    import statistics as st
+    assert sim.USE_UMP_KBB, "ships ON"
+    assert sim.ump_kbb_mult(None) == (1.0, 1.0)
+    assert sim.ump_kbb_mult(999999999) == (1.0, 1.0)
+    table = {u: v for u, v in sim._UMP_KBB.items() if u != "_meta"}
+    assert len(table) > 100, "the whole league's crews"
+    ks = [v[0] for v in table.values()]
+    bbs = [v[1] for v in table.values()]
+    assert st.pstdev(bbs) > st.pstdev(ks) > 0.004, "non-flat, walks wider"
+    assert sim._UMP_KBB["_meta"]["rows_before"] == "2026-07-01"
+    uid = max(table, key=lambda u: abs(table[u][1] - 1.0))
+    assert sim.ump_kbb_mult(uid) == tuple(table[uid])
+    orig = sim.USE_UMP_KBB
+    sim.USE_UMP_KBB = False
+    try:
+        assert sim.ump_kbb_mult(uid) == (1.0, 1.0)
+    finally:
+        sim.USE_UMP_KBB = orig
+
+
+def check_the_ump_multipliers_reach_the_matchup():
+    """`resolve` carries the game's k and bb multipliers into the matchup
+    INDEPENDENTLY — the umpire moves each channel by its own counted
+    amount, not both through one knob. MUTATION: drop either term from
+    `resolve` and this fails while the air checks pass."""
+    base = sim.resolve(_lineup()[0], _pitcher(), LG)
+    k = sim.resolve(_lineup()[0], _pitcher(), LG, k_game=1.3)
+    b = sim.resolve(_lineup()[0], _pitcher(), LG, bb_game=0.7)
+    assert abs(k.m_k - base.m_k * 1.3) < 1e-9 and k.m_bb == base.m_bb
+    assert abs(b.m_bb - base.m_bb * 0.7) < 1e-9 and b.m_k == base.m_k
+
+
+def check_the_ump_pair_reaches_a_full_game():
+    """The pair travels from `simulate_game`'s own argument down to the
+    plate appearance — a strikeout umpire raises simulated K, a
+    tight-zone umpire raises walks. Amplified pairs so 200 games settle
+    it; the shipped table's spread is the battery's business."""
+    def totals(pair):
+        rng = random.Random(61)
+        k = bb = 0
+        for _ in range(200):
+            r = game.simulate_game(_side(), _side(), LG, rng,
+                                   hr_air=1.0, ump_kbb=pair)
+            k += r.away_sp.k + r.home_sp.k
+            bb += r.away_sp.bb + r.home_sp.bb
+        return k, bb
+    k0, bb0 = totals((1.0, 1.0))
+    k1, bb1 = totals((1.5, 1.0))
+    k2, bb2 = totals((1.0, 1.8))
+    assert k1 > k0 * 1.2, (k0, k1)
+    assert bb2 > bb0 * 1.3, (bb0, bb2)
+
+
+def check_the_shared_ump_lookup_reads_the_crew_record():
+    """`calibrate.ump_mult_for` resolves game -> plate umpire -> table,
+    and a game with no recorded crew is exactly neutral. MUTATION: make
+    it return (1.0, 1.0) unconditionally and this fails while every
+    game-level check passes."""
+    import src.context.calibrate as cal
+    orig_u, orig_t = cal._UMPS, sim._UMP_KBB
+    cal._UMPS = {"g1": 4242}
+    sim._UMP_KBB = {"4242": [1.07, 0.91]}
+    try:
+        assert cal.ump_mult_for({"game_id": "g1"}) == (1.07, 0.91)
+        assert cal.ump_mult_for({"game_id": "absent"}) == (1.0, 1.0)
+    finally:
+        cal._UMPS, sim._UMP_KBB = orig_u, orig_t
 
 
 def check_no_caller_builds_the_air_from_temperature_alone():

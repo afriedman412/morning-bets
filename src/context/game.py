@@ -255,6 +255,11 @@ class Side:
     #: the same air, the same shape park takes. 1.0 when the game has no
     #: reading, and each half of it is silent-neutral on its own.
     hr_air: float = 1.0
+    #: The plate umpire's (k, bb) multipliers (`sim.ump_kbb_mult`), set by
+    #: `simulate_game` on BOTH sides for the same reason as `hr_air`: one
+    #: man calls the whole game for both clubs. (1.0, 1.0) when the crew
+    #: is unknown — silent-neutral like every other lookup here.
+    ump_kbb: tuple[float, float] = (1.0, 1.0)
     #: Days since THIS STARTER's previous start, from `sim.layoff_gap`.
     #: None means unknown, no prior start, or across a season break, and
     #: contributes exactly zero to either hook curve. See `sim.per_layoff`.
@@ -500,7 +505,8 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
         mu = side._mups[slot]
         if mu is None:
             mu = side._mups[slot] = sim.resolve(
-                side.lineup[slot], side.current, lg, park, side.hr_air)
+                side.lineup[slot], side.current, lg, park, side.hr_air,
+                side.ump_kbb[0], side.ump_kbb[1])
         # THE FIELD STATE the hitter actually walks into. `fr.bases`
         # holds runner tokens, so truthiness is the occupancy count.
         o = sim.pa_from(mu, rng, tto=tto,
@@ -769,7 +775,8 @@ def simulate_game(away: Side, home: Side, lg: dict,
                   regulation: int = 9,
                   max_extra: int = 9,
                   stop_after: int | None = None,
-                  hr_air: float = 1.0) -> GameResult:
+                  hr_air: float = 1.0,
+                  ump_kbb: tuple[float, float] = (1.0, 1.0)) -> GameResult:
     """One full game, both sides advancing half-inning by half-inning.
 
     `away` and `home` are PITCHING sides. The away side's runs allowed are
@@ -790,8 +797,9 @@ def simulate_game(away: Side, home: Side, lg: dict,
     after a bottom half that is always played.
     """
     rng = rng or random.Random()
-    # One reading, both sides — see `Side.hr_air`.
+    # One reading, both sides — see `Side.hr_air` and `Side.ump_kbb`.
     away.hr_air = home.hr_air = hr_air
+    away.ump_kbb = home.ump_kbb = ump_kbb
     prefix: dict = {}
     prefix_side: dict = {}
 

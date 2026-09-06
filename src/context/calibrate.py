@@ -550,6 +550,30 @@ def air_mult_for(row) -> float:
                            w.get("wind_mph"))
 
 
+_UMPS: dict | None = None
+
+
+def ump_mult_for(row) -> tuple[float, float]:
+    """The game's plate-umpire (k, bb) multipliers, from `game_officials`.
+
+    THE SHARED LOOKUP for the historical replay paths, the same shape as
+    `air_mult_for` above — the live slate resolves the same table through
+    `sim.ump_kbb_mult` so the two paths cannot mean different things by
+    "the umpire". A game with no recorded crew contributes exactly
+    (1.0, 1.0).
+    """
+    global _UMPS
+    if not sim.USE_UMP_KBB:
+        return (1.0, 1.0)
+    if _UMPS is None:
+        from src import db
+        with db.connect() as c:
+            _UMPS = {r["game_id"]: r["plate_ump_id"] for r in c.execute(
+                "select game_id, plate_ump_id from game_officials"
+                " where plate_ump_id is not null")}
+    return sim.ump_kbb_mult(_UMPS.get(row.get("game_id")))
+
+
 def replay(pair, lg, pens, rng, innings=9, track=(), apply_leash=True,
            use_park=None, hook=None):
     """One simulated game from a paired case. THE simulation entry point.
@@ -580,6 +604,7 @@ def replay(pair, lg, pens, rng, innings=9, track=(), apply_leash=True,
     # pitcher facing his own teammates — see
     # `check_each_side_faces_the_opposing_lineup`.
     hr_air = air_mult_for(home[0])
+    ump = ump_mult_for(home[0])
     an = adjust_lineup(away[2], False)
     hn = adjust_lineup(home[2], True)
     park = None
@@ -599,7 +624,7 @@ def replay(pair, lg, pens, rng, innings=9, track=(), apply_leash=True,
             **H.hook.__dict__,
             "team_offset": H.hook.team_offset + HOME_HOOK})
     return game.simulate_game(A, H, lg, rng, innings=innings, park=park,
-                              track=track, hr_air=hr_air)
+                              track=track, hr_air=hr_air, ump_kbb=ump)
 
 
 def build_cases(season=None, before=None, max_starts=None, since=None,

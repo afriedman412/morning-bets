@@ -222,6 +222,43 @@ def main(argv):
         r = st.correlation(a, b) if len(a) >= 3 else 0.0
         print(f"    {ch:<4} r = {r:+.3f} over {len(a)} umpires")
 
+    # ── THE SHIP TABLE ─────────────────────────────────────────────────
+    if "--build" in argv:
+        taus = {}
+        for ch in CHANNELS:
+            ms = [row[ch][0] for row, _n in big.values()]
+            ses = [row[ch][1] for row, _n in big.values()]
+            var = st.pvariance(ms) - st.mean(s * s for s in ses)
+            taus[ch] = var ** 0.5 if var > 0 else 0.0
+        table = {}
+        for u, (row, n) in pooled.items():
+            out = []
+            for ch in CHANNELS:
+                m, se = row[ch]
+                w = taus[ch] ** 2 / (taus[ch] ** 2 + se * se)
+                out.append(1.0 + (m - 1.0) * w)
+            table[str(u[0])] = out
+        # Renormalise to a game-weighted mean of exactly 1.0 per channel,
+        # the same self-normalising discipline as STATE_MULT: the umpire
+        # table must redistribute strikeouts and walks, never add them.
+        tot = sum(n for _row, n in pooled.values())
+        for i, ch in enumerate(CHANNELS):
+            mean = sum(table[str(u[0])][i] * n
+                       for u, (_row, n) in pooled.items()) / tot
+            for u in table:
+                table[u][i] = round(table[u][i] / mean, 4)
+        out = {"_meta": {"built": "2026-09-06", "rows_before": HOLDOUT,
+                         "tau": {ch: round(taus[ch], 4) for ch in CHANNELS},
+                         "umpires": len(table),
+                         "source": "scratchpad.ump_kbb --build"},
+               **table}
+        with open("src/context/ump_kbb.json", "w") as f:
+            json.dump(out, f, indent=1)
+        sd_k = st.pstdev([v[0] for k, v in table.items() if k != "_meta"])
+        sd_bb = st.pstdev([v[1] for k, v in table.items() if k != "_meta"])
+        print(f"\n  -> src/context/ump_kbb.json  {len(table)} umpires, "
+              f"shrunk sd k {sd_k:.4f} bb {sd_bb:.4f}")
+
     # ── GATE 2: adjacent seasons ───────────────────────────────────────
     print("\n  GATE 2 — same umpire, adjacent seasons (>= 15 G each):")
     per_us = defaultdict(dict)

@@ -355,7 +355,8 @@ def evaluate(cases: list[dict], params: dict | None = None, n_sims=60,
                 # total, not the full-game one. Every fit was playing four
                 # innings a draw and discarding them.
                 game.simulate_game(A, H, lg, rng, stop_after=5, park=park,
-                                   hr_air=cal.air_mult_for(home))
+                                   hr_air=cal.air_mult_for(home),
+                                   ump_kbb=cal.ump_mult_for(home))
                 # `Side.runs_f5` is runs ALLOWED through five by that
                 # pitching side, which is exactly what the side observation
                 # records. `GameResult.away_f5` is the opposite convention —

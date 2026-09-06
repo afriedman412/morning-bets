@@ -730,6 +730,40 @@ def air_hr_mult(temp_f: int | None, carry: int | None = None,
     return temp_hr_mult(temp_f) * wind_hr_mult(carry, wind_mph)
 
 
+#: THE PLATE UMPIRE'S K/BB EFFECT — the third shared-night condition,
+#: after temperature and wind: one man, both clubs, the whole game, so it
+#: travels per game the way the air does. COUNTED, not imported
+#: (`scratchpad/ump_kbb.py`): observed over expected across 694,598
+#: pre-holdout plate appearances with the staffs-he-drew confound
+#: standardised out on player-season rates, then gated the way advance.py
+#: gates clubs — split-half r +0.352 (k) and +0.454 (bb) over 89 umpires,
+#: adjacent-season r +0.204/+0.323 over 211 pairs, noise-adjusted tau
+#: 0.0176/0.0438. Walks are the channel: the bb spread is 2.5x the k
+#: spread, which is ordinary baseball — the zone's edge is where walks
+#: live.
+#:
+#: The table on disk is SHRUNK per umpire toward 1.0 against tau by his
+#: own sampling noise (stabilise's arithmetic) and renormalised so the
+#: game-weighted mean is exactly 1.0 per channel — it redistributes
+#: strikeouts and walks between nights, never adds them. Shipped range
+#: after shrinkage: k 0.974-1.026, bb 0.926-1.083.
+USE_UMP_KBB = True
+_UMP_KBB: dict | None = None
+
+
+def ump_kbb_mult(ump_id) -> tuple[float, float]:
+    """(k, bb) multipliers for one game's plate umpire. Silent-neutral:
+    an unknown umpire, an unrecorded crew or the flag off all contribute
+    exactly (1.0, 1.0) — a guessed value must not move the estimate."""
+    global _UMP_KBB
+    if not USE_UMP_KBB or ump_id is None:
+        return (1.0, 1.0)
+    if _UMP_KBB is None:
+        _UMP_KBB = _load(_HERE + "/ump_kbb.json")
+    v = _UMP_KBB.get(str(ump_id))
+    return (v[0], v[1]) if v else (1.0, 1.0)
+
+
 def gidp_rate(outs: int, mu: "Matchup | None" = None) -> float:
     base = _rate(GIDP_RATE if USE_MEASURED_GIDP else LEGACY_GIDP_RATE, outs)
     if mu is None or mu.m_dp == 1.0 or not base:
@@ -1266,7 +1300,8 @@ USE_PLATOON = True
 
 
 def resolve(b: BatterRates, p: PitcherRates, lg: dict,
-            park: dict | None = None, hr_park: float = 1.0) -> Matchup:
+            park: dict | None = None, hr_park: float = 1.0,
+            k_game: float = 1.0, bb_game: float = 1.0) -> Matchup:
     """Assemble one batter-pitcher pairing. THE ONLY PLACE INPUTS ARE PICKED.
 
     Called when a pitcher takes the mound rather than per plate appearance —
@@ -1293,8 +1328,11 @@ def resolve(b: BatterRates, p: PitcherRates, lg: dict,
     lgm = b.lg_cell or lg
     sac_r = SAC_RATE if p.sac_rate is None else p.sac_rate
     hbp_r = HBP_RATE if p.hbp_rate is None else p.hbp_rate
-    m_k = pk["k"] * b.arsenal_k_mult
-    m_bb = pk.get("bb", 1.0)
+    # `k_game`/`bb_game` are the GAME's shared-night multipliers — today
+    # the plate umpire via `ump_kbb_mult` — riding the same rail the air
+    # rides on the HR channel one line down.
+    m_k = pk["k"] * b.arsenal_k_mult * k_game
+    m_bb = pk.get("bb", 1.0) * bb_game
     m_hr = hr_park * pk["hr"] * b.arsenal_mult
     m_bip = pk["bip"] * b.arsenal_mult
     # THE PLATOON CELL fires only when BOTH sides of the pairing are

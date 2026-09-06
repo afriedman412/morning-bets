@@ -304,6 +304,16 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
     w = wx.get(g["game_id"]) or {}
     hr_air = sim.air_hr_mult(w.get("temp_f"), w.get("carry"),
                              w.get("wind_mph"))
+    # TONIGHT'S PLATE UMPIRE, from the crew record `officials.fetch_date`
+    # keeps current. Crews are published morning-of; a slate priced before
+    # the crew exists gets (1.0, 1.0) — silent-neutral, never a guess.
+    ump = (1.0, 1.0)
+    if sim.USE_UMP_KBB:
+        from src import db
+        with db.connect() as c:
+            r = c.execute("select plate_ump_id from game_officials"
+                          " where game_id=?", (g["game_id"],)).fetchone()
+        ump = sim.ump_kbb_mult(r["plate_ump_id"] if r else None)
     rng = random.Random(seed)
     out = []
     # `progress(done, total)` is called about a hundred times, not once per
@@ -326,7 +336,7 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
         # inning is a dict write; there is no reason not to.
         out.append(game.simulate_game(sides["away"], sides["home"], lg, rng,
                                       park=park, track=track,
-                                      hr_air=hr_air))
+                                      hr_air=hr_air, ump_kbb=ump))
         if progress is not None and (i + 1) % every == 0:
             progress(i + 1, n_sims)
     if progress is not None:
