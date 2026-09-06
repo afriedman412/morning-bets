@@ -215,21 +215,22 @@ and the table wants a rebuild when the season rolls.
 
 ---
 
-## OUT OF SCOPE HERE, RECORDED SO THEY ARE NOT LOST
+## THE HYGIENE LIST — ALL THREE CLOSED 2026-09-06 (same session as 8a/8b)
 
-Found on the same read; they are measurement hygiene, not baseball, and
-each is its own session:
-
-  * The base boundary curve (`Hook.intercept`, `pitch_scale`, `per_run`,
-    `per_inning`, `per_baserunner`) and the `late_mid_*` coefficients were
-    fitted 2026-08-26 on 2026 through that date — inside the holdout — and
-    `fit_boundary.py` / `fit_midinning.py` have no `train_only`. A joint
-    refit on four-season training rows, compared coefficient by coefficient
-    to what ships, closes this and item 7 in TODO at once.
-  * `HOLDOUT` is a string literal in ~25 scratchpads and `train_only` is
-    defined six times. One `src/context/holdout.py`, imported everywhere,
-    and a check that greps for the literal.
-  * `sim.leash` loads `hook_leash.json` without reading `_meta.before`;
-    it is a residual against a model the hook has changed under five times
-    since. Rebuild it after every hook ship, and have the loader refuse a
-    file built on a stale fingerprint.
+  * BOTH HOOK CURVES REFIT on clean training rows (fitters now date rows,
+    apply `train_only`, and era-gate before pooling). The gate was the
+    finding: managers are NOT stationary, 2023-24 is another regime, so
+    rule 9 fits 2025-through-holdout. Clean values reproduce the
+    contaminated ones within 1-5% — now known, not hoped. The battery's
+    sub-se widening on the 2026 fold is the old fit's in-sample advantage
+    being given up.
+  * `src/context/holdout.py` owns the cutoff and `train_only`; six live
+    fitters import it; a mutation-verified check bans local copies and
+    src/ literals. Historical scratchpads keep theirs (they are records —
+    four even carry an older 2026-05-15 cut, which is the drift the check
+    stops).
+  * THE LEASH: rebuilt on pre-holdout rows against the refit hook (the
+    shipped file had `before: None` — fitted on everything, including
+    holdout), stamped with `sim.hook_hash()`, and the loader now REFUSES
+    a file whose hash mismatches. The check is the forcing function: any
+    Hook coefficient change fails the suite until `leash --build` reruns.

@@ -324,7 +324,12 @@ def build(before=None, n_sims=120, path=PATH, season=None) -> dict:
                       "between_sd": round(between, 3),
                       "within_sd": round(within, 3),
                       "pitchers": len(offsets),
-                      "starts": sum(len(v) for v in res.values())}}
+                      "starts": sum(len(v) for v in res.values()),
+                      # The hook these residuals were measured against.
+                      # `sim.leash` REFUSES a file whose hash no longer
+                      # matches — a residual correcting errors the hook
+                      # no longer makes pushes the wrong way.
+                      "hook_hash": sim.hook_hash()}}
     with open(path, "w") as f:
         json.dump({**meta, **offsets}, f, indent=1, sort_keys=True)
     print(f"  K={k:.1f} starts (between {between:.2f}, within {within:.2f})")

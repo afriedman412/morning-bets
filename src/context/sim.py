@@ -2650,6 +2650,23 @@ def _load(path: str) -> dict:
         return {}
 
 
+def hook_hash() -> str:
+    """A fingerprint of the shipped hook's coefficients.
+
+    The leash is a RESIDUAL against the hook's behaviour, so a leash file
+    built under one set of coefficients is measuring a model that stops
+    existing the moment any of them moves — it went stale five times
+    before this existed. `leash.build` stamps this into the file's meta
+    and the loader below refuses a mismatch.
+    """
+    import dataclasses
+    import hashlib
+    h = Hook()
+    fields = sorted((f.name, getattr(h, f.name))
+                    for f in dataclasses.fields(Hook))
+    return hashlib.md5(repr(fields).encode()).hexdigest()[:12]
+
+
 #: Apply the on-disk club-patience and pitcher-leash offsets.
 #:
 #: OFF. They were fitted 2026-08-23 as RESIDUALS against the model's own
@@ -2828,6 +2845,15 @@ def leash(pitcher_name: str | None) -> float:
     global _LEASH
     if _LEASH is None:
         _LEASH = _load(_LEASH_PATH)
+        # A LEASH BUILT AGAINST ANOTHER HOOK IS REFUSED, not merely
+        # distrusted: it is a residual correcting errors that hook no
+        # longer makes, so it pushes the wrong way. It went stale five
+        # times before this guard existed. Rebuild with
+        # `python -m src.context.leash --build --before <holdout>`.
+        if (_LEASH.get("_meta") or {}).get("hook_hash") != hook_hash():
+            print("  hook_leash.json was built against a different hook "
+                  "— refusing it (rebuild with src.context.leash --build)")
+            _LEASH = {}
     return float(_LEASH.get(pitcher_name or "", 0.0))
 
 

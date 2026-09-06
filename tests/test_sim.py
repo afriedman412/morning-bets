@@ -1604,6 +1604,40 @@ def check_the_club_patience_offsets_stay_switched_off():
     assert sim.patience("SD") == 0.0
 
 
+def check_the_leash_was_built_against_the_current_hook():
+    """The leash is a RESIDUAL against the hook, so it stops being a
+    measurement the moment any hook coefficient moves — it went stale
+    five times before this existed, silently. Two guards: the shipped
+    file's stamp must match the live hook (THE FORCING FUNCTION — change
+    a Hook default and this fails until `leash --build` is rerun), and
+    the loader must refuse a mismatched file rather than trust it.
+    MUTATION: flip any Hook coefficient, or delete the loader's hash
+    comparison, and one half of this fails."""
+    import json
+    import os
+    import tempfile
+
+    from src.context import leash as leash_mod
+    with open(leash_mod.PATH) as f:
+        meta = json.load(f).get("_meta") or {}
+    assert meta.get("hook_hash") == sim.hook_hash(), (
+        "hook_leash.json was built against a different hook — rebuild it")
+    # The loader refuses a stale file end to end.
+    fd, stale = tempfile.mkstemp(suffix=".json")
+    with os.fdopen(fd, "w") as f:
+        json.dump({"_meta": {"hook_hash": "not-the-hook"},
+                   "Somebody": -0.5}, f)
+    orig_path = sim._LEASH_PATH
+    sim._LEASH_PATH = stale
+    sim.reload_offsets()
+    try:
+        assert sim.leash("Somebody") == 0.0, "stale file must be refused"
+    finally:
+        sim._LEASH_PATH = orig_path
+        sim.reload_offsets()
+        os.unlink(stale)
+
+
 def check_the_measured_leash_is_live_and_carries_provenance():
     """`hook_leash.json` must be the MEASURED file, not the 2026-08-23 one.
 

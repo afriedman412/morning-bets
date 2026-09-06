@@ -9059,3 +9059,51 @@ pen-roles ship still stands. WATCH: the umpire table is fitted through
 2026-06-30; rebuild it when the season rolls, and slate-time crew
 coverage (how often the plate umpire is published before price time)
 has not been measured — the live path is silent-neutral when missing.
+
+## 2026-09-06 (Fable, second sitting): THE HYGIENE LIST, CLOSED — AND THE ERA GATE ON MANAGERS IS THE FINDING
+
+Three debts from the plan's foot, all shipped in one block after 8a/8b:
+
+**BOTH HOOK CURVES REFIT ON CLEAN ROWS.** `fit_boundary.py` and
+`fit_midinning.py` now date every row, filter through
+`holdout.train_only`, and print a PER-SEASON ERA GATE before pooling.
+The gate refused the four-season pool and that refusal is the result
+worth keeping: boundary per_inning falls 0.486 -> 0.242 and pitch_scale
+steepens 22.4 -> ~12 from 2023 to 2025-26; mid-curve onbase is 0.40 in
+2023 against ~0.27 since. MANAGERS ARE A MOVING REGIME — a four-season
+pool fits a manager who existed in no year, so rule 9 picks
+2025-through-holdout (38,714 boundary / 131,782 mid decisions). The
+clean coefficients reproduce the contaminated ones within 1-5% and
+replaced them (per_run 0.1097 -> 0.1133, per_inning 0.2515 -> 0.2593,
+late_mid_offset -5.5145 -> -5.5811, etc.); both margin terms flip sign
+by season inside the ship population and stay deliberately zeroed.
+Battery vs 9229ea8a0897: NO row past one se; the hook cells widen
+~0.0004 and outs_mean drops ~0.026 sub-se in every fold — the expected
+signature of surrendering the old fit's in-sample advantage on the 2026
+fold's July-August rows, and the reason a contaminated fit always looks
+a little better on a contaminated evaluation.
+
+**ONE HOLDOUT.** `src/context/holdout.py` owns the literal and the
+canonical `train_only`; the six live fitters import it; the check bans
+local copies everywhere and date literals under src/, mutation-verified
+both ways. The census that motivated it: ~47 scratchpads assigned the
+cutoff under three names and four carried an older 2026-05-15 cut.
+
+**THE LEASH IS CLEAN, CURRENT, AND GUARDED.** The shipped file's meta
+read `before: None` — built on EVERYTHING, holdout included, against a
+hook five changes old. Rebuilt: 2026 pre-holdout paired games (2,152
+starts x 120 draws) against the refit hook, K=13.5 (band held), 177
+offsets, plausible extremes (Webb/Yamamoto long, Scherzer short).
+`sim.hook_hash()` — a hash of the Hook dataclass defaults — is stamped
+into the file, the loader REFUSES a mismatch at load, and
+`check_the_leash_was_built_against_the_current_hook` makes the suite
+fail after any hook coefficient change until the rebuild is rerun. That
+converts "rebuild the leash after every hook ship" from a rule someone
+must remember into a red test.
+
+ALSO CLOSED THIS SITTING: slate.py fetches the day's crew at price time
+(weather's pattern); measured 2026-09-06 that crews are NOT published
+the night before (0/11) and do appear by first pitch. STALE AND
+RECORDED, not fixed: `.cron-config` still schedules src.main /
+src.panel / src.emailer, all deleted 2026-09-05 with the betting layer
+— only the grading line still points at code that exists.

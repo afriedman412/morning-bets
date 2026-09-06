@@ -16,6 +16,21 @@ it belongs in `NOTES-context-layer.md`.
 
 ## WHERE THINGS STAND (2026-09-06, night — Fable session)
 
+**THE HYGIENE LIST IS CLOSED (second sitting, same session).** Both hook
+curves refit on clean training rows — the era gate refused the
+four-season pool (managers are a moving regime; 2023-24 is another era)
+and rule 9 fit 2025-through-holdout; the clean values reproduce the
+contaminated ones within 1-5%, now known rather than hoped.
+`src/context/holdout.py` owns the cutoff, six live fitters import it, a
+check bans drift. The leash was rebuilt on pre-holdout rows against the
+refit hook (the shipped file had `before: None` — a worse debt than the
+hook's), stamped with `sim.hook_hash()`, and BOTH the loader and a
+check refuse a stale file — any future Hook change turns the suite red
+until `leash --build` reruns. Also: slate.py fetches the day's crew at
+price time (crews publish game-day, not the night before — 0/11
+measured). Full log in the notes. `.cron-config` still lists three
+deleted modules; recorded, not touched.
+
 **ITEM 8b SHIPPED THE PLATE UMPIRE (`sim.USE_UMP_KBB`), the third
 shared-night condition.** Counted with the staffs-he-drew confound
 standardised out (bb tau 0.0438, split-half +0.454, season-pair +0.323;
