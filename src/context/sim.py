@@ -1601,15 +1601,24 @@ class Hook:
     #: "no parameter reaches the target, so the mechanism is missing"
     #: signature: what is absent is a disaster mode, not a better constant.
     #:
-    #: FITTED ON 38,485 REAL END-OF-INNING DECISIONS, 2026-08-26. See
-    #: LEGACY_BOUNDARY below for what these were and why they changed.
+    #: REFIT 2026-09-06 ON 38,714 TRAINING DECISIONS — 2025-01-01 to the
+    #: holdout, rule 9's population: the 2026-08-26 fit used 2026 rows
+    #: through Aug 26 with no date filter (inside the holdout, rule 6),
+    #: and the four-season era gate run the same day shows 2023-24 is a
+    #: DIFFERENT REGIME (per_inning 0.486 -> 0.242, pitch_scale 22.4 ->
+    #: ~12 across the era), so pooling all four seasons fits a manager
+    #: who existed in no year. The clean refit reproduced the
+    #: contaminated values to within 1-3% — the contamination was
+    #: immaterial, and now that is KNOWN rather than hoped
+    #: (`scratchpad/fit_boundary.py`). See LEGACY_BOUNDARY below for
+    #: what these replaced originally.
     #:
     #: A KNEE WAS FITTED AND NOT SHIPPED. See `KNEE_BOUNDARY` — it is a
     #: better description of what managers do and a worse description of
     #: what we price, which is the sharpest case of that split so far.
-    pitch_center: float = 49.5493
+    pitch_center: float = 49.4626
     #: How sharply the pitch-count term turns on. Larger is a softer curve.
-    pitch_scale: float = 12.1293
+    pitch_scale: float = 12.2840
     #: Where the pitch term would turn on, if `per_pitch_over` were non-zero.
     #: SHIPS INERT — the mechanism exists and the coefficient is 0.0, so the
     #: curve is linear. `KNEE_BOUNDARY` turns it on.
@@ -1617,14 +1626,14 @@ class Hook:
     #: Log-odds per pitch beyond `pitch_knee`. Zero ships a linear logit.
     per_pitch_over: float = 0.0
     #: Added to the removal log-odds per run allowed so far.
-    per_run: float = 0.1097
+    per_run: float = 0.1133
     #: Added per inning completed. Small and NEGATIVE once pitches are in
     #: the same model: inning and pitch count carry the same information and
     #: the fit gives it to pitches. Not evidence that late innings shorten a
     #: leash — evidence that pitches already say so.
-    per_inning: float = 0.2515
+    per_inning: float = 0.2593
     #: Baseline log-odds before any of the above.
-    intercept: float = -5.1370
+    intercept: float = -5.1550
     # -- mid-inning removal --
     #
     # A third of real starts end mid-inning, and the first version of this
@@ -1651,11 +1660,14 @@ class Hook:
     #: innings alongside runs. Two starters with three runs each are not the
     #: same case if one has allowed four hits and the other eleven.
     #:
-    #: NOTE the fit this came from also returns `per_margin` -0.0113 and it
-    #: is NOT shipped — so the shipped boundary curve is the fitted one with
-    #: the margin column zeroed. Deliberate: margin is worth its own
-    #: measurement rather than arriving as a passenger on a shape change.
-    per_baserunner: float = 0.0555
+    #: NOTE the fit this came from also returns a `per_margin` (0.0035 on
+    #: the 2026-09-06 refit) and it is NOT shipped — so the shipped
+    #: boundary curve is the fitted one with the margin column zeroed.
+    #: Deliberate twice over: margin is worth its own measurement rather
+    #: than arriving as a passenger on a shape change, and its per-season
+    #: coefficient FLIPS SIGN inside the ship population (2025 +0.0079,
+    #: 2026 -0.0037) — an unstable quantity must not pool to a number.
+    per_baserunner: float = 0.0562
     #: Manager patience, as a log-odds offset applied to BOTH removal
     #: decisions. Negative means a longer leash.
     #:
@@ -1948,24 +1960,30 @@ class Hook:
     #: a fit that already contains the traffic double-counts it. Doing both
     #: at once put the hook at 53% where the measurement says 34%.
     #:
-    #: Fitted on the 20,994 late mid-inning decisions alone. Reproduces
-    #: 0.33/2.08/9.10/33.80% by pitch count against 0.26/1.96/9.84/32.17%.
+    #: REFIT 2026-09-06 on 131,782 TRAINING decisions (2025-01-01 to the
+    #: holdout) — the original fit had no date filter (rule 6) and the
+    #: four-season era gate shows 2023 is another regime (onbase 0.40
+    #: against ~0.27 since; per-run halves across the era), so rule 9
+    #: picks the current population, same call as the boundary curve. The
+    #: clean values reproduce the old ones to within ~5%; the fitted
+    #: margin term flips sign by season and stays zeroed
+    #: (`scratchpad/fit_midinning.py`).
     #: An OFFSET from `mid_intercept`, never an absolute level. The same
     #: mistake was made and fixed for the early branch earlier the same day:
     #: callers disable the hook by driving `mid_intercept` to -99 —
     #: team_offset, the patience fits and the never-pull tests all use that
     #: idiom — and a branch carrying its own absolute intercept goes on
     #: pulling people regardless.
-    late_mid_offset: float = -5.5145
-    late_mid_per_pitch: float = 0.0839
-    late_mid_per_inning_br: float = 0.5269
-    late_mid_per_run: float = 0.1165
+    late_mid_offset: float = -5.5811
+    late_mid_per_pitch: float = 0.0847
+    late_mid_per_inning_br: float = 0.5519
+    late_mid_per_run: float = 0.1142
     #: Bases OCCUPIED, distinct from baserunners allowed this inning. Both
     #: are in the decision — bases loaded having scored nobody is a hook,
     #: and so is a five-run inning that ended with the bases empty. Dropping
     #: it lost 2.71 -> 18.05% of real discrimination and broke two checks
     #: that correctly guard the hook responding to traffic on the bases.
-    late_mid_per_onbase: float = 0.3002
+    late_mid_per_onbase: float = 0.2758
     #: Multiplies `MID_INNING_RUN_OFFSET`. DEFAULT OFF — the mechanism is
     #: real and correctly measured, but switching it on makes
     #: `calibrate.loss` worse (0.206 -> 0.221) because the model has a
@@ -3028,8 +3046,8 @@ EARLY_EXIT_DIST: dict[int, int] = {}
 #: What ships, named so `scratchpad/score_boundary.py` can hold all three
 #: side by side. Identical to the defaults above.
 LINEAR_BOUNDARY = {
-    "intercept": -5.1370, "pitch_center": 49.5493, "pitch_scale": 12.1293,
-    "per_run": 0.1097, "per_inning": 0.2515, "per_baserunner": 0.0555,
+    "intercept": -5.1550, "pitch_center": 49.4626, "pitch_scale": 12.2840,
+    "per_run": 0.1133, "per_inning": 0.2593, "per_baserunner": 0.0562,
     "per_pitch_over": 0.0,
 }
 

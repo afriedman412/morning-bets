@@ -1778,10 +1778,14 @@ def check_the_boundary_curve_is_the_fitted_one():
     `sim.PRE_OUTS_FIX_BOUNDARY` restores the old values for scoring, and
     `sim.LEGACY_BOUNDARY` the imported ones before those.
     """
+    # RE-PINNED 2026-09-06: the same curve refit on TRAINING rows only
+    # (2025-01-01 to the holdout, 38,714 decisions — the 2026-08-26 fit
+    # had no date filter). The clean values reproduce the old ones to
+    # within 1-3%, which is now a known fact instead of a hope.
     h = sim.Hook()
-    assert abs(h.pitch_center - 49.5493) < 1e-6, h.pitch_center
-    assert abs(h.pitch_scale - 12.1293) < 1e-6, h.pitch_scale
-    assert abs(h.intercept - (-5.1370)) < 1e-6, h.intercept
+    assert abs(h.pitch_center - 49.4626) < 1e-6, h.pitch_center
+    assert abs(h.pitch_scale - 12.2840) < 1e-6, h.pitch_scale
+    assert abs(h.intercept - (-5.1550)) < 1e-6, h.intercept
     # THE SIGN IS THE FINDING, not the digits. A manager gets MORE likely to
     # pull as the game goes on, and a negative value here is the signature of
     # the labelling bug rather than a tuning choice.

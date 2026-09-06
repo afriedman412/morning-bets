@@ -58,6 +58,7 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 
 from src.context import boundary, removal, sim
+from src.context.holdout import HOLDOUT, train_only
 
 #: The features the shipped boundary curve actually reads, in its order.
 FEATS = ("pitches", "runs", "br", "inning", "margin")
@@ -65,9 +66,28 @@ FEATS = ("pitches", "runs", "br", "inning", "margin")
 CACHE = "/tmp/boundary_rows.json"
 
 
+def _dated(rows: list[dict]) -> list[dict]:
+    """Attach each row's game DATE so `train_only` can filter it. The
+    shipped coefficients were fitted with no date filter at all — rule 6's
+    exact failure — and a row that cannot say when it happened cannot be
+    kept out of a fit."""
+    if not rows or "date" in rows[0]:
+        return rows
+    from src import db
+    with db.connect() as c:
+        dates = {r["game_id"].removeprefix("mlb-"): r["date"]
+                 for r in c.execute(
+                     "select game_id, date from games where sport='mlb'")}
+    for r in rows:
+        r["date"] = dates.get(str(r["game_id"]), "")
+    return rows
+
+
 def collect(limit=None, rebuild=False) -> list[dict]:
     if not rebuild and limit is None and os.path.exists(CACHE):
-        return json.load(open(CACHE))
+        rows = _dated(json.load(open(CACHE)))
+        json.dump(rows, open(CACHE, "w"))
+        return rows
     files = sorted(glob.glob(".cache/pbp/*.json.gz"))
     gids = [os.path.basename(f).split(".")[0] for f in files]
     if limit:
@@ -81,6 +101,7 @@ def collect(limit=None, rebuild=False) -> list[dict]:
         if (i + 1) % 400 == 0:
             print(f"    {i+1}/{len(gids)} games, {len(rows):,} decisions",
                   flush=True)
+    rows = _dated(rows)
     if limit is None:
         json.dump(rows, open(CACHE, "w"))
     return rows
@@ -99,25 +120,67 @@ def hazard(rows, key="pitches", edges=(60, 70, 80, 90, 100, 110)):
     return out
 
 
-def main(argv):
-    lim = int(argv[0]) if argv and argv[0].isdigit() else None
-    rows = collect(lim, rebuild="--rebuild" in argv)
-    print(f"\n  {len(rows):,} BOUNDARY decisions "
-          f"(end-of-inning, starter still in)")
-    print(f"  pull rate {st.mean(r['removed'] for r in rows):.4f}")
-
+def _fit(rows):
+    """One unregularised logistic on the Hook's own features. The
+    coefficients ARE the shipped parameters, so shrinking them toward
+    zero would ship a hook that is deliberately too flat."""
     X = np.array([[float(r[f]) for f in FEATS] for r in rows])
     y = np.array([1 if r["removed"] else 0 for r in rows])
-    # UNREGULARISED. The coefficients ARE the shipped parameters, so shrinking
-    # them toward zero would ship a hook that is deliberately too flat.
     m = LogisticRegression(max_iter=5000, C=1e6)
     m.fit(X, y)
     coef = dict(zip(FEATS, m.coef_[0]))
     const = float(m.intercept_[0])
-
     pitch_center = st.mean(r["pitches"] for r in rows)
-    pitch_scale = 1.0 / coef["pitches"]
-    intercept = const + pitch_center * coef["pitches"]
+    return m, coef, {
+        "intercept": const + pitch_center * coef["pitches"],
+        "pitch_center": pitch_center,
+        "pitch_scale": 1.0 / coef["pitches"],
+        "per_run": coef["runs"], "per_baserunner": coef["br"],
+        "per_inning": coef["inning"], "per_margin": coef["margin"]}
+
+
+PARAMS = ("intercept", "pitch_center", "pitch_scale", "per_run",
+          "per_baserunner", "per_inning", "per_margin")
+
+
+def main(argv):
+    lim = int(argv[0]) if argv and argv[0].isdigit() else None
+    all_rows = collect(lim, rebuild="--rebuild" in argv)
+    rows = train_only(all_rows)
+    print(f"\n  {len(all_rows):,} BOUNDARY decisions "
+          f"(end-of-inning, starter still in)")
+    print(f"  {len(rows):,} TRAINING decisions (before {HOLDOUT}) — "
+          f"the fit sees ONLY these")
+    print(f"  pull rate {st.mean(r['removed'] for r in rows):.4f}")
+
+    # ── THE ERA GATE, before pooling: managers drift. A coefficient that
+    # is not the same decision-making every year should not be pooled to
+    # a tighter number — print per-season fits and read the spread.
+    print(f"\n  {'season':<8}{'n':>8}" + "".join(f"{p[:9]:>10}"
+                                                 for p in PARAMS))
+    for season in sorted({r["date"][:4] for r in rows if r.get("date")}):
+        sub = [r for r in rows if r.get("date", "").startswith(season)]
+        if len(sub) < 2000:
+            continue
+        _m, _c, ps = _fit(sub)
+        print(f"  {season:<8}{len(sub):>8,}"
+              + "".join(f"{ps[p]:>10.4f}" for p in PARAMS))
+
+    # ── THE POPULATION DECISION, made on the gate table above and rule 9
+    # ("fit a curve on the population it fires in"), NOT on any score:
+    # per_inning halves and pitch_scale nearly doubles between 2023 and
+    # 2025-26, so managers of 2023-24 are a different regime and pooling
+    # them fits an average that existed in no year. The curve fires on
+    # CURRENT managers; the ship candidate is 2025 + pre-holdout 2026.
+    recent = [r for r in rows if r.get("date", "") >= "2025-01-01"]
+    print(f"\n  ship population: {len(recent):,} decisions from 2025-01-01"
+          f" to {HOLDOUT} (rule 9; 2023-24 is another regime)")
+    m, coef, ps = _fit(recent)
+    pitch_center, pitch_scale = ps["pitch_center"], ps["pitch_scale"]
+    intercept = ps["intercept"]
+    rows = recent  # hazard tables below judge against the population fitted
+    X = np.array([[float(r[f]) for f in FEATS] for r in rows])
+    y = np.array([1 if r["removed"] else 0 for r in rows])
 
     p = m.predict_proba(X)[:, 1]
     print(f"  in-sample AUC {removal.auc(y, p):.4f}   "

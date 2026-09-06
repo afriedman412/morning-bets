@@ -47,6 +47,7 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 
 from src.context import boundary, removal, sim
+from src.context.holdout import HOLDOUT, train_only
 
 #: In the Hook's order. `inn_run_off` is the counted transform, carried so
 #: its fitted coefficient can be compared with the shipped constant.
@@ -72,19 +73,59 @@ def collect(limit=None, rebuild=False) -> list[dict]:
                   flush=True)
     for r in rows:
         r["inn_run_off"] = sim.inning_run_offset(r.get("inn_runs", 0) or 0)
+    rows = _dated(rows)
     if limit is None:
         json.dump(rows, open(CACHE, "w"))
     return rows
 
 
-def main(argv):
-    rows = collect(rebuild="--rebuild" in argv)
+def _dated(rows: list[dict]) -> list[dict]:
+    """Attach the game DATE so `train_only` can filter — same repair as
+    `fit_boundary._dated`, same rule-6 reason."""
+    if not rows or "date" in rows[0]:
+        return rows
+    from src import db
+    with db.connect() as c:
+        dates = {r["game_id"].removeprefix("mlb-"): r["date"]
+                 for r in c.execute(
+                     "select game_id, date from games where sport='mlb'")}
     for r in rows:
+        r["date"] = dates.get(str(r["game_id"]), "")
+    return rows
+
+
+def main(argv):
+    all_rows = _dated(collect(rebuild="--rebuild" in argv))
+    for r in all_rows:
         r.setdefault("inn_run_off",
                      sim.inning_run_offset(r.get("inn_runs", 0) or 0))
-    print(f"\n  {len(rows):,} MID-INNING decisions (inning alive, starter in)")
+    rows = train_only(all_rows)
+    print(f"\n  {len(all_rows):,} MID-INNING decisions "
+          f"(inning alive, starter in)")
+    print(f"  {len(rows):,} TRAINING decisions (before {HOLDOUT}) — "
+          f"the fit sees ONLY these")
     print(f"  pull rate {st.mean(r['removed'] for r in rows):.4f}")
 
+    # Era gate: per-season coefficients before pooling.
+    print(f"\n  {'season':<8}{'n':>9}" + "".join(f"{f[:9]:>10}"
+                                                 for f in FEATS))
+    for season in sorted({r["date"][:4] for r in rows if r.get("date")}):
+        sub = [r for r in rows if r.get("date", "").startswith(season)]
+        if len(sub) < 2000:
+            continue
+        Xs = np.array([[float(r[f]) for f in FEATS] for r in sub])
+        ys = np.array([1 if r["removed"] else 0 for r in sub])
+        ms = LogisticRegression(max_iter=5000, C=1e6).fit(Xs, ys)
+        print(f"  {season:<8}{len(sub):>9,}"
+              + "".join(f"{c:>10.4f}" for c in ms.coef_[0]))
+
+    # Same population decision as `fit_boundary`, made on the gate table
+    # above and rule 9: 2023 is another regime (onbase 0.40 against ~0.27
+    # since, per-run halves across the era). The curve fires on CURRENT
+    # managers; the ship candidate is 2025 + pre-holdout 2026.
+    rows = [r for r in rows if r.get("date", "") >= "2025-01-01"]
+    print(f"\n  ship population: {len(rows):,} decisions from 2025-01-01"
+          f" to {HOLDOUT} (rule 9)")
     X = np.array([[float(r[f]) for f in FEATS] for r in rows])
     y = np.array([1 if r["removed"] else 0 for r in rows])
     m = LogisticRegression(max_iter=5000, C=1e6)
