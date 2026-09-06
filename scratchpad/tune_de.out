@@ -1,4 +1,0 @@
-800 games x 4 draws x 2 starters = 6,400 simulated starts per candidate, 8 workers
-  shipped         mean  16.19   sd  4.43   boundary  71.1%   loss 0.20622
-                  (actual mean 15.76, sd 4.00, boundary 65.9%)
-  4.3s per candidate; differential_evolution popsize 15 x 10 dims, 20 iters ~= 3,000 evals ~= 27 min

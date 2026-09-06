@@ -123,3 +123,20 @@ scratchpad/starts_*.json
 # A rendered board is true for one slate and is ~230 KB a night.
 # `scratchpad/board.py --html` rebuilds any date.
 scratchpad/board_*.html
+
+# CAPTURED STDOUT from a measurement run. 133 of these were tracked and 3
+# were referenced by anything — the CONCLUSION belongs in
+# NOTES-context-layer.md, which is the log, and the run that produced it
+# belongs in the .py beside it. The transcript is neither.
+scratchpad/*.out
+
+# Per-start rows dumped so a question is a QUERY rather than another engine
+# run — the same argument as `starts_*.json` above, and these are the same
+# class of file. 11 MB across four `ceiling_rows` variants alone.
+scratchpad/ceiling_rows*.json
+scratchpad/ceiling_holdout*.json
+# Per-batter platoon cells and fitted boundary curves, both rebuilt from the
+# play-by-play cache by the script that shares their name.
+scratchpad/platoon_fix*.json
+scratchpad/bnd_curves*.json
+scratchpad/damage_state.json

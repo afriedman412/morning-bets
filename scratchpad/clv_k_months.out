@@ -1,6 +1,0 @@
-k over 30 dates 2026-06-01..2026-06-30
-  n_sims=1500  n=1464  corr +0.416  z +23.1  blend +13.1% (lam 0.2)  5c+ n=727 dir 59.1%  +1.8c
-k over 31 dates 2026-07-01..2026-07-31
-  n_sims=1500  n=3134  corr +0.299  z +30.4  blend +7.7% (lam 0.2)  5c+ n=1567 dir 59.6%  +1.7c
-k over 21 dates 2026-08-01..2026-08-21
-  n_sims=1500  n=3164  corr +0.575  z +59.8  blend +30.4% (lam 0.4)  5c+ n=1615 dir 69.0%  +3.3c
