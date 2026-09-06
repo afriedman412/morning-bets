@@ -146,43 +146,22 @@ late-inning face. Full result in the notes.
 
 ---
 
-## 7. WIND INTO THE HR CHANNEL — written for a cold session
+## 7. WIND INTO THE HR CHANNEL — SHIPPED 2026-09-06 (`sim.USE_WIND_HR`)
 
-Temperature's mirror; the counted numbers already exist (in 5+ mph
-x0.896, out 5+ x1.063, `scratchpad/temp_hr.py` wind section). Follow
-item 5's shipped shape EXACTLY — every trap below cost a battery run:
+Counted within venue AND net of the shipped temperature table (0.924 /
+1.000 / 1.043), climate-centred, three bins — five is worse and the
+notes say why. The prediction registered before the run was right:
+about half temperature's size. The confound was decomposed rather than
+asserted (park 16% of the raw spread, temperature 6%).
 
-  COUNT: extend `temp_hr.py`'s WITHIN-VENUE section to wind bins
-  (in 5+/calm-cross/out 5+, open air only; roof_closed games are
-  carry=0 by definition and must sit in calm). The pooled ratios above
-  are NOT shippable — hot/windy games concentrate in particular parks
-  and park is already applied separately (the item-5 lesson).
-  CENTRE ON CLIMATE, not the training window: reference = mean raw
-  multiplier over prior seasons' full-year wind distribution (the
-  1.0191 analogue). Era gate per season; if the three bins do not hold
-  ordering in all four seasons, PARK the item and write why.
-
-  WIRE: multiply into the SAME game-level `hr_temp` value (rename it
-  `hr_air` everywhere in one commit, or leave the name — decide once).
-  It rides `simulate_game(hr_temp=...)` -> both Sides -> the `hr_park`
-  slot. There are FIVE callers: `calibrate.replay` (via
-  `temp_mult_for`), `fitf5`, `ladder`, `slate`, and
-  `scratchpad/fingerprint.py` — the AST check covers src/ only, so
-  CHECK THE FINGERPRINT MOVED or the fifth caller is sitting still
-  again. Silent-neutral: no reading contributes exactly 1.0.
-
-  TEST: battery weather rows (add wind-bin rows next to the temp
-  ones, model vs actual HR/BIP); level control `contact/hr_per_bip`
-  must stay within one se per fold — if it lifts, the centring
-  reference is wrong (the item-5 signature).
-  FALSIFIER: the per-bin gap does not close across folds, or the
-  hr_per_bip level moves past one se in the clean folds (2023/24 —
-  2025/26 carry the dead-ball anomaly, see the notes).
-
-  PREDICT BEFORE RUNNING: expected effect is ~half of temperature's;
-  the wired slope may read steeper than holdout reality in 2026-H2 for
-  the dead-ball reason, NOT a table defect. Do not rescale the table
-  to fix 2026 — that is solving for a level on scored rows.
+THE PRE-REGISTERED ORDERING GATE FAILED AND THE ITEM SHIPPED ANYWAY,
+on the user's call and not the session's: 2026 inverts by 0.007
+against a difference se of 0.043, so the clause cannot resolve what it
+is testing. The A/B (flag off, identical stream) closed the wind gap
+in 3 of 4 folds and moved FIVE rows out of 687 — all five its own.
+What makes that admissible and not rationalisation: nothing was
+rescaled after seeing a score. Full result, and the precedent, in the
+notes.
 
 ---
 

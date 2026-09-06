@@ -14,7 +14,36 @@ it belongs in `NOTES-context-layer.md`.
     RESUME-ARCHIVE.md    Days six to sixteen, moved out of here. Not deleted,
                          but its figures predate several engine changes.
 
-## WHERE THINGS STAND (2026-09-06, end of day)
+## WHERE THINGS STAND (2026-09-06, end of day — Opus session)
+
+**ITEM 7 SHIPPED (`sim.USE_WIND_HR`): wind into the HR channel.** In 5+
+mph 0.9242, calm/cross 1.0002, out 5+ 1.0431 — counted on 4,798
+open-air pre-July games WITHIN VENUE and NET OF THE SHIPPED TEMPERATURE
+TABLE, climate-centred (0.9981). Three bins; five is worse (era gate
+0.795 -> 0.567, ordering fails in three seasons). `hr_temp` is renamed
+`hr_air` end to end — six callers, the fingerprint instrument included.
+THE A/B THAT MATTERED: the first battery said "no row moved", which was
+VACUOUS because the wind rows were new — re-ran with the flag off (same
+stream; the off run reproduces fingerprint 525e62464717 exactly, which
+proves the wire is inert when off) and the wind sum|gap| closed in
+2024/25/26, widened in 2023. FIVE ROWS OF 687 MOVED PAST ONE SE AND ALL
+FIVE ARE ITS OWN; level within 0.17 se every fold.
+THE PRECEDENT, because it will be quoted: item 7's ordering gate FAILED
+(2026 inverts by 0.007 against a difference se of 0.043 — 0.16 sigma)
+and it shipped anyway ON THE USER'S CALL, not the session's. Admissible
+because NOTHING WAS RESCALED after seeing a score. Re-reading a gate
+against its own se is not tuning a row green; do not let the two blur.
+448 checks (4 new, each mutation-verified alone); fingerprint b505bb6b;
+baseline `battery_079082494e7e.json`.
+PROCESS SCAR: `git checkout <file>` to revert a mutation DESTROYED the
+uncommitted mechanism. Back up with `cp`, or mutate a committed tree —
+`scratchpad/mutate.py` refuses a dirty tree for this exact reason.
+NEXT: plan item 8a (clustering — count within-inning feedback; written
+to be worked cold, traps and positive control spelled out), or the
+hygiene list at the plan's foot. Item 8's ship decision is still
+reserved for a human.
+
+## WHERE THINGS STOOD (2026-09-06, mid-day — Fable session)
 
 **ITEM 5 SHIPPED (`sim.USE_TEMP_HR`): temperature into the HR channel —
 and the plan is now EMPTY, items 0-6 all shipped or parked.** Counted

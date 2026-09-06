@@ -54,7 +54,7 @@ def main(argv):
                                 an, sim.Hook(), rng, team=home[0]["team"],
                                 date=home[0].get("date"))
             r = game.simulate_game(A, H, lg, rng, track=(5,), park=park,
-                                   hr_temp=cal.temp_mult_for(home[0]))
+                                   hr_air=cal.air_mult_for(home[0]))
             h.update(f"{r.away},{r.home},{r.away_sp.outs},{r.away_sp.k},"
                      f"{r.home_sp.outs},{r.home_sp.k},"
                      f"{r.prefix_side.get(5)}|".encode())

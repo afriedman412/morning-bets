@@ -139,4 +139,9 @@ scratchpad/ceiling_holdout*.json
 # play-by-play cache by the script that shares their name.
 scratchpad/platoon_fix*.json
 scratchpad/bnd_curves*.json
+# Per-game count rows for the batted-ball and weather items, each rebuilt
+# by `<name>.py --backfill` from the play-by-play cache in a few minutes.
+scratchpad/dp_gb_rows.json
+scratchpad/hitmix_gb_rows.json
+scratchpad/temp_hr_rows.json
 scratchpad/damage_state.json

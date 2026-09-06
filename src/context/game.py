@@ -250,10 +250,11 @@ class Side:
     #: the club and the date, not of the pitcher on the mound — every arm
     #: that takes the ball tonight faces the same depleted pen behind him.
     pen_state: tuple[float, float] | None = None
-    #: The game's HR temperature multiplier (`sim.temp_hr_mult`), set by
-    #: `simulate_game` on BOTH sides — the two clubs hit in the same air,
-    #: the same shape park takes. 1.0 when the game has no reading.
-    hr_temp: float = 1.0
+    #: The game's HR AIR multiplier (`sim.air_hr_mult` — temperature and
+    #: wind), set by `simulate_game` on BOTH sides: the two clubs hit in
+    #: the same air, the same shape park takes. 1.0 when the game has no
+    #: reading, and each half of it is silent-neutral on its own.
+    hr_air: float = 1.0
     #: Days since THIS STARTER's previous start, from `sim.layoff_gap`.
     #: None means unknown, no prior start, or across a season break, and
     #: contributes exactly zero to either hook curve. See `sim.per_layoff`.
@@ -499,7 +500,7 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
         mu = side._mups[slot]
         if mu is None:
             mu = side._mups[slot] = sim.resolve(
-                side.lineup[slot], side.current, lg, park, side.hr_temp)
+                side.lineup[slot], side.current, lg, park, side.hr_air)
         # THE FIELD STATE the hitter actually walks into. `fr.bases`
         # holds runner tokens, so truthiness is the occupancy count.
         o = sim.pa_from(mu, rng, tto=tto,
@@ -768,7 +769,7 @@ def simulate_game(away: Side, home: Side, lg: dict,
                   regulation: int = 9,
                   max_extra: int = 9,
                   stop_after: int | None = None,
-                  hr_temp: float = 1.0) -> GameResult:
+                  hr_air: float = 1.0) -> GameResult:
     """One full game, both sides advancing half-inning by half-inning.
 
     `away` and `home` are PITCHING sides. The away side's runs allowed are
@@ -789,8 +790,8 @@ def simulate_game(away: Side, home: Side, lg: dict,
     after a bottom half that is always played.
     """
     rng = rng or random.Random()
-    # One reading, both sides — see `Side.hr_temp`.
-    away.hr_temp = home.hr_temp = hr_temp
+    # One reading, both sides — see `Side.hr_air`.
+    away.hr_air = home.hr_air = hr_air
     prefix: dict = {}
     prefix_side: dict = {}
 

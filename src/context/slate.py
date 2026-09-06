@@ -301,7 +301,9 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
     # counted on — pregame the field carries the forecast, which is the
     # best number available at price time. No reading contributes nothing.
     wx = {r["game_id"]: r for r in weather_src.fetch_date(d)}
-    hr_temp = sim.temp_hr_mult((wx.get(g["game_id"]) or {}).get("temp_f"))
+    w = wx.get(g["game_id"]) or {}
+    hr_air = sim.air_hr_mult(w.get("temp_f"), w.get("carry"),
+                             w.get("wind_mph"))
     rng = random.Random(seed)
     out = []
     # `progress(done, total)` is called about a hundred times, not once per
@@ -324,7 +326,7 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
         # inning is a dict write; there is no reason not to.
         out.append(game.simulate_game(sides["away"], sides["home"], lg, rng,
                                       park=park, track=track,
-                                      hr_temp=hr_temp))
+                                      hr_air=hr_air))
         if progress is not None and (i + 1) % every == 0:
             progress(i + 1, n_sims)
     if progress is not None:

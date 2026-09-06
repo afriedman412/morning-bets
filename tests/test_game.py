@@ -1213,16 +1213,16 @@ def check_temp_hr_ships_on_and_is_counted():
 
 
 def check_the_game_carries_the_air_to_both_sides():
-    """`simulate_game(hr_temp=...)` must land on BOTH sides' resolved
+    """`simulate_game(hr_air=...)` must land on BOTH sides' resolved
     matchups as the HR multiplier — the two clubs hit in the same air.
     Neutral park, blank hands and no GB keep every other multiplier at
-    exactly 1.0, so m_hr IS hr_temp and a dropped wire reads 1.0."""
+    exactly 1.0, so m_hr IS hr_air and a dropped wire reads 1.0."""
     def _s():
         return game.Side(starter=sim.PitcherRates(name="sp"), pen=[],
                          lineup=[sim.BatterRates(name=f"b{i}")
                                  for i in range(9)])
     a, h = _s(), _s()
-    game.simulate_game(a, h, dict(LG), random.Random(9), hr_temp=2.5)
+    game.simulate_game(a, h, dict(LG), random.Random(9), hr_air=2.5)
     for s in (a, h):
         mups = [m for m in (s._mups or []) if m is not None]
         assert mups, "no matchup was ever resolved"
@@ -1230,7 +1230,7 @@ def check_the_game_carries_the_air_to_both_sides():
 
 
 def check_every_simulate_game_call_passes_the_air():
-    """Every `simulate_game` call in `src/` must pass `hr_temp=` — the
+    """Every `simulate_game` call in `src/` must pass `hr_air=` — the
     same presence rule as `park`, and for the same reason: an omitted
     argument doesn't raise, it silently prices every game at 70 degrees."""
     import ast
@@ -1246,6 +1246,71 @@ def check_every_simulate_game_call_passes_the_air():
                     else getattr(fn, "id", None))
             if name != "simulate_game":
                 continue
-            if "hr_temp" not in {k.arg for k in node.keywords}:
+            if "hr_air" not in {k.arg for k in node.keywords}:
                 bad.append(f"{f.relative_to(root.parent)}:{node.lineno}")
+    assert not bad, bad
+
+
+def check_wind_hr_ships_on_and_is_counted():
+    """Flag defaults ON; a missing reading contributes exactly 1.0; the
+    counted direction is pinned absolutely (wind in suppresses, wind out
+    carries) and the middle bin is neutral to within a tenth of a
+    percent, which is what "crosswind" has to mean."""
+    assert sim.USE_WIND_HR, "ships ON"
+    assert sim.wind_hr_mult(None, 12) == 1.0
+    assert sim.wind_hr_mult(-1, None) == 1.0
+    assert sim.wind_hr_mult(-1, 12) < 0.96 and sim.wind_hr_mult(1, 12) > 1.02
+    assert sim.wind_hr_mult(0, 20) == sim.WIND_HR_MULT[1]
+    assert abs(sim.WIND_HR_MULT[1] - 1.0) < 0.001, "crosswind is no push"
+    # the bin edges are symmetric about zero and 4 mph is calm both ways
+    assert sim.wind_hr_mult(-1, 4) == sim.wind_hr_mult(1, 4)
+    assert sim.wind_hr_mult(-1, 5) == sim.WIND_HR_MULT[0]
+    assert sim.wind_hr_mult(1, 5) == sim.WIND_HR_MULT[2]
+    orig = sim.USE_WIND_HR
+    sim.USE_WIND_HR = False
+    try:
+        assert sim.wind_hr_mult(1, 20) == 1.0
+    finally:
+        sim.USE_WIND_HR = orig
+
+
+def check_the_air_is_temperature_times_wind():
+    """`air_hr_mult` is the product, and BOTH halves reach it. Either
+    term dropped from the composition leaves the other's value showing,
+    which is what a silent wiring loss looks like."""
+    t, w = sim.temp_hr_mult(90), sim.wind_hr_mult(1, 15)
+    assert t != 1.0 and w != 1.0, "the fixture must exercise both"
+    assert abs(sim.air_hr_mult(90, 1, 15) - t * w) < 1e-12
+    assert sim.air_hr_mult(90) == t, "wind defaults to silent-neutral"
+    assert sim.air_hr_mult(None, 1, 15) == w
+
+
+def check_the_shared_air_lookup_reads_the_wind_column():
+    """`calibrate.air_mult_for` must use the weather row's wind, not the
+    temperature alone. MUTATION: revert it to `sim.temp_hr_mult(...)`
+    and this check fails while every other weather check passes."""
+    import src.context.calibrate as cal
+    orig = cal._WEATHER
+    cal._WEATHER = {"g1": {"temp_f": 90, "carry": -1, "wind_mph": 15},
+                    "g2": {"temp_f": 90, "carry": 1, "wind_mph": 15}}
+    try:
+        a = cal.air_mult_for({"game_id": "g1"})
+        b = cal.air_mult_for({"game_id": "g2"})
+        assert a < b, (a, b)
+        assert abs(a - sim.air_hr_mult(90, -1, 15)) < 1e-12
+        assert cal.air_mult_for({"game_id": "absent"}) == 1.0
+    finally:
+        cal._WEATHER = orig
+
+
+def check_no_caller_builds_the_air_from_temperature_alone():
+    """`sim.air_hr_mult` is the ONLY way into the `hr_air` slot from
+    `src/`. A caller that reaches past it to `temp_hr_mult` prices every
+    game in still air and nothing raises — the fifth-caller failure from
+    item 5, one channel down. MUTATION: put `sim.temp_hr_mult(` back in
+    `slate.py` and this fails."""
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent / "src"
+    bad = [str(f.relative_to(root.parent)) for f in sorted(root.rglob("*.py"))
+           if "temp_hr_mult(" in f.read_text() and f.name != "sim.py"]
     assert not bad, bad

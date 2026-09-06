@@ -668,6 +668,68 @@ def temp_hr_mult(temp_f: int | None) -> float:
     return TEMP_HR_MULT[sum(temp_f >= e for e in TEMP_HR_EDGES)]
 
 
+#: WIND INTO THE SAME CHANNEL — plan item 7, temperature's mirror. The
+#: feed reports wind FIELD-RELATIVE ("12 mph, Out To RF"), so
+#: `carry * wind_mph` is the signed scalar with the physics in it and no
+#: stadium-orientation table is needed (`sources/weather.py`).
+#:
+#: Counted on the same 4,798 open-air pre-July games, and counted the way
+#: item 5 had to be corrected to: WITHIN VENUE and NET OF THE TEMPERATURE
+#: MULTIPLIER ALREADY WIRED. Both are things the engine applies
+#: SEPARATELY — `pk["hr"]` per venue and year, `TEMP_HR_MULT` per game —
+#: so a flat count hands them to wind a second time. THE DECOMPOSITION,
+#: measured rather than asserted, on the in-to-out spread:
+#:
+#:     flat pooled     0.896 / 0.999 / 1.055    spread 0.159
+#:     + venue         0.912 / 0.999 / 1.046    spread 0.134
+#:     + venue + temp  0.938 / 1.013 / 1.062    spread 0.124
+#:
+#: Park takes 16% off the raw spread and temperature a further 6%, so the
+#: confound is ~22% of it and is mostly park. The shipped table adds the
+#: per-venue renormalisation and the climate centring, which move the
+#: LEVEL and not the spread:
+#:
+#:     in 5+ 0.922   calm/cross 0.998   out 5+ 1.041   (se 0.023/0.014/0.017)
+#:
+#: which is about HALF temperature's spread, as the item predicted before
+#: running. Climate-centred on prior seasons' full-year open-air wind
+#: distribution (raw mean 0.9981) — the training rows are spring and the
+#: baseline rates already carry an average season's air.
+#:
+#: THE ORDERING GATE READS AMBIGUOUS AND THE LOG SAYS SO. Item 7 said to
+#: park unless the three bins hold ordering in all four seasons; they hold
+#: in 2023/24/25 and invert in 2026 by 0.007 (out 1.021 under calm 1.028)
+#: against a difference se of 0.043 — 0.16 sigma, which the test cannot
+#: resolve either way. The IN bin, which carries most of the effect, sits
+#: below calm in all four seasons.
+#:
+#: FIVE BINS ARE WORSE, NOT BETTER, and that is recorded so nobody
+#: re-splits it: 10+/5-9 each way fails ordering in three seasons and
+#: drops the era gate 0.795 -> 0.567, with the ends ordered every year.
+#: One effect cut too fine.
+WIND_HR_MULT = (0.9242, 1.0002, 1.0431)
+USE_WIND_HR = True
+
+
+def wind_hr_mult(carry: int | None, wind_mph: int | None) -> float:
+    """The HR odds multiplier for one game's wind. Silent-neutral: a
+    missing reading contributes exactly 1.0. A crosswind is a real
+    reading with carry 0 and lands in the calm bin, which is 1.0002 as
+    counted — it is not special-cased, because "no push toward the
+    fence" is what the middle bin means."""
+    if not USE_WIND_HR or carry is None or wind_mph is None:
+        return 1.0
+    s = carry * wind_mph
+    return WIND_HR_MULT[0 if s <= -5 else (1 if s < 5 else 2)]
+
+
+def air_hr_mult(temp_f: int | None, carry: int | None = None,
+                wind_mph: int | None = None) -> float:
+    """ONE GAME'S AIR: temperature and wind, multiplied. Both clubs hit in
+    it, so it travels per game like park does, not per side."""
+    return temp_hr_mult(temp_f) * wind_hr_mult(carry, wind_mph)
+
+
 def gidp_rate(outs: int, mu: "Matchup | None" = None) -> float:
     base = _rate(GIDP_RATE if USE_MEASURED_GIDP else LEGACY_GIDP_RATE, outs)
     if mu is None or mu.m_dp == 1.0 or not base:

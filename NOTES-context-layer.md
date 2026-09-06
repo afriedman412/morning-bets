@@ -8826,3 +8826,96 @@ shared-night conditions of which temperature was the first), the
 2026-H2 ball, and the plan's out-of-scope hygiene list (boundary-curve
 refit on four-season training rows, HOLDOUT literal consolidation,
 leash staleness guard).
+
+---
+
+## 2026-09-06 (later) — ITEM 7 SHIPPED: WIND INTO THE HR CHANNEL, AND A
+## PRE-REGISTERED GATE THAT FAILED ON NOISE
+
+`sim.USE_WIND_HR`. Temperature's mirror, counted the way item 5 had to be
+CORRECTED to rather than the way it was first written — which is the
+point of shipping them a day apart.
+
+THE COUNT. 4,798 open-air pre-July games, four seasons, HR per ball in
+play against `venue_rate * TEMP_HR_MULT`, renormalised per venue and
+climate-centred on prior seasons' full-year open-air wind distribution
+(raw mean 0.9981):
+
+    in 5+ 0.9242   calm/cross 1.0002   out 5+ 1.0431
+    se     0.023          0.014          0.017     era gate 0.795
+
+THE CONFOUND, DECOMPOSED RATHER THAN ASSERTED — and this is the part I
+got loose first and had to measure when asked. On the in-to-out spread:
+flat pooled 0.159, within venue 0.134, within venue and net of the
+shipped temperature table 0.124. So park takes 16% off the raw spread
+and temperature a further 6%; the confound is ~22% of it and is MOSTLY
+PARK. The rest of the distance between the raw pair (-10.4%/+6.3%) and
+the shipped pair is the climate centring, which moves the LEVEL and not
+the spread. "Park and temperature are already in the model" is a code
+fact (`pk["hr"]` per venue and year, `TEMP_HR_MULT` per game, both flags
+on in the run header); "they explain the shrink" was an inference until
+the three-row table above existed.
+
+FIVE BINS ARE WORSE THAN THREE, recorded so nobody re-splits it: 10+/5-9
+each way fails ordering in three seasons and drops the era gate 0.795 ->
+0.567, with the ends ordered every year. One effect cut too fine.
+
+THE GATE FAILED AND THE ITEM SHIPPED ANYWAY. Item 7 pre-registered:
+"if the three bins do not hold ordering in all four seasons, PARK the
+item and write why." They hold in 2023/24/25 and invert in 2026 by
+0.007 (out 1.021 under calm 1.028) against a DIFFERENCE SE OF 0.043 —
+0.16 sigma. The clause is a strict-ordering test on cells whose
+difference the test cannot resolve in either direction, so in 2026 it
+carries no information. THE DECISION WAS THE USER'S, NOT THE SESSION'S,
+which is the handoff rule for an ambiguous falsifier working as
+intended. Recorded here so the precedent is legible: what makes this
+admissible is that NOTHING WAS RESCALED after seeing a score. The
+forbidden move is tuning until a row goes green; re-reading a gate
+against its own standard error is not that, and the two must not be
+allowed to blur.
+
+THE A/B, and it needed its own run: the first battery reported "no row
+moved" against the pre-wind baseline, which was VACUOUS — the wind rows
+were new, so the diff had nothing to compare them to. Re-ran the same
+battery with the flag off (the flag consumes no draws, so the stream is
+identical; the off run reproduces engine fingerprint 525e62464717
+exactly, which is itself the proof the wire is inert when off).
+
+    fold  wind sum|gap|  OFF -> ON
+    2023  0.00599 -> 0.00758   WIDENED
+    2024  0.00413 -> 0.00270   closed
+    2025  0.00866 -> 0.00589   closed
+    2026  0.01142 -> 0.00805   closed
+
+FIVE ROWS OUT OF 687 MOVED BY MORE THAN ONE SE AND ALL FIVE ARE THE WIND
+ROWS. The mechanism is surgical: `hr_per_bip` level moved 0.01/0.07/
+-0.17/0.02 se by fold, every temperature row held, and the calm bin
+moved 0.01 se, which is the wire's own control (1.0002 is meant to do
+nothing and does nothing). The in-bin — most of the effect — improved in
+3 of 4 folds (2024 -1.54 se, 2026 -1.24 se). 2023 is the fold that
+widens and it is the season whose counted in-wind ratio was 0.982, near
+neutral; consistent, NOT verified.
+
+448 checks (4 new), each mutation-verified and each failing alone: flag
+off / table to ones / `air_hr_mult` drops the wind term / a caller
+reaching past `air_hr_mult` to `temp_hr_mult`. That last one is the
+item-5 fifth-caller failure one channel down — an AST-free grep over
+`src/` that fails if any module builds the air from temperature alone.
+`hr_temp` is renamed `hr_air` end to end (six callers including the
+fingerprint instrument) because the value no longer carries only
+temperature. Fingerprint b211fce6 -> b505bb6b; baseline
+battery_079082494e7e.json.
+
+A PROCESS NOTE WORTH MORE THAN THE ITEM: I reverted a mutation with
+`git checkout src/context/sim.py` while the wind block was still
+UNCOMMITTED and destroyed it. Mutation sweeps must back up to a file
+(`cp`) or run on a committed tree — `scratchpad/mutate.py` refuses a
+dirty tree for exactly this reason and I hand-rolled around it.
+
+WATCH, carried forward unchanged: 2026-H2 dead ball (now three
+instruments — XBH level, hot-temperature HR, and the 2026 wind level
++0.0025); spring slope ~1.5x summer's; 2023's flat in-wind response.
+
+NEXT. Plan item 8 (clustering) — 8a counts within-inning feedback and is
+written to be worked cold; the hygiene list at the plan's foot is the
+other safe queue.

@@ -246,6 +246,146 @@ def report(rows):
     print(f"  TEMP_HR_EDGES = {EDGES}")
     print(f"  TEMP_HR_MULT = {out}")
 
+    wind_report(rows, wx2, vrate, seasons)
+
+
+# ── WIND, plan item 7 ────────────────────────────────────────────────────
+#
+# `carry * wind_mph` is the signed scalar with the physics in it (see
+# `sources/weather.py`): +12 is twelve miles an hour blowing out, -12 is
+# the same wind in, and a crosswind is 0 whatever its speed.
+WIND_EDGES = (-10, -5, 5, 10)
+WIND_LABELS = ("in 10+", "in 5-9", "calm/cross", "out 5-9", "out 10+")
+#: The PRE-REGISTERED binning (item 7). The five-bin split above is
+#: printed for the record and is NOT the ship candidate — see the gate.
+WIND_LABELS3 = ("in 5+", "calm/cross", "out 5+")
+
+
+def wbin(carry: int | None, mph: int | None) -> int:
+    """Signed carry scalar -> bin. Symmetric about zero: 10+ each way is
+    its own bin, 5-9 each way, everything under 5 (and every crosswind,
+    whatever its speed) is calm."""
+    s = (carry or 0) * (mph or 0)
+    if s <= -10:
+        return 0
+    if s <= -5:
+        return 1
+    if s < 5:
+        return 2
+    return 3 if s < 10 else 4
+
+
+def wbin3(carry: int | None, mph: int | None) -> int:
+    s = (carry or 0) * (mph or 0)
+    return 0 if s <= -5 else (1 if s < 5 else 2)
+
+
+def wind_report(rows, wx, vrate, seasons):
+    """Wind counted the way temperature ships: within venue, and NET OF
+    THE TEMPERATURE MULTIPLIER ALREADY WIRED.
+
+    THE SECOND ADJUSTMENT IS THE NEW ONE AND IT IS THE SAME CLASS OF
+    MISTAKE AS THE PARK CONFOUND. Wind and temperature are correlated —
+    an April day with the wind in is also a cold day — so a wind table
+    counted against a flat expectation absorbs temperature, which the
+    engine now applies separately. Expectation is therefore
+    `venue_rate * TEMP_HR_MULT[bin(temp)]`, renormalised per venue so a
+    park's own temperature composition cannot leak into the level
+    either. What is left is identified by the same park, at the same
+    temperature, with the wind blowing different ways.
+
+    Open air only: `roof_closed` games are a different physical object
+    and 795 of them would sit in the calm bin diluting it. They get 1.0
+    at run time through the calm bin anyway (a sealed park reports 0
+    mph), so nothing is lost by leaving them out of the count.
+    """
+    import src.context.sim as sim
+
+    wrows = []
+    for gid, season, hr, bip in rows:
+        w = wx.get(gid) or {}
+        if (w.get("temp_f") is None or w.get("venue_id") is None
+                or w.get("roof_closed")):
+            continue
+        tm = sim.TEMP_HR_MULT[tbin(w["temp_f"])]
+        wrows.append((season, (w.get("carry") or 0) * (w.get("wind_mph") or 0),
+                      w["venue_id"], tm, hr, bip))
+    # per-venue renormalisation of the temperature-adjusted expectation
+    k = defaultdict(lambda: [0.0, 0.0])
+    for s, b, v, tm, hr, bip in wrows:
+        k[v][0] += hr
+        k[v][1] += vrate[v][0] / vrate[v][1] * tm * bip
+    print("\n  WIND, WITHIN-VENUE AND NET OF THE SHIPPED TEMP TABLE")
+    print("  five bins, FOR THE RECORD — the ship candidate is the "
+          "pre-registered three")
+    _wind_table(wrows, vrate, k, seasons, WIND_LABELS,
+                lambda s: (0 if s <= -10 else 1 if s <= -5
+                           else 2 if s < 5 else 3 if s < 10 else 4))
+    print("\n  THE PRE-REGISTERED THREE BINS (item 7's own gate)")
+    wm = _wind_table(wrows, vrate, k, seasons, WIND_LABELS3,
+                     lambda s: 0 if s <= -5 else (1 if s < 5 else 2))
+
+    # Climate reference: prior seasons' FULL-YEAR wind distribution, the
+    # 1.0191 analogue. The training rows are spring; the baseline rates
+    # already contain an average season's air, so centring on the spring
+    # wind distribution would re-add whatever spring's wind does.
+    with __import__("importlib").import_module(
+            "src.context.store").connect(attach=False) as c:
+        clim = [(r["carry"], r["wind_mph"]) for r in c.execute(
+            "select carry, wind_mph from mlb_weather where date < "
+            "'2026-01-01' and roof_closed = 0")]
+    ref = sum(wm[wbin3(cy, mph)] for cy, mph in clim) / len(clim)
+    out = tuple(round(m / ref, 4) for m in wm)
+    print(f"\n  climate reference (prior full seasons, {len(clim):,} open-air "
+          f"games): mean raw mult {ref:.4f}")
+    print("  CONSTANTS TO SHIP (wind, within-venue, temp-adjusted, "
+          "climate-centred):")
+    print(f"  WIND_HR_MULT = {out}")
+
+
+def _wind_table(wrows, vrate, k, seasons, labels, binner):
+    """One table over the same expectation, binned however `binner` says.
+    Returns the pooled ratio per bin."""
+    print(f"  {'bin':<12}{'games':>7}{'obs':>7}{'exp':>9}{'ratio':>8}"
+          f"{'se':>8}" + "".join(f"{s:>8}" for s in seasons))
+    wm, per_w = [], {s: [] for s in seasons}
+    for b, lab in enumerate(labels):
+        sub = [r for r in wrows if binner(r[1]) == b]
+        obs = sum(r[4] for r in sub)
+        exp = sum(vrate[r[2]][0] / vrate[r[2]][1] * r[3] * r[5]
+                  * (k[r[2]][0] / k[r[2]][1]) for r in sub)
+        ratio = obs / exp
+        wm.append(ratio)
+        cols = []
+        for s in seasons:
+            ss = [r for r in sub if r[0] == s]
+            o = sum(r[4] for r in ss)
+            e = sum(vrate[r[2]][0] / vrate[r[2]][1] * r[3] * r[5]
+                    * (k[r[2]][0] / k[r[2]][1]) for r in ss)
+            cols.append(o / e if e else None)
+            per_w[s].append(o / e if e else None)
+        print(f"  {lab:<12}{len(sub):>7,}{obs:>7,}{exp:>9.1f}{ratio:>8.3f}"
+              f"{ratio / max(obs, 1) ** 0.5:>8.3f}"
+              + "".join(f"{c:>8.3f}" if c is not None else f"{'-':>8}"
+                        for c in cols))
+    cors = []
+    for a, b in combinations(seasons, 2):
+        xs = [(x, y) for x, y in zip(per_w[a], per_w[b])
+              if x is not None and y is not None]
+        if len(xs) > 2:
+            cors.append(st.correlation([x for x, _ in xs],
+                                       [y for _, y in xs]))
+    print(f"  era gate (wind, within-venue): {st.mean(cors):.3f} over "
+          f"{len(cors)} pairs")
+    print("  ORDERING GATE (item 7: park the item if it fails any season)")
+    for s in seasons:
+        v = [x for x in per_w[s] if x is not None]
+        mono = all(a <= b for a, b in zip(v, v[1:]))
+        print(f"    {s}: {'  '.join(f'{x:.3f}' for x in v)}   "
+              f"{'monotone' if mono else 'NOT MONOTONE'}   "
+              f"ends {'ordered' if v[0] < v[-1] else 'INVERTED'}")
+    return wm
+
 
 def main(argv):
     rows = backfill() if "--backfill" in argv \

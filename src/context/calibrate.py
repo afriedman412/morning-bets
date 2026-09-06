@@ -529,23 +529,25 @@ def paired_cases(season=None, before=None, since=None, rates_before=None,
 _WEATHER: dict | None = None
 
 
-def temp_mult_for(row) -> float:
-    """The game's HR temperature multiplier, from its weather row.
+def air_mult_for(row) -> float:
+    """The game's HR AIR multiplier — temperature and wind — from its
+    weather row.
 
     THE SHARED LOOKUP for every historical replay path (`replay`, `fitf5`,
     `ladder`) — the live slate reads the same feed through
     `weather.fetch_date`, so the two paths cannot mean different things by
-    "temperature" (the park lesson). Missing game or missing reading
+    "the air" (the park lesson). Missing game or missing reading
     contributes exactly nothing.
     """
     global _WEATHER
-    if not sim.USE_TEMP_HR:
+    if not (sim.USE_TEMP_HR or sim.USE_WIND_HR):
         return 1.0
     if _WEATHER is None:
         from src.context.sources import weather
         _WEATHER = weather.by_game()
     w = _WEATHER.get(row.get("game_id")) or {}
-    return sim.temp_hr_mult(w.get("temp_f"))
+    return sim.air_hr_mult(w.get("temp_f"), w.get("carry"),
+                           w.get("wind_mph"))
 
 
 def replay(pair, lg, pens, rng, innings=9, track=(), apply_leash=True,
@@ -577,7 +579,7 @@ def replay(pair, lg, pens, rng, innings=9, track=(), apply_leash=True,
     # therefore takes `an`, not `hn`. Getting this backwards has every
     # pitcher facing his own teammates — see
     # `check_each_side_faces_the_opposing_lineup`.
-    hr_temp = temp_mult_for(home[0])
+    hr_air = air_mult_for(home[0])
     an = adjust_lineup(away[2], False)
     hn = adjust_lineup(home[2], True)
     park = None
@@ -597,7 +599,7 @@ def replay(pair, lg, pens, rng, innings=9, track=(), apply_leash=True,
             **H.hook.__dict__,
             "team_offset": H.hook.team_offset + HOME_HOOK})
     return game.simulate_game(A, H, lg, rng, innings=innings, park=park,
-                              track=track, hr_temp=hr_temp)
+                              track=track, hr_air=hr_air)
 
 
 def build_cases(season=None, before=None, max_starts=None, since=None,

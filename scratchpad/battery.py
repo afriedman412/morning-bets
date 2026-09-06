@@ -688,7 +688,7 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
                      0, "EMPTY until item 4a plumbs gb_pct")
     # WEATHER ROWS, live since item 5. Bucketed by the SHIPPED bins so
     # each row names the cell the mechanism fires in; the model side
-    # carries the multiplier through `cal.replay`'s hr_temp, so these
+    # carries the multiplier through `cal.replay`'s hr_air, so these
     # rows score the wire, not just the table.
     wx = cal._WEATHER or {}
     wb_m: dict = defaultdict(lambda: [0.0, 0.0])
@@ -713,6 +713,34 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
         ar = wb_a[b][0] / wb_a[b][1]
         fold.add("weather", f"hr_bip_temp_{lab}", wb_m[b][0] / wb_m[b][1],
                  ar, _rate_se(ar, int(wb_a[b][1])), int(wb_a[b][1]))
+    # WIND ROWS, live since item 7, in the SHIPPED three bins. Open-air
+    # only, matching the population the table was counted on — a closed
+    # roof reports no push toward the fence and belongs in neither the
+    # in nor the out cell.
+    nb_m: dict = defaultdict(lambda: [0.0, 0.0])
+    nb_a: dict = defaultdict(lambda: [0.0, 0.0])
+    n_wind = 0
+    for g in gids:
+        w = wx.get(g) or {}
+        if w.get("carry") is None or w.get("wind_mph") is None \
+                or w.get("roof_closed"):
+            continue
+        n_wind += 1
+        s = w["carry"] * w["wind_mph"]
+        b = 0 if s <= -5 else (1 if s < 5 else 2)
+        for acc, pay in ((nb_m, got[g][0]["pa"]), (nb_a, got[g][1]["pa"])):
+            acc[b][0] += pay["hr"]
+            acc[b][1] += pay["bip"]
+    fold.add("weather", "wind_coverage", n_wind / max(len(gids), 1), None,
+             0.0, len(gids), "open-air share of fold games with a wind")
+    for b, lab in enumerate(("in5plus", "calm", "out5plus")):
+        if not (nb_a[b][1] and nb_m[b][1]):
+            fold.add("weather", f"hr_bip_wind_{lab}", None, None, 0.0, 0,
+                     "no games in this bin")
+            continue
+        ar = nb_a[b][0] / nb_a[b][1]
+        fold.add("weather", f"hr_bip_wind_{lab}", nb_m[b][0] / nb_m[b][1],
+                 ar, _rate_se(ar, int(nb_a[b][1])), int(nb_a[b][1]))
 
     # Late innings by margin.
     for b in range(MARGIN_CAP + 1):
@@ -981,7 +1009,7 @@ def main(argv):
         _PENS = rate_src.bullpens(_LG, before=cut)
         # Warm the weather table IN THE PARENT so forked workers inherit
         # it instead of each opening the database at first replay.
-        cal.temp_mult_for({"game_id": ""})
+        cal.air_mult_for({"game_id": ""})
         _HANDS.clear()
         _PIDS.clear()
         for g in gids:
