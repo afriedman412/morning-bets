@@ -8974,3 +8974,43 @@ WHERE THAT LEAVES ITEM 8: the within-inning route is closed at this
 power. What remains for clustering is BETWEEN-game/night variance
 (item 8b — umpire zone next, wind and temperature already shipped) and
 the parked flat dispersion term, which stays a human decision.
+
+## 2026-09-06 (Fable, later still): ITEM 8b — THE PLATE UMPIRE IS REAL, COUNTED, AND WALKS ARE THE CHANNEL
+
+QUESTION: does the plate umpire move K and BB repeatably enough to wire
+as a shared-night condition (one man, both clubs, whole game — the
+between-game variance class that temperature and wind belong to)?
+
+TEST: `scratchpad/ump_kbb.py`. 694,598 PAs, 9,254 games before
+2026-07-01 (full 2023-2025 + pre-July 2026, the STATE_MULT training
+convention), every game matched to `game_officials` — the crew record
+`sources/officials.py` had already backfilled (10,146 games; its own
+`profiles()` names the staffs-he-drew confound this count removes).
+Observed-over-expected per umpire, expectation log5-lite from
+player-season rates shrunk 300 PA. Gates registered before the run:
+split-half r > 0.2 AND noise-adjusted tau > 0.01.
+
+EVALUATE: both channels SURVIVE. k: tau 0.0176, split-half +0.352,
+adjacent-season +0.204 (211 pairs). bb: tau 0.0438, split-half +0.454,
+adjacent-season +0.323. The registered power guess (~1.5% spread on k)
+was right; what was NOT anticipated is that bb is 2.5x wider and
+repeats harder — the plate umpire is first a walk effect, which is
+ordinary baseball: the zone's edge is where walks live.
+
+ESTABLISHED: a repeatable per-umpire K/BB effect exists at tau 1.8%/4.4%.
+INFERRED, not established: crew rotation washes park confounding (argued,
+not measured — the wire A/B is where it would surface). LEVERAGE, stated
+before wiring: 4.4% on ~3.3 walks/side is ~0.04 runs/side at one sd,
+shared by both sides and doubled on totals; k at 1.8% is ~0.15 K/side,
+which also touches the K distribution the model already prices. Around
+the 0.05-run floor — priority-modest, admissible, and it is exactly the
+between-game variance item 8 says the tails are missing.
+
+NEXT (registered here so the wire is falsifiable before it is built):
+shrink each umpire toward 1.0 by his own noise against tau
+(stabilise.py's arithmetic), thread a per-game (k_mult, bb_mult) pair
+through `simulate_game` the way `hr_air` travels, join
+`game_officials` in replay, and pre-register the A/B: only K/BB rows
+move, the K-per-start shape and walk traffic rows move TOWARD real in
+at least 3 of 4 folds, run level inside one se. Slate-time availability
+of the crew is its own check before the live path uses it.

@@ -199,12 +199,18 @@ with a 2022 pbp backfill or a pre-registered trend test; the k/bb
 contact near-miss is recorded in the notes and is under the leverage
 floor regardless.
 
-### 8b. Shared-night conditions (only after 8a resolves either way)
-Temperature was the first (shipped). Candidates in order: umpire zone
-(one man, both clubs, whole game — count K/BB by plate umpire from
-pbp officials data if cached), wind (item 7). Each adds BETWEEN-GAME
-variance, which fattens both tails without touching within-game
-independence.
+### 8b. Shared-night conditions — UMPIRE COUNTED 2026-09-06, SURVIVES
+Temperature and wind shipped. The plate umpire is COUNTED and passes
+both registered gates (`scratchpad/ump_kbb.py`, full result in the
+notes): k tau 0.0176 / split-half +0.352, bb tau 0.0438 / +0.454,
+season-pair r +0.204/+0.323 over 211 pairs. Walks are the channel —
+2.5x the k spread. THE WIRE IS THE OPEN STEP, falsifier registered in
+the notes before building: shrink per-umpire mults toward 1.0 against
+tau (stabilise arithmetic), thread a per-game (k, bb) pair through
+`simulate_game` like `hr_air`, join `game_officials` in replay; A/B
+must move only K/BB rows, move the K shape and walk traffic TOWARD
+real in >= 3 of 4 folds, hold the run level inside one se. Slate-time
+crew availability is its own check before the live path reads it.
 
 ---
 
