@@ -274,6 +274,39 @@ def check_the_measured_mechanisms_are_switched_on_by_default():
     assert rate_src.PRIOR_SEASONS == 3, rate_src.PRIOR_SEASONS
 
 
+def check_the_holdout_has_one_source_of_truth():
+    """`HOLDOUT` was a string literal in ~47 scratchpads under three
+    names (`HOLDOUT`, `HOLDOUT_CUT`, `CUT`), four of them carrying a
+    DIFFERENT date — two cutoffs is how one drifts. The live fitters now
+    import `src/context/holdout.py`; the historical scratchpads keep
+    their literals because they are records of what was run. This keeps
+    the NEXT fitter honest. MUTATION: define `train_only` in any
+    scratchpad, or assign a holdout date literal under `src/`, and this
+    fails."""
+    import pathlib
+    import re
+    from src.context.holdout import HOLDOUT, train_only
+    assert HOLDOUT == "2026-07-01"
+    assert train_only([{"date": "2026-06-30"}, {"date": "2026-07-01"}]) \
+        == [{"date": "2026-06-30"}], "strictly before"
+    root = pathlib.Path(__file__).resolve().parent.parent
+    bad = []
+    files = (sorted((root / "scratchpad").glob("*.py"))
+             + sorted((root / "src").rglob("*.py")))
+    for f in files:
+        if f.name == "holdout.py":
+            continue
+        if "def train_only" in f.read_text():
+            bad.append(f"{f.name}: local train_only")
+    for f in sorted((root / "src").rglob("*.py")):
+        if f.name == "holdout.py":
+            continue
+        if re.search(r'^\s*\w*(HOLDOUT|CUT)\w*\s*=\s*"20\d\d-',
+                     f.read_text(), re.M):
+            bad.append(f"{f.name}: holdout literal in src/")
+    assert not bad, bad
+
+
 def check_the_prior_season_reaches_a_thin_pitchers_rate():
     """THE FLAG DOES NOTHING ON ITS OWN, and that is the point of this check.
 

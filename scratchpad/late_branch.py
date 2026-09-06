@@ -61,12 +61,10 @@ from src.context import sim
 #: NEVER FIT ON ROWS THAT WILL BE SCORED ON. Same cutoff `shape.py` and
 #: `fitf5` evaluate from — one cutoff for the whole project, because two is
 #: how one of them drifts. See CLAUDE.md; this was got wrong on 2026-08-29.
-HOLDOUT_CUT = "2026-07-01"
+from src.context.holdout import HOLDOUT as HOLDOUT_CUT  # noqa: E402
 
 
-def train_only(rows):
-    """Rows strictly before the holdout. Call it before ANY fit."""
-    return [r for r in rows if r.get("date", "") < HOLDOUT_CUT]
+from src.context.holdout import train_only  # noqa: E402  (one source of truth)
 
 ROWS = "/tmp/hook_rows.json"
 

@@ -50,7 +50,7 @@ import numpy as np
 from src.context import sim
 
 ROWS = "/tmp/hook_rows.json"
-HOLDOUT_CUT = "2026-07-01"
+from src.context.holdout import HOLDOUT as HOLDOUT_CUT  # noqa: E402
 
 #: Edges in pitches. FINER THROUGH THE CLIFF, because that is where the
 #: decision actually turns: the boundary hazard runs 0.44 at 85-90, 0.70 at
@@ -59,8 +59,7 @@ HOLDOUT_CUT = "2026-07-01"
 EDGES = (0, 25, 40, 50, 60, 70, 78, 85, 90, 95, 100, 200)
 
 
-def train_only(rows):
-    return [r for r in rows if r.get("date", "") < HOLDOUT_CUT]
+from src.context.holdout import train_only  # noqa: E402  (one source of truth)
 
 
 def other_terms(r, boundary: bool) -> float:

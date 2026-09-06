@@ -74,7 +74,7 @@ from scratchpad.state_table import PA_EV
 from scratchpad.inning_feedback import _cls, CLS
 
 CACHE = "scratchpad/ump_kbb_rows.json.gz"
-HOLDOUT = "2026-07-01"
+from src.context.holdout import HOLDOUT  # noqa: E402
 PRIOR = 300
 CHANNELS = ("k", "bb")
 NUM = {"k": CLS["k"], "bb": CLS["bb"]}

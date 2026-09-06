@@ -304,12 +304,20 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
     w = wx.get(g["game_id"]) or {}
     hr_air = sim.air_hr_mult(w.get("temp_f"), w.get("carry"),
                              w.get("wind_mph"))
-    # TONIGHT'S PLATE UMPIRE, from the crew record `officials.fetch_date`
-    # keeps current. Crews are published morning-of; a slate priced before
-    # the crew exists gets (1.0, 1.0) — silent-neutral, never a guess.
+    # TONIGHT'S PLATE UMPIRE, fetched at price time the same way the
+    # weather is — one idempotent schedule call, then the record. Crews
+    # are NOT published the night before (measured 2026-09-06: 0 of 11
+    # next-day games had one) and do appear by first pitch, so a morning
+    # price of a night game usually gets (1.0, 1.0) — silent-neutral,
+    # never a guess — and a re-price closer to the slate picks the man up.
     ump = (1.0, 1.0)
     if sim.USE_UMP_KBB:
         from src import db
+        from src.context.sources import officials as officials_src
+        try:
+            officials_src.fetch_date(d)
+        except Exception:
+            pass  # offline slates still price; the record just goes stale
         with db.connect() as c:
             r = c.execute("select plate_ump_id from game_officials"
                           " where game_id=?", (g["game_id"],)).fetchone()
