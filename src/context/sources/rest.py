@@ -190,9 +190,9 @@ def _venue_of_club(abbr: str, venues: dict[int, dict]) -> dict | None:
 
 if __name__ == "__main__":
     import sys
-    from src import panel
+    from src.context import slate as slate_src
     d = sys.argv[1] if len(sys.argv) > 1 else date.today().isoformat()
-    slate = panel.mlb_schedule_with_probables(d)
+    slate = slate_src.slate(d)
     print(f"{d}: rest and travel\n")
     print(f"  {'team':<6}{'rest':>5}{'streak':>8}{'miles':>8}{'tz':>5}  flags")
     seen = set()

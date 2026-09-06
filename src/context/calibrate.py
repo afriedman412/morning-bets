@@ -26,7 +26,6 @@ forecasting should be read off this. Pass `--before` for a clean split.
 from __future__ import annotations
 
 import random
-import sys
 from collections import Counter
 
 from dataclasses import replace
@@ -599,16 +598,14 @@ def build_cases(season=None, before=None, max_starts=None, since=None,
         _MIX[1] = mixture.league_by_pitch(d) if d else {}
         _MIX[2] = mixture.league_usage(_MIX[1]) if _MIX[1] else {}
 
-    arsenals = {}
-    if USE_ARSENAL:
-        try:
-            from datetime import date as _d
-            from src import panel
-            stamp = rb or _d.today().isoformat()
-            arsenals = panel._pitcher_arsenal_blob(
-                panel.savant_pitcher_arsenal(season or 2026, stamp)) or {}
-        except Exception:
-            arsenals = {}
+    # ARSENALS HAVE NO SOURCE ANY MORE, and that is deliberate rather than
+    # an oversight. The blob came from `panel.savant_pitcher_arsenal`, which
+    # went with the original pipeline; `USE_ARSENAL` has been False since it
+    # was measured dead (9.79% mean Brier skill with and without, across 20
+    # stat/line combinations). Re-opening it means fetching the arsenal from
+    # `sources/savant.py` directly, which is where it should always have come
+    # from — the persona pipeline was never the right owner of a model input.
+    arsenals: dict = {}
 
     cases = []
     for s in actual_starts(season, before, max_starts, since):
@@ -935,81 +932,6 @@ def _prior_starts(conn, name: str, before: str, last: int = 10,
     return [r["v"] for r in rows][::-1]
 
 
-def versus_estimator(cutoff: str, stat="outs", n_sims=200, seed=0,
-                     min_prior=4, refit=True) -> None:
-    """The decisive comparison: simulation against the six-start estimator.
-
-    Both are asked the same question — P(this start goes over this line) —
-    on starts neither has seen, with everything trained strictly before
-    `cutoff`. The estimator gets exactly what it gets in production: that
-    pitcher's own recent starts, shrunk toward a prior.
-
-    Brier and AUC are reported because they answer different questions.
-    Brier asks whether the numbers are RIGHT; AUC asks only whether they
-    ORDER the starts correctly. A model can rank well and be miscalibrated,
-    which is still useful — you can recalibrate a ranking, you cannot
-    rescue a model that has no signal at all.
-    """
-    from src.context import estimate
-
-    # The leash is part of the model and must be built on the training
-    # window too. Without this the rates are clean and the offsets are not,
-    # which is the quiet kind of leakage: everything LOOKS like a holdout
-    # because the obvious knob was set correctly.
-    if refit:
-        from src.context import leash as leash_mod
-        leash_mod.build(before=cutoff)
-        sim.reload_offsets()
-
-    lg = sim.league()
-    pairs = paired_cases(since=cutoff, rates_before=cutoff)
-    pens = rate_src.bullpens(lg, before=cutoff)
-    cases = [c for pair in pairs.values() for c in pair]
-    key = _STAT_COL[stat]
-    print(f"holdout from {cutoff}: {len(cases)} starts\n")
-
-    with db.connect() as conn:
-        priors = {nm: _prior_starts(conn, nm, cutoff, stat=stat)
-                  for nm in {p.name for _, p, _ in cases}}
-
-    for line in LINES[stat]:
-        sim_rows, est_rows = [], []
-        for pair in pairs.values():
-            for idx, side in ((0, "away_sp"), (1, "home_sp")):
-                s, pitcher, _lineup = pair[idx]
-                hist = priors.get(pitcher.name) or []
-                if len(hist) < min_prior:
-                    continue
-                won = s[key] > line
-                rng = random.Random(seed)
-                hits = 0
-                for _ in range(n_sims):
-                    r = getattr(replay(pair, lg, pens, rng), side)
-                    hits += (r.outs if stat == "outs" else r.k) > line
-                sim_rows.append((won, hits / n_sims))
-            d = estimate.over_under(hist, line, "over")
-            if d:
-                est_rows.append((won, d["p"]))
-
-        if len(sim_rows) < 30:
-            continue
-        base = sum(1 for w, _ in sim_rows if w) / len(sim_rows)
-
-        def brier(rows):
-            return sum((p - (1 if w else 0)) ** 2 for w, p in rows) / len(rows)
-
-        bb = base * (1 - base)
-        print(f"  {stat} over {line}  n={len(sim_rows)}  base {base:.1%}")
-        print(f"    {'':<12}{'Brier':>9}{'vs base':>10}{'AUC':>8}")
-        print(f"    {'sim':<12}{brier(sim_rows):>9.4f}"
-              f"{(bb - brier(sim_rows)) / bb:>+10.1%}"
-              f"{_auc(sim_rows):>8.3f}")
-        if len(est_rows) >= 30:
-            print(f"    {'estimator':<12}{brier(est_rows):>9.4f}"
-                  f"{(bb - brier(est_rows)) / bb:>+10.1%}"
-                  f"{_auc(est_rows):>8.3f}")
-
-
 def loss(res: dict) -> float:
     """How far the simulated hook is from the observed one.
 
@@ -1094,7 +1016,3 @@ def tune(season=None, starts=500, sims=30, seed=0) -> sim.Hook:
     for k, v in best.__dict__.items():
         print(f"  {k:<18}{v}")
     return best
-
-
-
-

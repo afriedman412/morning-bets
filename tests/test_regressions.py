@@ -7,9 +7,7 @@ hypothetical, and nothing touches the network.
 from __future__ import annotations
 
 from src import roster
-from src.context import assemble, contracts
 from src.context.sources import catcher, park, statsapi
-from src import kalshi
 
 
 # ── name resolution ────────────────────────────────────────────────────
@@ -239,73 +237,9 @@ def check_recency_window_leads_when_it_has_enough_starts():
 
 
 # ── kalshi timing ──────────────────────────────────────────────────────
-def check_ticker_start_time_matches_statsapi():
-    """CLV needs a first-pitch cutoff. The ticker's time segment is
-    Eastern; TOR@NYY on 8/22 was '1335' and statsapi reported
-    2026-08-22T17:35:00Z."""
-    got = kalshi.ticker_start_utc("KXMLBOUTS-26AUG221335TORNYY-NYYRW-18")
-    assert got == "2026-08-22T17:35:00Z", got
-
-
-def check_price_path_excludes_post_game_trades():
-    """Kalshi trades through a game and settles at 0 or 1, so the last
-    recorded trade on a finished market is the RESULT. Using it as the
-    close made CLV perfectly circular — a losing over 'closed' at 0.01."""
-    saved = kalshi.trades
-    tk = "KXMLBOUTS-26AUG221335TORNYY-NYYRW-18"   # first pitch 17:35Z
-    kalshi.trades = lambda t, limit=1000: [
-        {"created_time": "2026-08-22T12:00:00Z", "yes_price_dollars": "0.50",
-         "no_price_dollars": "0.50"},
-        {"created_time": "2026-08-22T17:00:00Z", "yes_price_dollars": "0.58",
-         "no_price_dollars": "0.42"},
-        # after first pitch — must be ignored
-        {"created_time": "2026-08-22T20:00:00Z", "yes_price_dollars": "0.99",
-         "no_price_dollars": "0.01"},
-    ]
-    try:
-        p = kalshi.price_path(tk, "over")
-        assert p["close_prob"] == 0.58, p["close_prob"]
-        assert p["clv"] == 0.08, p["clv"]
-        assert p["trades"] == 2
-    finally:
-        kalshi.trades = saved
 
 
 # ── coverage lookup ────────────────────────────────────────────────────
-def check_team_total_club_is_not_hunted_among_starters():
-    """team_total puts the CLUB in player_name. Treating 'Milwaukee
-    Brewers' as a person sent it looking through the starters, failed, and
-    dragged a well-covered team total to zero."""
-    assert assemble._names_a_player(
-        {"bet_type": "team_total", "player_name": "Milwaukee Brewers"}
-    ) is False
-    assert assemble._names_a_player(
-        {"bet_type": "prop", "player_name": "Aaron Judge"}
-    ) is True
-
-
-def check_nba_bet_does_not_get_an_mlb_contract():
-    """Every contract names probable starters and Savant. 'pts+reb+ast'
-    resolved to the batter-prop standard before sport was consulted."""
-    c = contracts.contract_for("combo", "pts+reb+ast", "nba")
-    assert c.name == "unclassified", c.name
-
-
-def check_pitcher_only_stats_reach_a_pitcher_contract():
-    """'decision' was missing from the pitcher-stat set, so it landed on
-    the batter-prop standard."""
-    assert contracts.contract_for("prop", "decision").name.startswith(
-        "pitcher prop")
-
-
-def check_no_orphan_or_undeclared_contract_fields():
-    """A field no contract uses is dead weight; a field a contract names
-    but FIELDS does not declare is a crash waiting to happen."""
-    declared = set(contracts.FIELDS)
-    used = {k for c in list(contracts.CONTRACTS.values()) + [contracts.FALLBACK]
-            for k in c.all_fields()}
-    assert not (used - declared), f"undeclared: {used - declared}"
-    assert not (declared - used), f"orphaned: {declared - used}"
 
 
 def check_starter_query_prefers_ground_truth_over_the_outs_heuristic():
@@ -362,39 +296,6 @@ def check_grading_records_who_started():
     assert '"is_starter"' in src, "boxscore parser dropped is_starter"
     assert "gamesStarted" in src, \
         "is_starter is no longer sourced from the API's own flag"
-
-
-def check_kalshi_matches_the_surname_not_just_any_shared_token():
-    """A prop quote must never come back as a different player.
-
-    `price_prop` matched on ANY shared name token, so a pitcher Kalshi does
-    not list at the requested strike fell through the whole series to the
-    first market sharing a FIRST name. Measured live on 2026-08-25: 'Tyler
-    Glasnow' under 6.5 K priced off Tyler Phillips of Miami and reported
-    Kalshi fair at 0.920 against a true 0.595 — a 32-cent error that the
-    returned dict gave the caller no way to notice. A missing price is
-    silence; a wrong one is a confident number.
-
-    Also guards the three call sites, because the matcher being correct is
-    worth nothing if one of them still does set intersection."""
-    import inspect
-
-    from src import kalshi
-    assert not kalshi.names_match("Tyler Glasnow", "Tyler Phillips"), \
-        "a shared FIRST name is matching again"
-    assert not kalshi.names_match("Michael King", "Michael Kopech")
-    assert kalshi.names_match("Tyler Glasnow", "Tyler Glasnow")
-    # Suffixes and initials differ across feeds and are not real differences.
-    assert kalshi.names_match("Luis Ortiz Jr.", "Luis Ortiz")
-    assert kalshi.names_match("J. Smith", "Jose Smith")
-    # But a prefix is NOT an initial: two different people.
-    assert not kalshi.names_match("Will Smith", "Willy Smith")
-    for fn in (kalshi.price_prop, kalshi.discover_prop,
-               kalshi.find_settled):
-        src = inspect.getsource(fn)
-        assert "names_match(" in src, f"{fn.__name__} bypasses the matcher"
-        assert "_name_key(" not in src, \
-            f"{fn.__name__} is back on token-intersection matching"
 
 
 def check_the_second_out_of_an_inning_is_not_a_boundary_decision():

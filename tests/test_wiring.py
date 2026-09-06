@@ -427,10 +427,10 @@ def check_a_tuner_can_switch_the_leash_off_at_the_side():
 def check_nothing_prices_through_the_fixtures():
     """`tests/fixtures.py` mirrors the pitching side against ITSELF.
 
-    That is a legitimate fixture and an illegitimate price. A mirror invents
+    That is a legitimate fixture and an illegitimate slate_src. A mirror invents
     the opposing club, and inventing the opponent invents the score — which
     is what the hook, the bullpen and the margin are all conditioned on.
-    `price.simulate_slate_game` DECLINES instead, the same posture the module
+    `slate_src.simulate_slate_game` DECLINES instead, the same posture the module
     already takes on openers and games in progress.
 
     So the boundary is one-way and this pins it: `tests/` may import `src/`,
@@ -461,7 +461,7 @@ def check_every_build_side_call_passes_team_and_date():
     `rate_src.defence_delta` returns nothing without a team, so omitting
     either does not raise — it silently switches off a shipped mechanism and
     leaves a plausible number behind. Measured 2026-08-30: bullpen
-    availability is live on both hook curves in `price.py` and was
+    availability is live on both hook curves in `slate_src.py` and was
     contributing EXACTLY ZERO in `ladder`, `fitf5`, `f5_market`,
     `team_market`, `total_market` and `marginals`, which between them
     include the instruments the F5 claims rest on.
@@ -829,66 +829,14 @@ def check_the_slate_simulation_tracks_the_first_five():
     from the only tool that shows a live slate.
     """
     import inspect
-    from src.context import price
+    from src.context import slate as slate_src
 
-    sig = inspect.signature(price.simulate_slate_game)
+    sig = inspect.signature(slate_src.simulate_slate_game)
     assert "track" in sig.parameters, sorted(sig.parameters)
     assert sig.parameters["track"].default == (5,), \
         sig.parameters["track"].default
-    src = inspect.getsource(price.simulate_slate_game)
+    src = inspect.getsource(slate_src.simulate_slate_game)
     assert "track=track" in src, "track must reach simulate_game"
-
-
-def check_the_shrinkage_weight_reaches_the_priced_row():
-    """The COLUMN can be right while the row never carries it.
-
-    `check_a_thin_arm_is_marked_in_the_report` hand-builds its rows, so it
-    cannot see whether `price_slate` puts `shrink_w` on a real one —
-    deleting that single line leaves the whole suite green. Same shape as
-    the five unguarded flags this file exists for: the measurement was
-    tested and the wiring was not.
-
-    THE KEY IS READ OUT OF `price_slate`'S OWN SOURCE rather than written
-    here as a literal, and that is the point. A first version of this check
-    matched the string `"shrink_w"` in `report` and PASSED against a broken
-    report, because one of the three uses is spelled with single quotes and
-    survived the rename. Parsing the producer and feeding the consumer is
-    the only version that catches a divergence in either direction.
-
-    Source inspection rather than a live call, for the reason
-    `check_the_slate_simulation_tracks_the_first_five` uses it: a real row
-    means a Kalshi book and a statsapi slate, and this suite is offline.
-    """
-    import ast
-    import contextlib
-    import inspect
-    import io
-    import textwrap
-    from src.context import price
-
-    tree = ast.parse(textwrap.dedent(inspect.getsource(price.price_slate)))
-    built = [d for d in ast.walk(tree) if isinstance(d, ast.Dict)
-             and any(isinstance(k, ast.Constant) and k.value == "player"
-                     for k in d.keys)]
-    assert built, "could not find the row `price_slate` appends"
-    keys = {k.value for k in built[0].keys
-            if isinstance(k, ast.Constant) and isinstance(k.value, str)}
-    assert "shrink_w" in keys, sorted(keys)
-    assert "pitcher_pa" in keys, sorted(keys)
-
-    # Now feed `report` a row keyed EXACTLY as the producer keys it. A
-    # rename on either side leaves the column blank and this fails.
-    row = dict.fromkeys(keys, 0)
-    row.update({"stat": "k", "player": "Thin Arm", "line": 4.5,
-                "ours": 0.30, "market": 0.49, "gap": -0.19, "se": 0.005,
-                "z": -38.0, "opp": "MIL", "confirmed_lineup": False,
-                "pitcher_pa": 85, "shrink_w": price.shrink_weight(85)})
-    buf = io.StringIO()
-    with contextlib.redirect_stdout(buf):
-        price.report([row])
-    out = buf.getvalue()
-    assert "0.39*" in out, out
-    assert "85 BF" in out, out
 
 
 def check_the_mid_curve_reads_the_counted_hazard_and_the_boundary_does_not():

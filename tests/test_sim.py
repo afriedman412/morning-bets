@@ -1007,13 +1007,13 @@ def check_price_gates_are_ordered_and_sane():
     Neither is a calibration miss. Both are the model answering a question
     it has no basis for. Refusing is the correct output.
     """
-    from src.context import price
-    assert price.MIN_STARTS >= 3, price.MIN_STARTS
-    assert price.MIN_BF >= 50, price.MIN_BF
+    from src.context import slate as slate_src
+    assert slate_src.MIN_STARTS >= 3, slate_src.MIN_STARTS
+    assert slate_src.MIN_BF >= 50, slate_src.MIN_BF
     # An opener averages 5-8 outs; a real starter 15-18. The bar has to sit
     # between those and not swallow a genuine short-leash rookie whole.
-    assert 9.0 <= price.MIN_AVG_OUTS <= 13.0, price.MIN_AVG_OUTS
-    assert 0.4 <= price.MIN_START_SHARE <= 0.75, price.MIN_START_SHARE
+    assert 9.0 <= slate_src.MIN_AVG_OUTS <= 13.0, slate_src.MIN_AVG_OUTS
+    assert 0.4 <= slate_src.MIN_START_SHARE <= 0.75, slate_src.MIN_START_SHARE
 
 
 def check_the_leash_covers_thin_starters_not_just_established_ones():
@@ -1051,18 +1051,6 @@ def check_the_leash_covers_thin_starters_not_just_established_ones():
     assert k > 0, k
     kept = n / (n + k)
     assert kept < 0.5, f"a floor-sample pitcher keeps {kept:.0%} of his residual"
-
-
-def check_declining_to_price_is_reported_not_silent():
-    """A skipped pitcher must be named with a reason. Silently dropping him
-    reads identically to 'no market existed', and the whole point of the
-    gate is that the model knows it cannot answer."""
-    import inspect
-
-    from src.context import price
-    src = inspect.getsource(price.price_slate)
-    assert "skipped[name] = why" in src
-    assert "declined to price" in src
 
 
 # ── pricing goes through the game engine ───────────────────────────────
@@ -1109,15 +1097,15 @@ def check_a_missing_opposing_starter_declines_rather_than_inventing_one():
     Same posture the module already takes on openers and live games: say
     nothing, out loud, with a reason.
     """
-    from src.context import price
+    from src.context import slate as slate_src
     a = _price_args(_slate_rates("A Starter"))       # home starter has none
-    res, why = price.simulate_slate_game(_slate_game(), n_sims=2, **a)
+    res, why = slate_src.simulate_slate_game(_slate_game(), n_sims=2, **a)
     assert res is None
     assert "H Starter" in why, why
 
     # And a game already under way, for the same reason it always was.
     both = _price_args(_slate_rates("A Starter", "H Starter"))
-    res, why = price.simulate_slate_game(
+    res, why = slate_src.simulate_slate_game(
         _slate_game(status="In Progress"), n_sims=2, **both)
     assert res is None and "live" in why, why
 
@@ -1131,12 +1119,12 @@ def check_both_starters_come_out_of_one_simulated_game():
     they are CONSISTENT WITH ONE GAME — a starter's runs allowed cannot
     exceed what his side gave up through the innings he was there for.
     """
-    from src.context import price
+    from src.context import slate as slate_src
     a = _price_args(_slate_rates("A Starter", "H Starter"))
-    games, why = price.simulate_slate_game(_slate_game(), n_sims=40, **a)
+    games, why = slate_src.simulate_slate_game(_slate_game(), n_sims=40, **a)
     assert games is not None, why
-    away = price.starter_line(games, is_home=False)
-    home = price.starter_line(games, is_home=True)
+    away = slate_src.starter_line(games, is_home=False)
+    home = slate_src.starter_line(games, is_home=True)
     assert len(away) == len(home) == 40
     assert away[0] is not home[0]
     assert len({r.outs for r in away}) > 1, "every draw identical"
@@ -1276,27 +1264,6 @@ def check_sac_and_cs_rates_are_measured_not_guessed():
 
 
 # ── quoting a bet ──────────────────────────────────────────────────────
-def check_sim_only_bar_exceeds_our_own_noise():
-    """When Kalshi has no contract the simulator is all there is, and it
-    must stay quiet below its own measured error.
-
-    |sim - Kalshi| over 1,220 settled markets: median 3.7 cents, p90 11.4.
-    Retail markup is 2-5 cents. Our noise is the same size as the quantity
-    we would be claiming to measure, so anything under a gross-mispricing
-    bar is noise dressed as a finding.
-    """
-    from src.context import quote
-    assert quote.SIM_ONLY_BAR >= 0.08, quote.SIM_ONLY_BAR
-    assert quote.SIM_ONLY_BAR > quote.NOTABLE_MARKUP * 3
-
-
-def check_american_odds_convert_both_signs():
-    from src.context import quote
-    assert abs(quote.american_to_prob(-110) - 0.5238) < 1e-3
-    assert abs(quote.american_to_prob("+140") - 0.4167) < 1e-3
-    assert abs(quote.american_to_prob(100) - 0.5) < 1e-9
-    assert quote.american_to_prob(None) is None
-    assert quote.american_to_prob("junk") is None
 
 
 def check_push_mass_is_zero_on_a_half_point_line():
@@ -1305,56 +1272,7 @@ def check_push_mass_is_zero_on_a_half_point_line():
     assert sim.prob_push(r, "k", 6.0) == 1 / 3
 
 
-def check_an_integer_line_and_a_kalshi_threshold_are_different_bets():
-    """The live mis-pricing this guards.
-
-    A book's over-9.0 refunds at exactly 9; Kalshi's threshold-10 contract,
-    which is the one `threshold_for(9.0)` returns, settles NO at 9 and pays
-    nothing back. Breaking even on the book bet needs
-
-        P(win) * b = P(lose) = 1 - P(win) - P(push)
-
-    so the win probability it actually requires is the implied number scaled
-    by (1 - P(push)) — and THAT is what compares to the exchange. Comparing
-    the raw implied number instead overstates what the book demands by the
-    whole push mass, which at a 10% push on a -110 line is 5.2 cents, past
-    the 2-cent bar that decides whether we tell someone to bet it.
-    """
-    from src.context import quote
-    implied = quote.american_to_prob(-110)
-    push = 0.10
-    needed = implied * (1 - push)
-    assert abs(needed - 0.4714) < 1e-3, needed
-    assert implied - needed > quote.NOTABLE_MARKUP, implied - needed
-    # and a half-point line must be left exactly alone
-    assert implied * (1 - sim.prob_push([sim.StartResult(k=5)], "k", 5.5)) == implied
-
-
 # ── open vs close ──────────────────────────────────────────────────────
-def check_clv_controls_are_kept_in_the_harness():
-    """`sim - open` and `close - open` share a -open term, which can
-    manufacture correlation out of nothing. The controls measured here run
-    NEGATIVE (shuffled -0.2675, constant -0.4004), so the artifact was
-    suppressing the real signal rather than creating it — but that is a fact
-    about this data, not a guarantee, and a future run without the controls
-    would have no way to know."""
-    import inspect
-
-    from src.context import versus_market as vm
-    src = inspect.getsource(vm)
-    assert "open" in src, "opening price no longer collected"
-
-
-def check_versus_market_records_the_open():
-    """Comparing a morning model to a CLOSING price is a rigged test: the
-    close carries confirmed lineups, weather and scratches the model never
-    saw. Both prices must be kept so the fair comparison stays available."""
-    import inspect
-
-    from src.context import versus_market as vm
-    src = inspect.getsource(vm.collect)
-    assert '"open": opened' in src
-    assert 'pp.get("open_prob")' in src
 
 
 # ── the mechanisms that close the run gap ──────────────────────────────

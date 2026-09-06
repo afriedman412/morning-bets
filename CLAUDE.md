@@ -62,12 +62,18 @@ Judge every change on ACTUAL OUTCOMES: the prefix ladder (`ladder.py`,
 F1/F3/F5/F7 against real runs), discrete CRPS and coverage for the
 distribution shape, and resolution against what happened.
 
-**Use the market only as a yardstick for how much is achievable.** We sit at
-91-98% of Kalshi's resolution and are BETTER CALIBRATED than it (August
-reliability 0.0005 against 0.0014), so the entire remaining prize is about
-2.5 Brier points. `versus_market`, `f5_market`, `team_market`,
-`total_market`, `price`, `quote` and the `scratchpad/clv_*` drivers are the
-BETTING LAYER, not the modelling loop.
+**THE MARKET IS NO LONGER IN THIS REPO, AND THE YARDSTICK IT PROVIDED IS
+RECORDED HERE INSTEAD.** As of the last measurement we sat at 91-98% of
+Kalshi's resolution and were BETTER CALIBRATED than it (August reliability
+0.0005 against 0.0014), so the entire remaining prize was about 2.5 Brier
+points. That number is the reason to keep going and the reason not to expect
+much: it bounds what any of the work in `PLAN-baseball-logic.md` can buy.
+
+`versus_market`, `f5_market`, `team_market`, `total_market`, `price`,
+`quote`, `scan`, `movement` and the `scratchpad/clv_*` drivers were the
+BETTING LAYER and were DELETED on 2026-09-05 — see "Read this next" below.
+Recover them from git history if a headroom number is wanted again; do not
+re-import one into the modelling loop.
 
 A corollary that causes as much drift as the above: **a MEASURED quantity
 replacing an imported guess does not have to prove itself on the score.** A
@@ -171,14 +177,32 @@ and not 0.090. Accumulation is real but it is slower than addition, so
 state which arithmetic applies before claiming a pile of small things adds
 up.
 
-## Read this next — two systems, one repo
+## Read this next — ONE system now
 
-**The original pipeline** turns YouTube capper videos into graded bets and
-then asks three LLM personas to build a card. It still runs on a schedule
-and is described under "Architecture (original pipeline)" below.
+**THE BETTING LAYER AND THE ORIGINAL PIPELINE WERE DELETED ON 2026-09-05,
+on the `sim-only` branch.** Everything that priced, quoted, scanned a board,
+compared to Kalshi, ingested a capper video or ran an LLM persona is gone.
+Recover any of it from git history — the last commit that has it is on
+`game-context`.
 
-**The context layer** (`src/context/`) is where the work is now, and it
-represents a change in what this project is trying to do. The old approach
+WHY, and it is the objective rather than a tidy-up: the sim is built against
+WHAT ACTUALLY HAPPENED, and the betting layer is a downstream interpretation
+of a simulation that is not finished. Keeping it on the import path meant
+every session had a second scoreboard in the room, and the top of this file
+already records what that costs — our RESOLUTION is worse than the opening
+price's while our CLV looks good, so market agreement can rise while the
+model gets worse at predicting games. It gets rebuilt when there is
+something worth pricing.
+
+WHAT SURVIVED, because it was never a betting module: `slate.py`, extracted
+from `price.py` in the same commit. It turns a DATE into two `game.Side`
+objects — the schedule call, the projected lineup, the "will we price this
+arm at all" gate, and the loop that builds both sides. There are two ways
+into the engine: `calibrate.replay` for a historical pair, `slate.py` for a
+live date. Both end at `game.simulate_game`.
+
+**The context layer** (`src/context/`) is the whole project now. The old
+approach
 asked an LLM to reason over a 52k-character blob and predict outcomes. That
 was measured and it does not work: an estimator built the same way the
 market is built scores AUC 0.537 against actual results, which is nothing.
@@ -209,8 +233,6 @@ do not import it.
 at the top of this file and it primed every session to treat market
 agreement as the objective. See THE OBJECTIVE above.
 
-The two systems are only loosely joined. **Snapshots are NOT wired into the
-personas**, so `make panel` / `make recommend` still use the old blob.
 
 **WHAT THIS MODELS, settled 2026-08-23: F5 TEAM TOTALS, and to a lesser
 extent full team totals. Props are NOT the target** — they are expected to
@@ -355,14 +377,19 @@ totals PAIRED and on every game.
 
 Run everything through the Makefile's Python virtualenv (`venv/bin/python`).
 
-- `make run` — daily ingest: pull today's YouTube videos, summarize, extract structured bets, persist to DB.
-- `make ingest URL=<youtube_url>` — manually ingest one or more videos into today's bets (multiple URLs: quote the list).
-- `make grade` — grade yesterday's bets. Override with `make grade DATE=YYYY-MM-DD`.
-- `make panel` — run the 3-persona panel for today. Override date with `make panel DATE=YYYY-MM-DD`. Re-running the same day is idempotent (prior panel rows are cleared).
-- `venv/bin/python -m src.panel reset [YYYY-MM-DD]` — delete panel bets for a date without re-running.
-- `make web` — start the local Flask viewer at http://127.0.0.1:5050.
-- `make publish` — build static site into `site/`, git add + commit + push. Netlify serves from `site/` on push.
 - `make install` — first-time setup: create `venv/` and install `requirements.txt`.
+- `make test` / `make test ARGS=sim` — the offline suite.
+- `make ladder` — the prefix ladder, F1/F3/F5/F7 against real runs.
+- `make fitf5` — F5 runs allowed, discrete CRPS over the full support.
+- `make shape ARGS=40` — per-start outs and K distribution on the holdout.
+- `make backfill` / `make pbp` — pull missing dates; cache play-by-play.
+
+**THERE IS NO `make calibrate`, AND THAT IS A FINDING.** The entrypoint list
+below documents `python -m src.context.calibrate --reliability|--tune|
+--patience|--leash|--holdout`. `calibrate.py` has no `__main__` block and no
+`main()`, so those commands cannot have worked as written — its functions are
+called directly from tests and scratchpads. Either give it a CLI or correct
+the docs; do not add a Makefile target that fails.
 
 ### Play-by-play, and what it unlocked (added 2026-08-24)
 
@@ -433,9 +460,7 @@ Run everything through the Makefile's Python virtualenv (`venv/bin/python`).
 - `... -m src.context.sources.pitches --backfill` — REAL pitch counts, plus
   hit-by-pitch and wild pitches, from fields `grading.mlb_boxscore` was
   already downloading and discarding.
-- `... -m src.context.total_market` — full-game totals against Kalshi. The
   stated product. HAS NEVER COMPLETED A RUN.
-- `... -m src.context.recency` — recency-weighted rates vs the market. Dead
   at 3-5 sigma; kept as the record.
 - `... -m src.context.sources.archetype` — unsupervised pitcher typing by
   pitch mix. Real for relievers (p=0.003), absent for starters, too small to
@@ -443,24 +468,15 @@ Run everything through the Makefile's Python virtualenv (`venv/bin/python`).
 
 ### Context-layer entrypoints (all offline-cacheable, no API key)
 
-- `venv/bin/python -m src.context.contracts [bet_type stat]` — print the evidence spec.
-- `venv/bin/python -m src.context.assemble [DATE]` — build a slate's brief, print coverage.
-- `venv/bin/python -m src.context.snapshot [DATE]` — assemble + store; `--list` shows history and line movement.
-- `venv/bin/python -m src.context.scan [DATE]` — scan every offered line for disagreement. **Flag rule is known-broken; see NOTES.**
-- `venv/bin/python -m src.context.movement [DATE]` — is each capper's quoted number still on the board.
 - `venv/bin/python -m src.context.gamestate [DATE]` — which games are safe to price.
 - `venv/bin/python -m src.context.sources.<name>` — every source module has a demo main.
-- `venv/bin/python -m src.context.quote "Name" k under 4.5 +102` — price ONE bet: your book, Kalshi's mid AND ask, the markup in cents, our number as advisory.
-- `venv/bin/python -m src.context.price [DATE]` — price the whole slate against Kalshi; declines openers and thin-sample arms out loud.
-- `venv/bin/python -m src.context.f5_market [DATE]` — first-five totals against Kalshi, open vs close. `f5.py`, the stub that simulated one side against a single league-average reliever, was DELETED with the rest of the one-sided engine on 2026-08-25.
-- `venv/bin/python -m src.context.versus_market` — the same test for K props.
 - `venv/bin/python -m src.context.calibrate` — replay real starts, compare the simulated distribution to what happened.
 - `... calibrate --reliability k|outs|all` — does a simulated 60% win 60% of the time? Pooled across starts, bucketed by what the model said. The check that matters for pricing.
 - `... calibrate --tune` — coordinate descent on the hook against the observed hazard curve.
 - `... calibrate --patience` / `--leash` — fit club and pitcher removal offsets as RESIDUALS. Order matters: club first, pitcher against the remainder, or the manager gets counted twice.
 - `... calibrate --holdout YYYY-MM-DD` — refit on the training window only, score on unseen starts.
 - `venv/bin/python -m src.context.sources.starters --backfill` — ground truth for who started. `grading.py` sets this going forward; the backfill is for history.
-- `make test` / `make test ARGS=sim` — 464 offline checks, ~45s. It got
+- `make test` / `make test ARGS=sim` — 416 offline checks, ~45s. It got
   slower on 2026-08-25 and that is the deletion, not a regression: a check
   that used to walk one pitching side now plays a whole game.
 - `venv/bin/python -m scratchpad.mutate` — MUTATION SWEEP. Flips one shipped
@@ -480,56 +496,6 @@ Runtime deps assume `ANTHROPIC_API_KEY` in `.env`. Optional: `WEBSHARE_USERNAME`
 
 The cron schedule lives in `.cron-config` (hourly run 8am-5pm, grading at 9am).
 
-## Architecture (original pipeline)
-
-Four entry-point modules under `src/`, backed by one SQLite DB (`morning_bets.db`) and one artifacts directory (`bets/`).
-
-### The pipeline
-
-```
-YouTube channels (yt-dlp)
-   ↓ find today's target video per channel
-transcript (youtube_transcript_api)
-   ↓ Claude summarizes to per-source markdown
-   ↓ Claude extracts structured JSON (schema in EXTRACT_PROMPT)
-bets table (sqlite)   ← dedup by (player, stat, side, line, matchup, bet_type)
-   ↓ fill_missing_lines() fills MLB total/spread lines from ESPN consensus
-merge_summaries()     → bets/YYYY_MM_DD.md  (per-game grouping across all sources)
-
-next day:
-statsapi.mlb.com / ESPN NBA → cache boxscores in games/mlb_batting/mlb_pitching/nba_player_stats
-grade_pending()       → bets.result / bets.actual_value
-render_graded_markdown() → bets/YYYY_MM_DD_graded.md
-
-publishing:
-web.py Flask app renders DB → templates → build_static() writes site/
-```
-
-### Key modules
-
-- **`src/main.py`** — YouTube ingestion. `CHANNELS` dict maps channel_key → `{url, match: title→bool, label, prompt_extra}`. Adding a new source is a dict entry. `find_video()` walks the channel's uploads (or streams) tab; `title_is_about_today()` and `transcript_is_about_today()` are Haiku classifiers that guard against re-uploaded / backdated videos. `summarize()` produces free-text, `extract_structured_bets()` calls Claude again to convert to canonical JSON.
-- **`src/grading.py`** — everything about final scores. `mlb_schedule()`/`nba_schedule()` hit statsapi.mlb.com and ESPN; `cache_day()` populates the `games` table and pulls boxscores when status is Final. `grade_prop_bet()` uses `NBA_STAT_FIELDS` / `MLB_BAT_FIELDS` / `MLB_PITCH_FIELDS` maps and supports combo props (`h+r+rbi`, `pts+reb+ast`, etc.). `resolve_canonical_matchup()` is the reason matchups group cleanly in the UI — it normalizes `vs.`/`vs`/`at`/`@` and long team names vs abbreviations to a single canonical `Away Team @ Home Team` string per (sport, date).
-- **`src/panel.py`** — the 3-persona panel (`Quant`, `Cynic`, `Careful`). Each persona is a Sonnet call with the built-in `web_search` tool. Panel picks are persisted with `source_label = "Panel: <name>"` so grading uses the exact same code path as capper bets. `PERSONA_INSTRUCTIONS` bakes in the bankroll rules ($5,000 start, $50 unit = max bet, stake menu of $0/$12.50/$25/$50, no -150+ juice). Savant CSVs are cached per calendar day under `.cache/` (date-keyed filenames — no TTL). `bankroll_status()` and `settle_bet()` power the `/panel/` view.
-- **`src/web.py`** — Flask app with three routes: `/`, `/<date>/[view]/`, `/panel/`. `build_static()` renders every page to `site/` for Netlify.
-- **`src/db.py`** — schema + `init()` migration (idempotent `ALTER TABLE` adds columns for older DBs). One connection helper; every call site uses `with db.connect() as conn:` for auto-commit.
-
-### Data flow contracts worth knowing
-
-- **`source_label`** is the primary axis for provenance. Values like `"Lindy's Leans Likes & Locks"` come from `CHANNELS[key]["label"]`; panel personas use the `"Panel: <name>"` prefix, which the web view uses to distinguish them.
-- **`sent.json`** at repo root is a rolling 7-day map of `date → {channel_key: video_id}` and is the *only* thing preventing re-ingest of the same video. Deleting/editing it will cause re-processing.
-- **`bets/YYYY_MM_DD.json`** at repo root caches the per-source free-text summaries so `merge_summaries()` can re-run without re-summarizing.
-- **Canonical bet dedup key** (in `persist_bets`): `(player_name, stat, side, line, matchup, bet_type)` scoped to `(date, source_label)`. Same-day double-ingest by the same channel is safe.
-- **`bets.confidence`** is `LEAN`/`LIKE`/`LOCK`/`null`. Panel bets map their 1-10 confidence score onto the same three tiers so leaderboards stay comparable to cappers.
-- **`bets.stake_cents` / `bets.american_odds`** are populated only for panel bets (cappers don't quote stakes). `settle_bet()` defaults missing odds to -110.
-- **Pending panel bets on re-run** — `make panel` calls `reset_panel_bets(date)` before re-inserting, so today's panel is idempotent. This is *not* true for capper ingestion (which relies on `sent.json` for dedup).
-
-### External services
-
-- **statsapi.mlb.com** — schedule, probable pitchers, weather, boxscores. No auth.
-- **site.api.espn.com** — NBA schedule + boxscores, and MLB consensus odds (via `fetch_mlb_consensus()`). No auth.
-- **baseballsavant.mlb.com** — daily-cached CSV exports for `expected_statistics` (batter xwOBA/xBA/xSLG) and `pitch-arsenal-stats` (per-pitch whiff%, K%, xwOBA). Note the UTF-8 BOM on these CSVs — `_load_cached_csv` strips it.
-- **YouTube (yt-dlp + youtube-transcript-api)** — flat playlist extraction + full metadata pull. Optional Webshare proxy for transcripts.
-- **Anthropic API** — Sonnet 4.6 for summarization / extraction / merge / persona picks / graded markdown rendering; Haiku 4.5 for the title/transcript "is this today?" classifiers.
 
 ---
 
@@ -542,20 +508,10 @@ rest on different evidence and the same bet could differ across runs.
 
 ```
 src/context/
-  contracts.py     22 declared fields; per-bet-type required/optional specs
-  assemble.py      builds one slate's snapshot; coverage() scores a bet
-  snapshot.py      immutable gzipped storage + per-game market path
-  estimate.py      deterministic estimator + bootstrap resilience
   sim.py           the plate-appearance model: log5, base-out state machine,
                    the hook. NOT a driver — `game.py` is the only engine
   calibrate.py     replays real starts; tunes the hook; reliability + Brier
-  f5_market.py     F5 against Kalshi's settled board, open vs close
-  versus_market.py the same test for player props
-  price.py         prices a whole slate against Kalshi
-  quote.py         prices ONE bet you are looking at
-  movement.py      per-bet: is the capper's quoted number still on the board
   gamestate.py     has this game started (guards every live-price fetch)
-  scan.py          scans every offered line for robust disagreement
   store.py         context.db; morning_bets.db attaches READ-ONLY as `bets`
   advance.py       what runners actually do, counted on this league
   deploy.py        how bullpens are actually used, before modelling them
@@ -685,7 +641,7 @@ market, 0/4 started ones did.
 
 ### Test suite
 
-`make test` (464 checks, ~45s, no network, no pytest). `tests/run.py` collects
+`make test` (416 checks, ~45s, no network, no pytest). `tests/run.py` collects
 every `check_*`. `tests/test_regressions.py` is one check per bug that
 actually shipped, verified by mutation — reintroducing a fix fails exactly
 the check that covers it.

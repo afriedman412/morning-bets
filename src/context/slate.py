@@ -1,23 +1,19 @@
-"""Price today's board with the simulator and compare to Kalshi.
+"""Turn a DATE into two `game.Side` objects. The live-slate assembly path.
 
-READ THIS AS A DEFECT REPORT BEFORE READING IT AS AN EDGE. Nearly every
-large divergence this project has chased turned out to be our own bug —
-relief appearances contaminating a starter's average, outcome leakage in the
-first CLV pass, a starter heuristic that deleted the left tail. The market
-prices the consensus construction and prices it well. A 30-point gap is
-overwhelmingly more likely to mean we resolved the wrong pitcher, or built a
-lineup out of last week's bench, than that Kalshi is wrong.
+THIS IS NOT A BETTING MODULE, and it was inside one for three weeks. It was
+extracted from `price.py` when the betting layer was deleted, because
+everything below is how a real date becomes a simulation — the schedule
+call, the projected lineup, the "will we price this arm at all" gate, and
+the loop that builds both sides and runs them through `game.simulate_game`.
+`price.py` was the only thing on top of it that knew about a market.
 
-WHAT THIS IS AND IS NOT EVIDENCE OF. The simulator is calibrated — measured
-Brier skill of 13-20% against the base rate on K lines, bias under 1.6% —
-which means its probabilities are honest. That is a precondition for
-comparing to a price and not a substitute for it. A perfectly calibrated
-model that agrees with the book everywhere earns nothing; the only thing
-worth looking at is where an honest number and a real price disagree, and
-even then the first question is which of them is broken.
+There are two ways into the engine and this is one of them. `calibrate.replay`
+takes a HISTORICAL pair off the boxscore cache; this takes a LIVE date off
+the schedule API. Both end at `game.simulate_game`, which is the only engine.
 
-Lineups are PROJECTED, not confirmed, when run in the morning. That is the
-largest source of error here and it is flagged per row.
+BOTH STARTERS OR NEITHER. A missing opposing starter is a DECLINE, never a
+league-average stand-in — inventing the other club invents the score, and the
+score is what the hook, the bullpen and the margin are conditioned on.
 """
 from __future__ import annotations
 
@@ -26,7 +22,7 @@ import random
 import urllib.request
 from datetime import date, timedelta
 
-from src import db, kalshi, roster
+from src import db
 from src.context import calibrate, game, gamestate, sim
 from src.context.sources import rates as rate_src
 
@@ -309,184 +305,3 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
 def starter_line(results, is_home):
     """The starter's simulated lines for one side of the matchup."""
     return [(r.home_sp if is_home else r.away_sp) for r in results]
-
-
-def price_slate(date_str: str | None = None, stats=("k", "outs"),
-                n_sims: int = N_SIMS, verbose: bool = True) -> list[dict]:
-    """Every Kalshi market for the date, priced by simulation."""
-    d = date_str or date.today().isoformat()
-    lg = sim.league()
-    # Rates strictly before today: a start cannot inform its own price.
-    pr = rate_src.pitcher_rates(lg, before=d)
-    br = rate_src.batter_rates(lg, before=d)
-    league_bats = sim.BatterRates(name="league", k_pct=lg["k_pct"],
-                                  bb_pct=lg["bb_pct"], hr_pct=lg["hr_pct"],
-                                  babip=lg["babip"])
-
-    games = slate(d)
-    pens = rate_src.bullpens(lg, before=d)
-    by_pitcher: dict[str, dict] = {}
-    for g in games:
-        for side, opp in (("away", "home"), ("home", "away")):
-            s, o = g[side], g[opp]
-            if not s["starter"]:
-                continue
-            names = o["lineup"] or projected_lineup(o["abbr"], d)
-            by_pitcher[s["starter"]] = {
-                "game": g,
-                "game_id": g["game_id"], "venue_id": g["venue_id"],
-                "team": s["abbr"], "opp": o["abbr"],
-                "is_home": side == "home",
-                "lineup": names,
-                "confirmed": bool(o["lineup"]),
-                "status": g["status"], "start_utc": g["start_utc"],
-            }
-    if verbose:
-        conf = sum(1 for v in by_pitcher.values() if v["confirmed"])
-        print(f"{d}: {len(games)} games, {len(by_pitcher)} probable starters,"
-              f" {conf} with a confirmed opposing lineup")
-
-    rows: list[dict] = []
-    skipped: dict[str, str] = {}
-    #: One simulated set of games per MATCHUP, not per pitcher — both
-    #: starters' lines come off the same `GameResult`, and the k line and the
-    #: outs line for one arm are read off the same draws.
-    sims: dict[str, list] = {}
-    for stat in stats:
-        series = kalshi.SERIES_BY_STAT.get(stat)
-        if not series:
-            continue
-        for m in kalshi.markets(series):
-            tk = m["ticker"]
-            if kalshi.ticker_date(tk) != d:
-                continue
-            parsed = kalshi._parse(m)
-            if not parsed:
-                continue
-            name, threshold = parsed
-            line = threshold - 0.5
-            ctx = by_pitcher.get(name)
-            if not ctx:
-                # Resolve through the roster before giving up — Kalshi and
-                # statsapi do not always spell a name the same way.
-                pid = roster.player_id(name)
-                ctx = next((v for k, v in by_pitcher.items()
-                            if roster.player_id(k) == pid and pid), None)
-            if not ctx:
-                continue
-            p = pr.get(name)
-            if not p:
-                continue
-            ok, why = priceable(name, p["pa"], d)
-            if not ok:
-                skipped[name] = why
-                continue
-
-            yes_bid, yes_ask = kalshi.book(tk)
-            if yes_bid is None or yes_ask is None:
-                continue
-            if (yes_ask - yes_bid) > kalshi.MAX_SPREAD:
-                continue
-            mkt = (yes_bid + yes_ask) / 2
-
-            gid = ctx["game_id"]
-            if gid not in sims:
-                # The pregame guard lives in here now. `gamestate.is_pregame`
-                # takes a MATCHUP and does its own fetch; the detailed status
-                # is already on the schedule payload, so it is checked
-                # directly rather than once per market. Unknown resolves to
-                # NOT pregame: a stale number costs little, a live one writes
-                # fiction nothing downstream can detect.
-                res, whynot = simulate_slate_game(
-                    ctx["game"], d, lg, pr, br, league_bats, pens,
-                    n_sims=n_sims)
-                sims[gid] = res
-                if res is None:
-                    skipped[name] = whynot
-            if sims[gid] is None:
-                continue
-
-            res = starter_line(sims[gid], ctx["is_home"])
-            ours = sim.prob_over(res, "k" if stat == "k" else "outs", line)
-            se = (ours * (1 - ours) / n_sims) ** 0.5
-            rows.append({
-                "stat": stat, "player": name, "line": line, "ticker": tk,
-                "ours": ours, "market": mkt, "gap": ours - mkt, "se": se,
-                "spread": yes_ask - yes_bid,
-                "opp": ctx["opp"], "home": ctx["is_home"],
-                "confirmed_lineup": ctx["confirmed"],
-                "pitcher_pa": p["pa"],
-                "shrink_w": shrink_weight(p["pa"]),
-            })
-    # RANKED BY GAP OVER SIMULATION ERROR, not by raw gap.
-    #
-    # Sorting on |ours - market| puts an 8.8-point gap on a longshot above
-    # an 8.3-point gap at a coin flip, and the probability estimate is LEAST
-    # reliable exactly where the gap is largest: `se` is
-    # sqrt(p(1-p)/n_sims), which collapses in the tails, so a tail gap is
-    # measured against a number the simulation is not entitled to be
-    # confident about. Dividing by it ranks a disagreement by how much the
-    # simulation is actually willing to stand behind.
-    #
-    # `se` is already computed per market a few lines above and was being
-    # printed and then ignored by the ordering.
-    for r in rows:
-        r["z"] = r["gap"] / r["se"] if r["se"] > 0 else 0.0
-    rows.sort(key=lambda r: -abs(r["z"]))
-    if verbose and skipped:
-        print(f"declined to price {len(skipped)} pitcher(s):")
-        for nm, why in sorted(skipped.items()):
-            print(f"    {nm[:24]:<26}{why}")
-    return rows
-
-
-def report(rows: list[dict], top: int = 30) -> None:
-    if not rows:
-        print("no priceable markets")
-        return
-    gaps = [abs(r["gap"]) for r in rows]
-    mean_signed = sum(r["gap"] for r in rows) / len(rows)
-    print(f"\n{len(rows)} markets priced   "
-          f"mean |gap| {sum(gaps)/len(gaps):.3f}   "
-          f"median {sorted(gaps)[len(gaps)//2]:.3f}   "
-          f"mean signed {mean_signed:+.3f}")
-    if abs(mean_signed) > 0.04:
-        print("  ** a large SIGNED mean means we disagree with the whole "
-              "board in one direction — that is a defect, not an edge **")
-    print(f"\n  {'stat':<5}{'player':<20}{'bet':<12}{'ours':>7}{'mkt':>7}"
-          f"{'gap':>8}{'+/-':>6}{'z':>7}{'pa':>6}{'own':>7}  opp  lineup")
-    for r in rows[:top]:
-        flag = "conf" if r["confirmed_lineup"] else "PROJ"
-        w = r.get("shrink_w")
-        # The marker goes on the WEIGHT, not at the end of the line, so it
-        # cannot be read as belonging to the lineup column next to it.
-        own = "     -" if w is None else \
-            f"{w:>6.2f}{'*' if w < THIN_WEIGHT else ' '}"
-        print(f"  {r['stat']:<5}{r['player'][:18]:<20}"
-              f"{f'o{r['line']:g}':<12}{r['ours']:>7.3f}{r['market']:>7.3f}"
-              f"{r['gap']:>+8.3f}{r['se']:>6.3f}"
-              f"{r.get('z', 0.0):>+7.1f}{r.get('pitcher_pa', 0):>6.0f}{own}"
-              f"  {r['opp']:<4} {flag}")
-    print("\n  SORTED BY z = gap / simulation error, not by raw gap. The")
-    print("  probability estimate is least reliable where the gap is")
-    print("  largest, so a big tail gap and a big central gap are not the")
-    print("  same evidence. `gap` is still shown; it is no longer the key.")
-    thin = sorted({r["player"] for r in rows
-                   if (r.get("shrink_w") or 1.0) < THIN_WEIGHT})
-    if thin:
-        print(f"\n  ** {len(thin)} arm(s) marked `*`: under {THIN_WEIGHT:.0%}"
-              f" of the strikeout rate priced here is the pitcher's own")
-        print("     record — the rest is the shrink target. A gap on one of")
-        print("     these can be OUR SHRINKAGE rather than his talent, and")
-        print("     it is largest on the thinnest arm. `pa` is his batters")
-        print("     faced this season; `own` is pa / (pa + 132).")
-        for nm in thin:
-            r = next(x for x in rows if x["player"] == nm)
-            print(f"       {nm[:24]:<26}{r['pitcher_pa']:>5.0f} BF"
-                  f"   own {r['shrink_w']:.2f}")
-
-
-if __name__ == "__main__":
-    import sys
-    d = sys.argv[1] if len(sys.argv) > 1 else date.today().isoformat()
-    report(price_slate(d))

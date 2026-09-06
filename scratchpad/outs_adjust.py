@@ -87,7 +87,7 @@ import datetime
 import statistics as st
 import sys
 
-from src.context import price, sim
+from src.context import sim, slate as slate_src
 from src.context.sources import rates as rate_src
 
 #: line -> (model P(over), actual frequency) on the holdout. The correction
@@ -164,11 +164,11 @@ def main(argv):
           "extrapolation.\n")
     print(f"  {'pitcher':<20}{'proj':>6}{'line':>7}{'raw ov':>8}{'adj ov':>8}"
           f"{'adj UN':>8}{'fair UN':>9}  note")
-    for g in price.slate(d):
+    for g in slate_src.slate(d):
         a, h = g.get("away") or {}, g.get("home") or {}
         if not (a.get("starter") and h.get("starter")):
             continue
-        res, why = price.simulate_slate_game(g, d, lg, pr, br, lb, pens,
+        res, why = slate_src.simulate_slate_game(g, d, lg, pr, br, lb, pens,
                                              n_sims=n)
         if not res:
             continue
