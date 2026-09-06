@@ -2279,3 +2279,56 @@ def check_park_mults_reads_the_walk_index():
     # A venue with no walk index must come back neutral, not zero — the
     # falsy-value trap that `m()` exists to handle.
     assert sim.park_mults({"hr": 110, "so": 99})["bb"] == 1.0
+
+
+def check_a_double_play_scores_the_man_from_third():
+    """On a nobody-out GIDP the runner from third comes home — counted at
+    0.8515 over four seasons — and gets NO rbi. The branch used to freeze
+    every runner but the erased man on first, which is signed toward the
+    measured "men reach base and do not come home" gap."""
+    rng = random.Random(9)
+    dps = scored = rbis = 0
+    for _ in range(30000):
+        fr = sim.Frame(bases=["r1", None, "r3"])
+        r = sim.StartResult()
+        sim.apply_pa(sim.OUT, r, fr, rng, batter="bat")
+        if fr.outs == 2:                      # the DP fired
+            dps += 1
+            scored += r.runs
+            rbis += sum(r.rbi_by.values())
+    assert dps > 1000, dps
+    rate = scored / dps
+    assert 0.75 < rate < 0.95, f"3B scores on {rate:.3f} of DPs, " \
+        "counted 0.8515"
+    assert rbis == 0, "a GIDP must not award an rbi"
+
+
+def check_a_double_play_for_the_third_out_scores_nobody():
+    """The third-out rule: the batter is retired before reaching first, so
+    the run never counts however fast the man from third runs. The real
+    rate is 0.006 on 1,325 GIDPs and the model's is exactly zero."""
+    rng = random.Random(11)
+    for _ in range(20000):
+        fr = sim.Frame(bases=["r1", None, "r3"], outs=1)
+        r = sim.StartResult()
+        sim.apply_pa(sim.OUT, r, fr, rng, batter="bat")
+        if fr.outs == 3:
+            assert r.runs == 0, "a run scored on an inning-ending DP"
+
+
+def check_the_runner_on_second_takes_third_on_a_double_play():
+    """Counted at 0.9277. The vacated bag must hold the TOKEN, not a
+    boolean — attribution downstream reads identity off the list."""
+    rng = random.Random(13)
+    dps = took = 0
+    for _ in range(30000):
+        fr = sim.Frame(bases=["r1", "r2", None])
+        r = sim.StartResult()
+        sim.apply_pa(sim.OUT, r, fr, rng, batter="bat")
+        if fr.outs == 2:
+            dps += 1
+            took += fr.bases[2] == "r2"
+            assert fr.bases[2] in (None, "r2")
+    assert dps > 1000, dps
+    rate = took / dps
+    assert 0.85 < rate < 0.98, f"2B takes third on {rate:.3f}, counted 0.9277"

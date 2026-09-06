@@ -14,7 +14,30 @@ it belongs in `NOTES-context-layer.md`.
     RESUME-ARCHIVE.md    Days six to sixteen, moved out of here. Not deleted,
                          but its figures predate several engine changes.
 
-## WHERE THINGS STAND (2026-09-05)
+## WHERE THINGS STAND (2026-09-06)
+
+**GIDP ADVANCEMENT SHIPPED (`sim.USE_GIDP_ADVANCE`).** On a nobody-out
+double play the man on third now scores (counted 0.8515, four seasons
+stable) and the man on second takes third (0.9277); no rbi, tokens not
+booleans, third-out rule intact. Battery diff spotless — no row past one
+se, sac/DP levels bit-identical. Fingerprint 9d45b134; baseline
+`battery_ad90c1c4a6af.json`.
+
+**THE SAC STATE TABLE PARKED ITSELF, AND THE KILL IS A FINDING.** The
+counted column (gate 0.994, zero at two out everywhere) re-levelled the
+league sac rate x0.964 through the model's own state occupancy: the model
+under-visits exactly the extreme-traffic cells (bases loaded 0.32% vs
+0.42% real). That is the CLUSTERING defect at sharper resolution than the
+shutout/blowup shares ever gave it — a second instrument for whatever
+attacks clustering. Wire live and inert; see plan item 2.
+
+**ALSO 2026-09-06: the engine no longer drifts overnight.** The park
+index is pinned per year on scoring paths (the daily cache stamp moved 11
+venue indices between mornings and the fingerprint with them), and rate
+neutralisation moved into the rate builders — the LIVE slate path had
+been pricing off raw rates while replays scored on neutral ones.
+
+## WHERE THINGS STOOD (2026-09-05)
 
 **THE BATTERY SHIPPED — RULE 15.** `venv/bin/python -m scratchpad.battery`
 scores every table off one pass per fold, four folds, 94 seconds, with

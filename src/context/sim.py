@@ -543,6 +543,34 @@ LEGACY_GIDP_RATE = 0.11
 def gidp_rate(outs: int) -> float:
     return _rate(GIDP_RATE if USE_MEASURED_GIDP else LEGACY_GIDP_RATE, outs)
 
+
+#: WHAT THE OTHER RUNNERS DO ON A DOUBLE PLAY, counted on four seasons
+#: (`scratchpad/gidp_sac_count.py`, 2026-09-06). The DP branch used to
+#: erase the man on first, add two outs and FREEZE everybody else — the
+#: runner on third with nobody out scores on most 6-4-3s and the model
+#: brought none of them home, which is signed toward the measured "men
+#: reach base and do not come home" gap.
+#:
+#: Counted at nobody out, the only cell the mechanism can reach — a
+#: double play at one out makes the third out and the batter is retired
+#: before first, so no run can score (counted 0.006 on 1,325 real GIDPs,
+#: which is the counting's own control). Stable across seasons:
+#:
+#:     P(3B scores)  0.797 / 0.877 / 0.856 / 0.889   pooled 0.8515 (n=458)
+#:     P(2B -> 3B)   0.936 / 0.926 / 0.922 / 0.926   pooled 0.9277 (n=1,176)
+#:
+#: Generic lineout double plays behave the opposite way — the runner is
+#: doubled OFF (score rate 0.02, advance rate 0.10) — so these numbers
+#: are counted on `grounded_into_double_play` only, which is the play the
+#: branch below draws. The 2B -> 3B figure is the MARGINAL rate; applied
+#: lead-runner-first it is conditioned on the bag ahead clearing, a
+#: second-order gap on the ~20% of these states where both are occupied.
+#:
+#: NO RBI: `_credit` is passed no batter, matching the scoring rule.
+GIDP_3B_SCORES = 0.8515
+GIDP_2B_TO_3B = 0.9277
+USE_GIDP_ADVANCE = True
+
 # ── the runs the model could not produce ───────────────────────────────
 #
 # THE LAST BIG MISSING MECHANISM, and it was found the way the absent
@@ -1048,7 +1076,7 @@ def pa_from(mu: Matchup, rng: random.Random, tto: int | None = None,
     # short-circuits on `m == 1.0` and returns its input untouched. That is
     # what makes the empty table bit-identical to the state-blind model
     # rather than merely very close.
-    s_k = s_bb = s_hr = s_bab = s_hbp = 1.0
+    s_k = s_bb = s_hr = s_bab = s_hbp = s_sac = 1.0
     s = state_mult(state)
     if s is not None:
         s_k = s.get("k_pct", 1.0)
@@ -1056,6 +1084,7 @@ def pa_from(mu: Matchup, rng: random.Random, tto: int | None = None,
         s_hr = s.get("hr_pct", 1.0)
         s_bab = s.get("babip", 1.0)
         s_hbp = s.get("hbp_pct", 1.0)
+        s_sac = s.get("sac_pct", 1.0)
     # THE HIT-BY-PITCH AND ITS RENORMALISER MOVE TOGETHER OR NOT AT ALL.
     # `cond` is carried on the matchup precisely so it can never disagree
     # with the rate it conditions on, and scaling one without the other
@@ -1068,13 +1097,26 @@ def pa_from(mu: Matchup, rng: random.Random, tto: int | None = None,
     # objects they were, bit-identical rather than merely very close. That
     # is the same short-circuit `odds_mult` uses and the reason an empty
     # table reproduces the state-blind model exactly.
-    hbp, cond = mu.hbp, mu.cond
-    if s_hbp != 1.0:
+    sac, hbp, cond = mu.sac, mu.hbp, mu.cond
+    if s_hbp != 1.0 or s_sac != 1.0:
+        # THE SAC WIRE IS LIVE AND ITS COLUMN IS PARKED (2026-09-06).
+        # `sac_pct` was counted — exactly 0.0000 at two out in all four
+        # seasons, 0.09x bases empty, 14-15x bases loaded, between-season
+        # correlation 0.994 (`scratchpad/gidp_sac_count.py`) — and its
+        # battery run fired the pre-registered falsifier: the LEVEL fell
+        # x0.964, because the model under-occupies exactly the extreme-
+        # traffic cells the multipliers are largest in. That occupancy gap
+        # is the standing clustering defect showing through a new
+        # instrument, and re-levelling a counted table to the model's own
+        # occupancy would absorb it. The wire follows the hbp rule (rate
+        # and renormaliser together or not at all) and is bit-inert while
+        # no cell carries a `sac_pct` key.
+        sac = mu.sac * s_sac
         hbp = mu.hbp * s_hbp
-        cond = 1.0 - mu.sac - hbp
+        cond = 1.0 - sac - hbp
     # Off the top: a sacrifice is a plate appearance that was never going to
     # be a strikeout or a walk, so it conditions everything below it.
-    if rng.random() < mu.sac:
+    if rng.random() < sac:
         return SAC
     if rng.random() < hbp:
         return HBP
@@ -3162,9 +3204,21 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random,
         # Double play only with a runner on first and a base open for the
         # force, and it ends the inning if it is the second and third out.
         if bases[0] and fr.outs < 2 and rng.random() < gidp_rate(fr.outs):
-            bases[0] = False
+            # `None`, not `False` — this list carries runner tokens.
+            bases[0] = None
             fr.outs += 2
             r.outs += 2
+            # The OTHER runners move, counted — see GIDP_3B_SCORES. Only
+            # when the inning survives: a DP for the third out scores
+            # nobody, same rule as everywhere else in this function.
+            if USE_GIDP_ADVANCE and fr.outs < 3:
+                if bases[2] and rng.random() < GIDP_3B_SCORES:
+                    # No batter passed: a GIDP awards no RBI.
+                    _credit(r, fr, (1, [bases[2]]), None)
+                    bases[2] = None
+                if (bases[1] and not bases[2]
+                        and rng.random() < GIDP_2B_TO_3B):
+                    bases[2], bases[1] = bases[1], None
         else:
             fr.outs += 1
             r.outs += 1

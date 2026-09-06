@@ -8329,3 +8329,73 @@ on breaking balls is not a HR index), not a multiplier to solve for.
 
 NEXT. Item 2 (GIDP advancement + state-blind sacrifices) is next in the
 plan; its scoring rows (traffic, contact) are live in the battery.
+
+## 2026-09-06 — GIDP ADVANCEMENT SHIPS; THE SAC STATE TABLE PARKS (item 2)
+
+QUESTION. On a grounded double play, what do the other runners do; and
+how do real sacrifices distribute over (men on, outs)?
+
+HYPOTHESIS. The runner on third scores on most nobody-out GIDPs and the
+runner on second takes third (the model froze both); real sacs are ~zero
+with two out or bases empty (the model drew them uniformly). Wiring both
+moves runs-per-baserunner toward real while the league DP and sac LEVELS
+stay put. FALSIFIER, pre-registered: "runs per baserunner does not move
+toward real, or the league sacrifice / DP rates move by more than one
+se."
+
+TEST. One four-season pass (`scratchpad/gidp_sac_count.py`), 10,063
+games; battery diffs against baseline `4927c96f`. POWER: P(3B scores)
+counted on 458 events (se 0.017); the battery's runs-per-baserunner rows
+carry se 0.003-0.004 a fold against an expected mechanism size ~0.002 —
+stated up front: the run-level instrument cannot resolve this mechanism,
+so per rule 3 the verdict rides on the counts and the controls.
+
+THE COUNTS.
+  * GIDP, nobody out: 3B scores 0.8515 (0.797/0.877/0.856/0.889 by
+    season), 2B takes third 0.9277 (n=1,176). The counting's own control
+    passed: at one out — the third-out rule — real scoring is 0.006.
+    Lineout double plays behave the OPPOSITE way (runner doubled off,
+    0.02 score rate), so the numbers are counted on
+    `grounded_into_double_play` only, which is the play the model draws.
+  * VERIFIED NO DOUBLE-COUNT: `advance.py`'s OUT set excludes DP events,
+    so `ADVANCE_*_ON_OUT` was counted on single outs only and the two
+    mechanisms partition the outs exactly as the model branches do.
+  * Sacrifices by (men on, outs): exactly 0.0000 at two out in every
+    season (a sac needs an out to give), 0.09x bases empty, 2.3x man on
+    first nobody out, 14-15x bases loaded. Between-season correlation
+    0.994 — the most stable table this project has counted. PA-weighted
+    mean 1.0000 before renorm, self-normalising as constructed.
+
+2a SHIPPED — `sim.USE_GIDP_ADVANCE`, `GIDP_3B_SCORES = 0.8515`,
+`GIDP_2B_TO_3B = 0.9277`, applied lead-runner-first through `_credit`
+with no batter (a GIDP awards no rbi), tokens not booleans, third-out
+rule intact. Battery diff vs baseline: NO row moved past one se; the
+sub-se record: runs-per-baserunner +0.002 in every fold — toward real in
+2025 (-0.0043 -> -0.0021) and 2026 (-0.0023 -> -0.0006), away in
+2023/2024 where the whole-game row already sat high. sac and DP levels
+bit-identical. Five checks, each verified by mutation. Fingerprint
+ac8e9c1a -> 9d45b134; hook untouched and the shape rows unmoved, so
+`outs_adjust` stands per its own rule. New battery baseline
+`battery_ad90c1c4a6af.json`. 424 checks green.
+
+2b PARKED BY ITS OWN FALSIFIER, and the kill is the finding. With the
+counted column wired, the realized league sac rate fell in three folds
+(2025 to -4 se) — the table re-levelled through the model's own state
+occupancy: E[mult | model states] = 0.9639 against 1.0000 under real
+weights. The occupancy table says why, and it is not the sac table's
+fault: the model's cell shares match reality to a few tenths of a point
+EXCEPT in the extreme-traffic cells — bases loaded 0.32% of model PAs
+against 0.42% real — exactly where the multipliers run 14-15x. That is
+the standing CLUSTERING defect (real baserunners arrive together; the
+model bunches in the middle) surfacing through a new instrument, at
+sharper resolution than the shutout/blowup shares ever gave it.
+Re-levelling a counted table to the model's occupancy would absorb the
+defect and hide it. The `pa_from` wire STAYS, bit-inert behind the
+`sac_pct` key (the empty-table discipline); the counted column lives in
+`gidp_sac_count.py` and above. RE-OPEN when the occupancy/clustering
+defect moves, or with an explicit decision that a x0.964 level through
+occupancy is the honest projection.
+
+NEXT. Item 3 (platoon league cell) is next in the plan. The occupancy
+finding strengthens the case for whatever eventually attacks clustering
+— it now has a second, sharper instrument (the sac-cell occupancy gap).

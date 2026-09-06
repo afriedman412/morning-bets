@@ -56,53 +56,24 @@ Fit on `date < cut`, score on `date >= cut`, per season, four folds.
 
 ---
 
-## 2. GIDP ADVANCEMENT and STATE-BLIND SACRIFICES — one function, two fixes
+## 2. SACRIFICES BY STATE — PARKED 2026-09-06, blocked on occupancy
 
-Both live in `sim.apply_pa`. Both are signed toward "men reach base and do
-not come home", which `f5_decomp.py` measures at -1.7%.
+(2a, GIDP advancement, SHIPPED the same day — `sim.USE_GIDP_ADVANCE`.)
 
-### 2a. On a double play nothing else moves
+ESTABLISHED: the counted table is done and maximally stable (sac share
+by (men on, outs), between-season correlation 0.994, exactly 0.0000 at
+two out everywhere, 14-15x bases loaded; `scratchpad/gidp_sac_count.py`).
+The `pa_from` wire is live and bit-inert behind the `sac_pct` key.
 
-`apply_pa`, `o == OUT` branch: `bases[0] = False; fr.outs += 2`. The runner
-on third with nobody out scores on most 6-4-3s; the runner on second
-usually takes third. The model freezes both. Also `False` is written into a
-list that otherwise carries runner tokens or `None`.
+WHY IT IS PARKED: the pre-registered falsifier fired on the LEVEL
+control — realized league sac rate fell x0.9639 because the model
+under-occupies the extreme-traffic cells the multipliers are largest in
+(bases loaded 0.32% of model PAs vs 0.42% real). That is the CLUSTERING
+defect, measured at new resolution, not a defect of this table.
 
-COUNT IT: from play-by-play (`pbp.plays()` gives base-out state before
-every play), for every GIDP with outs_before in {0, 1}: P(runner on 3B
-scores), P(runner on 2B reaches 3B). Key on outs_before, same as
-`ADVANCE_*_ON_OUT`. Stability gate across four seasons as `state_seasons.py`
-does it; if the gate fails, the pooled number stays.
-
-WIRE: on the DP branch, apply the counted movements lead-runner-first
-through `_credit`, tokens not booleans, and use `None` for the vacated bag.
-Third-out rule still holds: a DP that makes the third out scores nobody.
-
-### 2b. Sacrifice drawn regardless of state
-
-`pa_from` rolls `mu.sac` first, unconditionally. Bases empty or two out the
-draw becomes a pure out with no BABIP roll; in real sac states the rate is
-correspondingly light. It just gained a per-arm rate through
-`USE_ROLE_HBP`, so the mis-specification is now per arm.
-
-COUNT IT: sacrifice (SH + SF) share of PA by (men on, outs) cell on the
-same 748,905-PA scan behind `STATE_MULT`. Expect ~0 with bases empty and
-with two out.
-
-WIRE: a `sac_pct` column on `STATE_MULT`, applied as the plain multiplier
-`hbp_pct` uses, with `cond` renormalised alongside it exactly as the HBP
-branch does. `SAC_RATE_SP` / `SAC_RATE_RP` stay as the level; the cell
-table redistributes it. PA-weighted mean of the multipliers must be 1.000
-— same rule as `TTO_MULT`.
-
-TEST for both: `f5_decomp.py` runs-per-baserunner and the "brought home"
-share; the shutout share and the distribution shape per rule 2; overall
-sacrifice rate and DP rate unchanged at the league level (they are
-redistributed, not re-levelled). Positive control: double the 3B-scores
-rate and confirm the harness sees it.
-
-FALSIFIER: runs per baserunner does not move toward real, or the league
-sacrifice / DP rates move by more than one se.
+RE-OPEN when clustering/occupancy moves, or with an explicit decision
+that the level-through-occupancy is the honest projection. DO NOT
+re-centre the table on model occupancy — that absorbs the defect.
 
 ---
 
