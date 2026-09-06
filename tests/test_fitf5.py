@@ -98,10 +98,17 @@ def check_rps_is_proper():
     expected score by reporting anything else. Checked against a spread of
     misreports on a known distribution: if any of them wins, the search will
     find it and the fitted parameters will encode a lie.
+
+    SIZED DELIBERATELY. This was 4000x3000 and took 29 of the suite's 44
+    seconds — two thirds of the wall clock, because the runner's floor is
+    its slowest single check. The property being tested is STRUCTURAL
+    rather than statistical, and the numbers say so: the honest report
+    wins by 19.6% at 4000x3000 and by 18.5% at 1000x800. The larger
+    sample bought precision on a margin that never needed it.
     """
     rng = random.Random(11)
-    truth = [rng.choice([0, 1, 1, 2, 2, 3, 4, 5]) for _ in range(4000)]
-    outcomes = [rng.choice(truth) for _ in range(3000)]
+    truth = [rng.choice([0, 1, 1, 2, 2, 3, 4, 5]) for _ in range(1000)]
+    outcomes = [rng.choice(truth) for _ in range(800)]
 
     def expected(pred):
         return sum(fitf5._rps(pred, a, fitf5.SIDE_LINES)

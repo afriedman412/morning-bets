@@ -237,6 +237,29 @@ def check_the_measured_mechanisms_are_switched_on_by_default():
     assert sim.USE_TTO is True
     assert game.USE_MEASURED_RELIEF_LENGTH is True
     assert game.USE_MEASURED_RELIEF_HOOK is True
+    # ADDED 2026-09-06 after a sweep flipped four shipped flags with all
+    # 448 checks green. Every one HAD a wiring check; each of those sets
+    # the flag itself (the house pattern above), so the mechanism checks
+    # override the very thing being mutated and only the default was
+    # unguarded. This list is the other half, and it drifted eight
+    # mechanisms behind what ships.
+    assert sim.USE_PLATOON is True
+    assert sim.USE_FIELD_STATE is True
+    assert sim.USE_PEN_STATE is True
+    assert game.USE_ROLE_HBP is True
+    assert sim.USE_GB_DP is True
+    assert sim.USE_GB_HITMIX is True
+    assert sim.USE_TEMP_HR is True
+    assert sim.USE_WIND_HR is True
+    assert sim.USE_GIDP_ADVANCE is True
+    assert sim.USE_MEASURED_GIDP is True
+    assert sim.USE_STEAL_TABLE is True
+    assert sim.USE_LEASH is True
+    assert sim.USE_LAYOFF is True
+    assert sim.USE_START_SHARPNESS is True
+    assert sim.USE_PITCH_HAZARD is True
+    assert game.USE_PEN_ROLES is True
+    assert game.USE_AUTO_RUNNER is True
     # Deliberately OFF, each for a recorded reason — the learned hook was
     # shipped on a false premise, and the early branches buy the disaster
     # tail with spread. Pinned so a flip is a decision, not a drift.
@@ -973,38 +996,6 @@ def check_the_engine_passes_the_matchup_to_apply_pa():
                 bad.append(f"{f.relative_to(root.parent)}:"
                            f"{node.lineno} missing mu=")
     assert not bad, bad
-
-
-def check_the_platoon_cell_reaches_the_matchup():
-    """A mutation sweep on 2026-09-06 switched `USE_PLATOON` off and all
-    448 checks passed — the platoon item shipped its MEASUREMENT tests and
-    not its wiring one. Both sides of the pairing known, so the cell fires;
-    same batter against the other hand must resolve differently, and the
-    difference must BE the counted cell rather than any other multiplier.
-    """
-    b = sim.BatterRates(name="b", side="L", k_pct=0.22, bb_pct=0.08,
-                        hr_pct=0.03, babip=0.300, pa=600)
-    vs_r = sim.resolve(b, sim.PitcherRates(name="p", hand="R", k_pct=0.22,
-                                           bb_pct=0.08, hr_pct=0.03,
-                                           babip=0.29, pa=600), LG)
-    vs_l = sim.resolve(b, sim.PitcherRates(name="p", hand="L", k_pct=0.22,
-                                           bb_pct=0.08, hr_pct=0.03,
-                                           babip=0.29, pa=600), LG)
-    assert vs_r.m_k != vs_l.m_k, "the platoon cell never reached the matchup"
-    cell = sim.PLATOON_MULT[("L", "R")]["k_pct"] / \
-        sim.PLATOON_MULT[("L", "L")]["k_pct"]
-    assert abs(vs_r.m_k / vs_l.m_k - cell) < 1e-9, "not the counted cell"
-    orig = sim.USE_PLATOON
-    sim.USE_PLATOON = False
-    try:
-        off_r = sim.resolve(b, sim.PitcherRates(name="p", hand="R",
-                                                k_pct=0.22, bb_pct=0.08,
-                                                hr_pct=0.03, babip=0.29,
-                                                pa=600), LG)
-        assert off_r.m_k != vs_r.m_k, "the flag does not gate the cell"
-    finally:
-        sim.USE_PLATOON = orig
-    assert sim.USE_PLATOON is True, "ships ON"
 
 
 def check_the_base_out_state_multiplier_is_live_and_not_flat():

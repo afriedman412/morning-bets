@@ -500,7 +500,10 @@ the docs; do not add a Makefile target that fails.
 - `... calibrate --patience` / `--leash` — fit club and pitcher removal offsets as RESIDUALS. Order matters: club first, pitcher against the remainder, or the manager gets counted twice.
 - `... calibrate --holdout YYYY-MM-DD` — refit on the training window only, score on unseen starts.
 - `venv/bin/python -m src.context.sources.starters --backfill` — ground truth for who started. `grading.py` sets this going forward; the backfill is for history.
-- `make test` / `make test ARGS=sim` — 416 offline checks, ~45s. It got
+- `make test` / `make test ARGS=sim` — 451 offline checks, ~23s. THE
+  `ARGS=` FILTER IS THE SEGMENTATION: it matches module names, so
+  `ARGS=wiring` is 7s and `ARGS=sim` similar — run the module you touched
+  during the edit loop, the whole suite at the protocol gates. It got
   slower on 2026-08-25 and that is the deletion, not a regression: a check
   that used to walk one pitching side now plays a whole game.
 - `venv/bin/python -m scratchpad.mutate` — MUTATION SWEEP. Flips one shipped
@@ -668,7 +671,13 @@ market, 0/4 started ones did.
 
 ### Test suite
 
-`make test` (416 checks, ~45s, no network, no pytest). `tests/run.py` collects
+`make test` (451 checks, ~23s, no network, no pytest). THE WALL CLOCK IS
+THE SLOWEST SINGLE CHECK OR THE TOTAL WORK OVER 8 CORES, WHICHEVER IS
+LARGER — on 2026-09-06 `check_rps_is_proper` was 29s of a 44s suite,
+sampling 4000x3000 to measure a STRUCTURAL property whose margin is 19.6%
+at that size and 18.5% at 1000x800. Cut 15x, suite halved, mutation still
+kills it. Before segmenting the suite, look at the slowest check: the
+runner prints the top five every run for this reason. `tests/run.py` collects
 every `check_*`. `tests/test_regressions.py` is one check per bug that
 actually shipped, verified by mutation — reintroducing a fix fails exactly
 the check that covers it.
