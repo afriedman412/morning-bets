@@ -468,7 +468,16 @@ def park_for(venue_id, year: int | None = None) -> dict:
     if key not in _PARK_CACHE:
         try:
             from src.context.sources import park as park_src
-            rec = park_src.park_factors(year=year).get(f"id:{venue_id}")
+            # PINNED PER YEAR when a year is asked for. The park cache is
+            # stamped per DAY, so an explicit-year call refetched every
+            # morning and the 2026 season-to-date index drifted overnight —
+            # 11 venue indices moved between 09-05 and 09-06 and the engine
+            # fingerprint moved with them on an identical tree. A scoring
+            # replay must be reproducible; a live slate passes no year and
+            # keeps the daily-fresh table, which is what pricing wants.
+            rec = park_src.park_factors(
+                year=year,
+                as_of=f"y{year}" if year else None).get(f"id:{venue_id}")
         except Exception:
             rec = None
         _PARK_CACHE[key] = sim.park_mults(rec)
@@ -604,14 +613,13 @@ def build_cases(season=None, before=None, max_starts=None, since=None,
     # computing it over every cached game let the test window into a
     # "train-only" fit. Same cutoff as the player rates.
     lg = sim.league(rs, before=rb)
+    # Park neutralisation happens INSIDE the rate builders since
+    # 2026-09-06 — doing it here left the live slate path pricing off raw
+    # rates while the replay path priced off neutral ones. See
+    # `rates._park_neutralised`.
     pr = rate_src.pitcher_rates(lg, rs, rb)
     br = rate_src.batter_rates(lg, rs, rb)
     split = rate_src.batter_rates_by_hand(lg, rs, rb) if handed else {}
-    if NEUTRALISE_PARK:
-        pr = rate_src.neutralise(
-            pr, rate_src.park_exposure("pitcher", rs, rb))
-        br = rate_src.neutralise(
-            br, rate_src.park_exposure("batter", rs, rb))
     lineups = opposing_lineups()
     league_bats = sim.BatterRates(name="league", k_pct=lg["k_pct"],
                                   bb_pct=lg["bb_pct"], hr_pct=lg["hr_pct"],

@@ -907,3 +907,44 @@ def check_every_simulate_game_call_passes_a_park():
                 bad.append(f"{f.relative_to(root.parent)}:"
                            f"{node.lineno} missing park=")
     assert not bad, bad
+
+
+def check_the_rate_builders_honor_park_neutralisation():
+    """`NEUTRALISE_PARK` must act INSIDE `pitcher_rates`/`batter_rates`.
+
+    THE BUG THIS EXISTS FOR, found the morning after park shipped: the
+    neutralise step lived in `calibrate.build_cases`, so the REPLAY path
+    scored on neutral rates while the LIVE path — `outs_adjust` and the
+    board tools handing raw `rate_src` output to `slate.py` — applied
+    tonight's park to raw rates. That is the home-park double-count on
+    the one path that prices real games, and no aggregate could see it:
+    the replay numbers, where everything is measured, were correct.
+
+    Asserted with an injected exposure of exactly 1.1 on K so the check
+    tests the WIRING arithmetic (a divide, in the builder, behind the
+    flag) and cannot fail for a data reason.
+    """
+    from src.context import calibrate as cal, sim
+    from src.context.sources import rates as rate_src
+
+    lg = sim.league()
+    orig_exp = rate_src.park_exposure
+    orig_flag = cal.NEUTRALISE_PARK
+    try:
+        cal.NEUTRALISE_PARK = False
+        pr0 = rate_src.pitcher_rates(lg)
+        nm = next(n for n, v in pr0.items() if v["pa"] >= 200)
+        rate_src.park_exposure = lambda side, season=None, before=None, \
+            conn=None: {nm: {"k_pct": 1.1}}
+        cal.NEUTRALISE_PARK = True
+        pr1 = rate_src.pitcher_rates(lg)
+        assert abs(pr1[nm]["k_pct"] * 1.1 - pr0[nm]["k_pct"]) < 1e-12, \
+            "NEUTRALISE_PARK did not reach the rate builder"
+        # And the flag off means untouched — the neutral path is the
+        # default and must stay bit-identical.
+        cal.NEUTRALISE_PARK = False
+        pr2 = rate_src.pitcher_rates(lg)
+        assert pr2[nm]["k_pct"] == pr0[nm]["k_pct"]
+    finally:
+        rate_src.park_exposure = orig_exp
+        cal.NEUTRALISE_PARK = orig_flag

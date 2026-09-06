@@ -872,6 +872,32 @@ PRIOR_EFFECTIVE_PA = {"k_pct": 250, "bb_pct": 250}
 USE_MEASURED_PRIOR_PA = False
 
 
+def _park_neutralised(out: dict, side: str, season, before, conn) -> dict:
+    """Neutralise at the SOURCE, so every caller prices off the same rates.
+
+    Until 2026-09-06 this lived only in `calibrate.build_cases`, so the
+    REPLAY path neutralised and the LIVE path did not: `slate.py` applied
+    tonight's park to raw rates handed in by `outs_adjust` and the board
+    tools — the exact home-park double-count `NEUTRALISE_PARK` exists to
+    prevent, shipped on the one path that prices real games. Placing it
+    here closes every caller at once.
+
+    NOT while a PRIOR is loading. The blended output is divided by the
+    CURRENT season's exposure exactly as `build_cases` always did it;
+    neutralising the prior's own pass as well would change what shipped.
+    (That the prior share is thereby slightly over-corrected is a known,
+    inherited subtlety — a measurement question, not a wiring one.)
+    """
+    from src.context import calibrate as cal
+    if not cal.NEUTRALISE_PARK or _LOADING:
+        return out
+    # Exposure opens its OWN connection — `conn` here can be a check's
+    # stub that answers every query with canned pitcher rows, and the
+    # exposure query would read those rows as its own. `build_cases`
+    # always ran exposure against the real database; keep that.
+    return neutralise(out, park_exposure(side, season, before))
+
+
 def pitcher_rates(
     lg: dict, season: int | None = None, before: str | None = None,
     conn=None, prior: dict | None = None, shrink: bool = True,
@@ -948,7 +974,7 @@ def pitcher_rates(
                 _t(r, "babip"), max(bip, 0), "babip", r["name"]),
             "raw_k_pct": (r["k"] or 0) / bf,
         }
-    return out
+    return _park_neutralised(out, "pitcher", season, before, conn)
 
 
 def batter_rates(
@@ -986,7 +1012,7 @@ def batter_rates(
                  * bs.get("babip", 1.0)) if bip > 0 else None,
                 lg["babip"], max(bip, 0), "babip", who="bat"),
         }
-    return out
+    return _park_neutralised(out, "batter", season, before, conn)
 
 
 def _with(fn):
@@ -1167,9 +1193,13 @@ def park_exposure(side: str, season=None, before=None, conn=None) -> dict:
     try:
         # The exposure a player accumulated is a property of the season his
         # rates were counted over, so the index year follows `season` — the
-        # same reasoning as `calibrate.park_for`'s year argument.
-        pf = park_src.park_factors(
-            year=season if isinstance(season, int) else None)
+        # same reasoning as `calibrate.park_for`'s year argument, pinned
+        # per year for the same reproducibility reason. `None` RESOLVES to
+        # the current season and is pinned too: exposure is a season-long
+        # accumulated multiplier, and leaving it on the daily stamp is how
+        # the engine fingerprint moved overnight on an identical tree.
+        yr = season if isinstance(season, int) else scope.resolve(season)
+        pf = park_src.park_factors(year=yr, as_of=f"y{yr}" if yr else None)
     except Exception:
         return {}
 
