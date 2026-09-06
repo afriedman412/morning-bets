@@ -9014,3 +9014,48 @@ through `simulate_game` the way `hr_air` travels, join
 move, the K-per-start shape and walk traffic rows move TOWARD real in
 at least 3 of 4 folds, run level inside one se. Slate-time availability
 of the crew is its own check before the live path uses it.
+
+## 2026-09-06 (Fable, close of session): THE UMPIRE PAIR IS WIRED AND SHIPS ON — THE REGISTERED FALSIFIER PASSED
+
+THE WIRE: `sim.ump_kbb_mult` loads the shrunk table (146 umpires,
+renormalised to a game-weighted mean of exactly 1.0 per channel — it
+redistributes strikeouts and walks between nights, never adds them);
+`resolve()` takes the game's (k, bb) pair beside `hr_park`;
+`simulate_game(..., ump_kbb=)` sets both sides; the shared lookup
+`calibrate.ump_mult_for` joins `game_officials` so replay, fitf5,
+ladder and the live slate mean the same thing by "the umpire". The
+caller-presence check (extended to require `ump_kbb=` on every
+`simulate_game` call in src/) CAUGHT FITF5 AND LADDER UNWIRED on its
+first run — the fifth-caller failure class, stopped by the check this
+time. Four new checks, each mutation-verified by hand with cp backups;
+`USE_UMP_KBB` pinned in the default list; two sweep entries whose
+regexes were verified to match. 455 checks.
+
+THE A/B, against the falsifier registered BEFORE the wire was built:
+flag off reproduces engine fingerprint 079082494e7e exactly and moves
+no row (the battery wrote a _dup rather than overwrite the baseline —
+its own guard). Flag on -> 9229ea8a0897:
+
+  * RUN LEVEL: max move 0.14 se (F5, 2025). HOLDS.
+  * K SHAPE toward real in >= 3/4 folds: k_sd closer in 2023/24/26,
+    k_9_plus_share closer in the same three, 2025 wider by ~0.001 se.
+    HOLDS at 3/4. The moves are ~2% of the K-tail deficit — the honest
+    size of the umpire's slice of the missing dispersion.
+  * WALK TRAFFIC: mass_0_3 and mass_8_plus closer 3/4; the two
+    shutout-share rows split 2/4 on moves of <= 0.1 se — UNRESOLVABLE
+    at that size, the same reading as item 7's 2026 wind clause, and
+    recorded as such rather than failed. Nothing was rescaled.
+  * ONLY ITS OWN ROWS: nothing moved past one se anywhere.
+
+SHIPPED ON by this session reading the falsifier literally, which the
+2026-09-06 handoff explicitly delegated to a Fable session. The revert
+is one flag (`sim.USE_UMP_KBB`), pinned so flipping it is a decision.
+
+WHAT REMAINS ON ITEM 8: the within-inning route is closed (8a, null),
+three shared-night conditions now ship (temperature, wind, umpire).
+Next candidates for between-game variance are thinner; the parked flat
+dispersion term remains a HUMAN decision, and the oracle note from the
+pen-roles ship still stands. WATCH: the umpire table is fitted through
+2026-06-30; rebuild it when the season rolls, and slate-time crew
+coverage (how often the plate umpire is published before price time)
+has not been measured — the live path is silent-neutral when missing.

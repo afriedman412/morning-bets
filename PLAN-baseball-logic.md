@@ -199,18 +199,19 @@ with a 2022 pbp backfill or a pre-registered trend test; the k/bb
 contact near-miss is recorded in the notes and is under the leverage
 floor regardless.
 
-### 8b. Shared-night conditions — UMPIRE COUNTED 2026-09-06, SURVIVES
-Temperature and wind shipped. The plate umpire is COUNTED and passes
-both registered gates (`scratchpad/ump_kbb.py`, full result in the
-notes): k tau 0.0176 / split-half +0.352, bb tau 0.0438 / +0.454,
-season-pair r +0.204/+0.323 over 211 pairs. Walks are the channel —
-2.5x the k spread. THE WIRE IS THE OPEN STEP, falsifier registered in
-the notes before building: shrink per-umpire mults toward 1.0 against
-tau (stabilise arithmetic), thread a per-game (k, bb) pair through
-`simulate_game` like `hr_air`, join `game_officials` in replay; A/B
-must move only K/BB rows, move the K shape and walk traffic TOWARD
-real in >= 3 of 4 folds, hold the run level inside one se. Slate-time
-crew availability is its own check before the live path reads it.
+### 8b. Shared-night conditions — UMPIRE SHIPPED 2026-09-06
+### (`sim.USE_UMP_KBB`)
+Temperature, wind, and now the plate umpire. Counted (k tau 0.0176 /
+split-half +0.352, bb tau 0.0438 / +0.454, season-pair +0.204/+0.323
+over 211 pairs — walks are the channel, 2.5x the k spread), shrunk
+against tau, wired through the air's rail, and shipped on the
+falsifier registered BEFORE the wire: run level held (max 0.14 se), K
+shape toward real 3/4 folds on both rows, mass rows 3/4, the
+shutout sub-clause unresolvable at <= 0.1 se and recorded as such.
+Flag-off reproduces 079082494e7e exactly; baseline is now
+battery_9229ea8a0897.json. OPEN: slate-time crew coverage is
+unmeasured (live path is silent-neutral when the crew is missing),
+and the table wants a rebuild when the season rolls.
 
 ---
 

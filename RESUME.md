@@ -16,6 +16,21 @@ it belongs in `NOTES-context-layer.md`.
 
 ## WHERE THINGS STAND (2026-09-06, night — Fable session)
 
+**ITEM 8b SHIPPED THE PLATE UMPIRE (`sim.USE_UMP_KBB`), the third
+shared-night condition.** Counted with the staffs-he-drew confound
+standardised out (bb tau 0.0438, split-half +0.454, season-pair +0.323;
+k tau 0.0176 — WALKS are the channel), shrunk against tau, renormalised
+to a game-weighted mean of 1.0, wired through the air's rail into
+replay/fitf5/ladder/slate. The A/B passed the falsifier registered
+before the wire existed: run level held (max 0.14 se), k_sd and
+k_9_plus_share toward real in 3/4 folds, mass rows 3/4, shutout
+sub-clause unresolvable at 0.1 se. Flag-off reproduced 079082494e7e
+exactly; NEW BASELINE battery_9229ea8a0897.json. The extended
+caller-presence check caught fitf5 and ladder unwired on its first run
+— the fifth-caller class, stopped by a check this time. OPEN on 8b:
+slate-time crew coverage unmeasured (silent-neutral when missing);
+rebuild the table when the season rolls.
+
 **ITEM 8a IS RESOLVED: WITHIN-INNING FEEDBACK IS A NULL AT THE REGISTERED
 BAR, AND NOTHING WIRED.** `scratchpad/inning_feedback.py`, 398,605
 pre-July PAs over four seasons, three controls on a heterogeneous inning
