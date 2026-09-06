@@ -28,8 +28,14 @@ fingerprint ada0369f, 428 checks.
 2026-only; the 2023-25 folds had been replaying proxy orders). Moved the
 2024 first inning toward real and nothing else past one se.
 
-**NEXT: item 4 (GB% into double plays and hit mix), starting with the 4a
-plumbing that fills the battery's empty quintile rows.**
+**ITEM 4a SHIPPED (2026-09-06): `gb_pct` counted from our own pbp cache
+(never Savant — season-to-date knows the future), shrunk by measured
+constants (bat 112, pit 77 — forty times faster than pitcher BABIP),
+carried inert on every rate object. The battery quintile rows are live
+and show the target: model DP flat vs real 0.224->0.286 by pitcher GB
+quintile; model XBH flat vs real 0.273->0.228 by batter quintile.
+NEXT: 4b — gidp_rate reads the matchup, log5-style odds vs the league
+DP rate.**
 
 ## WHERE THINGS STOOD (2026-09-06, mid-day)
 

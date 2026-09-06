@@ -87,12 +87,14 @@ contact suppression enters through HR% alone.
 This is two or three sessions. Split it and ship each half on its own
 count.
 
-### 4a. Plumbing
-Savant is already fetched (`sources/savant.py`). Carry `gb_pct` on
-`BatterRates` and `PitcherRates`, shrunk with a constant MEASURED by
-`stabilise.py`'s method (expect it to stabilise fast — it is among the most
-reliable per-player rates). Inert until a table reads it; fingerprint must
-not move. Check it as plumbing.
+### 4a. Plumbing — SHIPPED 2026-09-06
+
+Counted from the pbp cache (`sources/battedball.py`), NOT fetched:
+Savant is season-to-date and would hand prior folds the future. Shrunk
+by measured constants (bat k=111.9, pit k=76.8 — `gb_stabilise.py`).
+Inert, fingerprint unchanged, quintile rows live in the battery: model
+DP flat vs real 0.224->0.286 by pitcher quintile (q5 -3.9 sigma); model
+XBH flat vs real 0.273->0.228 by batter quintile (q5 +4.4 sigma).
 
 ### 4b. Double plays by GB%
 COUNT: DP rate per opportunity (man on first, <2 out, ball in play that is

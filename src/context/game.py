@@ -984,5 +984,6 @@ def _arm(row: dict) -> sim.PitcherRates:
         r = row["_rates"] = sim.PitcherRates(
             name=row["name"], k_pct=row["k_pct"], bb_pct=row["bb_pct"],
             hr_pct=row["hr_pct"], babip=row["babip"], pa=row.get("pa", 0),
-            hand=roster.throws(row["name"]) or "")
+            hand=roster.throws(row["name"]) or "",
+            gb_pct=row.get("gb_pct"))
     return r

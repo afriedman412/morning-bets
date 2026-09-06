@@ -148,3 +148,48 @@ def check_missing_dates_excludes_the_end():
     got = season.missing_dates(start=dt.date(2026, 4, 1),
                                end=dt.date(2026, 4, 3), conn=_C())
     assert got == ["2026-04-01", "2026-04-02"], got
+
+
+def check_gb_share_is_counted_scoped_and_shrunk():
+    """Item 4a's plumbing contract: ground-ball share is COUNTED from the
+    pbp cache (never fetched season-to-date, which would hand prior folds
+    an index that knows the future), obeys the same date cuts rates do,
+    and shrinks a thin sample toward the league."""
+    from src.context.sources import battedball as bb
+    full = bb.gb_pct_map("pit")
+    assert len(full) > 800, len(full)
+    vals = list(full.values())
+    lg = sum(vals) / len(vals)
+    assert 0.38 < lg < 0.47, lg
+    assert all(0.10 < v < 0.75 for v in vals)
+    # The cutoff reaches the count: an early-season cut must not return
+    # the same table as the full scan.
+    cut = bb.gb_pct_map("pit", 2026, "2026-05-01")
+    assert cut and cut != full
+    # Thin samples sit near the league — the measured k, not a guess.
+    counts = bb.gb_counts("pit")
+    thin = [nm for nm, (_g, n) in counts.items() if 0 < n <= 5]
+    for nm in thin[:20]:
+        assert abs(full[nm] - lg) < 0.08, (nm, full[nm])
+
+
+def check_the_cases_carry_gb_for_both_sides_of_the_ball():
+    """The plumbing is only plumbing if the engine's inputs actually carry
+    it: starters and lineups out of `build_cases`, arms out of `bullpens`.
+    None on a name nobody counted is correct; None everywhere is a dead
+    wire."""
+    from src.context import calibrate as cal, sim
+    from src.context.sources import rates as rate_src
+    pairs = cal.paired_cases(rates_before="2026-07-01", since="2026-07-01")
+    gids = sorted(pairs)[:40]
+    sp = [pairs[g][i][1].gb_pct for g in gids for i in (0, 1)]
+    assert sum(v is not None for v in sp) / len(sp) > 0.9, \
+        "starters missing gb_pct — the build_cases wire is dead"
+    bats = [b.gb_pct for g in gids for c in pairs[g] for b in c[2]]
+    assert sum(v is not None for v in bats) / len(bats) > 0.8, \
+        "batters missing gb_pct"
+    lg = sim.league(before="2026-07-01")
+    pens = rate_src.bullpens(lg, before="2026-07-01")
+    arms = [a["gb_pct"] for team in list(pens.values())[:10] for a in team]
+    assert sum(v is not None for v in arms) / len(arms) > 0.8, \
+        "pen arms missing gb_pct"

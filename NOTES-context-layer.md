@@ -8488,3 +8488,49 @@ subject to that gradient; worth fixing in the battery some day.
 NEXT. Item 4 (batted-ball profile: GB% into double plays and hit mix),
 starting with the 4a plumbing that fills the battery's empty quintile
 rows.
+
+## 2026-09-06 (later) — ITEM 4a: GB% PLUMBED, AND THE QUINTILE ROWS LIGHT UP
+
+QUESTION. Can ground-ball share be carried on every rate object, counted
+with proper date cuts, without touching a single simulated outcome — and
+what do the battery's quintile rows say once they light up?
+
+COUNTED, NOT FETCHED. Savant serves GB% season-to-date only — a 2023
+fold scored against today's table reads an input that knows the future,
+the park-index anachronism all over again. The pbp cache carries
+`hitData.trajectory` on essentially every ball in play, so
+`sources/battedball.py` counts it per player per game into a derived
+table (568k player-game rows, 10k games), and `before=` means what it
+means everywhere else. The count passes the smell test at both extremes:
+Tim Hill 0.651, Paul Sewald 0.256, on 400+ BIP each.
+
+SHRINKAGE MEASURED by `stabilise.py`'s exact method (odd/even games,
+Spearman-Brown, k = n(1-r)/r; `scratchpad/gb_stabilise.py`): bat k=111.9
+(r_full 0.725, 861 players), pit k=76.8 (r_full 0.750, 1,093 players).
+The pitcher constant is FORTY TIMES smaller than his BABIP's 3,068 —
+contact TYPE is a stable trait in a way contact OUTCOME is not, which is
+the whole premise of item 4. The placeholder guesses written before
+measuring (27/60) were both wrong; the method rules.
+
+PLUMBED INERT: `gb_pct` on `BatterRates` and `PitcherRates`, populated
+in `build_cases` (fold-scoped), `bullpens` (which knows its date scope),
+and the LIVE slate — engine fingerprint bit-identical before and after
+(b4ee76d2), 430 checks green, both new checks mutation-verified (shrink
+disabled and dead-wire both caught).
+
+THE MEASURED GAP, 2026 fold, now standing battery rows:
+    DP per opportunity by PITCHER GB quintile: model FLAT 0.221-0.225,
+    real 0.224 -> 0.286 top quintile — the q5 gap is -0.061 at -3.9.
+    XBH share by BATTER GB quintile: model FLAT ~0.258, real slopes
+    0.273 (q1, fly-ball bats) to 0.228 (q5) — +0.031 at +4.4 in q5.
+These are 4b's and 4c's pre-registered targets, measured before either
+mechanism exists. Battery diff vs the platoon baseline: NO row past one
+se — including the overnight data drift (cron finals + roster refresh),
+which was diagnosed this morning (fingerprint ada0369f -> adac7bcd on an
+identical tree: September call-ups entering the roster cache reach the
+platoon hand lookups; data arrival, not an unpinned input — intra-session
+hashes are stable, drift documented).
+
+NEXT. 4b: count DP rate by GB in a log5-style odds construction and make
+`gidp_rate` read the matchup. Then 4c: hit mix. Both score on the rows
+above.

@@ -219,7 +219,11 @@ def _model_one(gid: str) -> dict:
          "hook": {"bnd": defaultdict(lambda: [0.0, 0]),
                   "mid": defaultdict(lambda: [0.0, 0])},
          "sp": {s: {"outs": Counter(), "k": Counter(), "spike_mid": Counter(),
-                    "mid": 0} for s in ("away", "home")},
+                    "mid": 0, "dp_opp": 0, "dp": 0}
+                for s in ("away", "home")},
+         # Per-batter singles and extra-base hits, for the GB-quintile
+         # rows — {name: [1b, xbh]} summed over draws.
+         "bathits": defaultdict(lambda: [0, 0]),
          "pa": Counter(), "plat": Counter(),
          # Draw-level distributions per CLUB, so mass rows are read off the
          # actual draws rather than a normal approximation to their mean.
@@ -286,10 +290,18 @@ def _model_one(gid: str) -> dict:
             if o in (sim.B1, sim.B2, sim.B3, sim.HR, sim.OUT, sim.ROE,
                      sim.SAC):
                 pa["bip"] += 1
+            if o == sim.B1:
+                m["bathits"][batter][0] += 1
+            elif o in (sim.B2, sim.B3):
+                m["bathits"][batter][1] += 1
             if o == sim.OUT and pre_first and pre_outs < 2:
                 pa["dp_opp"] += 1
                 if douts == 2:
                     pa["dp"] += 1
+                sp_side = sp_ids.get(rid)
+                if sp_side:
+                    m["sp"][sp_side]["dp_opp"] += 1
+                    m["sp"][sp_side]["dp"] += douts == 2
             side = sp_ids.get(rid)
             if side:
                 hand = sp_hand[side]
@@ -311,6 +323,7 @@ def _model_one(gid: str) -> dict:
     for key in ("one", "ext", "a", "h", "af", "hf"):
         m[key] /= _SIMS
     m["hook"] = {c: dict(v) for c, v in m["hook"].items()}
+    m["bathits"] = dict(m["bathits"])
     # Lineup platoon-advantage share per CLUB vs the opposing starter, for
     # the stacked-lineup decile. away[2] is the nine the away PITCHER
     # faces — the HOME club's batters — per the standing crossing.
@@ -331,7 +344,11 @@ def _model_one(gid: str) -> dict:
 def _actual_one(gid: str, data: dict) -> dict:
     a = {"inn": defaultdict(int), "one": 0.0, "ext": 0.0,
          "late": {b: [0.0, 0] for b in range(MARGIN_CAP + 1)},
-         "pa": Counter(), "plat": Counter(), "kind": {}}
+         "pa": Counter(), "plat": Counter(), "kind": {},
+         # Starter-restricted DP counts per pitching half, and per-batter
+         # singles/XBH — the real side of the GB-quintile rows.
+         "sp_dp": {"away": [0, 0], "home": [0, 0]},
+         "bathits": defaultdict(lambda: [0, 0])}
     first = {}
     cum = defaultdict(lambda: [0, 0])   # inning -> [away runs, home runs]
     max_inn = 0
@@ -365,10 +382,19 @@ def _actual_one(gid: str, data: dict) -> dict:
         if ev in EV_HIT or ev in EV_INPLAY_OUT or ev in EV_SAC \
                 or ev == "field_error":
             pa["bip"] += 1
+        nm = (mu.get("batter") or {}).get("fullName")
+        if nm:
+            if ev == "single":
+                a["bathits"][nm][0] += 1
+            elif ev in ("double", "triple"):
+                a["bathits"][nm][1] += 1
         if ev in EV_INPLAY_OUT and bases[0] and outs < 2:
             pa["dp_opp"] += 1
             if ev in EV_DP:
                 pa["dp"] += 1
+            if pid and pid == first.get(pit_side):
+                a["sp_dp"][pit_side][0] += 1
+                a["sp_dp"][pit_side][1] += ev in EV_DP
         if pid and pid == first.get(pit_side):
             pa["sp_pa"] += 1
             bs = ((mu.get("batSide") or {}).get("code"))
@@ -408,6 +434,7 @@ def _actual_one(gid: str, data: dict) -> dict:
             a["lad"][i] = run
     a["pa"]["runs"] = ca + ch
     a["inn"] = dict(a["inn"])
+    a["bathits"] = dict(a["bathits"])
     try:
         for e in boundary.exits(gid, data):
             a["kind"][e.get("pitcher")] = e.get("kind")
@@ -584,11 +611,79 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
     fold.add("contact", "xbh_share_nonhr_hits", xm, xa,
              _rate_se(xa, pa_a["xbh"] + pa_a["h1"]),
              pa_a["xbh"] + pa_a["h1"])
-    for q in range(1, 6):
-        fold.add("contact", f"dp_by_pitcher_gb_q{q}", None, None, 0.0, 0,
-                 "EMPTY until item 4a plumbs gb_pct")
-        fold.add("contact", f"xbh_by_batter_gb_q{q}", None, None, 0.0, 0,
-                 "EMPTY until item 4a plumbs gb_pct")
+    # GB-QUINTILE ROWS, live since item 4a plumbed `gb_pct`. Quintiles are
+    # a CONDITIONING variable, so both sides bucket on the same value —
+    # the model's shrunk, cutoff-scoped share — and the rows measure how
+    # the model's flat tables miss by contact type, which is the gap 4b
+    # and 4c exist to close. Names with no counted share are dropped from
+    # these rows only.
+    sp_gb = {}
+    bat_gb = {}
+    for g in gids:
+        for side, idx in (("away", 0), ("home", 1)):
+            v = _CASES[g][idx][1].gb_pct
+            if v is not None:
+                sp_gb[(g, side)] = v
+        for case in _CASES[g]:
+            for b in case[2]:
+                if b.gb_pct is not None and b.name not in bat_gb:
+                    bat_gb[b.name] = b.gb_pct
+
+    def _edges(vals):
+        s = sorted(vals)
+        return [s[int(len(s) * q / 5)] for q in range(1, 5)]
+
+    def _q(v, edges):
+        return sum(v >= e for e in edges) + 1
+
+    if sp_gb:
+        edges = _edges(list(sp_gb.values()))
+        mo = {q: [0, 0] for q in range(1, 6)}
+        ra = {q: [0, 0] for q in range(1, 6)}
+        for (g, side), v in sp_gb.items():
+            q = _q(v, edges)
+            d = got[g][0]["sp"][side]
+            mo[q][0] += d["dp_opp"]
+            mo[q][1] += d["dp"]
+            opp, k_ = got[g][1]["sp_dp"][side]
+            ra[q][0] += opp
+            ra[q][1] += k_
+        for q in range(1, 6):
+            if not (ra[q][0] and mo[q][0]):
+                continue
+            ar = ra[q][1] / ra[q][0]
+            fold.add("contact", f"dp_by_pitcher_gb_q{q}",
+                     mo[q][1] / mo[q][0], ar, _rate_se(ar, ra[q][0]),
+                     ra[q][0])
+    else:
+        for q in range(1, 6):
+            fold.add("contact", f"dp_by_pitcher_gb_q{q}", None, None, 0.0,
+                     0, "EMPTY until item 4a plumbs gb_pct")
+    if bat_gb:
+        edges = _edges(list(bat_gb.values()))
+        mo = {q: [0, 0] for q in range(1, 6)}
+        ra = {q: [0, 0] for q in range(1, 6)}
+        for g in gids:
+            for acc, src in ((mo, got[g][0]["bathits"]),
+                             (ra, got[g][1]["bathits"])):
+                for nm, (h1, xbh) in src.items():
+                    v = bat_gb.get(nm)
+                    if v is None:
+                        continue
+                    q = _q(v, edges)
+                    acc[q][0] += h1
+                    acc[q][1] += xbh
+        for q in range(1, 6):
+            mn, rn = sum(mo[q]), sum(ra[q])
+            if not (mn and rn):
+                continue
+            ar = ra[q][1] / rn
+            fold.add("contact", f"xbh_by_batter_gb_q{q}",
+                     mo[q][1] / mn, ar, _rate_se(ar, rn), rn)
+    else:
+        for q in range(1, 6):
+            fold.add("contact", f"xbh_by_batter_gb_q{q}", None, None, 0.0,
+                     0, "EMPTY until item 4a plumbs gb_pct")
     for t in range(40, 100, 10):
         fold.add("weather", f"hr_bip_temp_{t}s", None, None, 0.0, 0,
                  "EMPTY until item 5 joins the weather cache")

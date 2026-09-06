@@ -651,6 +651,15 @@ def build_cases(season=None, before=None, max_starts=None, since=None,
         sides = order_src.batter_sides()
     except Exception:
         sides = {}
+    # Ground-ball shares, counted under the SAME date scope as the rates —
+    # a fold's gb_pct must not know the future any more than its K% does.
+    # Inert plumbing until item 4b/4c read it; None when uncounted.
+    try:
+        from src.context.sources import battedball
+        gb_bat = battedball.gb_pct_map("bat", rs, rb)
+        gb_pit = battedball.gb_pct_map("pit", rs, rb)
+    except Exception:
+        gb_bat, gb_pit = {}, {}
     _hand_memo: dict = {}
 
     def _throws(nm):
@@ -681,7 +690,8 @@ def build_cases(season=None, before=None, max_starts=None, since=None,
                 sim.BatterRates(name=nm, k_pct=use["k_pct"],
                                 bb_pct=use["bb_pct"], hr_pct=use["hr_pct"],
                                 babip=use["babip"], pa=b["pa"],
-                                side=sides.get(nm, "")))
+                                side=sides.get(nm, ""),
+                                gb_pct=gb_bat.get(nm)))
         if (USE_MIXTURE or USE_CONTACT_MIXTURE) and _MIX[0]:
             data, lgp, lgu = _MIX
             if USE_CONTACT_MIXTURE:
@@ -721,7 +731,8 @@ def build_cases(season=None, before=None, max_starts=None, since=None,
         cases.append((s, sim.PitcherRates(
             name=p["name"], k_pct=p["k_pct"], bb_pct=p["bb_pct"],
             hr_pct=p["hr_pct"], babip=p["babip"], pa=p["pa"],
-            hand=_throws(p["name"])), lineup))
+            hand=_throws(p["name"]),
+            gb_pct=gb_pit.get(p["name"])), lineup))
     _CASES[key] = cases
     return cases
 

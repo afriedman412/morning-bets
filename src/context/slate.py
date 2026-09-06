@@ -205,13 +205,19 @@ def _build(names, br, league_bats):
         sides = order_src.batter_sides()
     except Exception:
         sides = {}
+    try:
+        from src.context.sources import battedball
+        gb = battedball.gb_pct_map("bat")
+    except Exception:
+        gb = {}
     out = []
     for nm in names:
         b = br.get(nm)
         out.append(sim.BatterRates(
             name=nm, k_pct=b["k_pct"], bb_pct=b["bb_pct"],
             hr_pct=b["hr_pct"], babip=b["babip"], pa=b["pa"],
-            side=sides.get(nm) or roster.bats(nm) or "")
+            side=sides.get(nm) or roster.bats(nm) or "",
+            gb_pct=gb.get(nm))
             if b else league_bats)
     return out
 
@@ -277,10 +283,15 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
             hook = sim.Hook(**{
                 **hook.__dict__,
                 "team_offset": hook.team_offset + calibrate.HOME_HOOK})
+        try:
+            from src.context.sources import battedball
+            gb_p = battedball.gb_pct_map("pit").get(name)
+        except Exception:
+            gb_p = None
         specs[side] = (sim.PitcherRates(
             name=name, k_pct=p["k_pct"], bb_pct=p["bb_pct"],
             hr_pct=p["hr_pct"], babip=p["babip"], pa=p["pa"],
-            hand=roster.throws(name) or ""), faces,
+            hand=roster.throws(name) or "", gb_pct=gb_p), faces,
             s["abbr"], hook)
 
     park = (calibrate.park_for(g["venue_id"])

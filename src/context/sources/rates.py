@@ -1434,6 +1434,15 @@ def reliever_league(season=None) -> dict:
     return out
 
 
+def _gb_pen(season, before) -> dict:
+    """Pitcher ground-ball shares for the bullpen rows, failure-neutral."""
+    try:
+        from src.context.sources import battedball
+        return battedball.gb_pct_map("pit", season, before)
+    except Exception:
+        return {}
+
+
 def bullpens(lg: dict, season: int | None = None, before: str | None = None,
              conn=None) -> dict[str, list[dict]]:
     """{team: [reliever rates, most-used first]}.
@@ -1472,6 +1481,10 @@ def bullpens(lg: dict, season: int | None = None, before: str | None = None,
             "name": r["name"],
             "pa": bf,
             "apps": r["apps"],
+            # Counted here because THIS function knows the date scope —
+            # an arm's gb_pct must obey the same cutoff his rates do.
+            # Inert until item 4b/4c read it.
+            "gb_pct": _gb_pen(season, before).get(r["name"]),
             # `pool_k` reaches relievers too, for the reason `_t` does: a
             # reliever's median line is 106 batters faced against a
             # starter's 480, so the target carries 38% of his rate and 11%

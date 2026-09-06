@@ -648,6 +648,12 @@ class PitcherRates:
     #: exactly nothing: the platoon cell in `resolve` fires only when both
     #: sides of the pairing are known. See `PLATOON_MULT`.
     hand: str = ""
+    #: Ground-ball share of his balls in play, counted from the pbp cache
+    #: (`sources/battedball.py`) and shrunk by a measured constant. None
+    #: means uncounted, and NOTHING READS IT YET — plumbed inert for PLAN
+    #: item 4 so the battery's quintile rows can measure the gap before
+    #: any mechanism consumes it.
+    gb_pct: float | None = None
 
 
 @dataclass
@@ -667,6 +673,10 @@ class BatterRates:
     #: the batter on the pitcher's hand while leaving the other two
     #: unconditional biases the L-vs-L cell by +0.0013 on K% — small, but a
     #: bias rather than noise, and it grows with the size of the split.
+    #:
+    #: `gb_pct` mirrors the pitcher's: counted, shrunk, and read by
+    #: nothing until item 4b/4c wire it.
+    gb_pct: float | None = None
     side: str = ""
     lg_cell: dict | None = None
     #: Multiplier on contact quality from the arsenal projection — this
