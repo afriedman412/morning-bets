@@ -1,29 +1,96 @@
-CAUGHT (1)  errors never happen
+CAUGHT (2)  errors never happen
+           the_error_rate_is_counted_not_calibrated
            pa_outcomes_are_all_known_constants
-CAUGHT (1)  times through the order does nothing
+CAUGHT (4)  times through the order does nothing
+           longer_leash_raises_strikeout_totals
+           the_offsets_argument_reaches_the_hook
+           the_measured_mechanisms_are_switched_on_by_default
            the_pass_is_clamped_beyond_the_measured_range
-*** SURVIVED ***  advancement reverts to imported  -- nothing guards this
-*** SURVIVED ***  inherited runners revert to flat  -- nothing guards this
-CAUGHT (1)  late hook ignores pitch count
-           both_hook_branches_respond_to_their_inputs
+CAUGHT (2)  advancement reverts to imported
+           per_batter_runs_add_up_to_the_team_score
+           the_measured_mechanisms_are_switched_on_by_default
+*** SURVIVED ***  late hook ignores pitch count  -- nothing guards this
 CAUGHT (2)  late hook ignores bases occupied
            mid_inning_removal_responds_to_traffic_and_damage
            both_hook_branches_respond_to_their_inputs
-CAUGHT (2)  late hook ignores traffic allowed
+CAUGHT (3)  late hook ignores traffic allowed
+           longer_leash_raises_strikeout_totals
            mid_inning_removal_responds_to_traffic_and_damage
            both_hook_branches_respond_to_their_inputs
-CAUGHT (1)  boundary hook ignores baserunners
+CAUGHT (2)  boundary hook ignores baserunners
            removal_probability_is_monotone_in_every_term
+           the_boundary_knee_is_wired_and_ships_inert
 CAUGHT (2)  boundary hook ignores the inning
+           the_boundary_curve_is_the_fitted_one
+           the_boundary_knee_is_wired_and_ships_inert
+CAUGHT (3)  boundary hook ignores runs
            removal_probability_is_monotone_in_every_term
-           both_hook_branches_respond_to_their_inputs
-CAUGHT (2)  boundary hook ignores runs
-           removal_probability_is_monotone_in_every_term
-           per_side_prefix_totals_are_not_crossed
-*** SURVIVED ***  no hard pitch cap  -- nothing guards this
+           the_boundary_curve_is_the_fitted_one
+           the_boundary_knee_is_wired_and_ships_inert
+CAUGHT (1)  no hard pitch cap
+           the_measured_mechanisms_are_switched_on_by_default
 *** SURVIVED ***  current-inning runs offset flattened  -- nothing guards this
-*** SURVIVED ***  relief outings are one inning  -- nothing guards this
-*** SURVIVED ***  relievers are never pulled mid-inning  -- nothing guards this
-CAUGHT (1)  learned hook switched back on
+CAUGHT (1)  relief outings are one inning
+           the_measured_mechanisms_are_switched_on_by_default
+CAUGHT (1)  relievers are never pulled mid-inning
+           the_measured_mechanisms_are_switched_on_by_default
+CAUGHT (11)  learned hook switched back on
+           a_leash_offset_actually_lengthens_the_start
+           errors_raise_the_run_level
+           longer_leash_raises_strikeout_totals
+           team_offset_lengthens_or_shortens_outings
+           the_offsets_argument_reaches_the_hook
            the_shipped_hook_is_the_two_branch_one
-*** SURVIVED ***  early branches switched on  -- nothing guards this
+CAUGHT (1)  early branches switched on
+           the_measured_mechanisms_are_switched_on_by_default
+*** SURVIVED ***  platoon does nothing  -- nothing guards this
+CAUGHT (1)  double plays ignore the batted-ball profile
+           the_dp_odds_reach_the_matchup
+CAUGHT (1)  hit mix ignores the batted-ball profile
+           the_hit_mix_reads_both_gb_sides
+CAUGHT (2)  temperature does nothing
+           temp_hr_ships_on_and_is_counted
+           the_air_is_temperature_times_wind
+CAUGHT (2)  temperature table flat
+           temp_hr_ships_on_and_is_counted
+           the_air_is_temperature_times_wind
+CAUGHT (3)  wind does nothing
+           the_air_is_temperature_times_wind
+           the_shared_air_lookup_reads_the_wind_column
+           wind_hr_ships_on_and_is_counted
+CAUGHT (3)  wind table flat
+           the_air_is_temperature_times_wind
+           the_shared_air_lookup_reads_the_wind_column
+           wind_hr_ships_on_and_is_counted
+CAUGHT (2)  no advancement on a double play
+           a_double_play_scores_the_man_from_third
+           the_runner_on_second_takes_third_on_a_double_play
+CAUGHT (2)  double plays revert to the legacy rate
+           gidp_rate_applies_the_matchup_odds_to_the_odds
+           the_double_play_rate_is_the_current_era_not_the_pooled_one
+*** SURVIVED ***  rates ignore the base-out state  -- nothing guards this
+CAUGHT (1)  stolen bases leave the counted table
+           a_steal_of_third_keeps_the_runner_too
+CAUGHT (6)  the per-pitcher leash does nothing
+           a_leash_offset_actually_lengthens_the_start
+           for_start_composes_with_an_existing_team_offset
+           the_measured_leash_is_live_and_carries_provenance
+           the_offsets_argument_reaches_the_hook
+           a_tuner_can_switch_the_leash_off_at_the_side
+           the_leash_reaches_a_full_game_and_not_only_a_start
+CAUGHT (1)  the counted pitch hazard does nothing
+           the_mid_curve_reads_the_counted_hazard_and_the_boundary_does_not
+CAUGHT (2)  days of rest do nothing
+           the_layoff_is_centred_on_both_curves
+           the_layoff_reaches_both_hook_curves
+CAUGHT (2)  first-inning sharpness does nothing
+           strikeouts_cannot_exceed_outs_with_sharpness_on
+           the_offsets_argument_reaches_the_hook
+*** SURVIVED ***  bullpen state does not reach the hook  -- nothing guards this
+CAUGHT (2)  late arms revert to draw order
+           late_pen_selection_reads_the_margin
+           pen_roles_ship_on_with_the_counted_profile
+*** SURVIVED ***  no separate boundary decision  -- nothing guards this
+CAUGHT (1)  no extra-innings runner
+           rules_actually_reaches_the_simulation
+*** SURVIVED ***  hit-by-pitch ignores the role  -- nothing guards this

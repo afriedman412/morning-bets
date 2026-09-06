@@ -973,3 +973,99 @@ def check_the_engine_passes_the_matchup_to_apply_pa():
                 bad.append(f"{f.relative_to(root.parent)}:"
                            f"{node.lineno} missing mu=")
     assert not bad, bad
+
+
+def check_the_platoon_cell_reaches_the_matchup():
+    """A mutation sweep on 2026-09-06 switched `USE_PLATOON` off and all
+    448 checks passed — the platoon item shipped its MEASUREMENT tests and
+    not its wiring one. Both sides of the pairing known, so the cell fires;
+    same batter against the other hand must resolve differently, and the
+    difference must BE the counted cell rather than any other multiplier.
+    """
+    b = sim.BatterRates(name="b", side="L", k_pct=0.22, bb_pct=0.08,
+                        hr_pct=0.03, babip=0.300, pa=600)
+    vs_r = sim.resolve(b, sim.PitcherRates(name="p", hand="R", k_pct=0.22,
+                                           bb_pct=0.08, hr_pct=0.03,
+                                           babip=0.29, pa=600), LG)
+    vs_l = sim.resolve(b, sim.PitcherRates(name="p", hand="L", k_pct=0.22,
+                                           bb_pct=0.08, hr_pct=0.03,
+                                           babip=0.29, pa=600), LG)
+    assert vs_r.m_k != vs_l.m_k, "the platoon cell never reached the matchup"
+    cell = sim.PLATOON_MULT[("L", "R")]["k_pct"] / \
+        sim.PLATOON_MULT[("L", "L")]["k_pct"]
+    assert abs(vs_r.m_k / vs_l.m_k - cell) < 1e-9, "not the counted cell"
+    orig = sim.USE_PLATOON
+    sim.USE_PLATOON = False
+    try:
+        off_r = sim.resolve(b, sim.PitcherRates(name="p", hand="R",
+                                                k_pct=0.22, bb_pct=0.08,
+                                                hr_pct=0.03, babip=0.29,
+                                                pa=600), LG)
+        assert off_r.m_k != vs_r.m_k, "the flag does not gate the cell"
+    finally:
+        sim.USE_PLATOON = orig
+    assert sim.USE_PLATOON is True, "ships ON"
+
+
+def check_the_base_out_state_multiplier_is_live_and_not_flat():
+    """`USE_FIELD_STATE` off survived the same sweep. `state_mult` returning
+    None is the no-op path, so the check has to pin BOTH that a real state
+    returns a table and that the table is not all ones — a flattened
+    STATE_MULT is the same defect wearing a different hat."""
+    key = (1, 1) if (1, 1) in sim.STATE_MULT else next(iter(sim.STATE_MULT))
+    m = sim.state_mult(key)
+    assert m is not None, "a real base-out state got no multiplier"
+    assert any(abs(v - 1.0) > 1e-6 for v in m.values()), "table is flat"
+    orig = sim.USE_FIELD_STATE
+    sim.USE_FIELD_STATE = False
+    try:
+        assert sim.state_mult(key) is None, "the flag does not gate it"
+    finally:
+        sim.USE_FIELD_STATE = orig
+
+
+    assert sim.USE_FIELD_STATE is True, "ships ON"
+
+def check_pen_state_returns_the_cached_reading_not_only_the_baseline():
+    """The existing pen_state checks assert the BASELINE fallback — which
+    is exactly what the switched-off path returns, so `USE_PEN_STATE = False`
+    walked through all of them. This pins the other half: a club WITH a
+    cached reading must get that reading, and must stop getting it when the
+    flag is off."""
+    orig_flag, orig_tbl = sim.USE_PEN_STATE, sim._PENSTATE
+    sim._PENSTATE = {"ZZZ|2026-05-01": (0.1, 2.9)}
+    try:
+        assert sim.pen_state("ZZZ", "2026-05-01") == (0.1, 2.9)
+        sim.USE_PEN_STATE = False
+        assert sim.pen_state("ZZZ", "2026-05-01") == (
+            sim.PEN_BACK2_BASELINE, sim.PEN_REST_BASELINE), \
+            "the flag does not gate the lookup"
+    finally:
+        sim.USE_PEN_STATE, sim._PENSTATE = orig_flag, orig_tbl
+
+
+    assert sim.USE_PEN_STATE is True, "ships ON"
+
+def check_the_role_decides_its_own_hit_by_pitch_rate():
+    """`USE_ROLE_HBP` off survived the sweep. HBP_RATE was measured on
+    STARTERS and applied to every arm; relievers hit batters 21-34% more
+    often in every season on file. `build_side` is the only place that knows
+    which arm is the starter, so this is where it can rot unseen."""
+    assert sim.HBP_RATE_RP > sim.HBP_RATE_SP, "the counted gap is signed"
+    pool = [{"name": "r1", "k_pct": 0.24, "bb_pct": 0.08, "hr_pct": 0.03,
+             "babip": 0.29, "pa": 200, "appearances": 60}]
+    side = game.build_side(_pitcher(), pool, [], None, random.Random(3),
+                           apply_leash=False)
+    assert side.starter.hbp_rate == sim.HBP_RATE_SP
+    assert side.pen and all(a.hbp_rate == sim.HBP_RATE_RP for a in side.pen)
+    orig = game.USE_ROLE_HBP
+    game.USE_ROLE_HBP = False
+    try:
+        off = game.build_side(_pitcher(), pool, [], None, random.Random(3),
+                              apply_leash=False)
+        assert off.starter.hbp_rate != sim.HBP_RATE_SP, \
+            "the flag does not gate the role rates"
+    finally:
+        game.USE_ROLE_HBP = orig
+
+    assert game.USE_ROLE_HBP is True, "ships ON"

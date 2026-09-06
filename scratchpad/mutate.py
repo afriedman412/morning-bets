@@ -60,6 +60,53 @@ MUTATIONS = [
      "USE_LEARNED_HOOK = True", "learned hook switched back on"),
     ("src/context/sim.py", r"    early_innings: int = \d+",
      "    early_innings: int = 3", "early branches switched on"),
+    # EVERYTHING SHIPPED SINCE THE LIST WAS WRITTEN. The sweep answers
+    # "is this mechanism guarded", so it is only as good as its coverage
+    # of what actually ships — and it had drifted eight mechanisms
+    # behind. Each entry flips ONE thing and must be a real behaviour
+    # change; where a flag and its table are both live, both are swept,
+    # because a flag check that passes while the table is flat is the
+    # exact failure this harness exists to find.
+    ("src/context/sim.py", r"^USE_PLATOON = True", "USE_PLATOON = False",
+     "platoon does nothing"),
+    ("src/context/sim.py", r"^USE_GB_DP = True", "USE_GB_DP = False",
+     "double plays ignore the batted-ball profile"),
+    ("src/context/sim.py", r"^USE_GB_HITMIX = True", "USE_GB_HITMIX = False",
+     "hit mix ignores the batted-ball profile"),
+    ("src/context/sim.py", r"^USE_TEMP_HR = True", "USE_TEMP_HR = False",
+     "temperature does nothing"),
+    ("src/context/sim.py", r"^TEMP_HR_MULT = \([\d., ]+\)",
+     "TEMP_HR_MULT = (1.0, 1.0, 1.0, 1.0, 1.0)", "temperature table flat"),
+    ("src/context/sim.py", r"^USE_WIND_HR = True", "USE_WIND_HR = False",
+     "wind does nothing"),
+    ("src/context/sim.py", r"^WIND_HR_MULT = \([\d., ]+\)",
+     "WIND_HR_MULT = (1.0, 1.0, 1.0)", "wind table flat"),
+    ("src/context/sim.py", r"^USE_GIDP_ADVANCE = True",
+     "USE_GIDP_ADVANCE = False", "no advancement on a double play"),
+    ("src/context/sim.py", r"^USE_MEASURED_GIDP = True",
+     "USE_MEASURED_GIDP = False", "double plays revert to the legacy rate"),
+    ("src/context/sim.py", r"^USE_FIELD_STATE = True",
+     "USE_FIELD_STATE = False", "rates ignore the base-out state"),
+    ("src/context/sim.py", r"^USE_STEAL_TABLE = True",
+     "USE_STEAL_TABLE = False", "stolen bases leave the counted table"),
+    ("src/context/sim.py", r"^USE_LEASH = True", "USE_LEASH = False",
+     "the per-pitcher leash does nothing"),
+    ("src/context/sim.py", r"^USE_PITCH_HAZARD = True",
+     "USE_PITCH_HAZARD = False", "the counted pitch hazard does nothing"),
+    ("src/context/sim.py", r"^USE_LAYOFF = True", "USE_LAYOFF = False",
+     "days of rest do nothing"),
+    ("src/context/sim.py", r"^USE_START_SHARPNESS = True",
+     "USE_START_SHARPNESS = False", "first-inning sharpness does nothing"),
+    ("src/context/sim.py", r"^USE_PEN_STATE = True", "USE_PEN_STATE = False",
+     "bullpen state does not reach the hook"),
+    ("src/context/game.py", r"^USE_PEN_ROLES = True", "USE_PEN_ROLES = False",
+     "late arms revert to draw order"),
+    ("src/context/game.py", r"^USE_BOUNDARY_HOOK = True",
+     "USE_BOUNDARY_HOOK = False", "no separate boundary decision"),
+    ("src/context/game.py", r"^USE_AUTO_RUNNER = True",
+     "USE_AUTO_RUNNER = False", "no extra-innings runner"),
+    ("src/context/game.py", r"^USE_ROLE_HBP = True", "USE_ROLE_HBP = False",
+     "hit-by-pitch ignores the role"),
 ]
 
 
