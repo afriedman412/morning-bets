@@ -31,10 +31,18 @@ hot side +2.3 sigma, co-located with the standing dead-ball anomaly —
 one cause, two instruments (XBH level + HR hot buckets). Wind counted
 x0.90/x1.06, not wired. 444 checks; fingerprint b211fce6; baseline
 `battery_525e62464717.json`.
-NEXT, unregistered: the clustering defect (three instruments standing;
-candidates: within-inning feedback from pbp, more shared-night
-conditions), the 2026-H2 ball, or the hygiene list at the plan's foot
-(boundary refit on four-season rows, HOLDOUT literal, leash staleness).
+NEXT — REGISTERED FOR A COLD SESSION (written 2026-09-06, Fable, for
+Opus to pick up): plan items 7 (wind, temperature's mirror — the
+template and every trap are written into the item) and 8 (clustering —
+8a counts within-inning feedback with the leakage trap and positive
+control spelled out; 8b shared-night conditions after). Work ONE item,
+follow the protocol at the top of the plan, read the traps before the
+count. The hygiene list at the plan's foot is also safe cold work.
+HOLD FOR A HUMAN OR A STRONGER SESSION: any ship/park decision where
+the falsifier reads ambiguous, re-opening the flat dispersion term,
+and anything that involves rescaling a counted table to make a scored
+row go green — that is the one move every trap this week had in
+common.
 
 **ITEM 6 SHIPPED (`game.USE_PEN_ROLES`): late-inning arms are picked by
 the counted selection profile, not draw order.** The count refuted the

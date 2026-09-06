@@ -146,6 +146,97 @@ late-inning face. Full result in the notes.
 
 ---
 
+## 7. WIND INTO THE HR CHANNEL — written for a cold session
+
+Temperature's mirror; the counted numbers already exist (in 5+ mph
+x0.896, out 5+ x1.063, `scratchpad/temp_hr.py` wind section). Follow
+item 5's shipped shape EXACTLY — every trap below cost a battery run:
+
+  COUNT: extend `temp_hr.py`'s WITHIN-VENUE section to wind bins
+  (in 5+/calm-cross/out 5+, open air only; roof_closed games are
+  carry=0 by definition and must sit in calm). The pooled ratios above
+  are NOT shippable — hot/windy games concentrate in particular parks
+  and park is already applied separately (the item-5 lesson).
+  CENTRE ON CLIMATE, not the training window: reference = mean raw
+  multiplier over prior seasons' full-year wind distribution (the
+  1.0191 analogue). Era gate per season; if the three bins do not hold
+  ordering in all four seasons, PARK the item and write why.
+
+  WIRE: multiply into the SAME game-level `hr_temp` value (rename it
+  `hr_air` everywhere in one commit, or leave the name — decide once).
+  It rides `simulate_game(hr_temp=...)` -> both Sides -> the `hr_park`
+  slot. There are FIVE callers: `calibrate.replay` (via
+  `temp_mult_for`), `fitf5`, `ladder`, `slate`, and
+  `scratchpad/fingerprint.py` — the AST check covers src/ only, so
+  CHECK THE FINGERPRINT MOVED or the fifth caller is sitting still
+  again. Silent-neutral: no reading contributes exactly 1.0.
+
+  TEST: battery weather rows (add wind-bin rows next to the temp
+  ones, model vs actual HR/BIP); level control `contact/hr_per_bip`
+  must stay within one se per fold — if it lifts, the centring
+  reference is wrong (the item-5 signature).
+  FALSIFIER: the per-bin gap does not close across folds, or the
+  hr_per_bip level moves past one se in the clean folds (2023/24 —
+  2025/26 carry the dead-ball anomaly, see the notes).
+
+  PREDICT BEFORE RUNNING: expected effect is ~half of temperature's;
+  the wired slope may read steeper than holdout reality in 2026-H2 for
+  the dead-ball reason, NOT a table defect. Do not rescale the table
+  to fix 2026 — that is solving for a level on scored rows.
+
+---
+
+## 8. CLUSTERING — rallies; the biggest known defect, now with
+## instruments. DO NOT SHIP ANYTHING FROM THIS ITEM ON A FLAT DIFF
+## WITHOUT READING THE TRAPS.
+
+THE DEFECT (measured, CLAUDE.md carries it): reality has more shutouts
+AND more blowups; the model bunches in the middle. Real PAs arrive
+together; the model's resolve independently. Runs are convex in
+clustering so the thin tail also drags the mean. THREE INSTRUMENTS NOW
+STAND: traffic/mass rows (battery), sac-table occupancy (bases loaded
+0.32% model vs 0.42% real — plan item 2's parking note), late-inning
+runs by margin (+2.5 sigma pooled at margin 1, survives pen roles).
+
+DEAD ENDS, do not re-run: per-pitcher/per-club dispersion (split-half
+0.07, powered to 0.32); a flat dispersion term (closed 44% of shape /
+86% of level but is calibration-not-discrimination — PARKED, and
+re-opening it is a DECISION for a human, not a session).
+
+### 8a. COUNT within-inning feedback (a session-sized, safe first step)
+QUESTION: is the league worse at preventing the NEXT event once
+traffic is on in the SAME inning, beyond what (men on, outs) state
+multipliers already carry? Physics candidates: pitching from the
+stretch, defence holding runners.
+COUNT: from pbp, per-PA rates (k/bb/h1/xbh/hr) conditioned on
+baserunners allowed SO FAR THIS INNING by the SAME pitcher (0/1/2+),
+WITHIN (men on, outs) cells — the state table already conditions on
+occupancy, so the count must hold state fixed or it re-counts
+STATE_MULT (rule 10: name the denominator). Pre-July rows, four
+seasons, era gate. TRAP: the covariate (traffic so far) contains the
+outcome's own PA sequence — this is the 4b/4c leakage class. Condition
+on events STRICTLY BEFORE the current PA (they are), and positive-
+control the harness by injecting a known feedback into simulated
+innings and confirming the count recovers it.
+WIRE (only if the count survives): a multiplier keyed on
+(inning-traffic-so-far) applied in `pa_from` next to the state mult,
+centred over REAL cell weights — NEVER model occupancy (that absorbs
+the defect; it is why item 2 parked).
+TEST: battery traffic/mass rows, sac occupancy (re-open item 2's table
+if occupancy moves), late-by-margin, shutout/blowup shares. F5 CRPS
+expected FLAT (rule 2 — a flat CRPS is not a rejection here).
+FALSIFIER: the extreme-traffic occupancy cells do not move toward
+real across four folds, or the run LEVEL moves past one se.
+
+### 8b. Shared-night conditions (only after 8a resolves either way)
+Temperature was the first (shipped). Candidates in order: umpire zone
+(one man, both clubs, whole game — count K/BB by plate umpire from
+pbp officials data if cached), wind (item 7). Each adds BETWEEN-GAME
+variance, which fattens both tails without touching within-game
+independence.
+
+---
+
 ## OUT OF SCOPE HERE, RECORDED SO THEY ARE NOT LOST
 
 Found on the same read; they are measurement hygiene, not baseball, and
