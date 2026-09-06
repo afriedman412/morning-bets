@@ -139,6 +139,43 @@ def lineups() -> dict:
     return out
 
 
+_SIDES: dict | None = None
+
+
+def batter_sides() -> dict[str, str]:
+    """{batter name: 'L' | 'R' | 'S'}, counted off every recorded lineup
+    slot — 180k slots over four seasons, no network, no roster join.
+
+    'S' when both sides appear at least twice: a switch hitter's recorded
+    side varies with the opposing starter, so the history IS the
+    classification. A single stray record of the other side is treated as
+    a data glitch rather than a switch hitter — mislabelling a pure
+    right-handed bat as a switch hitter would flip his platoon cell
+    against left-handed arms, which is a definite wrong direction rather
+    than a missed adjustment.
+
+    Memoised: `build_cases` asks once per case build and the table only
+    changes when `sync` runs.
+    """
+    global _SIDES
+    if _SIDES is not None:
+        return _SIDES
+    acc: dict = {}
+    with store.connect(attach=False) as c:
+        for r in c.execute("select player_name nm, bat_side s, count(*) n "
+                           "from mlb_lineups where bat_side in ('L','R') "
+                           "group by 1, 2"):
+            acc.setdefault(r["nm"], {})[r["s"]] = r["n"]
+    out = {}
+    for nm, d in acc.items():
+        if len(d) > 1 and min(d.values()) >= 2:
+            out[nm] = "S"
+        else:
+            out[nm] = max(d, key=d.get)
+    _SIDES = out
+    return out
+
+
 def coverage() -> None:
     with store.connect() as c:
         g = c.execute(f"select count(*) n from {store.BETS}.games "

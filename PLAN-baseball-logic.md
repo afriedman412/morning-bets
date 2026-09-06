@@ -12,12 +12,12 @@ nothing here is rejected on one.
 
 ## HOW TO WORK THIS FILE
 
-ONE ITEM PER SESSION. The battery (item 0) and PARK (item 1) SHIPPED
-2026-09-05 — `scratchpad/battery.py` / CLAUDE.md rule 15, and
-`calibrate.USE_PARK` + `NEUTRALISE_PARK` on the pre-registered per-venue
-test. Every remaining item is scored on battery rows. The rest are
-ordered by runs per day of work and by dependency. Do not skip ahead.
-Before starting any item:
+ONE ITEM PER SESSION. Shipped so far: the battery (item 0, 2026-09-05),
+PARK (item 1, 2026-09-05), GIDP advancement (2a, 2026-09-06), PLATOON
+(item 3, 2026-09-06 — `sim.USE_PLATOON`, per-batter falsifier 3/4 folds,
+2026 on all rows). Item 2's sac table is PARKED below. Every remaining
+item is scored on battery rows, ordered by runs per day of work and by
+dependency. Do not skip ahead. Before starting any item:
 
   1. `git status` clean. `venv/bin/python -m tests.run` green. Record the
      count.
@@ -74,54 +74,6 @@ defect, measured at new resolution, not a defect of this table.
 RE-OPEN when clustering/occupancy moves, or with an explicit decision
 that the level-through-occupancy is the honest projection. DO NOT
 re-centre the table on model occupancy — that absorbs the defect.
-
----
-
-## 3. PLATOON — the LEAGUE cell, as an odds multiplier
-
-STATUS: `calibrate.USE_HANDEDNESS = False`. `BatterRates.side`,
-`BatterRates.lg_cell`, `PitcherRates.vs_side` exist and are inert.
-
-ESTABLISHED (NOTES day thirteen, `scratchpad/platoon_league.py`): four
-cells counted on ~754k PA —
-
-    bat/pit        K%      BB%      HR%    BABIP
-    R vs R      0.2296   0.0878   0.0298   0.2954
-    R vs L      0.2205   0.0954   0.0312   0.3027
-    L vs R      0.2187   0.1067   0.0325   0.2955
-    L vs L      0.2387   0.0939   0.0240   0.2973
-
-— and the full matchup construction (individual splits shrunk toward the
-cell, pitcher vs side) scored FLAT on start-level K/BB/HR/H marginals.
-
-WHY THAT NULL DOES NOT SETTLE IT: nine mixed hands average the effect away
-in a start-level marginal by construction. The `USE_HANDEDNESS` docstring's
-argument — the manager stacked his lineup so the effect is "expressed in who
-is batting" — is a selection argument about WHO bats, not a rate argument
-about what happens when he does. The left-handed bat who stays in against
-the lefty still loses 26% of his home run rate.
-
-BUILD THE SIMPLE VERSION ONLY: the league cell ratio, applied through
-`odds_mult` the way `STATE_MULT` is, keyed on (batter side, pitcher hand).
-No individual splits — their reliability is the noisy half and was the
-defect in every earlier attempt. Switch hitters resolve to the side they
-bat from against this hand. Ratios centred so the PA-weighted mean over
-the real hand mix is 1.000 per channel.
-
-TEST — score where the effect lives, not where it cancels:
-  * Per-batter attribution: HR and K by batter, split by whether he had
-    the platoon advantage, model against real, holdout.
-  * Stacked starts: the top-decile of starts by lineup platoon-advantage
-    share (mostly RHB vs LHP), team-total residual off vs on.
-  * Start-level marginals as the CONTROL: they should stay flat. That is
-    the prediction, not a failure.
-  * Four folds.
-
-FALSIFIER: per-batter HR / K residual by advantage side does not shrink,
-or the stacked-decile residual does not move toward zero, in three of four
-folds.
-
-DO NOT re-run the individual-split construction. Do not fit the cells.
 
 ---
 

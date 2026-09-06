@@ -976,7 +976,13 @@ def _arm(row: dict) -> sim.PitcherRates:
     """
     r = row.get("_rates")
     if r is None:
+        # The throwing hand feeds the platoon cell. Ambiguous or unknown
+        # names resolve to "" and the cell stays neutral for that arm —
+        # never a guessed hand, which would flip a batter's cell in a
+        # definite wrong direction.
+        from src import roster
         r = row["_rates"] = sim.PitcherRates(
             name=row["name"], k_pct=row["k_pct"], bb_pct=row["bb_pct"],
-            hr_pct=row["hr_pct"], babip=row["babip"], pa=row.get("pa", 0))
+            hr_pct=row["hr_pct"], babip=row["babip"], pa=row.get("pa", 0),
+            hand=roster.throws(row["name"]) or "")
     return r

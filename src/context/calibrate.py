@@ -640,6 +640,25 @@ def build_cases(season=None, before=None, max_starts=None, since=None,
     # from — the persona pipeline was never the right owner of a model input.
     arsenals: dict = {}
 
+    # Batter sides for the platoon cell, counted off the recorded lineups
+    # (`order.batter_sides`), and each starter's throwing hand from the
+    # roster. Unknown on either side of a pairing means NEUTRAL in
+    # `sim.resolve` — the same silent-zero rule as every other lookup —
+    # so these are populated unconditionally and cost nothing while
+    # `USE_PLATOON` is off.
+    try:
+        from src.context import order as order_src
+        sides = order_src.batter_sides()
+    except Exception:
+        sides = {}
+    _hand_memo: dict = {}
+
+    def _throws(nm):
+        if nm not in _hand_memo:
+            _hand_memo[nm] = roster.throws(
+                nm, rs if isinstance(rs, int) else None) or ""
+        return _hand_memo[nm]
+
     cases = []
     for s in actual_starts(season, before, max_starts, since):
         p = pr.get(s["player_name"])
@@ -661,7 +680,8 @@ def build_cases(season=None, before=None, max_starts=None, since=None,
             lineup.append(
                 sim.BatterRates(name=nm, k_pct=use["k_pct"],
                                 bb_pct=use["bb_pct"], hr_pct=use["hr_pct"],
-                                babip=use["babip"], pa=b["pa"]))
+                                babip=use["babip"], pa=b["pa"],
+                                side=sides.get(nm, "")))
         if (USE_MIXTURE or USE_CONTACT_MIXTURE) and _MIX[0]:
             data, lgp, lgu = _MIX
             if USE_CONTACT_MIXTURE:
@@ -700,7 +720,8 @@ def build_cases(season=None, before=None, max_starts=None, since=None,
                     x.arsenal_k_mult = v["k"]
         cases.append((s, sim.PitcherRates(
             name=p["name"], k_pct=p["k_pct"], bb_pct=p["bb_pct"],
-            hr_pct=p["hr_pct"], babip=p["babip"], pa=p["pa"]), lineup))
+            hr_pct=p["hr_pct"], babip=p["babip"], pa=p["pa"],
+            hand=_throws(p["name"])), lineup))
     _CASES[key] = cases
     return cases
 

@@ -14,7 +14,24 @@ it belongs in `NOTES-context-layer.md`.
     RESUME-ARCHIVE.md    Days six to sixteen, moved out of here. Not deleted,
                          but its figures predate several engine changes.
 
-## WHERE THINGS STAND (2026-09-06)
+## WHERE THINGS STAND (2026-09-06, end of day)
+
+**PLATOON SHIPPED (`sim.USE_PLATOON`)** — the league cell as an odds
+multiplier per (batter side, pitcher hand) pairing, counted on 761,719
+PA. Per-batter falsifier passed 3/4 folds; 2026 improved on every row
+(adv-side K residual 0.0062 -> 0.0008); start-level marginals flat as
+predicted. Adv-K overshoots ~2 se in 2024-25 where the counted RHB
+advantage faded — watch item. Baseline `battery_b33f96512e59.json`,
+fingerprint ada0369f, 428 checks.
+
+**REAL BATTING ORDERS NOW COVER ALL FOUR SEASONS** (mlb_lineups was
+2026-only; the 2023-25 folds had been replaying proxy orders). Moved the
+2024 first inning toward real and nothing else past one se.
+
+**NEXT: item 4 (GB% into double plays and hit mix), starting with the 4a
+plumbing that fills the battery's empty quintile rows.**
+
+## WHERE THINGS STOOD (2026-09-06, mid-day)
 
 **GIDP ADVANCEMENT SHIPPED (`sim.USE_GIDP_ADVANCE`).** On a nobody-out
 double play the man on third now scores (counted 0.8515, four seasons

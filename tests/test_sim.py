@@ -2332,3 +2332,92 @@ def check_the_runner_on_second_takes_third_on_a_double_play():
     assert dps > 1000, dps
     rate = took / dps
     assert 0.85 < rate < 0.98, f"2B takes third on {rate:.3f}, counted 0.9277"
+
+
+def check_the_platoon_cell_reaches_the_matchup():
+    """The league cell must land on the multipliers, per pairing: the
+    L-vs-L bat loses 22% of his home run rate, the L-vs-R bat gains 6%.
+    Asserted as the RATIO of resolved multipliers so park and arsenal
+    cannot fake it either way."""
+    p_l = sim.PitcherRates(name="lhp", hand="L")
+    p_r = sim.PitcherRates(name="rhp", hand="R")
+    b = sim.BatterRates(name="lhb", side="L")
+    orig = sim.USE_PLATOON
+    sim.USE_PLATOON = True
+    try:
+        ll = sim.resolve(b, p_l, LG)
+        lr = sim.resolve(b, p_r, LG)
+    finally:
+        sim.USE_PLATOON = orig
+    assert abs(ll.m_hr / lr.m_hr
+               - sim.PLATOON_MULT[("L", "L")]["hr_pct"]
+               / sim.PLATOON_MULT[("L", "R")]["hr_pct"]) < 1e-9
+    assert ll.m_k > lr.m_k, "L-vs-L must strike out more than L-vs-R"
+    # ABSOLUTE pins on the counted values, because the ratio above reads
+    # the table for its own expectation and a silently neutralised cell
+    # would agree with itself. These are the two largest effects and the
+    # reason the mechanism exists; a table without them is not this table.
+    assert sim.PLATOON_MULT[("L", "L")]["hr_pct"] < 0.85
+    assert sim.PLATOON_MULT[("L", "R")]["bb_pct"] > 1.05
+
+
+def check_a_switch_hitter_takes_the_advantage_side():
+    """'S' resolves to the OPPOSITE of the arm on the mound — the side he
+    would actually bat from — so a switch hitter is never handed the
+    same-hand penalty cell."""
+    s = sim.BatterRates(name="switch", side="S")
+    lhb = sim.BatterRates(name="lhb", side="L")
+    rhb = sim.BatterRates(name="rhb", side="R")
+    rhp = sim.PitcherRates(name="rhp", hand="R")
+    lhp = sim.PitcherRates(name="lhp", hand="L")
+    orig = sim.USE_PLATOON
+    sim.USE_PLATOON = True
+    try:
+        # AS A RELATION, not against the table: the switch hitter must
+        # resolve exactly as the explicit opposite-side bat does, and
+        # NOT as the same-side one — table-independent, so it fails on
+        # the actual bug (S handed the same-hand penalty cell) rather
+        # than agreeing with whatever the table happens to hold.
+        assert sim.resolve(s, rhp, LG).m_hr == sim.resolve(lhb, rhp, LG).m_hr
+        assert sim.resolve(s, lhp, LG).m_hr == sim.resolve(rhb, lhp, LG).m_hr
+        assert sim.resolve(s, rhp, LG).m_hr != sim.resolve(rhb, rhp, LG).m_hr
+    finally:
+        sim.USE_PLATOON = orig
+
+
+def check_the_platoon_table_is_centred():
+    """PA-weighted mean exactly 1 per channel over the REAL hand mix —
+    the table redistributes by pairing and cannot move a league-average
+    level. Same rule as TTO_MULT and STATE_MULT, checkable because the
+    weights ship beside the cells."""
+    w = sum(sim.PLATOON_PA.values())
+    for ch in ("k_pct", "bb_pct", "hr_pct", "babip"):
+        m = sum(sim.PLATOON_MULT[c][ch] * n
+                for c, n in sim.PLATOON_PA.items()) / w
+        assert abs(m - 1.0) < 5e-4, (ch, m)
+
+
+def check_an_unknown_side_or_hand_is_neutral_and_off_is_off():
+    """Half a pairing is no pairing: an unknown hand or side must leave
+    the matchup bit-identical, and the flag off must too — the same
+    silent-neutral rule every lookup here follows, so coverage is a
+    printed number rather than a hidden guess."""
+    b_known = sim.BatterRates(name="lhb", side="L")
+    b_blank = sim.BatterRates(name="who", side="")
+    p_known = sim.PitcherRates(name="rhp", hand="R")
+    p_blank = sim.PitcherRates(name="arm", hand="")
+    base = sim.resolve(b_blank, p_blank, LG).m_hr
+    orig = sim.USE_PLATOON
+    sim.USE_PLATOON = True
+    try:
+        assert sim.resolve(b_known, p_blank, LG).m_hr == base
+        assert sim.resolve(b_blank, p_known, LG).m_hr == base
+        on = sim.resolve(b_known, p_known, LG).m_hr
+        assert on != base
+    finally:
+        sim.USE_PLATOON = orig
+    sim.USE_PLATOON = False
+    try:
+        assert sim.resolve(b_known, p_known, LG).m_hr == base
+    finally:
+        sim.USE_PLATOON = orig

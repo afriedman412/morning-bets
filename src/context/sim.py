@@ -644,6 +644,10 @@ class PitcherRates:
     #: left-handed bats and ordinary against righties is a real and common
     #: type and none of it was modelled. None means use the blended rates.
     vs_side: dict | None = None
+    #: Throwing hand, "L"/"R", or "" when unknown — and "" contributes
+    #: exactly nothing: the platoon cell in `resolve` fires only when both
+    #: sides of the pairing are known. See `PLATOON_MULT`.
+    hand: str = ""
 
 
 @dataclass
@@ -997,6 +1001,60 @@ class Matchup:
     hit_mix: dict = field(default_factory=dict)
 
 
+#: THE LEAGUE PLATOON CELL, as an odds multiplier — PLAN item 3.
+#:
+#: Counted on 761,719 plate appearances over 10,063 games of 2023-2026
+#: (`scratchpad/platoon_league.py`), split by (batter side, pitcher hand),
+#: switch hitters resolved to the side they ACTUALLY batted from. Each
+#: entry is the cell's rate over the PA-weighted mean across the four
+#: cells, so the weighted mean is exactly 1.000 per channel — the same
+#: centring rule as `TTO_MULT` and `STATE_MULT` — and applying it cannot
+#: move a league-average level, only redistribute it by pairing.
+#:
+#: THE LEAGUE CELL AND NOT THE INDIVIDUAL SPLIT, and the history matters:
+#: the full matchup construction (individual splits shrunk toward the
+#: hitter's own overall rate) scored FLAT on start-level marginals and is
+#: dead. It modelled the noise and discarded the signal — the reliable
+#: part of handedness is the STRUCTURAL advantage of the opposite-hand
+#: bat; the personal deviation does not persist across seasons. Nine
+#: mixed hands also average the effect out of any start-level marginal BY
+#: CONSTRUCTION, which is why the old null never settled the question:
+#: the L-vs-L bat still loses 22% of his home run rate (0.7839 below)
+#: whatever the lineup around him averages to.
+#:
+#: KNOWN DRIFT, recorded before shipping: the RHB strikeout advantage
+#: faded from -0.014 (2023-24) to -0.003 (2025-26) while every LHB
+#: channel held. The four-fold battery falsifier arbitrates exactly this.
+PLATOON_MULT = {
+    ("R", "R"): {"k_pct": 1.0215, "bb_pct": 0.9093, "hr_pct": 0.9757,
+                 "babip": 0.9951},
+    ("R", "L"): {"k_pct": 0.9817, "bb_pct": 0.9885, "hr_pct": 1.0243,
+                 "babip": 1.0190},
+    ("L", "R"): {"k_pct": 0.9732, "bb_pct": 1.1065, "hr_pct": 1.0624,
+                 "babip": 0.9944},
+    ("L", "L"): {"k_pct": 1.0611, "bb_pct": 0.9741, "hr_pct": 0.7839,
+                 "babip": 1.0025},
+}
+#: The real PA mix the table was centred on, kept so the centring is
+#: checkable rather than asserted.
+PLATOON_PA = {("R", "R"): 282117, ("R", "L"): 145276,
+              ("L", "R"): 271311, ("L", "L"): 63015}
+#: ON 2026-09-06, on the pre-registered per-batter test: the |residual|
+#: by advantage side shrank in 3 of 4 folds (2026, the fold being priced,
+#: on all four rows — adv-side K 0.0062 -> 0.0008) and every start-level
+#: marginal control stayed inside one se, which was the prediction: nine
+#: mixed hands cancel this in any pooled number BY CONSTRUCTION, which is
+#: why the old null was never evidence.
+#:
+#: RECORDED, NOT ACTED ON: the stacked-decile clause moved 0.2-0.3 of its
+#: own se — unresolvable at n=124 club-games, in either direction. And
+#: adv-side K overshoots ~2 se in 2024-25, the exact seasons the counted
+#: RHB advantage faded (the KNOWN DRIFT above); k_mean drifts -0.02 a
+#: start same-signed across folds (-0.7 sigma pooled) — the reliever
+#: hand-mix composition, a watch item for the battery.
+USE_PLATOON = True
+
+
 def resolve(b: BatterRates, p: PitcherRates, lg: dict,
             park: dict | None = None, hr_park: float = 1.0) -> Matchup:
     """Assemble one batter-pitcher pairing. THE ONLY PLACE INPUTS ARE PICKED.
@@ -1025,15 +1083,30 @@ def resolve(b: BatterRates, p: PitcherRates, lg: dict,
     lgm = b.lg_cell or lg
     sac_r = SAC_RATE if p.sac_rate is None else p.sac_rate
     hbp_r = HBP_RATE if p.hbp_rate is None else p.hbp_rate
+    m_k = pk["k"] * b.arsenal_k_mult
+    m_bb = pk.get("bb", 1.0)
+    m_hr = hr_park * pk["hr"] * b.arsenal_mult
+    m_bip = pk["bip"] * b.arsenal_mult
+    # THE PLATOON CELL fires only when BOTH sides of the pairing are
+    # known — an unknown hand or side contributes exactly nothing, the
+    # same silent-neutral rule as every other lookup here, and coverage
+    # is the caller's number to print. A switch hitter resolves to the
+    # side he would actually take against THIS arm, which is what the
+    # cells were counted on.
+    if USE_PLATOON and b.side and p.hand:
+        bs = b.side if b.side != "S" else ("L" if p.hand == "R" else "R")
+        pm = PLATOON_MULT.get((bs, p.hand))
+        if pm:
+            m_k *= pm["k_pct"]
+            m_bb *= pm["bb_pct"]
+            m_hr *= pm["hr_pct"]
+            m_bip *= pm["babip"]
     return Matchup(
         b_k=b.k_pct, b_bb=b.bb_pct, b_hr=b.hr_pct, b_bab=b.babip,
         p_k=p_k, p_bb=p_bb, p_hr=p_hr, p_bab=p_bab,
         lg_k=lgm["k_pct"], lg_bb=lgm["bb_pct"],
         lg_hr=lgm["hr_pct"], lg_bab=lgm["babip"],
-        m_bb=pk.get("bb", 1.0),
-        m_k=pk["k"] * b.arsenal_k_mult,
-        m_hr=hr_park * pk["hr"] * b.arsenal_mult,
-        m_bip=pk["bip"] * b.arsenal_mult,
+        m_bb=m_bb, m_k=m_k, m_hr=m_hr, m_bip=m_bip,
         sac=sac_r, hbp=hbp_r, cond=1.0 - sac_r - hbp_r,
         hit_mix=lg["hit_mix"])
 

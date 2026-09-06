@@ -206,6 +206,17 @@ def throws(name: str, season: int | None = None) -> str | None:
     return cands[0].get("throws") if len(cands) == 1 else None
 
 
+def bats(name: str, season: int | None = None) -> str | None:
+    """'R', 'L', 'S', or None, under the same one-player rule.
+
+    The LIVE-path fallback for a batter with no recorded lineup history —
+    a call-up's side comes from the roster until `order.sync` has seen
+    him. Replays prefer `order.batter_sides`, which counted what he
+    actually did."""
+    cands = candidates(name, season)
+    return cands[0].get("bats") if len(cands) == 1 else None
+
+
 if __name__ == "__main__":
     import sys
     idx = load(force="--refresh" in sys.argv)

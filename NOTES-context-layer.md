@@ -8420,3 +8420,71 @@ New baseline `battery_3254001bd659.json`; fingerprint
 (cells, `resolve` wire, `USE_PLATOON = False`) is in the tree and proven
 bit-inert: the battery engine fingerprint is identical with and without
 it loaded.
+
+## 2026-09-06 (later still) — PLATOON SHIPS: the league cell, per pairing
+
+QUESTION. Does the league platoon cell — applied per (batter side,
+pitcher hand) pairing, where it lives — close the per-batter K/HR
+residuals by advantage side, without moving the start-level marginals
+where nine mixed hands cancel it by construction?
+
+HYPOTHESIS. Yes on the per-batter rows, flat on the marginals — flat is
+the PREDICTION, and is why every earlier start-level null was never
+evidence against the mechanism. FALSIFIER, pre-registered: "per-batter
+HR / K residual by advantage side does not shrink, or the stacked-decile
+residual does not move toward zero, in three of four folds."
+
+THE COUNT. Four cells on 761,719 PA over 10,063 games
+(`scratchpad/platoon_league.py`), switch hitters counted from the side
+they actually took. Centred on the real PA mix so the weighted mean is
+exactly 1.000 per channel (the TTO_MULT rule; weights ship in
+`sim.PLATOON_PA` so the centring is a check, not an assertion). The
+individual-split construction stays dead — league cell ONLY. KNOWN DRIFT
+recorded before scoring: the RHB K advantage faded from -0.014 (2023-24)
+to -0.003 (2025-26); every LHB channel held.
+
+THE PLUMBING (inert until scored, proven by identical engine
+fingerprints): `PitcherRates.hand` on starters (per-fold roster), pen
+arms (`game._arm`) and the live slate; `BatterRates.side` from
+`order.batter_sides()` — the recorded lineup history classifies switch
+hitters with no roster join — with `roster.bats` as the live call-up
+fallback. A switch hitter resolves AT THE MATCHUP to the side he would
+take against this arm. Unknown on either side of a pairing is NEUTRAL,
+never guessed. Six checks; the two that read the table for their own
+expectations were caught agreeing with a mutated table and rewritten as
+absolute pins and a relation.
+
+EVALUATE, battery on vs off (baseline 3254001bd659):
+  * Per-batter |residual| by advantage side: shrank in 3/4 rows (2023),
+    2/4 (2024), 3/4 (2025), 4/4 (2026) -> the resolvable falsifier
+    clause PASSES at 3 of 4 folds. The 2026 fold — the one being priced
+    — improves on every row: adv-side K 0.0062 -> 0.0008, adv-side HR
+    0.0013 -> 0.0000.
+  * Stacked decile: moved +0.06 to +0.08 on se 0.22-0.28 — a quarter of
+    its own se, UNRESOLVABLE either way at n=124 club-games (rule 2:
+    state the se before calling a result). Its premise was also wrong in
+    the baseline: the model already OVER-scores stacked lineups in every
+    fold, so "toward zero" was never the direction a real platoon effect
+    could move it. Recorded, not scored.
+  * Controls: every start-level marginal inside one se, as predicted.
+  * OVERSHOOT WHERE THE DRIFT WAS PRE-REGISTERED: adv-side K lands ~2 se
+    LOW in 2024-25 — the pooled RvL cell imports 2023-24-sized K
+    advantage into seasons that no longer have it. Watch item, not a
+    refit: the cells are counted, and rule 5 forbids solving the level.
+  * WATCH ITEM: k_mean drifts -0.016 to -0.031 a start, same-signed in
+    all four folds (-0.7 sigma pooled) — composition through the
+    reliever hand mix (the model samples arms without matchup logic, so
+    its pairing mix is not reality's). Same family as the sac-table
+    occupancy finding, much smaller.
+
+CONCLUSION — ESTABLISHED: `sim.USE_PLATOON = True`. Fingerprint
+ee345eef -> ada0369f. Hook untouched, shape rows inside one se,
+`outs_adjust` stands. New battery baseline `battery_b33f96512e59.json`.
+428 checks green. Battery instrument note: its platoon-row attribution
+uses the current-season roster for starter hands, so its COVERAGE row
+reads 69/75/88/98% by fold — the engine resolves per-fold and is not
+subject to that gradient; worth fixing in the battery some day.
+
+NEXT. Item 4 (batted-ball profile: GB% into double plays and hit mix),
+starting with the 4a plumbing that fills the battery's empty quintile
+rows.

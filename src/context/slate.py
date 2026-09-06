@@ -22,7 +22,7 @@ import random
 import urllib.request
 from datetime import date, timedelta
 
-from src import db
+from src import db, roster
 from src.context import calibrate, game, gamestate, sim
 from src.context.sources import rates as rate_src
 
@@ -195,12 +195,23 @@ def priceable(name: str, pa: int, as_of: str, conn=None):
 
 
 def _build(names, br, league_bats):
+    # Sides for the platoon cell: the recorded lineup history first (what
+    # he actually did, switch hitters classified from it), the roster as
+    # the call-up fallback, neutral when neither knows him. The LIVE path
+    # gets the same resolution the replay path does — pricing and scoring
+    # diverging on an input is the park-neutralisation bug all over again.
+    try:
+        from src.context import order as order_src
+        sides = order_src.batter_sides()
+    except Exception:
+        sides = {}
     out = []
     for nm in names:
         b = br.get(nm)
         out.append(sim.BatterRates(
             name=nm, k_pct=b["k_pct"], bb_pct=b["bb_pct"],
-            hr_pct=b["hr_pct"], babip=b["babip"], pa=b["pa"])
+            hr_pct=b["hr_pct"], babip=b["babip"], pa=b["pa"],
+            side=sides.get(nm) or roster.bats(nm) or "")
             if b else league_bats)
     return out
 
@@ -268,7 +279,8 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
                 "team_offset": hook.team_offset + calibrate.HOME_HOOK})
         specs[side] = (sim.PitcherRates(
             name=name, k_pct=p["k_pct"], bb_pct=p["bb_pct"],
-            hr_pct=p["hr_pct"], babip=p["babip"], pa=p["pa"]), faces,
+            hr_pct=p["hr_pct"], babip=p["babip"], pa=p["pa"],
+            hand=roster.throws(name) or ""), faces,
             s["abbr"], hook)
 
     park = (calibrate.park_for(g["venue_id"])
