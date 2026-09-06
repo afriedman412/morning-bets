@@ -14,7 +14,27 @@ it belongs in `NOTES-context-layer.md`.
     RESUME-ARCHIVE.md    Days six to sixteen, moved out of here. Not deleted,
                          but its figures predate several engine changes.
 
-## WHERE THINGS STAND (2026-09-06, end of day — Opus session)
+## WHERE THINGS STAND (2026-09-06, night — Fable session)
+
+**ITEM 8a IS RESOLVED: WITHIN-INNING FEEDBACK IS A NULL AT THE REGISTERED
+BAR, AND NOTHING WIRED.** `scratchpad/inning_feedback.py`, 398,605
+pre-July PAs over four seasons, three controls on a heterogeneous inning
+machine. The session's value was the two specification catches, both now
+in the notes: the plan's registered traffic binning failed its own
+positive control (occupancy floors traffic — surplus = traffic − men on
+is the identifiable coordinate, and a step effect at traffic ≥ 1 already
+lives inside STATE_MULT), and half the apparent k effect was
+times-through-the-order, removed by a batters-faced standardiser with its
+own verified confound control. Result: k 1.9 se in both surplus bins
+(under the 2-se gate, 4/4 and 3/4 season signs, monotone), bb 1.4 se,
+babip 1.5 se; a true hit gradient above ~x1.03/runner is EXCLUDED by the
+positive control. Rule 13 held: the near-miss is recorded, the gate was
+not loosened. No engine change, so fingerprint stays b505bb6b and
+battery_079082494e7e.json remains the baseline. NEXT: item 8b (umpire
+zone is the first candidate — check whether pbp caches officials), or
+the hygiene list. The parked dispersion term stays a human decision.
+
+## WHERE THINGS STOOD (2026-09-06, end of day — Opus session)
 
 **TEST AUDIT, after item 7: the sweep was eight mechanisms behind and the
 suite's cost was one check.** `scratchpad/mutate.py` now runs 37 mutations

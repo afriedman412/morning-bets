@@ -182,30 +182,22 @@ DEAD ENDS, do not re-run: per-pitcher/per-club dispersion (split-half
 86% of level but is calibration-not-discrimination — PARKED, and
 re-opening it is a DECISION for a human, not a session).
 
-### 8a. COUNT within-inning feedback (a session-sized, safe first step)
-QUESTION: is the league worse at preventing the NEXT event once
-traffic is on in the SAME inning, beyond what (men on, outs) state
-multipliers already carry? Physics candidates: pitching from the
-stretch, defence holding runners.
-COUNT: from pbp, per-PA rates (k/bb/h1/xbh/hr) conditioned on
-baserunners allowed SO FAR THIS INNING by the SAME pitcher (0/1/2+),
-WITHIN (men on, outs) cells — the state table already conditions on
-occupancy, so the count must hold state fixed or it re-counts
-STATE_MULT (rule 10: name the denominator). Pre-July rows, four
-seasons, era gate. TRAP: the covariate (traffic so far) contains the
-outcome's own PA sequence — this is the 4b/4c leakage class. Condition
-on events STRICTLY BEFORE the current PA (they are), and positive-
-control the harness by injecting a known feedback into simulated
-innings and confirming the count recovers it.
-WIRE (only if the count survives): a multiplier keyed on
-(inning-traffic-so-far) applied in `pa_from` next to the state mult,
-centred over REAL cell weights — NEVER model occupancy (that absorbs
-the defect; it is why item 2 parked).
-TEST: battery traffic/mass rows, sac occupancy (re-open item 2's table
-if occupancy moves), late-by-margin, shutout/blowup shares. F5 CRPS
-expected FLAT (rule 2 — a flat CRPS is not a rejection here).
-FALSIFIER: the extreme-traffic occupancy cells do not move toward
-real across four folds, or the run LEVEL moves past one se.
+### 8a. COUNT within-inning feedback — RESOLVED 2026-09-06: NULL AT THE
+### REGISTERED BAR. Nothing wired. Full result in the notes.
+The count ran as written (`scratchpad/inning_feedback.py`, 398,605
+pre-July PAs, four seasons) and twice caught its own specification:
+the registered traffic binning failed its positive control (occupancy
+floors traffic once inherited runners are excluded — an injected
+x1.100 read back as 1.008; SURPLUS = traffic - men on is the
+identifiable coordinate, and a step at traffic >= 1 is already inside
+STATE_MULT), and half the apparent k effect was times-through-the-
+order, removed by a batters-faced standardiser verified with its own
+confound control. What is left: k 0.979/0.971 at 1.9 se per bin
+(under the 2-se gate), bb 1.4 se, babip 1.5 se. The positive control
+bounds a true hit-side gradient below ~x1.03 per runner. Re-open only
+with a 2022 pbp backfill or a pre-registered trend test; the k/bb
+contact near-miss is recorded in the notes and is under the leverage
+floor regardless.
 
 ### 8b. Shared-night conditions (only after 8a resolves either way)
 Temperature was the first (shipped). Candidates in order: umpire zone

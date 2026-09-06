@@ -8919,3 +8919,58 @@ instruments — XBH level, hot-temperature HR, and the 2026 wind level
 NEXT. Plan item 8 (clustering) — 8a counts within-inning feedback and is
 written to be worked cold; the hygiene list at the plan's foot is the
 other safe queue.
+
+## 2026-09-06 (Fable, later): ITEM 8a — WITHIN-INNING FEEDBACK IS A NULL AT THE REGISTERED BAR
+
+QUESTION (plan item 8a, worked as written): is the league worse at
+preventing the NEXT event once traffic is on in the same inning, beyond
+what `STATE_MULT` already carries?
+
+TEST: `scratchpad/inning_feedback.py`. 398,605 eligible PAs, pre-July of
+2023-2026 (the one cut that keeps every battery fold clean), pitchers who
+inherited runners excluded for the rest of the inning so runner
+provenance is exact. Observed-over-expected within (men on, outs) cells,
+expectation log5-lite from player-season rates shrunk 300 PA toward the
+league. Three controls on a heterogeneous-player inning machine: null,
+graded positive (x1.05 on hits per runner allowed), TTO confound.
+
+TWO SPECIFICATION CATCHES, both worth more than the result:
+
+  * THE REGISTERED BINNING (traffic 0/1/2+) FAILED ITS OWN POSITIVE
+    CONTROL — an injected x1.100 read back as 1.008. Excluding inherited
+    runners makes occupancy a FLOOR on traffic, so the bins are
+    near-degenerate inside the cells that hold state fixed, and the
+    degenerate cells pool in at exactly 1.0. The within-cell coordinate
+    that exists everywhere is SURPLUS = traffic minus men on (his
+    runners since scored or erased). Corollary worth keeping: a STEP
+    effect at traffic >= 1 is collinear with occupancy and therefore
+    ALREADY INSIDE `STATE_MULT` — only the gradient is measurable, and
+    only surplus can see it.
+  * HALF THE APPARENT EFFECT WAS TIMES-THROUGH-THE-ORDER. Surplus rows
+    sit deeper in the inning; without a batters-faced standardiser k
+    read 0.955 +- 0.014 (3.2 se) at surplus 2+ and would have shipped a
+    double-count of `TTO_MULT`. With the league rate-vs-batters-faced
+    curve in the expectation (verified by a confound control that
+    injects a pure 0.99-per-batter gradient and must read flat — it
+    does), k comes back 0.9790 +- 0.011 / 0.9711 +- 0.015.
+
+EVALUATE, against the gate registered before the run (2 se pooled AND
+sign in 3/4 seasons): k 1.9 se in both bins — under. bb 0.9665 (1.4 se),
+babip 1.0241 (1.5 se), hr/hbp nothing. NULL. Rule 13: the near-miss is
+recorded, the gate is not loosened. And per rule 7 the null is a
+MEASUREMENT: the positive control proves a true x1.05-per-runner hit
+feedback would have read ~1.052 against the measured 1.024, so the
+within-inning hit gradient is bounded below ~x1.03 per runner.
+
+ESTABLISHED: nothing wires from 8a; the clustering defect is NOT
+explained by a per-PA feedback gradient at measurable size. INFERRED,
+not established: the k/bb contact pattern behind cleared rallies (both
+down, monotone, 1.9 se) may be real "blowout mode" pitching; re-open
+only with a 2022 pbp backfill or a pre-registered trend test, and the
+leverage (~0.98 on k over 15% of PAs) is under the priority floor
+anyway.
+
+WHERE THAT LEAVES ITEM 8: the within-inning route is closed at this
+power. What remains for clustering is BETWEEN-game/night variance
+(item 8b — umpire zone next, wind and temperature already shipped) and
+the parked flat dispersion term, which stays a human decision.
