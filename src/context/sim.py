@@ -1463,6 +1463,80 @@ class Hook:
     per_pen_rest: float = 0.18820
     mid_per_pen_back2: float = -0.08883
     mid_per_pen_rest: float = 0.17132
+
+    #: THE LAYOFF, on BOTH curves. Log-odds added when a starter has been
+    #: away longer than a normal turn: a STEP at `LAYOFF_MIN` days plus a
+    #: per-day SLOPE beyond it. Positive — a man back from an absence is
+    #: pulled sooner. Counted on 284,706 in-season starter decisions,
+    #: `scratchpad/layoff.py`.
+    #:
+    #: WHY THE OLD NULL DID NOT SETTLE IT, and this is the whole reason the
+    #: mechanism was missing. `NOTES-context-layer.md:2250` screened
+    #: `days rest +0.014` on the outs residual and it was read as an
+    #: absent effect. It is a LINEAR slope across a rest distribution that
+    #: is 74% at five or six days with under 4% past ten — the flat middle
+    #: swamps a step in the tail. Mis-specification and absence produce
+    #: identical output, which is exactly what CLAUDE.md warns about.
+    #:
+    #: IT IS AN EXPOSURE EFFECT, NOT A STUFF EFFECT, and that is why it
+    #: belongs on the hook rather than on the rates. Within-pitcher,
+    #: within-season, against his own 4-9 day starts: `d_BF` is -1.2 to
+    #: -1.8 batters (z -4.3 to -7.1) while `d_K/BF` is null in every
+    #: bucket (z +0.3, -1.6, +1.0, +0.6). He is not worse per batter, he
+    #: is left in for fewer of them.
+    #:
+    #:     curve        step (>= 10d)        slope (per day beyond)
+    #:     boundary   +0.63863 +/-0.0889   +0.04137 +/-0.00497
+    #:     mid        +0.37561 +/-0.0790   +0.02306 +/-0.00449
+    #:
+    #: Controlled for everything both shipped curves already read, plus
+    #: `leash` — the starter's own recent length — which is the confound
+    #: control. Positive control fired on both curves at the size CLAIMED:
+    #: injected +0.60, recovered +0.550 (boundary) and +0.709 (mid). At
+    #: +0.25 the boundary curve reads MISSED (+0.214 +/- 0.075, z 2.9) and
+    #: that is the harness stating its resolution, not a bad fit.
+    #:
+    #: THE GAP IS READ FROM A UNION OF TWO START RECORDS and the reason is
+    #: in `sim._start_dates`: a MISSING start does not weaken this feature,
+    #: it INVERTS it, turning a five-day turn into a ten-day layoff. The
+    #: first version of this fitted and served off sources that each miss
+    #: ~9-13% of starts, which fired the term on 18.32% of holdout starts
+    #: against 7.76% in the fitted population and moved a CENTRED term's
+    #: level by 0.19 outs. Both sides now read the same index.
+    #:
+    #: THE CONFOUND RUNS AGAINST THE RESULT, which is why it is
+    #: believable. A pitcher returning from the IL may simply be a worse or
+    #: more fragile pitcher, and a worse pitcher is pulled earlier for
+    #: reasons that have nothing to do with the layoff — that pushes these
+    #: POSITIVE, the direction they came out. `leash` absorbs what it can.
+    #:
+    #: STABILITY GATE PASSED 8/8 on the COMBINED spec — both terms, both
+    #: curves, sign held in all four seasons. Gated on the combined fit
+    #: rather than each term alone, because a term can be stable by itself
+    #: and unstable beside its partner:
+    #:
+    #:     boundary  step +3.1/+3.6/+3.9/+3.7   slope +4.2/+4.0/+6.0/+1.8
+    #:     mid       step +1.9/+3.6/+2.7/+0.9   slope +2.6/+1.8/+3.3/+3.7
+    #:
+    #: BOTH TERMS SHIP, not just the step. The counted outs buckets look
+    #: flat past ten days and a step alone was the first specification;
+    #: the shape check refuted it, with the slope carrying a higher z than
+    #: the step on the boundary curve (+16.2 against +14.7 when each is
+    #: fitted alone). The effect grows with the absence.
+    #:
+    #: CENTRED on `LAYOFF_STEP_BASELINE` / `LAYOFF_SLOPE_BASELINE`, the
+    #: same rule as `K_RATE_BASELINE` and the bullpen pair: a starter on a
+    #: normal turn must contribute nothing and the calibrated level must
+    #: not move. This buys discrimination between starts.
+    #:
+    #: FITTED ON IN-SEASON GAPS ONLY. A pitcher opening a season has had a
+    #: spring to build up and is not the same case as one returning in
+    #: August; `game.Side.layoff_gap` passes None across a season break so
+    #: the term contributes nothing there rather than a guess.
+    per_layoff: float = 0.63863
+    per_layoff_day: float = 0.04137
+    mid_per_layoff: float = 0.37561
+    mid_per_layoff_day: float = 0.02306
     #: REFIT ON LATE-ONLY DECISIONS. The pooled fit averaged 20,994 late
     #: rows at a 6.29% pull rate together with 26,693 early ones at 0.65%,
     #: and the early population dominates by count — so the late curve came
@@ -1590,12 +1664,16 @@ class Hook:
     def removal_p(self, pitches: int, runs: int, innings: int,
                   baserunners: int = 0, margin: int = 0,
                   inning_runs: int = 0,
-                  pen: tuple[float, float] | None = None) -> float:
+                  pen: tuple[float, float] | None = None,
+                  layoff_gap: int | None = None) -> float:
         """P(pulled) evaluated at the end of a completed inning.
 
         `pen` is (arms unavailable, days of club rest) from
         `sim.pen_state`. None means league-neutral and contributes exactly
         zero — see `per_pen_back2` for why this curve has it at all.
+
+        `layoff_gap` is days since this starter's previous START, or None
+        for unknown / across a season break. See `per_layoff`.
         """
         if self.early_innings and innings <= self.early_innings:
             return _sigmoid(self.intercept + self.early_bnd_offset
@@ -1604,7 +1682,13 @@ class Hook:
                             + self.early_bnd_per_run_offset
                             * inning_run_offset(inning_runs)
                             + self.early_bnd_per_run * runs
-                            + self.per_margin * margin)
+                            + self.per_margin * margin
+                            # Carried into the inert branch too. It ships
+                            # with `early_innings` 0 so this never fires,
+                            # and leaving the term out would put a silent
+                            # hole in the mechanism the day it is enabled.
+                            + self._layoff(layoff_gap, self.per_layoff,
+                                           self.per_layoff_day))
         base = (self.intercept - PITCH_HAZARD_BND_ANCHOR
                 + pitch_hazard(pitches, PITCH_HAZARD_BND)
                 if (USE_PITCH_HAZARD and USE_PITCH_HAZARD_BND) else
@@ -1621,6 +1705,8 @@ class Hook:
                         + self.per_inning * innings
                         + self._pen(pen, self.per_pen_back2,
                                     self.per_pen_rest)
+                        + self._layoff(layoff_gap, self.per_layoff,
+                                       self.per_layoff_day)
                         )
 
     @staticmethod
@@ -1638,12 +1724,34 @@ class Hook:
         return (c_back2 * (back2 - PEN_BACK2_BASELINE)
                 + c_rest * (rest - PEN_REST_BASELINE))
 
+    @staticmethod
+    def _layoff(gap: int | None, c_step: float, c_slope: float) -> float:
+        """The layoff contribution, CENTRED, shared by both curves.
+
+        `gap` is days since his previous START, or None when it is not
+        known or does not apply — a season opener, or a pitcher with no
+        prior start in the record. None contributes exactly zero, the same
+        missing-group rule as `_pen`, `patience` and `leash`.
+
+        One helper rather than two copies for the reason `_pen` gives: a
+        centring rule is the thing most likely to be got right once and
+        wrong the second time, and this project has a recorded case of
+        exactly that.
+        """
+        if gap is None or not USE_LAYOFF:
+            return 0.0
+        step = 1.0 if gap >= LAYOFF_MIN else 0.0
+        slope = float(max(0, min(gap, LAYOFF_GAP_CAP) - LAYOFF_MIN))
+        return (c_step * (step - LAYOFF_STEP_BASELINE)
+                + c_slope * (slope - LAYOFF_SLOPE_BASELINE))
+
     def mid_removal_p(self, pitches: int, runs: int, on_base: int,
                       inning_damage: float = 0.0, margin: int = 0,
                       inning_runs: int = 0, inning: int = 0,
                       inning_br: int = 0,
                       k_rate: float | None = None,
-                      pen: tuple[float, float] | None = None) -> float:
+                      pen: tuple[float, float] | None = None,
+                      layoff_gap: int | None = None) -> float:
         """P(pulled) evaluated after a batter, inning still alive.
 
         `inning_runs` is what is going wrong RIGHT NOW; `runs` is the whole
@@ -1668,7 +1776,11 @@ class Hook:
                             + self.early_per_run_offset
                             * inning_run_offset(inning_runs)
                             + self.early_per_inning_br * inning_br
-                            + self.mid_per_margin * margin)
+                            + self.mid_per_margin * margin
+                            # See the boundary branch: inert today, and a
+                            # silent hole the day `early_innings` moves.
+                            + self._layoff(layoff_gap, self.mid_per_layoff,
+                                           self.mid_per_layoff_day))
         mbase = (self.mid_intercept - PITCH_HAZARD_MID_ANCHOR
                  + pitch_hazard(pitches, PITCH_HAZARD_MID)
                  if USE_PITCH_HAZARD else
@@ -1696,6 +1808,8 @@ class Hook:
                            - K_RATE_BASELINE)
                         + self._pen(pen, self.mid_per_pen_back2,
                                     self.mid_per_pen_rest)
+                        + self._layoff(layoff_gap, self.mid_per_layoff,
+                                       self.mid_per_layoff_day)
                         + self.mid_per_inning_run
                         * inning_run_offset(inning_runs))
 
@@ -1788,6 +1902,32 @@ PEN_REST_BASELINE = 1.1791
 #: Off restores the pre-measurement engine exactly. No random variate is
 #: involved either way, so OFF is bit-identical rather than merely close.
 USE_PEN_STATE = True
+
+#: Days since a starter's previous START at or beyond which the layoff step
+#: fires. Ten is where the counted outs effect first clears three sigma
+#: (-0.81 outs, z -4.0) and it is the first boundary past a normal turn: a
+#: five-man rotation is four to six days and seven to nine covers a skipped
+#: turn or an off day. Ten means something happened.
+LAYOFF_MIN = 10
+
+#: The slope is CAPPED here so a 120-day return does not run the hook off a
+#: cliff on one row. The fit used the same cap, so the shipped coefficient
+#: and the fitted one describe the same feature — uncapping at serve time
+#: would extrapolate a slope past every gap it was measured on. In-season
+#: gaps run p50 6, p90 7, p99 42.
+LAYOFF_GAP_CAP = 45
+
+#: League means of the two layoff columns over the 284,706 in-season
+#: decisions they were fitted on. Both curves centre on these, so a starter
+#: on a normal turn contributes exactly zero and the calibrated removal
+#: level is untouched — the same rule as `K_RATE_BASELINE` and the bullpen
+#: pair.
+LAYOFF_STEP_BASELINE = 0.0668
+LAYOFF_SLOPE_BASELINE = 0.7262
+
+#: Off restores the pre-layoff engine exactly, and like `USE_PEN_STATE` it
+#: is bit-identical rather than close: no random variate is involved.
+USE_LAYOFF = True
 
 #: TONIGHT'S STUFF. A starter's strikeout rate is drawn once per start
 #: around his own rate — some nights the slider bites and some nights it
@@ -2175,6 +2315,93 @@ def pen_state(team: str | None, date: str | None) -> tuple[float, float]:
     if not v:
         return PEN_BACK2_BASELINE, PEN_REST_BASELINE
     return float(v[0]), float(v[1])
+
+
+_STARTS: dict | None = None
+
+
+def _start_dates(conn=None) -> dict:
+    """{pitcher_name: sorted set of start dates} from BOTH start records.
+
+    Cached in-process.
+
+    WHY IT UNIONS TWO SOURCES, and this is a correctness requirement rather
+    than belt-and-braces. A MISSING start does not weaken this feature, it
+    INVERTS it: the gap is a difference between consecutive starts, so one
+    absent row silently turns a normal five-day turn into a ten-day layoff
+    and fires the step on a pitcher who never went anywhere. Measured over
+    the 789 games from 2026-07-01 to 2026-08-31:
+
+        mlb_pitching  721 of 789  (91.4%)
+        mlb_stints    683 of 789  (86.6%)
+        UNION         787 of 789  (99.7%)
+
+    Neither source alone is complete and they miss different games. On
+    `mlb_pitching` alone the layoff fired on 18.32% of holdout starts
+    against 7.64% in the population it was fitted on, and the extra fires
+    were almost all data gaps — enough to drag mean outs 15.72 -> 15.53
+    against a real 15.75 and make a centred term move the level.
+
+    KEYED BY NAME because that is the only column the two tables share —
+    `mlb_pitching` carries no pitcher id. That is a knowing exception to
+    the ids-not-names rule, and it is safe here only because both tables
+    are populated from the same statsapi payload, so the spelling matches
+    on both sides.
+    """
+    global _STARTS
+    if _STARTS is not None:
+        return _STARTS
+    out: dict = {}
+    with (contextlib.nullcontext(conn) if conn else db.connect()) as c:
+        for r in c.execute(
+                "select p.player_name as n, g.date as d "
+                "from mlb_pitching p join games g on g.game_id = p.game_id "
+                "where p.is_starter = 1 and g.date is not null"):
+            out.setdefault(r["n"], set()).add(r["d"])
+    from src.context import store
+    with store.connect() as c:
+        for r in c.execute(
+                "select player_name as n, date as d from mlb_stints "
+                "where appearance_order = 0 and date is not null"):
+            out.setdefault(r["n"], set()).add(r["d"])
+    _STARTS = {k: sorted(v) for k, v in out.items()}
+    return _STARTS
+
+
+def layoff_gap(pitcher_name: str | None, date: str | None,
+               conn=None) -> int | None:
+    """Days since this starter's previous START, or None.
+
+    None — contributing exactly zero to both hook curves — for a pitcher
+    with no prior start on record, a date with nothing behind it, and
+    ACROSS A SEASON BREAK. The last is deliberate and is not a coverage
+    gap: a pitcher opening a season has had a spring to build up and is
+    not the same case as one returning in August, so the in-season
+    coefficient must not be evaluated on him. `scratchpad/layoff.py` fits
+    on in-season gaps for the same reason.
+
+    Same missing-group rule as `pen_state`, `patience` and `leash`.
+    """
+    if not USE_LAYOFF or not pitcher_name or not date:
+        return None
+    ds = _start_dates(conn).get(pitcher_name)
+    if not ds:
+        return None
+    prev = None
+    for d in ds:
+        if d >= date:
+            break
+        prev = d
+    if prev is None or prev[:4] != date[:4]:
+        return None
+    from datetime import date as _dt
+    return (_dt.fromisoformat(date) - _dt.fromisoformat(prev)).days
+
+
+def reload_starts() -> None:
+    """Drop the cached start index so a backfill is picked up in-process."""
+    global _STARTS
+    _STARTS = None
 
 
 def leash(pitcher_name: str | None) -> float:

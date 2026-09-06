@@ -23,22 +23,31 @@ And a directly-fitted removal model, which beats `sim.Hook` on decision AUC
 0.912 to 0.876, produces a boundary share of 0.341: far worse. So the fix is
 not close, and the bias is meanwhile stable enough to price against.
 
-THE TABLE IS MEASURED, NOT TUNED. Holdout, 1,150 real starts, rates frozen
+THE TABLE IS MEASURED, NOT TUNED. Holdout, 1,224 real starts, rates frozen
 before 2026-07-01, model P(over) against the observed frequency
-(`scratchpad/shape.py 40`, output kept at `scratchpad/shape_0831_hz.out`).
+(`scratchpad/shape.py 40`, output kept at `scratchpad/shape_0904_layoff.out`).
 
     line     model   actual     gap      se
-    o12.5    0.786    0.812   -0.026   0.012
-    o14.5    0.695    0.741   -0.046   0.013
-    o15.5    0.503    0.543   -0.040   0.015
-    o16.5    0.458    0.484   -0.026   0.015
-    o17.5    0.398    0.416   -0.018   0.015
-    o18.5    0.189    0.171   +0.018   0.011
-    o20.5    0.130    0.118   +0.011   0.010
+    o12.5    0.772    0.806   -0.033   0.011
+    o14.5    0.685    0.731   -0.047   0.013
+    o15.5    0.494    0.536   -0.042   0.014
+    o16.5    0.452    0.478   -0.026   0.014
+    o17.5    0.393    0.411   -0.018   0.014
+    o18.5    0.188    0.171   +0.018   0.011
+    o20.5    0.130    0.118   +0.013   0.009
 
-RE-MEASURED 2026-08-31, the same day the COUNTED MID-INNING PITCH HAZARD
-shipped (`sim.USE_PITCH_HAZARD`), because a hook change moves the very thing
-this corrects and that is exactly how the previous table went stale.
+RE-MEASURED 2026-09-04, the day the LAYOFF TERM shipped (`sim.USE_LAYOFF`),
+because a hook change moves the very thing this corrects and that is exactly
+how a previous table went stale. The layoff is a hook term on both curves,
+so it moves placement directly.
+
+WHAT THE LAYOFF DID TO THE TABLE: almost nothing, which is the honest
+result. The 12.5-17.5 band moved -0.026/-0.046/-0.040/-0.026/-0.018 to
+-0.033/-0.047/-0.042/-0.026/-0.018 — every row inside one standard error of
+where it was. That is expected: the term fires on 12.8% of holdout starts,
+so it cannot move a pooled correction much. It is re-measured because the
+rule is to re-measure after a hook change, not because a shift was
+predicted.
 
 **THE HOOK TOOK OVER A THIRD OF THE CORRECTION'S JOB.** Every row in the
 12.5-17.5 band shrank: -0.036 to -0.026, -0.067 to -0.046, -0.052 to -0.040,
@@ -84,12 +93,12 @@ from src.context.sources import rates as rate_src
 #: line -> (model P(over), actual frequency) on the holdout. The correction
 #: is actual - model, applied to P(over).
 MEASURED = {
-    12.5: (0.786, 0.812),
-    14.5: (0.695, 0.741),
-    15.5: (0.503, 0.543),
-    16.5: (0.458, 0.484),
-    17.5: (0.398, 0.416),
-    18.5: (0.189, 0.171),
+    12.5: (0.772, 0.806),
+    14.5: (0.685, 0.731),
+    15.5: (0.494, 0.536),
+    16.5: (0.452, 0.478),
+    17.5: (0.393, 0.411),
+    18.5: (0.188, 0.171),
     20.5: (0.130, 0.118),
 }
 #: Nominal; the per-row figures run 0.010 to 0.015 and are in the docstring.
@@ -98,14 +107,14 @@ SE = 0.013
 #: The date the table above was measured, and the engine it was measured on.
 #: Both views print it, because a correction is only as current as the hook
 #: underneath it and the last one went stale silently.
-MEASURED_ON = "2026-08-31"
+MEASURED_ON = "2026-09-04"
 
 #: The holdout mean the correction was measured around. A projection far
 #: from this is being extrapolated to, not interpolated.
 #:
 #: It is the MODEL's mean, not reality's 15.81, because what gets compared
 #: against it is a model projection.
-HOLDOUT_MEAN_OUTS = 15.71
+HOLDOUT_MEAN_OUTS = 15.62
 
 
 def correction(line: float) -> float:

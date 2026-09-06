@@ -8078,3 +8078,100 @@ The ten worst are all disasters — Bieber at 2 outs, Valdez at 2, Davis
 Martin at 3, all priced at 15-16. The mixture built for exactly that
 (`early_exit_p`) still ships at 0.0, so nothing in the engine can end a
 start because the wheels came off.
+
+## THE LAYOFF SHIPS — a starter back from an absence is pulled sooner (2026-09-04)
+
+Raised by the board: Taillon took the ball having last pitched 25 days
+earlier, the board priced his season workload (14.7 outs, 4.1 K) and the
+market had him near 2.7 K — a three-inning cap. Nothing in `sim` or `game`
+read days since his last start.
+
+**IT HAD BEEN SCREENED AND THE NULL WAS MIS-SPECIFIED.** Line 2250 above
+reports `days rest +0.014` on the outs residual and it was read as an absent
+effect. It is a LINEAR slope over a distribution that is 74% at five or six
+days with under 4% past ten, so a flat middle swamps a step in the tail.
+This is the standing failure mode in one line: a mis-specified mechanism and
+an absent effect produce identical output. **A null is a claim.**
+
+COUNTED FIRST, before any hook fit. Within-pitcher, within-season, against
+the same pitcher's own 4-9 day starts, train rows only:
+
+    gap          n            d_outs             d_BF             d_K/BF
+    4-9      15497  +0.01 (z +0.2)  +0.00 (z +0.1)  +0.0002 (z +0.3)
+    10-14      430  -0.81 (z -4.0)  -1.16 (z -5.8)  +0.0013 (z +0.3)
+    15-20      169  -1.28 (z -4.4)  -1.62 (z -5.2)  -0.0117 (z -1.6)
+    21-30      124  -1.11 (z -3.1)  -1.82 (z -4.3)  +0.0098 (z +1.0)
+    31+        244  -0.86 (z -3.9)  -1.68 (z -7.1)  +0.0043 (z +0.6)
+
+**IT IS EXPOSURE, NOT STUFF, which is why it is a HOOK term.** `d_BF` is
+-1.2 to -1.8 batters at z -4.3 to -7.1 and `d_K/BF` is null in every bucket.
+He is not worse per batter, he is left in for fewer of them. `scratchpad/
+layoff.py`; shipped as `sim.per_layoff` / `mid_per_layoff` plus a per-day
+slope, both curves, centred, `USE_LAYOFF`.
+
+    curve        step (>= 10d)        slope (per day beyond)
+    boundary   +0.63863 +/-0.0889   +0.04137 +/-0.00497
+    mid        +0.37561 +/-0.0790   +0.02306 +/-0.00449
+
+Controlled for everything both curves already read plus `leash`. Stability
+gate 8/8 on the COMBINED spec. The confound runs AGAINST the result — a
+returning pitcher may just be a worse pitcher, which pushes these positive,
+the direction they came out.
+
+**BOTH TERMS SHIP AND THE STEP-ONLY SPEC WAS REFUTED BY ITS OWN SHAPE
+CHECK.** The counted outs buckets look flat past ten days, so a binary
+indicator was the first specification; fitted alone the slope carries a
+higher z than the step on the boundary curve (+16.2 against +14.7). The
+effect grows with the absence.
+
+### THE EXPENSIVE PART: a missing start INVERTS this feature
+
+The first build fitted gaps off consecutive starts in the decision rows and
+served them off `mlb_pitching`. Both sources drop starts — the hook rows
+carry 1.63 starters per game against a real 2.00, and `mlb_pitching` had
+721 of 789 games in the holdout window. **One absent row turns a normal
+five-day turn into a ten-day layoff and fires the step on a pitcher who
+never went anywhere.** It fired on 18.32% of holdout starts against 7.76%
+in the fitted population, and moved a CENTRED term's level by 0.19 outs —
+which is what exposed it, since a centred term must not move the level.
+
+`sim._start_dates` now unions `mlb_pitching` with `mlb_stints` (99.7% of
+the window against 91.4% and 86.6% alone) and `scratchpad/layoff.py` reads
+the SAME index, so the fitted and served quantities are one quantity.
+Corrected, the coefficients came out LARGER, which is what attenuation
+predicts. Residual holdout fire rate is 12.82% against a fitted 7.76% and
+that is SEASONALITY, not a gap: the fitted population reads 3.82% in April
+and 13.61% in July, because the All-Star break gives half the league a
+ten-day turn.
+
+SCORED, holdout 2026-07-01+, 612 games x 40 sims, paired:
+
+                    OFF       ON    actual
+    mean outs     15.72    15.62     15.75
+    outs sd        4.00     4.07      4.06
+    outs CRPS    2.0931   2.0823
+    mean K         4.81     4.78      4.82
+    K CRPS       1.3295   1.3266
+
+Dispersion goes from -0.06 off to +0.01 off and CRPS improves on both
+markets. The LEVEL slips 0.10 outs, which is under one standard error
+(0.116) and not resolvable here. This is a discrimination gain, as a term
+that fires on 12.8% of starts has to be.
+
+**KNOWN ATTENUATION, NOT FIXED:** the fit pools genuine IL returns with
+All-Star-break gaps, and a pitcher who threw before the break and after it
+is healthy and stretched. That dilutes the coefficient toward zero, so the
+true IL effect is larger than what ships. Splitting them is the obvious
+next refinement.
+
+`outs_adjust` was re-measured the same day per the standing rule that a
+hook change invalidates it. It barely moved — every row in the 12.5-17.5
+band inside one standard error — which is expected for a term firing on
+12.8% of starts, and is the reason to re-measure rather than a prediction
+of one.
+
+**WHAT IT DID TO THE BOARD.** Taillon 14.7 outs / 4.1 K -> 12.9 / 3.6, and
+his strikeout edge 0.268 -> 0.183. Pallante (18 days) 0.145 -> 0.087. The
+counted effect closes about a third of the gap to the market. The rest is
+almost certainly an announced pitch cap, which is information the market
+has and this model structurally does not.

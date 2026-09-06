@@ -201,6 +201,14 @@ class Side:
     #: the club and the date, not of the pitcher on the mound — every arm
     #: that takes the ball tonight faces the same depleted pen behind him.
     pen_state: tuple[float, float] | None = None
+    #: Days since THIS STARTER's previous start, from `sim.layoff_gap`.
+    #: None means unknown, no prior start, or across a season break, and
+    #: contributes exactly zero to either hook curve. See `sim.per_layoff`.
+    #:
+    #: Carried on the SIDE and not on the arm because both hook call sites
+    #: are already guarded by `not side.starter_out` — the term was counted
+    #: on starter decisions only, and a reliever must never receive it.
+    layoff_gap: int | None = None
     #: RESOLVED MATCHUPS, nine of them, rebuilt when the arm changes.
     #:
     #: The point of `sim.resolve` is that a plate appearance's inputs get
@@ -488,7 +496,8 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
                             # because the manager obviously saw it.
                             k_rate=(ln.k / ln.batters
                                     if ln.batters else None),
-                            pen=side.pen_state))
+                            pen=side.pen_state,
+                            layoff_gap=side.layoff_gap))
                     or ln.pitches >= side.hook.hard_pitch_cap):
                 ln.pulled_mid_inning = True
                 ln.left_on_base, ln.outs_when_pulled = fr.on_base, fr.outs
@@ -619,7 +628,8 @@ def _end_of_inning(side: Side, rng: random.Random, inning: int,
                 and rng.random() < side.hook.removal_p(
                     ln.pitches, ln.runs, inning, ln.h + ln.bb, margin,
                     inning_runs=side.last_inning_runs,
-                    pen=side.pen_state))
+                    pen=side.pen_state,
+                    layoff_gap=side.layoff_gap))
             or ln.pitches >= side.hook.hard_pitch_cap):
         if not ln.covered_f5:
             ln.runs_f5, ln.outs_f5 = ln.runs, ln.outs
@@ -919,6 +929,7 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
         arms = [_role(a, sim.HBP_RATE_RP, sim.SAC_RATE_RP) for a in arms]
     return Side(starter=starter, pen=arms, lineup=lineup, hook=h,
                 pen_state=sim.pen_state(team, date),
+                layoff_gap=sim.layoff_gap(starter.name, date),
                 forced_exit_outs=_draw_early_exit(h, rng))
 
 

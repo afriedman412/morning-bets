@@ -1,407 +1,233 @@
-"""Does a pitcher back from a layoff pitch to his own pre-layoff rate?
+"""THE LAYOFF: does a starter back from a long absence get a shorter leash?
 
-    venv/bin/python -m scratchpad.layoff [--stat k_pct] [--gap 30]
-    venv/bin/python -m scratchpad.layoff --control 0.90   (positive control)
+QUESTION. Jameson Taillon took the ball on 2026-09-04 having last pitched
+on 2026-08-10 — 25 days. The board priced him at his season workload (14.7
+outs, 4.1 K) and the market had him near 2.7 K, which is a three-inning
+cap. Nothing in `sim` or `game` reads days-since-last-appearance.
 
-WHAT IS BLOCKED ON THIS, and it is TODO item 12. The shrink target for a
-thin current season is built from the pitcher's OWN past seasons
-(`rates._load_seasons` -> `_blend_priors` -> `shrink_target`). The proposed
-fix is one shrink against a DISCOUNTED prior sample, and the size of that
-discount is a measurement. But before measuring HOW MUCH the career rate is
-worth, this asks whether the career rate is the right TARGET AT ALL for the
-population where the whole thing matters — men whose season is thin because
-they were not there.
+WHY THE EXISTING NULL DOES NOT SETTLE IT. `NOTES-context-layer.md:2250`
+screened six between-game features on the outs residual and reported
+`days rest +0.014`. That is a LINEAR slope, and the rest distribution is
+74% at five or six days with under 4% past ten — a flat middle swamps a
+step in the tail. This is the project's own recorded failure mode: a
+mis-specified mechanism and an absent effect produce identical output.
 
-Blake Snell on 2026-08-29 is the case: 85 batters faced, a shrink target of
-0.2699 sitting BELOW every one of his four seasons, and a 19-point "edge"
-on his strikeout under that was our own shrinkage. If returning pitchers
-come back AT their career rate, the target should be the career rate and
-the current construction is simply wrong. If they come back BELOW it, part
-of that pull is real and the fix is smaller than it looks.
+WHAT THE COUNT SAYS, before any hook fit. Within-pitcher, within-season,
+against the same pitcher's own 4-9 day starts that year, train rows only:
 
-THIS PROJECT IS 0-FOR-6 ON IMPORTED BASEBALL INTUITIONS and every counted
-constant came out different from the published one. "A returning pitcher is
-still himself" is an intuition. It is also directly testable, so it gets
-counted.
+    gap          n            d_outs             d_BF             d_K/BF
+    4-9      15497  +0.01 (z +0.2)  +0.00 (z +0.1)  +0.0002 (z +0.3)
+    10-14      430  -0.81 (z -4.0)  -1.16 (z -5.8)  +0.0013 (z +0.3)
+    15-20      169  -1.28 (z -4.4)  -1.62 (z -5.2)  -0.0117 (z -1.6)
+    21-30      124  -1.11 (z -3.1)  -1.82 (z -4.3)  +0.0098 (z +1.0)
+    31+        244  -0.86 (z -3.9)  -1.68 (z -7.1)  +0.0043 (z +0.6)
 
-THE DESIGN, and the three things it has to survive:
+The 4-9 row is the baseline population and reads zero as it must. The
+effect is ENTIRELY EXPOSURE: `d_BF` is -1.2 to -1.8 batters at z -4.3 to
+-7.1 while `d_K/BF` is null in every bucket. A returning starter is not
+worse per batter, he is pulled earlier. That is a HOOK term and not a rate
+term, which is what this file fits.
 
-  1. MEAN REVERSION. `post - pre` is negative for anyone whose `pre` was
-     lucky, and injury selects on recent performance. So the layoff group is
-     compared against a CONTROL group of pitcher-seasons split the same way
-     with no gap, and the group difference is also reported ADJUSTED for
-     `pre` by regression. An unadjusted difference between groups whose
-     `pre` distributions differ is mean reversion wearing a hat.
+A STEP, NOT A RAMP. The buckets are flat to nine days and then roughly
+level from ten on — they do not climb with the gap. So the feature is a
+binary indicator at `LAYOFF_MIN`, and fitting a slope through five
+measured points is the move CLAUDE.md forbids (see `mid_per_inning_run`,
+where a least-squares line through counted points charged +0.724 at one
+run against a counted +0.296).
 
-  2. THE CALENDAR. League strikeout rate drifts within a season and the
-     layoff group's "after" sits later in the year than the control's by
-     construction. Every rate here is therefore a RATIO to the league rate
-     over the pitcher's own appearance dates, month by month, so a rate is
-     never compared against a league it was not earned against.
+THE CONFOUND, AND IT RUNS THE WRONG WAY. A pitcher returning from the IL
+may simply be a worse or more fragile pitcher, and a worse pitcher is
+pulled earlier for reasons that have nothing to do with the layoff. That
+pushes the coefficient POSITIVE (toward removal), so it works against the
+hypothesis rather than for it. `leash` — his own recent length — is in the
+control set to absorb what it can, the same rule `pen_state.py` follows.
 
-  3. AN ESTIMATOR THAT CANNOT SEE. A mis-specified harness and an absent
-     effect print the same table, so `--control` multiplies every
-     post-layoff strikeout by a known factor and the run has to recover it.
+GAPS ARE COMPUTED FROM CONSECUTIVE STARTS in the decision rows themselves,
+not from a name join. `mlb_stints` covers 2026 only, so an id->name mapping
+would silently drop every 2023-2025 arm that never pitched in 2026.
+Consecutive starts is also exactly what `price.py` can look up at board
+time, so the fitted quantity and the served quantity are the same one.
 
-WHAT IT CANNOT SEE. Why a man was absent is not in this database — an
-elbow, a suspension, a demotion and a rest day are one gap here. That makes
-this a measure of ABSENCE, not of injury, and it is the weaker question.
-It is also the one the prior actually faces, because `rates` cannot see the
-reason either.
+NOT A SIMULATION. This measures real decisions. Whether wiring it improves
+the simulation is scored separately, on the ladder and CRPS.
 """
 from __future__ import annotations
 
-import statistics as st
-import sys
-from collections import defaultdict
-
-from src.context import store
-
-#: Days between consecutive appearances that count as a layoff. 30 is a
-#: fortnight beyond the longest ordinary rotation slip and comfortably past
-#: a minimum IL stint.
-GAP_DAYS = 30
-#: A control season must have NO gap longer than this. Kept well below
-#: `GAP_DAYS` so the two groups are not neighbours across one threshold.
-CONTROL_MAX_GAP = 12
-#: Batters faced required on EACH side of the split. Below this the ratio is
-#: mostly sampling noise and the disattenuation cannot rescue it.
-MIN_SIDE = 80
-#: Bins for the stratified estimator. Enough to follow the shape of `pre`,
-#: few enough that a bin holds several layoff arms.
-NBINS = 6
-
-STATS = ("k_pct", "bb_pct", "hr_pct")
-
-_Q = """
-select g.date date, p.player_name name, p.is_starter st,
-       p.outs_recorded o, p.h h, p.bb bb, p.k k, p.hr hr
-from bets.mlb_pitching p join bets.games g on g.game_id = p.game_id
-where g.sport = 'mlb' and g.status = 'Final'
-order by p.player_name, g.date
-"""
-
-_NUM = {"k_pct": "k", "bb_pct": "bb", "hr_pct": "hr"}
+#: NEVER FIT ON ROWS THAT WILL BE SCORED ON. Same cutoff `shape.py` and
+#: `fitf5` evaluate from — one cutoff for the whole project, because two is
+#: how one of them drifts. See CLAUDE.md.
+HOLDOUT_CUT = "2026-07-01"
 
 
-def appearances() -> dict[tuple[str, int], list[dict]]:
-    """{(pitcher, season): [appearance rows in date order]}.
+def train_only(rows):
+    """Rows strictly before the holdout. Call it before ANY fit."""
+    return [r for r in rows if r.get("date", "") < HOLDOUT_CUT]
 
-    Batters faced is outs + hits + walks — the same footing
-    `rates.pitcher_rates` uses, so this counts what the prior is built from.
-    EVERY appearance, starter or relief, for the same reason.
+
+import json
+
+import numpy as np
+
+from src.context import sim, store
+from scratchpad.hook_margin import control, fit, power, report, xy
+
+CACHE = "/tmp/hook_rows.json"
+
+#: Days since the previous START at or beyond which the indicator fires.
+#: Ten is where the counted effect first clears three sigma (-0.81 outs,
+#: z -4.0) and it is also the first bucket boundary past a normal turn: a
+#: five-man rotation on a normal week is four to six days, and seven to
+#: nine covers a skipped turn or an off day. Ten means something happened.
+LAYOFF_MIN = 10
+
+#: Everything both shipped curves already read, so the layoff column is
+#: asked what it ADDS rather than what it correlates with. Matches
+#: `pen_state.py` exactly — including `leash`, which is the confound
+#: control described in the docstring.
+BND_BASE = ("pitches", "runs", "br", "inning", "bf", "tto", "abs_margin",
+            "leash")
+MID_BASE = ("pitches", "inn_br", "runs", "onbase", "inning", "bf",
+            "abs_margin", "leash")
+
+
+def attach(rows):
+    """Add `gap`, `layoff` and `same_season` to every decision row.
+
+    THE GAP COMES FROM `sim.layoff_gap`, NOT FROM THESE ROWS, and that is
+    the whole point of this function. The obvious implementation — take
+    each pitcher's consecutive start dates in the decision rows — is wrong
+    and was shipped that way for an hour. `fit_hooks.build` drops every
+    start whose leash lookup misses, so the rows carry 1.63 starters per
+    game against a real 2.00, and a MISSING start does not weaken the
+    feature but INVERTS it: one absent row turns a normal five-day turn
+    into a ten-day layoff and fires the step on a pitcher who never went
+    anywhere.
+
+    Fitting on one definition and serving another is the mistake CLAUDE.md
+    names directly — check that two numbers measure the same thing before
+    acting on the difference. Both sides now read the same union index.
     """
     with store.connect() as c:
-        rows = [dict(r) for r in c.execute(_Q)]
-    out: dict[tuple[str, int], list[dict]] = defaultdict(list)
+        names = {r["pitcher_id"]: r["player_name"] for r in
+                 c.execute("select distinct pitcher_id, player_name "
+                           "from mlb_stints")}
+    out = []
     for r in rows:
-        bf = (r["o"] or 0) + (r["h"] or 0) + (r["bb"] or 0)
-        if bf < 1:
-            continue
-        out[(r["name"], int(r["date"][:4]))].append(
-            {"date": r["date"], "bf": bf, "k": r["k"] or 0,
-             "bb": r["bb"] or 0, "hr": r["hr"] or 0,
-             "st": r["st"] or 0})
-    for v in out.values():
-        v.sort(key=lambda x: x["date"])
+        nm = names.get(r["pitcher"])
+        gap = sim.layoff_gap(nm, r["date"]) if nm else None
+        if gap is None:
+            continue        # no prior start on record, or a season break
+        r = dict(r)
+        r["gap"] = gap
+        r["layoff"] = 1.0 if gap >= LAYOFF_MIN else 0.0
+        # `sim.layoff_gap` already returns None across a season break, so
+        # everything that survives is in-season. The column stays so the
+        # season-break block below still reports, and so a future change
+        # to that rule cannot silently pool the two populations.
+        r["same_season"] = True
+        out.append(r)
     return out
 
 
-def league_by_month(app: dict) -> dict[str, dict[str, float]]:
-    """{'YYYY-MM': {stat: league rate that month}}, weighted by batters faced.
-
-    Month rather than season because the strikeout rate drifts within a
-    year and the layoff group's return is late in it by construction.
-    """
-    acc: dict[str, dict[str, float]] = defaultdict(
-        lambda: defaultdict(float))
-    for rows in app.values():
-        for r in rows:
-            m = r["date"][:7]
-            acc[m]["bf"] += r["bf"]
-            for s, col in _NUM.items():
-                acc[m][col] += r[col]
-    return {m: {s: v[_NUM[s]] / v["bf"] for s in STATS}
-            for m, v in acc.items() if v["bf"] > 0}
-
-
-def _rel(rows: list[dict], lg: dict, stat: str):
-    """(observed / league-expected, batters faced) over these appearances.
-
-    A RATIO, not a difference: it is scale-free, so a 10% drop means the
-    same thing in April and August, and it is what `_prior_adjusted`
-    already does when it moves a season onto another run environment.
-    """
-    bf = sum(r["bf"] for r in rows)
-    obs = sum(r[_NUM[stat]] for r in rows)
-    exp = sum(r["bf"] * lg[r["date"][:7]][stat] for r in rows
-              if r["date"][:7] in lg)
-    if bf < 1 or exp <= 0:
-        return None, 0
-    return obs / exp, bf
-
-
-def split(rows: list[dict]) -> tuple[int, int]:
-    """(index of the largest gap, that gap in days).
-
-    The split index is the first appearance AFTER the gap, so `rows[:i]` is
-    everything before it.
-    """
-    best_i, best_d = 0, 0
-    for i in range(1, len(rows)):
-        a, b = rows[i - 1]["date"], rows[i]["date"]
-        d = (_ord(b) - _ord(a))
-        if d > best_d:
-            best_i, best_d = i, d
-    return best_i, best_d
-
-
-def _ord(iso: str) -> int:
-    from datetime import date
-    return date.fromisoformat(iso).toordinal()
-
-
-def _median_split(rows: list[dict]) -> int:
-    """Index that puts half the batters faced on each side."""
-    total = sum(r["bf"] for r in rows)
-    run = 0
-    for i, r in enumerate(rows):
-        run += r["bf"]
-        if run >= total / 2:
-            return i + 1
-    return len(rows)
-
-
-def build(stat: str, gap_days: int, control_k: float | None,
-          starters: bool = False):
-    """Both groups, as (pre_ratio, post_ratio, pre_bf, post_bf) per season.
-
-    `starters` keeps only pitcher-seasons that are mostly STARTS, on both
-    sides of the split. The unrestricted population mixes an injured
-    starter with a reliever riding the shuttle to Triple-A, and only the
-    first is the case the prior has to get right.
-    """
-    app = appearances()
-    lg = league_by_month(app)
-    layoff, control = [], []
-    for (name, season), rows in app.items():
-        if len(rows) < 4:
+def buckets(rows, label):
+    """The raw pull rate by gap, so the SHAPE is visible before any fit."""
+    print(f"\n  {label} — raw pull rate by gap")
+    print(f"    {'gap':<9}{'n':>9}{'pulls':>9}{'rate':>9}")
+    for lo, hi in ((4, 9), (10, 14), (15, 20), (21, 30), (31, 400)):
+        s = [r for r in rows if lo <= r["gap"] <= hi]
+        if not s:
             continue
-        if starters and (sum(r["st"] for r in rows) / len(rows)) < 0.8:
-            continue
-        i, gap = split(rows)
-        if gap >= gap_days:
-            grp, cut = layoff, i
-        elif gap < CONTROL_MAX_GAP:
-            grp, cut = control, _median_split(rows)
-        else:
-            continue
-        pre, post = rows[:cut], rows[cut:]
-        if control_k is not None and grp is layoff:
-            # POSITIVE CONTROL: a known multiplicative hit to the returning
-            # side only. The estimator must read back `control_k`.
-            # THE COLUMN MUST FOLLOW `stat`. A first version hard-coded
-            # "k" here, so `--stat hr_pct --control 1.20` injected into
-            # STRIKEOUTS and printed the null run's numbers to four
-            # decimals — a positive control that silently controlled
-            # nothing, which is worse than not running one.
-            col = _NUM[stat]
-            post = [{**r, col: r[col] * control_k} for r in post]
-        a, na = _rel(pre, lg, stat)
-        b, nb = _rel(post, lg, stat)
-        if a is None or b is None or na < MIN_SIDE or nb < MIN_SIDE:
-            continue
-        grp.append({"name": name, "season": season, "pre": a, "post": b,
-                    "pre_bf": na, "post_bf": nb, "gap": gap})
-    return layoff, control
+        lbl = f"{lo}-{hi}" if hi < 400 else f"{lo}+"
+        y = np.mean([r["removed"] for r in s])
+        print(f"    {lbl:<9}{len(s):>9,}{int(sum(r['removed'] for r in s)):>9,}"
+              f"{y:>9.4f}")
 
 
-def _mean_se(xs):
-    n = len(xs)
-    if n < 2:
-        return 0.0, 0.0
-    return st.mean(xs), st.stdev(xs) / (n ** 0.5)
+def main():
+    rows = attach(json.load(open(CACHE)))
+    rows = train_only(rows)              # THE GUARD, ACTUALLY CALLED
+    ins = [r for r in rows if r["same_season"]]
+    print(f"{len(rows):,} starter decisions with a prior start, "
+          f"{min(r['date'] for r in rows)} to {max(r['date'] for r in rows)}")
+    print(f"  {len(ins):,} in-season   "
+          f"{len(rows) - len(ins):,} across a season break")
+    fire = np.mean([r["layoff"] for r in ins])
+    print(f"  layoff indicator (gap >= {LAYOFF_MIN}) fires on "
+          f"{100 * fire:.2f}% of in-season decisions")
 
+    mid = [r for r in ins if not r["ends_inning"]]
+    bnd = [r for r in ins if r["ends_inning"]]
+    print(f"  {len(bnd):,} boundary   {len(mid):,} mid-inning")
 
-def _ols(rows, key_y, keys_x):
-    """Least squares with an intercept. Returns (coefs, se) including it."""
-    import math
-    n = len(rows)
-    p = len(keys_x) + 1
-    X = [[1.0] + [r[k] for k in keys_x] for r in rows]
-    y = [r[key_y] for r in rows]
-    XtX = [[sum(X[i][a] * X[i][b] for i in range(n)) for b in range(p)]
-           for a in range(p)]
-    Xty = [sum(X[i][a] * y[i] for i in range(n)) for a in range(p)]
-    inv = _inv(XtX)
-    beta = [sum(inv[a][b] * Xty[b] for b in range(p)) for a in range(p)]
-    resid = [y[i] - sum(beta[a] * X[i][a] for a in range(p))
-             for i in range(n)]
-    s2 = sum(e * e for e in resid) / (n - p)
-    se = [math.sqrt(max(s2 * inv[a][a], 0.0)) for a in range(p)]
-    return beta, se
+    for name, pop, base in (("BOUNDARY", bnd, BND_BASE),
+                            ("MID-INNING", mid, MID_BASE)):
+        print(f"\n{'=' * 66}\n{name}\n{'=' * 66}")
+        buckets(pop, name)
+        # STATE THE POWER BEFORE THE RESULT.
+        power(pop, base, ("layoff",), f"{name} layoff")
+        # POSITIVE CONTROL, injected at the size actually being CLAIMED.
+        # 0.25 was the first choice and the boundary curve reads MISSED on
+        # it — recovered +0.214 +/- 0.075, right magnitude, z 2.9. That is
+        # the harness stating its resolution, not a mis-specification, and
+        # the smaller injection is kept so the limit stays visible rather
+        # than being quietly dropped once a larger one passed.
+        print("\n  POSITIVE CONTROLS")
+        for size in (0.25, 0.60, 1.00):
+            control(pop, base, ("layoff",), size, f"layoff x{size:.2f}")
+        report(pop, base, ("layoff",), f"{name} + layoff, controlled")
 
-
-def _inv(m):
-    n = len(m)
-    a = [row[:] + [1.0 if i == j else 0.0 for j in range(n)]
-         for i, row in enumerate(m)]
-    for col in range(n):
-        piv = max(range(col, n), key=lambda r: abs(a[r][col]))
-        a[col], a[piv] = a[piv], a[col]
-        d = a[col][col]
-        a[col] = [v / d for v in a[col]]
-        for r in range(n):
-            if r == col:
+        # STABILITY GATE. A coefficient that does not repeat across seasons
+        # is not a mechanism, whatever its in-sample sigma.
+        print(f"\n  --- {name}: PER SEASON ---")
+        for yr in ("2023", "2024", "2025", "2026"):
+            sub = [r for r in pop if r["date"][:4] == yr]
+            if len(sub) < 3000:
                 continue
-            f = a[r][col]
-            if f:
-                a[r] = [v - f * w for v, w in zip(a[r], a[col])]
-    return [row[n:] for row in a]
+            X, y = xy(sub, base + ("layoff",))
+            b, se = fit(X, y)
+            i = len(base)
+            print(f"    {yr}  n {len(sub):>7,}  layoff "
+                  f"{b[i]:>+9.5f} +/- {se[i]:.5f}  z {b[i] / se[i]:>+5.1f}")
 
+        # IS THE STEP THE RIGHT SHAPE? If the effect climbed with the gap a
+        # continuous term would beat the indicator. Reported, not assumed.
+        print(f"\n  --- {name}: SHAPE CHECK (continuous vs step) ---")
+        for r in pop:
+            r["gap_over"] = float(max(0, min(r["gap"], 45) - LAYOFF_MIN))
+        report(pop, base, ("gap_over",), f"{name} + days beyond {LAYOFF_MIN}")
+        report(pop, base, ("layoff", "gap_over"), f"{name} + step AND slope")
 
-def main(argv):
-    stat = "k_pct"
-    gap_days = GAP_DAYS
-    control_k = None
-    for i, a in enumerate(argv):
-        if a == "--stat":
-            stat = argv[i + 1]
-        elif a == "--gap":
-            gap_days = int(argv[i + 1])
-        elif a == "--control":
-            control_k = float(argv[i + 1])
+        # THE GATE THAT DECIDES WHAT SHIPS. Both terms clear three sigma
+        # pooled, which is not enough to wire two parameters: a coefficient
+        # that does not repeat across seasons is not a mechanism. Run on the
+        # COMBINED spec because that is the one being considered, and a term
+        # can be stable alone and unstable beside its partner.
+        print(f"\n  --- {name}: PER SEASON, step AND slope together ---")
+        for yr in ("2023", "2024", "2025", "2026"):
+            sub = [r for r in pop if r["date"][:4] == yr]
+            if len(sub) < 3000:
+                continue
+            X, y = xy(sub, base + ("layoff", "gap_over"))
+            b, se = fit(X, y)
+            i = len(base)
+            print(f"    {yr}  n {len(sub):>7,}  step {b[i]:>+8.5f} "
+                  f"(z {b[i] / se[i]:>+5.1f})   slope {b[i + 1]:>+8.5f} "
+                  f"(z {b[i + 1] / se[i + 1]:>+5.1f})")
 
-    layoff, control = build(stat, gap_days, control_k,
-                            starters="--starters" in argv)
-    if "--starters" in argv:
-        print("\n  ** STARTERS ONLY: >=80% of appearances are starts **")
-    print(f"\n  LAYOFF vs CONTROL — {stat}, gap >= {gap_days}d, "
-          f"each side >= {MIN_SIDE} BF")
-    if control_k is not None:
-        print(f"  ** POSITIVE CONTROL: post-layoff {stat} x {control_k:.3f}"
-              f" — the adjusted difference must read"
-              f" {control_k - 1:+.3f} **")
-    print(f"\n  {'group':<10}{'n':>6}{'pre':>8}{'post':>8}{'post-pre':>10}"
-          f"{'se':>8}{'pre BF':>9}{'post BF':>9}{'gap d':>8}")
-    for lbl, grp in (("layoff", layoff), ("control", control)):
-        if not grp:
-            print(f"  {lbl:<10}{0:>6}   — nothing qualified")
+    # THE SEASON BREAK, reported separately rather than pooled in. A pitcher
+    # opening a season has had a spring to build up and is not the same case
+    # as one returning mid-season, which is why `same_season` exists.
+    print(f"\n{'=' * 66}\nACROSS A SEASON BREAK — separate population\n{'=' * 66}")
+    xs = [r for r in rows if not r["same_season"]]
+    for name, pop, base in (
+            ("BOUNDARY", [r for r in xs if r["ends_inning"]], BND_BASE),
+            ("MID-INNING", [r for r in xs if not r["ends_inning"]], MID_BASE)):
+        if len(pop) < 3000:
+            print(f"  {name}: {len(pop):,} rows, too few")
             continue
-        d = [r["post"] - r["pre"] for r in grp]
-        m, se = _mean_se(d)
-        print(f"  {lbl:<10}{len(grp):>6}"
-              f"{st.mean([r['pre'] for r in grp]):>8.4f}"
-              f"{st.mean([r['post'] for r in grp]):>8.4f}"
-              f"{m:>+10.4f}{se:>8.4f}"
-              f"{st.median([r['pre_bf'] for r in grp]):>9.0f}"
-              f"{st.median([r['post_bf'] for r in grp]):>9.0f}"
-              f"{st.median([r['gap'] for r in grp]):>8.0f}")
-
-    if not layoff or not control:
-        return
-    # THE HEADLINE, and it is the ADJUSTED one. `post - pre` carries mean
-    # reversion, which is real and is not what is being asked; regressing on
-    # `pre` removes the part of the fall that any group with that `pre`
-    # would have shown.
-    rows = ([{**r, "grp": 1.0} for r in layoff]
-            + [{**r, "grp": 0.0} for r in control])
-    beta, se = _ols(rows, "post", ["grp", "pre"])
-    z = beta[1] / se[1] if se[1] else 0.0
-    print(f"\n  ADJUSTED FOR `pre` — post ~ intercept + group + pre,"
-          f" n = {len(rows):,}")
-    print(f"    layoff effect  {beta[1]:>+8.4f} +/- {se[1]:.4f}   z {z:+.2f}")
-    print(f"    slope on pre   {beta[2]:>+8.4f} +/- {se[2]:.4f}")
-    print(f"    intercept      {beta[0]:>+8.4f}")
-    print(f"\n  A layoff effect of {beta[1]:+.4f} means a returning pitcher"
-          f" lands at\n  {1 + beta[1]:.3f} of what his pre-layoff rate"
-          f" predicts, all else equal.")
-
-    # STRATIFIED ON `pre`, AND THIS IS THE ESTIMATOR TO TRUST ON A NOISY
-    # STAT. The regression above corrects the group difference in `pre` by
-    # multiplying it by the fitted slope — and that slope is ATTENUATED by
-    # sampling noise in `pre`, badly so on home runs where it reads 0.22.
-    # Under-correcting leaves a real difference in group talent sitting in
-    # the group dummy, which is indistinguishable from a layoff effect.
-    #
-    # This bins the POOLED sample on `pre`, takes the layoff-minus-control
-    # difference in `post` WITHIN each bin, and averages them weighted by
-    # layoff count. It assumes no functional form at all. Bins with no
-    # layoff arms or no controls contribute nothing and are reported, since
-    # a group difference that lives entirely outside the common support is
-    # not an effect, it is an extrapolation.
-    print(f"\n  STRATIFIED ON `pre` — no slope assumed, {NBINS} bins")
-    print(f"  {'bin':<14}{'n lay':>7}{'n ctl':>7}{'lay post':>10}"
-          f"{'ctl post':>10}{'diff':>9}")
-    allp = sorted(r["pre"] for r in rows)
-    edges = [allp[int(len(allp) * i / NBINS)] for i in range(1, NBINS)]
-
-    def _bin(v):
-        b = 0
-        while b < len(edges) and v >= edges[b]:
-            b += 1
-        return b
-    num = den = 0.0
-    var = 0.0
-    dropped_l = dropped_c = 0
-    for b in range(NBINS):
-        L = [r for r in layoff if _bin(r["pre"]) == b]
-        C = [r for r in control if _bin(r["pre"]) == b]
-        lo = "-inf" if b == 0 else f"{edges[b-1]:.2f}"
-        hi = "inf" if b == NBINS - 1 else f"{edges[b]:.2f}"
-        if len(L) < 3 or len(C) < 3:
-            dropped_l += len(L)
-            dropped_c += len(C)
-            print(f"  {lo:>6}-{hi:<7}{len(L):>7}{len(C):>7}"
-                  f"{'':>10}{'':>10}{'  (too thin)':>9}")
-            continue
-        ml, sl = _mean_se([r["post"] for r in L])
-        mc, sc = _mean_se([r["post"] for r in C])
-        w = len(L)
-        num += w * (ml - mc)
-        den += w
-        var += (w ** 2) * (sl ** 2 + sc ** 2)
-        print(f"  {lo:>6}-{hi:<7}{len(L):>7}{len(C):>7}{ml:>10.4f}"
-              f"{mc:>10.4f}{ml - mc:>+9.4f}")
-    if den:
-        eff = num / den
-        see = (var ** 0.5) / den
-        print(f"\n    stratified effect  {eff:>+8.4f} +/- {see:.4f}"
-              f"   z {eff / see if see else 0:+.2f}")
-        print(f"    dropped to thin bins: {dropped_l} layoff,"
-              f" {dropped_c} control")
-        print(f"    COMPARE the regression's {beta[1]:+.4f}. A large"
-              f" disagreement means the\n    slope correction was doing"
-              f" the work, and on a noisy stat it cannot.")
-
-    # AND THE SLOPE, SEPARATELY. A group can be unbiased in level and still
-    # have a less predictive past, which is the other thing the prior needs
-    # to know: it argues for a smaller effective sample, not a shifted one.
-    print(f"\n  SLOPE ON `pre` WITHIN EACH GROUP — how much the past"
-          f" carries\n  {'group':<10}{'n':>6}{'slope':>9}{'se':>8}{'z':>7}")
-    for lbl, grp in (("layoff", layoff), ("control", control)):
-        if len(grp) < 20:
-            continue
-        b, s = _ols(grp, "post", ["pre"])
-        print(f"  {lbl:<10}{len(grp):>6}{b[1]:>9.4f}{s[1]:>8.4f}"
-              f"{b[1] / s[1] if s[1] else 0:>7.1f}")
-    print("\n  A LOWER SLOPE IS NOT A LOWER LEVEL. The level says where to")
-    print("  aim the target; the slope says how much weight it deserves.")
-
-    # THE STABILITY GATE. One pooled number over four seasons can be one
-    # season's accident. A mechanism that is real repeats.
-    print(f"\n  PER SEASON — the same adjusted layoff effect"
-          f"\n  {'season':<8}{'n lay':>7}{'n ctl':>7}{'effect':>9}{'se':>8}"
-          f"{'z':>7}")
-    for yr in sorted({r["season"] for r in rows}):
-        sub = [r for r in rows if r["season"] == yr]
-        nl = sum(1 for r in sub if r["grp"])
-        if nl < 15 or len(sub) - nl < 15:
-            continue
-        b, s_ = _ols(sub, "post", ["grp", "pre"])
-        print(f"  {yr:<8}{nl:>7}{len(sub) - nl:>7}{b[1]:>+9.4f}"
-              f"{s_[1]:>8.4f}{b[1] / s_[1] if s_[1] else 0:>+7.2f}")
+        print(f"  {name}: n {len(pop):,}   pull rate "
+              f"{np.mean([r['removed'] for r in pop]):.4f}")
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()

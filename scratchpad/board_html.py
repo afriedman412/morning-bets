@@ -305,7 +305,7 @@ def render(payload):
         'manager\'s decision the model reproduces only in aggregate, CLV z '
         'of 1.3 against strikeouts\' 43.5. Every number below is <b>after</b> '
         'the measured boundary-share correction, re-measured '
-        f'<b>{esc(corr_on)}</b> on the shipped hook over 1,150 holdout '
+        f'<b>{esc(corr_on)}</b> on the shipped hook over 1,224 holdout '
         'starts; the raw simulator figure is in brackets on the ladders. '
         'The correction prices the line rather than annotating it &mdash; '
         'reading the raw number against a market tilts this whole block '

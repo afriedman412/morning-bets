@@ -366,7 +366,7 @@ def print_board(payload):
     print("\n  CAVEATS — `BETTING.md` is the governing page.")
     print("   * OUTS IS STILL THE WEAKEST MARKET HERE. The `adj ov` column")
     print(f"     is CURRENT — re-measured {MEASURED_ON} on the shipped hook,")
-    print("     1,150 holdout starts — but outs is a manager decision the")
+    print("     1,224 holdout starts — but outs is a manager decision the")
     print("     model reproduces only in aggregate. CLV z 1.3 against 43.5.")
     print("   * Strikeouts beat the OPEN and not the CLOSE. Bet early or")
     print("     not at all.")

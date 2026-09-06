@@ -149,7 +149,7 @@ def check_board_outs_block_dates_its_correction():
     p = _payload()
     html = board_html.render(p)
     assert p["corrected_on"] in html
-    assert "1,150 holdout starts" in html
+    assert "1,224 holdout starts" in html
     assert "corrected" in html
     assert "corrected" not in board_html.disagreement_table(
         [_row("k", 4.5, 0.62, 0.50)])
@@ -319,10 +319,13 @@ def check_outs_correction_long_lines_are_within_noise():
 def check_outs_correction_centre_is_the_models_mean_not_reality():
     """`far` compares a MODEL projection, so the centre must be the model's.
 
-    Reality's holdout mean is 15.81 and the model's is 15.71. Centring on
-    reality would mis-flag extrapolation by 0.10 outs in one direction.
+    Reality's holdout mean is 15.75 and the model's is 15.62. Centring on
+    reality would mis-flag extrapolation by 0.13 outs in one direction.
+
+    Both numbers move when the hook moves — this is the value as of the
+    2026-09-04 re-measure, after `sim.USE_LAYOFF` shipped.
     """
-    assert abs(outs_adjust.HOLDOUT_MEAN_OUTS - 15.71) < 0.005
+    assert abs(outs_adjust.HOLDOUT_MEAN_OUTS - 15.62) < 0.005
 
 
 def check_outs_rows_are_priced_after_the_correction():

@@ -991,3 +991,114 @@ def check_the_high_pitch_branch_leaves_early_counts_alone():
                    - off.removal_p(p, 3, 6, 4, 0)) < 1e-12, p
         assert abs(h.mid_removal_p(p, 3, 2, 1.0, margin=0)
                    - off.mid_removal_p(p, 3, 2, 1.0, margin=0)) < 1e-12, p
+
+
+def check_the_layoff_reaches_both_hook_curves():
+    """A starter back from an absence is pulled sooner, on BOTH curves.
+
+    Counted on 278,062 in-season starter decisions: step +0.597 (boundary)
+    and +0.347 (mid), slope +0.0441 and +0.0242 per day beyond ten. The
+    direction is the whole claim — a longer absence means a shorter leash,
+    so removal probability must RISE with the gap.
+    """
+    h = sim.Hook()
+    for call in (lambda g: h.removal_p(90, 3, 6, 4, 0, layoff_gap=g),
+                 lambda g: h.mid_removal_p(90, 3, 2, 1.0, margin=0,
+                                           layoff_gap=g)):
+        normal = call(5)
+        assert call(15) > normal, "a layoff did not shorten the leash"
+        # THE SLOPE, not just the step: both terms ship and a build with
+        # only the step would pass a 5-vs-15 check alone.
+        assert call(30) > call(15), "the term does not grow with the gap"
+
+
+def check_the_layoff_is_centred_on_both_curves():
+    """At the league mean the term contributes EXACTLY nothing.
+
+    Asserted against the coefficients being zero rather than against
+    `layoff_gap=None`, for the reason recorded on the bullpen version:
+    comparing to None only proves None is neutral, which an UNCENTRED
+    build passes happily.
+    """
+    h = sim.Hook()
+    off = sim.Hook(per_layoff=0.0, per_layoff_day=0.0,
+                   mid_per_layoff=0.0, mid_per_layoff_day=0.0)
+    # THE BASELINES ARE ASSERTED AS LITERALS, not read back off the module.
+    # Computing the expectation from `sim.LAYOFF_*_BASELINE` moves both
+    # sides of the comparison together, so zeroing them passes — which is
+    # exactly what the first version of this check did, and the mutation
+    # sweep caught it. These are the league means over the 284,706
+    # in-season decisions the coefficients were fitted on.
+    assert abs(sim.LAYOFF_STEP_BASELINE - 0.0668) < 1e-9
+    assert abs(sim.LAYOFF_SLOPE_BASELINE - 0.7262) < 1e-9
+    assert abs(h._layoff(None, h.per_layoff, h.per_layoff_day)) < 1e-12
+    # A starter on a NORMAL TURN sits below the league mean and therefore
+    # gets a small NEGATIVE offset. An uncentred build gives exactly zero
+    # here, which is the mutation this catches.
+    for c_step, c_slope, want in (
+            (h.per_layoff, h.per_layoff_day, -0.0727),
+            (h.mid_per_layoff, h.mid_per_layoff_day, -0.0418)):
+        assert abs(h._layoff(5, c_step, c_slope) - want) < 1e-3, want
+    # And a zeroed build must differ from the shipped one at a real gap,
+    # or the assertions above would be vacuous.
+    assert abs(h.removal_p(90, 3, 6, 4, 0, layoff_gap=25)
+               - off.removal_p(90, 3, 6, 4, 0, layoff_gap=25)) > 1e-6
+    assert abs(h.mid_removal_p(90, 3, 2, 1.0, margin=0, layoff_gap=25)
+               - off.mid_removal_p(90, 3, 2, 1.0, margin=0,
+                                   layoff_gap=25)) > 1e-6
+
+
+def check_the_layoff_slope_is_capped():
+    """A 120-day return must not run the hook off a cliff.
+
+    The fit capped the slope at `LAYOFF_GAP_CAP`, so serving it uncapped
+    would extrapolate a coefficient past every gap it was measured on.
+    """
+    h = sim.Hook()
+    at_cap = h.removal_p(90, 3, 6, 4, 0, layoff_gap=sim.LAYOFF_GAP_CAP)
+    assert abs(h.removal_p(90, 3, 6, 4, 0, layoff_gap=200) - at_cap) < 1e-12
+
+
+def check_an_unknown_layoff_contributes_nothing():
+    """Missing-group rule, and the season break is a DELIBERATE None.
+
+    A pitcher opening a season has had a spring to build up and is not the
+    same case as one returning in August, so the in-season coefficient
+    must not be evaluated on him.
+    """
+    assert sim.layoff_gap(None, None) is None
+    assert sim.layoff_gap("Nobody At All", "2026-08-01") is None
+    h = sim.Hook()
+    assert abs(h.removal_p(90, 3, 6, 4, 0, layoff_gap=None)
+               - h.removal_p(90, 3, 6, 4, 0)) < 1e-12
+
+
+def check_the_layoff_never_reaches_a_reliever():
+    """The term was counted on STARTER decisions only.
+
+    Both hook call sites are guarded by `not side.starter_out`, which is
+    why the gap is carried on the Side rather than on the arm. If a future
+    edit moves either call out from behind that guard, this fails.
+    """
+    import inspect
+    src = inspect.getsource(game)
+    for i, line in enumerate(src.splitlines()):
+        if "layoff_gap=side.layoff_gap" not in line:
+            continue
+        window = "\n".join(src.splitlines()[max(0, i - 40):i])
+        assert "starter_out" in window, (
+            f"hook call at line {i} is not guarded by starter_out")
+
+
+def check_the_engine_looks_up_the_layoff_by_pitcher_and_date():
+    """A lookup a caller forgets is a SILENT null.
+
+    `build_side` must ask for the gap by the starter's own name — the same
+    failure `check_the_engine_looks_up_pen_state_by_date` exists for, where
+    a shipped mechanism contributed exactly zero in four drivers because
+    an argument was omitted.
+    """
+    import inspect
+    src = inspect.getsource(game.build_side)
+    assert "sim.layoff_gap(starter.name, date)" in src, \
+        "build_side skips the layoff lookup"
