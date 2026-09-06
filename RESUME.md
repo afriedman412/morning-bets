@@ -14,7 +14,18 @@ it belongs in `NOTES-context-layer.md`.
     RESUME-ARCHIVE.md    Days six to sixteen, moved out of here. Not deleted,
                          but its figures predate several engine changes.
 
-## WHERE THINGS STAND (2026-08-30)
+## WHERE THINGS STAND (2026-09-05)
+
+**THE BATTERY SHIPPED — RULE 15.** `venv/bin/python -m scratchpad.battery`
+scores every table off one pass per fold, four folds, 94 seconds, with a
+`--diff` mode and a `--maim` positive control. Baseline
+`scratchpad/battery_1d6f10bb9185.json` is committed. Every modelling item
+now starts and ends with a battery run and reports the DIFF — every row,
+not just the target. Next item in `PLAN-baseball-logic.md` is PARK, and
+its scoring rows (per-venue residuals) are already in the battery: Coors
+is the largest residual in both views, exactly as the plan predicts.
+
+## WHERE THINGS STOOD (2026-08-30)
 
 **THE MODEL.** Event rates are right. Runs are right — verified on 1,645
 games, F5 -0.047 at 0.6 sigma, F3 and F7 inside noise. **The one open

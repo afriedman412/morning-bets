@@ -38,6 +38,30 @@ carries the failure that motivates it; read those once, then use this index.
   13. **DO NOT LOOSEN A TEST TO ADMIT A CHANGE.** Verify every check by
       MUTATION — one that guards nothing looks identical to one that does.
   14. **HUNT LEVEL ERRORS AND STRUCTURAL GAPS FIRST**, then refinements.
+  15. **RUN THE BATTERY AROUND EVERY CHANGE AND REPORT THE DIFF** — every
+      row that moved, not just the target row. `scratchpad/battery.py`.
+
+## THE BATTERY — every change scores against everything (added 2026-09-05)
+
+`venv/bin/python -m scratchpad.battery` — one simulation pass per fold,
+four folds (July-onward of 2023-2026, rates frozen at each cut), every
+table read off the same games and draws: ladder, per-inning runs,
+per-venue residuals, traffic and run-mass shape, platoon, DP/sac/XBH,
+late-inning runs by margin, both hook curves cell by cell, the starter's
+outs/K shape, the current `outs_adjust` corrections. Header prints every
+`USE_*` flag; output is `scratchpad/battery_<engine-fingerprint>.json`;
+`--diff <fingerprint>` prints every row that moved by more than one se
+against a saved run. `--maim` is the built-in positive control.
+
+THE RULE, and it is why the battery exists: every modelling item starts by
+running the battery and committing the JSON with the pre-fingerprint, runs
+it again at the end, and reports the DIFF — not just the row it was aiming
+at. A change that moves an unrelated row by more than one se is not done
+until the log says why. And the battery is what a session reads when
+deciding what to work on next: "make this row go green" is the item, not
+"build an instrument to see if it moved". The failure that bought this:
+the fourth-inning defect and the 60-85 pitch defect were ONE defect seen
+through two single-purpose scratchpads, and it took days to notice.
 
 ## THE OBJECTIVE — read this before anything else
 
@@ -483,6 +507,9 @@ the docs; do not add a Makefile target that fails.
   constant at a time and reports which are unguarded. It found five: every
   measurement module was tested and none of the WIRING was. Refuses to run
   on a dirty tree, for a reason recorded in the notes.
+- `venv/bin/python -m scratchpad.battery` — THE BATTERY, rule 15. Every
+  table off one pass per fold; `--diff <fingerprint>` reports what a change
+  moved. Run it around every modelling change.
 
 Tests ship with the module, not afterwards. `tests/run.py` collects every
 `check_*` — no pytest, no network. **Verify a new check by mutation:**

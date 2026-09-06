@@ -8175,3 +8175,74 @@ his strikeout edge 0.268 -> 0.183. Pallante (18 days) 0.145 -> 0.087. The
 counted effect closes about a third of the gap to the market. The rest is
 almost certainly an announced pitch cap, which is information the market
 has and this model structurally does not.
+
+## 2026-09-05 — THE BATTERY SHIPS (PLAN-baseball-logic item 0, rule 15)
+
+QUESTION. Can one instrument score every shipped mechanism against reality
+on the same games in one pass per fold — and can it see a planted defect?
+
+HYPOTHESIS. Consolidating the standing instruments (ladder, where_runs,
+f5_decomp, hz_cells, shape, outs_split, ninth) into one per-fold pass
+reproduces their published readings within noise, and halving
+`ADVANCE_3B_ON_OUT` moves traffic/run rows while leaving pure event-rate
+rows alone.
+
+TEST. `scratchpad/battery.py`: four folds (July-onward of 2023-2026, rates
+frozen at each cut, the `pxi_cv.py` pattern), 40 sims a game, seeds paired
+per (game, draw) on a crc32 of the game id, one `calibrate.replay` pass
+with every table read off the same draws. Model-side counts come from
+inert wrappers on `sim.apply_pa` and both hook curves (proven inert by
+`check_battery_wrappers_do_not_change_the_game`); real side counted off
+play-by-play in the same worker. POWER: the actual side binds — 622-1,000
+games a fold, se on a ladder row 0.10-0.16 runs, on a share row ~0.011;
+the Monte-Carlo floor (se/sqrt(40)) is printed per row. Falsifier,
+pre-registered from the plan: a battery that cannot see a planted defect
+is not a measurement.
+
+EVALUATE — the consolidation reproduces its parents, on the 2026 fold:
+
+    ladder F5            -0.049          (published -0.047)
+    outs over-lines      match `outs_adjust.MEASURED` to <=0.004 per row
+    K 9+ share           0.069 vs 0.091  (the 3.9-sigma K-tail defect)
+    boundary share       +0.001 by DECISION (event rule, not outs%3)
+    hook mean|cell gap|  bnd 0.0306, mid 0.0189 (boundary is the open job)
+    spike_12_share       +0.027 at +3.7  (the fourth-inning over-pull)
+    spike_18_share       -0.039 at -3.2  (the clean six-inning start)
+
+POSITIVE CONTROL (`--maim`, halves ADVANCE_3B_ON_OUT; dev scale 150 games
+x 20 sims): every run-level row moved the planted direction — ladder F5
++0.226 -> +0.130, F7 +0.360 -> +0.227, runs-per-baserunner flagged at one
+se, run mass shifted low-ward — while sac/PA, XBH share, HR/BIP, DP rate
+and the platoon K rates all sat under 0.3 se. Seen, and seen only where it
+should be. At dev scale only the per-baserunner row clears one se; at full
+fold n the same movement is ~1.2 se per fold and ~2.4 pooled.
+
+CHECKS, all verified by mutation: the header prints every `USE_*` in sim,
+game and calibrate (dropping `game` from the inventory fails exactly
+`check_battery_header_lists_every_flag`), the values are live (caching
+them fails exactly `check_battery_header_is_live_not_a_copy`), and the
+wrappers change nothing (an `rng.random()` in the wrapper fails exactly
+the inertness check). 419 checks green.
+
+RUNTIME: 94 seconds wall for all four folds, 3,509 games, zero dropped —
+the 15-minute budget is not close. One trap cost ten minutes first: macOS
+kills forked children once Objective-C state is touched in the parent, and
+a stale-cache `roster` fetch touches it — fold 2026's pool died at fork
+and `pool.map` hung at 0% CPU. The battery now re-execs itself with
+`OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES` on darwin.
+
+CONCLUSION — ESTABLISHED: the battery is live, positive-controlled, and
+its baseline (`scratchpad/battery_1d6f10bb9185.json`, engine fingerprint
+`1d6f10bb9185...`) is committed. Rule 15 added to CLAUDE.md: run it around
+every change, report the DIFF, every row. OBSERVED IN THE FIRST FULL RUN,
+not yet diagnosed: Coors (venue 19) is the largest per-venue residual in
+both views (full -1.46 at -2.4, F5 -1.35 at -3.0) exactly as item 1
+predicts; innings 7-9 run rates split by |margin| are wrong in both
+directions (blowouts -0.19 at -4.3, |margin|=3 +0.20 at +3.3) — item 6's
+target; one-run-game share is now +0.028 HIGH where the 08-30 note had it
+low, an engine drift worth reading off the next diff rather than acting on.
+
+NEXT STEPS. Item 1 (park, per-venue scoring) is next in the plan and its
+scoring rows already exist in the battery. The platoon rows (item 3) and
+contact quintile rows (item 4) are live or stubbed; weather rows are
+stubbed for item 5.

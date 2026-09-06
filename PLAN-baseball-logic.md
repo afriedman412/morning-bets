@@ -12,8 +12,10 @@ nothing here is rejected on one.
 
 ## HOW TO WORK THIS FILE
 
-ONE ITEM PER SESSION. Item 0 is the battery and comes first; the rest are
-ordered by runs per day of work and by dependency. Do not skip ahead. Before starting any item:
+ONE ITEM PER SESSION. The battery (item 0) SHIPPED 2026-09-05 —
+`scratchpad/battery.py`, CLAUDE.md rule 15 — so every remaining item is
+scored on its rows. The rest are ordered by runs per day of work and by
+dependency. Do not skip ahead. Before starting any item:
 
   1. `git status` clean. `venv/bin/python -m tests.run` green. Record the
      count.
@@ -49,74 +51,6 @@ The standing scoring instruments, and which one each item names:
 
 Holdout is 2026-07-01 for 2026 and the same calendar cut for prior seasons.
 Fit on `date < cut`, score on `date >= cut`, per season, four folds.
-
----
-
-## 0. THE BATTERY — one command, every table, before and after every item
-
-DO THIS FIRST. Nothing below ships until this exists, because every item
-below is scored on a row of it.
-
-WHY: twenty days of one-defect-one-scratchpad means each session scores
-the thing it built and nothing else. The fourth-inning defect and the
-60-85 pitch defect were one defect with two instruments and it took days
-to see. A fix in `apply_pa` moves the hook cells; a park change moves
-traffic and therefore the hook; nothing today shows the side effect until
-someone happens to run the other script. The battery makes every change
-score against everything, the same afternoon.
-
-STATUS: `scratchpad/battery.sh` and `scratchpad/scope_baseline.py` exist
-and are most of the way there. This item consolidates, does not rebuild.
-
-BUILD `scratchpad/battery.py`:
-
-  * ONE simulation pass per fold, samples kept in memory, every table read
-    off the same games — the `board.py` rule: one payload, many views, so
-    the views cannot disagree. 40 sims a game, paired seeds, holdout
-    2026-07-01+ and the matched cut in 2023-2025, four folds. State n, se
-    and the noise floor on every row.
-  * The rows, all model vs real with a gap and a z:
-      - prefix ladder F1/F3/F5/F7, per inning 1-9+, one-run-game share,
-        extras share (`ladder`, `where_runs`, `ninth`)
-      - F5 and full team-total residual PER VENUE, sorted by |gap|
-      - runs per baserunner, brought-home share, shutout and blowup
-        shares, run-distribution mass at 0-3 and 8+ (`f5_decomp`,
-        `dispersion`)
-      - HR and K per batter split by platoon-advantage side; the
-        stacked-lineup top decile residual
-      - DP rate, sacrifice rate, XBH share: league level AND by pitcher /
-        batter GB% quintile (quintile rows empty until item 4a plumbs
-        `gb_pct`; print them empty, do not omit them)
-      - HR per ball in play by temperature bucket (empty until item 5)
-      - innings 7-9 runs allowed by |margin| at the start of the inning
-      - hook cells, both curves (`hz_cells`); outs and K shape on the
-        starter (`shape`); mean outs, boundary share, mid-share of each
-        round-number spike (`outs_split`)
-      - outs_adjust band corrections, current
-  * Output: `scratchpad/battery_<fingerprint>.json` and a terminal dump.
-    A `--diff <fingerprint>` mode prints every row that moved by more
-    than one se against a previous run, and nothing else.
-  * Runtime target under fifteen minutes on the machine it runs on; fork
-    over games as `score_boundary` does. If it cannot fit, cut sims per
-    game before cutting rows.
-
-CHECKS: a wiring check that every `USE_*` flag in `sim`, `game` and
-`calibrate` is printed in the battery header (so a run is never mis-
-attributed to the wrong configuration), and a mutation that a flipped
-flag changes the header.
-
-THE RULE, added to CLAUDE.md in the same commit: every item in this plan
-runs the battery at its start, commits the JSON with the pre-fingerprint,
-runs it again at the end, and reports the DIFF — not just the row it was
-aiming at. A change that moves an unrelated row by more than one se is
-not done until the log says why. And the battery is what the session
-reads when deciding what to work on next: "make this row go green" is
-the item, not "build an instrument to see if it moved".
-
-FALSIFIER for the battery itself: positive-control it. Inject a known
-effect (halve `ADVANCE_3B_ON_OUT`, or double a park index) and confirm
-the rows that should move do and the rows that should not do not. A
-battery that cannot see a planted defect is not a measurement.
 
 ---
 
