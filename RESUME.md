@@ -16,6 +16,26 @@ it belongs in `NOTES-context-layer.md`.
 
 ## WHERE THINGS STAND (2026-09-06, end of day)
 
+**ITEM 5 SHIPPED (`sim.USE_TEMP_HR`): temperature into the HR channel —
+and the plan is now EMPTY, items 0-6 all shipped or parked.** Counted
+WITHIN VENUE (the pooled count confounded park) and centred on CLIMATE
+(prior seasons' full-year mean multiplier 1.0191 — spring centring
+double-counted the air already in the baseline rates; the first
+battery run caught both, +2-3 sigma on the level). Corrected table
+0.798 -> 1.115 across <55F..85F+, era gate 0.923, dome control 0.973,
+coverage 100%. Wired game-level through the `hr_park` slot; all five
+callers pass it (the fingerprint instrument was the fifth and sat
+still until fixed). Clean folds landed on the registered prediction
+(2023/24 levels -0.0000/-0.0003, hot buckets within 1.1 sigma); 2026-H2
+hot side +2.3 sigma, co-located with the standing dead-ball anomaly —
+one cause, two instruments (XBH level + HR hot buckets). Wind counted
+x0.90/x1.06, not wired. 444 checks; fingerprint b211fce6; baseline
+`battery_525e62464717.json`.
+NEXT, unregistered: the clustering defect (three instruments standing;
+candidates: within-inning feedback from pbp, more shared-night
+conditions), the 2026-H2 ball, or the hygiene list at the plan's foot
+(boundary refit on four-season rows, HOLDOUT literal, leash staleness).
+
 **ITEM 6 SHIPPED (`game.USE_PEN_ROLES`): late-inning arms are picked by
 the counted selection profile, not draw order.** The count refuted the
 plan's deterministic rule (real P(best remaining | close) 0.18-0.23 vs

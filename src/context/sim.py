@@ -607,6 +607,66 @@ XBH_GB_PIT = ((0.4, 0.4245, 0.4435, 0.4679),
               (1.0913, 1.0511, 1.0048, 0.9355, 0.9226))
 USE_GB_HITMIX = True
 
+#: TEMPERATURE INTO THE HOME-RUN CHANNEL — plan item 5. Warm air is less
+#: dense and the ball carries; nothing in the engine read the weather the
+#: source module was already fetching, and the month-keyed seasonal HR
+#: proxy this supersedes is not portable across seasons or venues (do not
+#: ship both — it never shipped, so there is nothing to retire).
+#:
+#: Counted on 286,030 pre-July balls in play over four seasons
+#: (`scratchpad/temp_hr.py`, 2026-09-06), coverage 100.0% — statsapi
+#: carries a temperature for essentially every game. HR/BIP odds against
+#: the pooled league by game-time temperature:
+#:
+#:     <55F 0.796   55-64 0.947   65-74 0.996   75-84 1.067   85+ 1.153
+#:
+#: Monotone, every step several se; era gate 0.921. THE DOME CONTROL
+#: VALIDATES THE READING: closed-roof games sit at 0.973 — conditioned
+#: air is league air, as the physics says, so the feed's numbers mean
+#: what they claim. The covariate is exogenous (weather does not depend
+#: on outcomes), so the 4b/4c overlapping-window leakage class does not
+#: apply. Centred over real BIP weights to 1.0000 as counted. The
+#: training rows are SPRING (pre-July, rule 6), so the summer holdouts
+#: score the relation strictly out of sample.
+#:
+#: Wind is counted and RECORDED, not wired: in 5+ mph x0.896, out 5+
+#: x1.063 (open air). It is real; it waits for its own item.
+#:
+#: Applied per GAME through `Matchup.m_hr` via the `hr_park` slot in
+#: `resolve` — both clubs hit in the same air, the same shape park takes.
+#: A game with no temperature contributes exactly nothing.
+#: TWO SPECIFICATION FIXES from the first battery run, both principled
+#: and neither a re-fit. (1) WITHIN-VENUE: the pooled count confounded
+#: temperature with park — hot games concentrate in particular
+#: buildings, and the engine applies park separately — so the table is
+#: counted as observed-over-venue-expected, identified by the same park
+#: being hot in June and cold in April. (2) CLIMATE-CENTRED: the
+#: baseline HR rates are built from prior full seasons plus the current
+#: spring, so an average season's air is already inside them; a table
+#: centred on the SPRING temperature distribution re-added the summer
+#: premium (+5.2% mean multiplier July-onward, the first run's level
+#: miss at +2-3 sigma). The reference is the mean raw multiplier over
+#: the PRIOR SEASONS' full-year temperature distribution (1.0191) —
+#: climate, exogenous, no scored outcome involved.
+#:
+#: WATCH, recorded up front: the spring-counted slope runs ~1.5x the
+#: summer holdouts' (within-venue 0.982 -> 1.137 across 65F-85F+ in
+#: training vs ~+10% in the scored halves). The plan's own note names
+#: the suspects — humidity or the ball — and the only rows that could
+#: measure the difference are scored rows, so it stays a watch item,
+#: never a tuning knob.
+TEMP_HR_EDGES = (55, 65, 75, 85)
+TEMP_HR_MULT = (0.7983, 0.9464, 0.9639, 1.0531, 1.1153)
+USE_TEMP_HR = True
+
+
+def temp_hr_mult(temp_f: int | None) -> float:
+    """The HR odds multiplier for one game's temperature. Silent-neutral:
+    no reading, or the flag off, contributes exactly 1.0."""
+    if not USE_TEMP_HR or temp_f is None:
+        return 1.0
+    return TEMP_HR_MULT[sum(temp_f >= e for e in TEMP_HR_EDGES)]
+
 
 def gidp_rate(outs: int, mu: "Matchup | None" = None) -> float:
     base = _rate(GIDP_RATE if USE_MEASURED_GIDP else LEGACY_GIDP_RATE, outs)

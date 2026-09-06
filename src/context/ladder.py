@@ -106,7 +106,8 @@ def simulate_prefixes(cases_by_game, pens, lg, n_sims=40, seed=7,
                 hn, None, rng, team=home[0]["team"],
                 date=home[0].get("date"))
             res = game.simulate_game(A, H, lg, rng, innings=max(prefixes),
-                                     track=prefixes, park=park)
+                                     track=prefixes, park=park,
+                                     hr_temp=cal.temp_mult_for(home[0]))
             for p in prefixes:
                 acc[p] += res.prefix[p]
         out[gid] = {p: acc[p] / n_sims for p in prefixes}

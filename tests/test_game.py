@@ -1192,3 +1192,60 @@ def check_every_next_arm_call_passes_the_selection_context():
                     {k.arg for k in node.keywords}:
                 bad.append(f"{f.relative_to(root.parent)}:{node.lineno}")
     assert not bad, bad
+
+
+def check_temp_hr_ships_on_and_is_counted():
+    """Flag defaults ON; no reading or flag off contributes exactly 1.0;
+    the counted slope is pinned absolutely (cold suppresses, heat
+    carries, monotone) — a table reset to ones agrees with itself."""
+    assert sim.USE_TEMP_HR, "ships ON"
+    assert sim.temp_hr_mult(None) == 1.0
+    assert sim.temp_hr_mult(70) == sim.TEMP_HR_MULT[2]
+    assert sim.temp_hr_mult(50) < 0.85 and sim.temp_hr_mult(90) > 1.10
+    assert all(a <= b for a, b in zip(sim.TEMP_HR_MULT,
+                                      sim.TEMP_HR_MULT[1:]))
+    orig = sim.USE_TEMP_HR
+    sim.USE_TEMP_HR = False
+    try:
+        assert sim.temp_hr_mult(95) == 1.0
+    finally:
+        sim.USE_TEMP_HR = orig
+
+
+def check_the_game_carries_the_air_to_both_sides():
+    """`simulate_game(hr_temp=...)` must land on BOTH sides' resolved
+    matchups as the HR multiplier — the two clubs hit in the same air.
+    Neutral park, blank hands and no GB keep every other multiplier at
+    exactly 1.0, so m_hr IS hr_temp and a dropped wire reads 1.0."""
+    def _s():
+        return game.Side(starter=sim.PitcherRates(name="sp"), pen=[],
+                         lineup=[sim.BatterRates(name=f"b{i}")
+                                 for i in range(9)])
+    a, h = _s(), _s()
+    game.simulate_game(a, h, dict(LG), random.Random(9), hr_temp=2.5)
+    for s in (a, h):
+        mups = [m for m in (s._mups or []) if m is not None]
+        assert mups, "no matchup was ever resolved"
+        assert all(m.m_hr == 2.5 for m in mups), s
+
+
+def check_every_simulate_game_call_passes_the_air():
+    """Every `simulate_game` call in `src/` must pass `hr_temp=` — the
+    same presence rule as `park`, and for the same reason: an omitted
+    argument doesn't raise, it silently prices every game at 70 degrees."""
+    import ast
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent / "src"
+    bad = []
+    for f in sorted(root.rglob("*.py")):
+        for node in ast.walk(ast.parse(f.read_text())):
+            if not isinstance(node, ast.Call):
+                continue
+            fn = node.func
+            name = (fn.attr if isinstance(fn, ast.Attribute)
+                    else getattr(fn, "id", None))
+            if name != "simulate_game":
+                continue
+            if "hr_temp" not in {k.arg for k in node.keywords}:
+                bad.append(f"{f.relative_to(root.parent)}:{node.lineno}")
+    assert not bad, bad

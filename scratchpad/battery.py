@@ -686,9 +686,33 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
         for q in range(1, 6):
             fold.add("contact", f"xbh_by_batter_gb_q{q}", None, None, 0.0,
                      0, "EMPTY until item 4a plumbs gb_pct")
-    for t in range(40, 100, 10):
-        fold.add("weather", f"hr_bip_temp_{t}s", None, None, 0.0, 0,
-                 "EMPTY until item 5 joins the weather cache")
+    # WEATHER ROWS, live since item 5. Bucketed by the SHIPPED bins so
+    # each row names the cell the mechanism fires in; the model side
+    # carries the multiplier through `cal.replay`'s hr_temp, so these
+    # rows score the wire, not just the table.
+    wx = cal._WEATHER or {}
+    wb_m: dict = defaultdict(lambda: [0.0, 0.0])
+    wb_a: dict = defaultdict(lambda: [0.0, 0.0])
+    n_temp = 0
+    for g in gids:
+        t = (wx.get(g) or {}).get("temp_f")
+        if t is None:
+            continue
+        n_temp += 1
+        b = sum(t >= e for e in sim.TEMP_HR_EDGES)
+        for acc, pay in ((wb_m, got[g][0]["pa"]), (wb_a, got[g][1]["pa"])):
+            acc[b][0] += pay["hr"]
+            acc[b][1] += pay["bip"]
+    fold.add("weather", "temp_coverage", n_temp / max(len(gids), 1), 1.0,
+             0.0, len(gids), "share of fold games with a temperature")
+    for b, lab in enumerate(("lt55", "55_64", "65_74", "75_84", "85plus")):
+        if not (wb_a[b][1] and wb_m[b][1]):
+            fold.add("weather", f"hr_bip_temp_{lab}", None, None, 0.0, 0,
+                     "no games in this bin")
+            continue
+        ar = wb_a[b][0] / wb_a[b][1]
+        fold.add("weather", f"hr_bip_temp_{lab}", wb_m[b][0] / wb_m[b][1],
+                 ar, _rate_se(ar, int(wb_a[b][1])), int(wb_a[b][1]))
 
     # Late innings by margin.
     for b in range(MARGIN_CAP + 1):
@@ -955,6 +979,9 @@ def main(argv):
         _CASES = {g: pairs[g] for g in gids}
         _LG = sim.league(season=year, before=cut)
         _PENS = rate_src.bullpens(_LG, before=cut)
+        # Warm the weather table IN THE PARENT so forked workers inherit
+        # it instead of each opening the database at first replay.
+        cal.temp_mult_for({"game_id": ""})
         _HANDS.clear()
         _PIDS.clear()
         for g in gids:

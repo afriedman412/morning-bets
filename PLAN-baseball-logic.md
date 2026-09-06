@@ -115,28 +115,17 @@ notes.
 
 ---
 
-## 5. WEATHER — temperature and wind carry into the HR channel
+## 5. WEATHER — SHIPPED 2026-09-06 (`sim.USE_TEMP_HR`)
 
-STATUS: `sources/weather.py` fetches temperature and parses wind into a
-carry term. Nothing in `sim`, `game`, `calibrate` or `price` reads it.
-The month-keyed seasonal HR term (TODO item 9, `month_league.py`) is a
-proxy for this and is not portable across seasons or venues.
-
-COUNT: HR per ball in play by game temperature bucket (10°F bins) and by
-wind carry bucket, on the four cached seasons joined to the weather cache.
-Coverage first — print the share of games with a temperature. Gate for
-stability across seasons.
-
-WIRE: a temperature multiplier through `odds_mult` on `m_hr`, applied at
-`resolve` time next to `hr_park`, centred so the season-wide mean is 1.000.
-This SUPERSEDES the month term; do not ship both. If the month term still
-explains residual after temperature is on, that residual is humidity or
-the ball and gets its own note.
-
-TEST: HR per BIP by temperature bucket, model vs real, holdout; the
-July/August F5 residual as the number this was originally hunting.
-FALSIFIER: the per-bucket gap does not close, or the April/May side gets
-worse.
+Counted within venue and centred on climate — the first battery run
+rejected the first table twice, both specification fixes (the pooled
+count confounded park, which the engine applies separately; spring
+centring double-counted the seasonal air already in the baseline
+rates). Level rows returned to zero in the clean folds as predicted;
+2026-H2's hot side stays high, co-located with the pre-existing
+dead-ball anomaly — one cause, two instruments now. Wind counted
+(x0.90 in / x1.06 out), recorded, waits for its own item. Full result
+in the notes.
 
 ---
 

@@ -25,6 +25,7 @@ from datetime import date, timedelta
 from src import db, roster
 from src.context import calibrate, game, gamestate, sim
 from src.context.sources import rates as rate_src
+from src.context.sources import weather as weather_src
 
 BASE = "https://statsapi.mlb.com/api/v1"
 TIMEOUT = 25
@@ -296,6 +297,11 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
 
     park = (calibrate.park_for(g["venue_id"])
             if calibrate.USE_PARK else None)
+    # TONIGHT'S AIR, from the same statsapi feed the historical table was
+    # counted on — pregame the field carries the forecast, which is the
+    # best number available at price time. No reading contributes nothing.
+    wx = {r["game_id"]: r for r in weather_src.fetch_date(d)}
+    hr_temp = sim.temp_hr_mult((wx.get(g["game_id"]) or {}).get("temp_f"))
     rng = random.Random(seed)
     out = []
     # `progress(done, total)` is called about a hundred times, not once per
@@ -317,7 +323,8 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
         # missing from the only tool that shows a live slate. Recording an
         # inning is a dict write; there is no reason not to.
         out.append(game.simulate_game(sides["away"], sides["home"], lg, rng,
-                                      park=park, track=track))
+                                      park=park, track=track,
+                                      hr_temp=hr_temp))
         if progress is not None and (i + 1) % every == 0:
             progress(i + 1, n_sims)
     if progress is not None:

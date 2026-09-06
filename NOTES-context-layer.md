@@ -8753,3 +8753,76 @@ NEXT. Item 5, weather — temperature into the HR channel; the battery
 weather rows are stubs, so the instrument comes first. And the late-
 inning margin gaps now have a named owner to hunt: clustering, not
 deployment.
+
+## 2026-09-06 — item 5: temperature into the HR channel
+## (`sim.USE_TEMP_HR`), corrected twice by its own battery run
+
+QUESTION. Warm air carries; nothing read the weather the source module
+fetches. Does a counted temperature multiplier on HR close the
+per-bucket gap without hurting the cold side?
+
+COUNTED (`scratchpad/temp_hr.py`): weather backfilled first —
+`mlb_weather` held 2026 only; 672 dates pulled, COVERAGE 100.0% of all
+10k cached games (statsapi carries a temperature for essentially every
+game). On 286,030 pre-July balls in play: HR/BIP odds x0.80 (<55F) ->
+x1.15 (85F+), monotone, era gate 0.921. THE DOME CONTROL validates the
+feed: closed-roof games x0.973 — conditioned air is league air. Wind
+counted FOR THE RECORD, not wired: in 5+ x0.896, out 5+ x1.063.
+Training is SPRING (rule 6), so summer holdouts score strictly out of
+sample. Exogenous covariate — the 4b/4c leakage class does not apply.
+
+WIRED game-level: `simulate_game(hr_temp=...)` -> both `Side`s (one
+air, both clubs) -> the `hr_park` slot on `Matchup.m_hr`. All four
+src/ entry points (replay, fitf5, ladder, slate) pass it via a shared
+lookup (`cal.temp_mult_for` / live `weather.fetch_date`); an AST check
+holds every call site to it. THE FINGERPRINT INSTRUMENT WAS THE FIFTH
+CALLER and sat still — its own docstring names that failure — fixed,
+954c4a5f -> b211fce6.
+
+THE FIRST BATTERY RUN REJECTED THE FIRST TABLE, and both fixes are
+specification, not tuning:
+  * LEVEL +2-3 sigma in 2025/26: the table was centred on the SPRING
+    temperature distribution while the baseline rates (prior full
+    seasons + spring) already embed an average season's air — July
+    onward saw mean multiplier 1.0523 and the seasonal premium was
+    counted twice. Fix: centre on CLIMATE — the mean raw multiplier
+    over prior seasons' full-year temperature distribution (1.0191,
+    exogenous, no scored outcome).
+  * SLOPE ~2x the holdout's: the pooled count confounds temperature
+    with PARK (hot games concentrate in particular buildings; the
+    engine applies park separately). Fix: count WITHIN VENUE —
+    observed over venue-expected, identified by the same park being
+    hot in June and cold in April. Within-venue slope 0.814 -> 1.137,
+    era gate 0.923.
+
+VERDICT on the corrected table (battery vs 5216a886, prediction
+registered before the run): level rows RETURNED TO ZERO in the clean
+folds (2023 -0.0000, 2024 -0.0003) exactly as the centring arithmetic
+predicted; per-bucket 2023/24 all within 1.1 sigma including the hot
+cells; cold side worsened nowhere. 2025 is scatter without pattern
+(+1.8 on a COLD bucket). 2026's hot side sits +2.3/+1.3 sigma and its
+level +2.3 — co-located with the PRE-EXISTING "2026-H2 runs dead"
+anomaly (the XBH level watch, +0.012 before item 4 existed). The same
+second-half ball now echoes in two independent channels; that is a
+finding with its own name, not a defect of this table. Falsifier does
+not fire: the per-bucket gap closed where it could and the April/May
+side got worse nowhere.
+
+444 checks (3 new), mutations four-for-four (flag off / table to ones,
+re-verified after the correction / engine drops the side's air / replay
+drops the kwarg — plus the AST catch on the fitf5-ladder-slate-replay
+call sites). Fingerprint b211fce6; baseline battery_525e62464717.json.
+
+WATCH. (1) 2026-H2 dead ball: XBH level AND hot-bucket HR both high —
+one cause, two instruments now. (2) Spring slope ~1.5x summer slope —
+the plan's own note names humidity or the ball; only scored rows could
+measure it, so it stays a watch, never a knob. (3) Wind (x0.90/x1.06
+counted) waits for its own item.
+
+NEXT. The registered plan is EMPTY — items 0-6 all shipped or parked.
+What remains: the clustering defect (three instruments standing, no
+registered item — candidates: within-inning feedback counted from pbp;
+shared-night conditions of which temperature was the first), the
+2026-H2 ball, and the plan's out-of-scope hygiene list (boundary-curve
+refit on four-season training rows, HOLDOUT literal consolidation,
+leash staleness guard).
