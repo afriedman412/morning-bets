@@ -8399,3 +8399,24 @@ occupancy is the honest projection.
 NEXT. Item 3 (platoon league cell) is next in the plan. The occupancy
 finding strengthens the case for whatever eventually attacks clustering
 — it now has a second, sharper instrument (the sac-cell occupancy gap).
+
+## 2026-09-06 (later) — REAL BATTING ORDERS FOR ALL FOUR SEASONS
+
+Found by item 3's plumbing: `mlb_lineups` held 2026 ONLY (1,956 games),
+so the 2023-25 battery folds were replaying the AB-PROXY orders — the
+construction `order.py` documents as 0-for-574 on exactness — while the
+module's own docstring claimed 97% coverage. `order.sync` backfilled
+145,008 slots from 8,056 cached games: coverage is now 99.2% of finals
+across 2023-2026.
+
+WHAT IT MOVED, battery vs the item-2 baseline: two rows past one se, and
+they are the same row twice — the 2024 FIRST INNING, -0.089 -> -0.043,
+toward real. The first inning is where batting order is structurally
+loudest (the top of the order is guaranteed to bat), so this is the
+shape a real-order fix should have. Everything else inside one se.
+
+New baseline `battery_3254001bd659.json`; fingerprint
+9d45b134 -> ee345eef on the data change alone. The platoon scaffolding
+(cells, `resolve` wire, `USE_PLATOON = False`) is in the tree and proven
+bit-inert: the battery engine fingerprint is identical with and without
+it loaded.
