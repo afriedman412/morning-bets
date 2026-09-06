@@ -35,6 +35,14 @@ def main(argv):
         away = next(x for x in pairs[gid] if not x[0]["is_home"])
         an = cal.adjust_lineup(away[2], False)
         hn = cal.adjust_lineup(home[2], True)
+        # The shipped engine applies park through `calibrate.replay`; a
+        # fingerprint that skips it would sit still while the engine moved,
+        # which is the one thing a fingerprint must never do.
+        park = None
+        if cal.USE_PARK:
+            d = (home[0].get("date") or "")
+            park = cal.park_for(home[0].get("venue_id"),
+                                int(d[:4]) if d[:4].isdigit() else None)
         for draw in range(n_sims):
             rng = random.Random(7 + i * 100003 + draw)
             A = game.build_side(away[1],
@@ -45,7 +53,7 @@ def main(argv):
                                 pens.get((home[0]["team"] or "").upper(), []),
                                 an, sim.Hook(), rng, team=home[0]["team"],
                                 date=home[0].get("date"))
-            r = game.simulate_game(A, H, lg, rng, track=(5,))
+            r = game.simulate_game(A, H, lg, rng, track=(5,), park=park)
             h.update(f"{r.away},{r.home},{r.away_sp.outs},{r.away_sp.k},"
                      f"{r.home_sp.outs},{r.home_sp.k},"
                      f"{r.prefix_side.get(5)}|".encode())

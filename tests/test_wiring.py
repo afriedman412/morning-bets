@@ -871,3 +871,39 @@ def check_the_mid_curve_reads_the_counted_hazard_and_the_boundary_does_not():
         + sim.pitch_hazard(78, sim.PITCH_HAZARD_BND)
         + h.per_inning * 5)
     assert abs(bnd - table_bnd) > 1e-6, (bnd, table_bnd)
+
+
+def check_every_simulate_game_call_passes_a_park():
+    """Every `simulate_game` call in src/ names `park=`.
+
+    THE SAME FAILURE MODE AS TEAM AND DATE, one argument later: park's
+    missing value is NEUTRAL, so an instrument that omits it does not
+    raise — it silently scores a different engine from the one production
+    runs. Found live on 2026-09-05 while threading item 1 of
+    PLAN-baseball-logic: `slate.py` applied park to a priced game while
+    `fitf5.py` and `ladder.py` — the instruments the F5 and run-level
+    claims rest on — built the same games without one. With `USE_PARK`
+    off nothing differs; the day it flips, an unthreaded caller quietly
+    measures the flag as dead.
+
+    STRUCTURAL, like the build_side check above: it asserts the argument
+    is present, not what it holds — presence is exactly the property that
+    was violated. Callers decide the value (None when the flag is off).
+    """
+    import ast
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent / "src"
+    bad = []
+    for f in sorted(root.rglob("*.py")):
+        for node in ast.walk(ast.parse(f.read_text())):
+            if not isinstance(node, ast.Call):
+                continue
+            fn = node.func
+            name = (fn.attr if isinstance(fn, ast.Attribute)
+                    else getattr(fn, "id", None))
+            if name != "simulate_game":
+                continue
+            if "park" not in {k.arg for k in node.keywords}:
+                bad.append(f"{f.relative_to(root.parent)}:"
+                           f"{node.lineno} missing park=")
+    assert not bad, bad

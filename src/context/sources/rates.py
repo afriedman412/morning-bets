@@ -1165,7 +1165,11 @@ def park_exposure(side: str, season=None, before=None, conn=None) -> dict:
     """
     from src.context.sources import park as park_src
     try:
-        pf = park_src.park_factors()
+        # The exposure a player accumulated is a property of the season his
+        # rates were counted over, so the index year follows `season` — the
+        # same reasoning as `calibrate.park_for`'s year argument.
+        pf = park_src.park_factors(
+            year=season if isinstance(season, int) else None)
     except Exception:
         return {}
 

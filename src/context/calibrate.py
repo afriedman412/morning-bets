@@ -256,7 +256,15 @@ USE_HANDEDNESS = False
 #: Apply Savant park multipliers, keyed by the game's venue_id. An unrated
 #: venue resolves to neutral, never to the home club's park — the Athletics
 #: played 38 home games this season at sites Savant does not rate.
-USE_PARK = False
+#:
+#: ON since 2026-09-05, with `NEUTRALISE_PARK`, on the pre-registered
+#: per-venue test (PLAN item 1): the weighted mean |per-venue residual|
+#: fell in 3 of 4 folds on BOTH full and F5 team totals, the pooled ladder
+#: moved by under one se everywhere, and 10 of 671 battery rows moved past
+#: one se — every one a venue row moving toward zero, Coors in all four
+#: folds. The pooled ladder could never see this: a park effect is signed
+#: per venue and nets out across thirty of them.
+USE_PARK = True
 
 #: Apply per-matchup arsenal multipliers.
 #:
@@ -303,7 +311,12 @@ USE_CONTACT_MIXTURE = False
 #: Divide each player's rates by the park they were accumulated in before
 #: applying tonight's. Without this a park multiplier double-counts the
 #: home side and mis-bases the road side — see rates.park_neutralise.
-NEUTRALISE_PARK = False
+#:
+#: ON with `USE_PARK`, per the same pre-registered test. Raw park scored
+#: comparably on the pooled venue number (better in two folds, worse in
+#: two) — recorded honestly, and not acted on: neutralised was the
+#: registered config and the double-count mechanism is established.
+NEUTRALISE_PARK = True
 
 #: Home/road adjustment, centred on each player's season mean.
 USE_HOME_ROAD = True
@@ -439,18 +452,27 @@ def adjust_lineup(lineup: list, is_home: bool) -> list:
 _PARK_CACHE: dict = {}
 
 
-def park_for(venue_id) -> dict:
-    """Rate multipliers for a venue. Neutral when unrated or unknown."""
+def park_for(venue_id, year: int | None = None) -> dict:
+    """Rate multipliers for a venue. Neutral when unrated or unknown.
+
+    `year` PICKS WHICH SEASON'S SAVANT INDEX ANSWERS, and a replay must
+    pass the game's own year. The index is 3-year rolling, so serving the
+    current year's table for a 2023 game hands the scorer an index that
+    knows 2024-2026 — anachronistic in exactly the folds rule 12b scores.
+    A live slate passes nothing and gets the current year, which is the
+    predictive reading: tonight's index does not contain tonight's game.
+    """
     if not venue_id:
         return sim.NEUTRAL_PARK
-    if venue_id not in _PARK_CACHE:
+    key = (venue_id, year)
+    if key not in _PARK_CACHE:
         try:
             from src.context.sources import park as park_src
-            rec = park_src.park_factors().get(f"id:{venue_id}")
+            rec = park_src.park_factors(year=year).get(f"id:{venue_id}")
         except Exception:
             rec = None
-        _PARK_CACHE[venue_id] = sim.park_mults(rec)
-    return _PARK_CACHE[venue_id]
+        _PARK_CACHE[key] = sim.park_mults(rec)
+    return _PARK_CACHE[key]
 
 
 #: One simulated game per draw is ~2x the work of one simulated start, and
@@ -528,7 +550,10 @@ def replay(pair, lg, pens, rng, innings=9, track=(), apply_leash=True,
     hn = adjust_lineup(home[2], True)
     park = None
     if USE_PARK if use_park is None else use_park:
-        park = park_for(home[0].get("venue_id"))
+        # The game's own season picks the index — see `park_for`.
+        d = (home[0].get("date") or "")
+        park = park_for(home[0].get("venue_id"),
+                        int(d[:4]) if d[:4].isdigit() else None)
     A = game.build_side(away[1], pens.get((away[0]["team"] or "").upper(), []),
                         an, hook, rng, team=away[0]["team"],
                         apply_leash=apply_leash, date=away[0].get("date"))

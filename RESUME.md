@@ -17,13 +17,22 @@ it belongs in `NOTES-context-layer.md`.
 ## WHERE THINGS STAND (2026-09-05)
 
 **THE BATTERY SHIPPED — RULE 15.** `venv/bin/python -m scratchpad.battery`
-scores every table off one pass per fold, four folds, 94 seconds, with a
-`--diff` mode and a `--maim` positive control. Baseline
-`scratchpad/battery_1d6f10bb9185.json` is committed. Every modelling item
-now starts and ends with a battery run and reports the DIFF — every row,
-not just the target. Next item in `PLAN-baseball-logic.md` is PARK, and
-its scoring rows (per-venue residuals) are already in the battery: Coors
-is the largest residual in both views, exactly as the plan predicts.
+scores every table off one pass per fold, four folds, 94 seconds, with
+`--diff`, `--on/--off` config flips and a `--maim` positive control.
+Every modelling item now starts and ends with a battery run and reports
+the DIFF — every row, not just the target.
+
+**PARK SHIPPED THE SAME DAY — `USE_PARK` + `NEUTRALISE_PARK`, on the
+pre-registered per-venue test.** Weighted mean |per-venue residual| down
+in 3 of 4 folds on both full and F5 team totals; ladder inside one se
+everywhere; 10 of 671 battery rows moved and every one is a venue row
+moving toward zero (Coors, all four folds). Fingerprint
+2fafc653 -> ac8e9c1a; `outs_adjust` re-measured (all rows within one se);
+battery baseline is now `scratchpad/battery_4927c96f259b.json`. The 2026
+fold is the one park does not yet help — lowest rated coverage (88.4%)
+and a season-to-date index. Next item in `PLAN-baseball-logic.md`: GIDP
+advancement + state-blind sacrifices (item 2), scored on the battery's
+traffic and contact rows.
 
 ## WHERE THINGS STOOD (2026-08-30)
 

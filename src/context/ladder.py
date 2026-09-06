@@ -78,6 +78,16 @@ def simulate_prefixes(cases_by_game, pens, lg, n_sims=40, seed=7,
             continue
         an = cal.adjust_lineup(away[2], False)
         hn = cal.adjust_lineup(home[2], True)
+        # The same park resolution `calibrate.replay` does: the game's
+        # venue, the game's season, NEUTRAL when unrated. The ladder is the
+        # instrument the run-level claims rest on, so it has to build the
+        # same game production does — the `date`-reaches-the-hook lesson
+        # below, applied to park before it could cost a session.
+        park = None
+        if cal.USE_PARK:
+            d = (home[0].get("date") or "")
+            park = cal.park_for(home[0].get("venue_id"),
+                                int(d[:4]) if d[:4].isdigit() else None)
         acc = {p: 0.0 for p in prefixes}
         for draw in range(n_sims):
             rng = random.Random(seed + i * 100003 + draw)
@@ -96,7 +106,7 @@ def simulate_prefixes(cases_by_game, pens, lg, n_sims=40, seed=7,
                 hn, None, rng, team=home[0]["team"],
                 date=home[0].get("date"))
             res = game.simulate_game(A, H, lg, rng, innings=max(prefixes),
-                                     track=prefixes)
+                                     track=prefixes, park=park)
             for p in prefixes:
                 acc[p] += res.prefix[p]
         out[gid] = {p: acc[p] / n_sims for p in prefixes}

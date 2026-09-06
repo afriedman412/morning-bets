@@ -204,6 +204,10 @@ def side_cases(before=None, since=None, rates_before=None) -> list[dict]:
         home = bool(s["is_home"])
         out.append({
             "game_id": s["game_id"], "date": g["date"], "team": s["team"],
+            # The game's venue, for `calibrate.park_for` — selected by
+            # `_F5_Q` since the beginning and dropped on the floor here
+            # until park was threaded through on 2026-09-05.
+            "venue_id": g["venue_id"],
             "is_home": home, "pitcher": pitcher,
             "lineup": cal.adjust_lineup(lineup, home),
             # Runs this side ALLOWED through five = the opponent's F5 score.
@@ -315,6 +319,14 @@ def evaluate(cases: list[dict], params: dict | None = None, n_sims=60,
     with sim.rules(**rules):
         for away, home in pairs:
             rng = random.Random(away["seed"] + salt)
+            # Park is a property of the GAME and of its season — the same
+            # resolution `calibrate.replay` does. Off, this is None and the
+            # objective is unchanged; an unrated venue is NEUTRAL.
+            park = None
+            if cal.USE_PARK:
+                d = (home.get("date") or "")
+                park = cal.park_for(home.get("venue_id"),
+                                    int(d[:4]) if d[:4].isdigit() else None)
             vals = {"away": [], "home": []}
             for _ in range(n_sims):
                 # `lineup` is the nine that pitcher FACES, so each side
@@ -342,7 +354,7 @@ def evaluate(cases: list[dict], params: dict | None = None, n_sims=60,
                 # `runs_f5` and `line.outs` — `total_rps` is the F5 GAME
                 # total, not the full-game one. Every fit was playing four
                 # innings a draw and discarding them.
-                game.simulate_game(A, H, lg, rng, stop_after=5)
+                game.simulate_game(A, H, lg, rng, stop_after=5, park=park)
                 # `Side.runs_f5` is runs ALLOWED through five by that
                 # pitching side, which is exactly what the side observation
                 # records. `GameResult.away_f5` is the opposite convention —

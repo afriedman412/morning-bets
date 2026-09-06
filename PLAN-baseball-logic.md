@@ -12,10 +12,12 @@ nothing here is rejected on one.
 
 ## HOW TO WORK THIS FILE
 
-ONE ITEM PER SESSION. The battery (item 0) SHIPPED 2026-09-05 —
-`scratchpad/battery.py`, CLAUDE.md rule 15 — so every remaining item is
-scored on its rows. The rest are ordered by runs per day of work and by
-dependency. Do not skip ahead. Before starting any item:
+ONE ITEM PER SESSION. The battery (item 0) and PARK (item 1) SHIPPED
+2026-09-05 — `scratchpad/battery.py` / CLAUDE.md rule 15, and
+`calibrate.USE_PARK` + `NEUTRALISE_PARK` on the pre-registered per-venue
+test. Every remaining item is scored on battery rows. The rest are
+ordered by runs per day of work and by dependency. Do not skip ahead.
+Before starting any item:
 
   1. `git status` clean. `venv/bin/python -m tests.run` green. Record the
      count.
@@ -51,59 +53,6 @@ The standing scoring instruments, and which one each item names:
 
 Holdout is 2026-07-01 for 2026 and the same calendar cut for prior seasons.
 Fit on `date < cut`, score on `date >= cut`, per season, four folds.
-
----
-
-## 1. PARK — switch on with neutralised rates, score PER VENUE
-
-STATUS: `calibrate.USE_PARK = False`, `calibrate.NEUTRALISE_PARK = False`.
-
-ESTABLISHED (NOTES "Park factors — the double-count, and the fix"): raw park
-on raw rates double-counts because a player's line is half earned at home;
-`rates.park_exposure` / `rates.neutralise` divide each rate by the
-usage-weighted park it was accumulated in; neutralise-then-apply was the
-best of three configs at n_sims=110 and was parked at +0.34pp because that
-was under the detection floor on POOLED prop Brier.
-
-WHY THE OLD TEST CANNOT SEE IT: a park effect is signed per venue and nets
-to zero across thirty of them. A pooled ladder at F5 -0.047 over 1,645
-games says nothing about Coors. The quantity to score is the per-venue
-residual on team totals.
-
-BLOCKER TO CLEAR FIRST: `fitf5.evaluate` cannot take a park (TODO item 9
-records this). `price.simulate_slate_game` already passes
-`calibrate.park_for(g["venue_id"])`. Thread `park` through
-`calibrate.replay` / `paired_cases` / `fitf5.evaluate` / `ladder` the same
-way `team` and `date` were threaded on 2026-08-25, and add the call-site
-check (`check_every_replay_passes_a_park`, same shape as
-`check_every_build_side_call_passes_team_and_date`). An omitted park must
-resolve to NEUTRAL and be counted as a coverage miss, never to the home
-club's park — Mexico City, Athletics' unrated sites.
-
-TEST:
-  * Coverage first: print the share of holdout games with a rated
-    `venue_id` before reading any score. Rule 3 from RESUME.
-  * Per-venue mean residual (model - real) on FULL team total and on F5
-    team total, holdout 2026-07-01+, 40 sims a game paired, three
-    configs: off / raw / neutralised. Report all thirty venues with n and
-    se, sorted by |residual|.
-  * Four folds (2023-2026, same cut), per rule 12b.
-  * League-wide ladder as the control: it should NOT move outside noise.
-    If it does, something else is on.
-
-FALSIFIER, pre-registered: neutralised park does not reduce the
-sample-size-weighted mean |per-venue residual| in at least three of four
-folds, or it moves the league ladder by more than one se. Either kills it.
-PREDICTION: Coors is the largest residual off and the largest correction
-on; Oracle/Petco/T-Mobile move the other way.
-
-DO NOT: solve for a multiplier that makes any venue land. Savant's index,
-neutralised, is the count. If a venue still sits out, record it as a
-missing mechanism (altitude on breaking balls is not a HR index) and move
-on.
-
-SHIP: both flags on, checks in, fingerprint moved, `outs_adjust`
-re-measured (park changes traffic, traffic reaches the hook).
 
 ---
 

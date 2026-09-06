@@ -8246,3 +8246,86 @@ NEXT STEPS. Item 1 (park, per-venue scoring) is next in the plan and its
 scoring rows already exist in the battery. The platoon rows (item 3) and
 contact quintile rows (item 4) are live or stubbed; weather rows are
 stubbed for item 5.
+
+## 2026-09-05 — PARK SHIPS, NEUTRALISED, ON THE PER-VENUE TEST (item 1)
+
+QUESTION. Does the Savant park index, applied to park-neutralised rates,
+reduce the per-venue team-total residuals — without moving the pooled
+ladder, which is structurally blind to a signed per-venue error?
+
+HYPOTHESIS. Neutralise-then-apply reduces the sample-weighted mean
+|per-venue residual| on full and F5 team totals; the ladder stays inside
+noise. Prediction from the plan, verbatim: Coors largest residual off and
+largest correction on; Oracle/Petco/T-Mobile move the other way.
+
+TEST. Three configs (off / raw / neutralised) x four folds through the
+battery, 40 sims paired, via the new `--on/--off` flags (recorded live in
+the header and JSON, so a run cannot be mis-attributed). POWER: single
+venues are 28-48 club-games a fold (se 0.32-0.72 runs) — directional
+only; the falsifier quantity is the weighted mean over ~30 venues,
+n >= 1,138 club-games a fold. FALSIFIER, pre-registered: "neutralised
+park does not reduce the sample-size-weighted mean |per-venue residual|
+in at least three of four folds, or it moves the league ladder by more
+than one se. Either kills it."
+
+PLUMBING FIRST (all inert with the flag off — fingerprint 2fafc653
+unchanged after threading):
+  * `park_for(venue_id, year)` is season-aware; a replay passes the
+    game's own year. The index is 3-year rolling, so serving 2026's table
+    for a 2023 game hands the scorer an index that knows the future —
+    anachronistic in exactly the folds rule 12b scores. A live slate
+    still gets the current year. `park_exposure` follows its `season`.
+  * Park threaded through `fitf5.evaluate` and `ladder.simulate_prefixes`
+    (both built games with no park; `slate.py` already passed it), plus
+    `scratchpad/shape.py` (feeds the shipped outs_adjust table) and
+    `scratchpad/fingerprint.py` (a fingerprint that skips park would sit
+    still while the engine moved).
+  * `check_every_simulate_game_call_passes_a_park` — structural, same
+    shape as the team/date check; mutation-verified (dropping `park=`
+    from ladder fails exactly that check).
+
+COVERAGE, before any score: rated park for 99.9% / 99.9% / 94.5% / 88.4%
+of games in 2023/2024/2025/2026. Unrated simulates NEUTRAL, never the
+home club's park.
+
+EVALUATE.
+  * Weighted mean |per-venue residual|, off -> neutralised:
+      full  2023 0.429->0.312, 2024 0.442->0.370, 2025 0.418->0.372,
+            2026 0.455->0.459 (WORSE)          -> 3/4 folds improved
+      F5    2023 0.262->0.215, 2024 0.264->0.231, 2025 0.252->0.252,
+            2026 0.332->0.369 (WORSE)          -> 3/4 folds improved
+    The falsifier's bar (>= 3 of 4, both views) is met exactly. 2026 is
+    the miss in both views — also the fold with the lowest rated
+    coverage (88.4%) and the only season-to-date index.
+  * Ladder control: no fold/prefix moved past one se (max +0.049 against
+    se 0.126). Clean.
+  * The prediction landed in full: Coors off -1.08/-0.79/-1.33/-1.46 by
+    fold, the largest everywhere; on, corrected to -0.30/+0.00/-0.67/
+    -0.80. Oracle, Petco and T-Mobile all shrink toward zero.
+  * THE FULL BATTERY DIFF — every row, not just the target: 10 of 671
+    rows moved past one se, and every one is a venue row moving toward
+    zero (Coors in all four folds, both views; Oracle 2023; T-Mobile
+    2025). No hook cell, no shape row, no traffic row, no ladder row.
+  * RAW VS NEUTRALISED, recorded honestly: raw scored comparably on the
+    pooled venue number (better in two folds, worse in two). Not acted
+    on — neutralised was the pre-registered config, the double-count
+    mechanism is established, and choosing raw post-hoc is selection.
+
+CONCLUSION — ESTABLISHED: `USE_PARK = True`, `NEUTRALISE_PARK = True`.
+Fingerprint 2fafc653 -> ac8e9c1a. The old `check_park_is_off_because_it_
+double_counts` pinned a resolved state; it is now `check_park_never_
+applies_to_raw_rates` — park on REQUIRES neutralise on — and the mutation
+(neutralise off, park on) fails exactly that check. `outs_adjust`
+re-measured the same sitting per the standing rule: every row within one
+se of 09-04 (max move 0.004), table now carries the shipped-engine values
+(`shape_0905_park.out`), holdout mean outs 15.62 -> 15.59. 420 checks
+green. New battery baseline `battery_4927c96f259b.json`.
+
+NOT ESTABLISHED, recorded for later: the 2026 fold's park correction is
+the one that does not help yet — lowest coverage, season-to-date index,
+and the residual venues (Coors still -0.80 on) point at what the plan
+already says: a venue still sitting out is a missing mechanism (altitude
+on breaking balls is not a HR index), not a multiplier to solve for.
+
+NEXT. Item 2 (GIDP advancement + state-blind sacrifices) is next in the
+plan; its scoring rows (traffic, contact) are live in the battery.

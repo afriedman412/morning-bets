@@ -71,6 +71,13 @@ should not be read as a signal in either direction** — they are kept at
 their measured values because this table COUNTS rather than models, and
 rounding a measured 0.008 to zero would be a decision, not a measurement.
 
+RE-MEASURED 2026-09-05, the day PARK shipped (`calibrate.USE_PARK` +
+`NEUTRALISE_PARK`), because park moves traffic and traffic reaches the
+hook. Every row moved by at most 0.004 — inside one standard error, the
+expected result for a per-venue redistribution whose pooled effect nets
+out — and the table now carries the values measured on the shipped
+engine (`scratchpad/shape_0905_park.out`).
+
 IT WILL NEED MEASURING AGAIN on the next hook change — the counted
 BOUNDARY backbone is still off (`sim.USE_PITCH_HAZARD_BND`) and turning it
 on would move these rows the same way. It costs 12 seconds — `venv/bin/python -m scratchpad.shape 40` over 7 workers — so
@@ -94,12 +101,12 @@ from src.context.sources import rates as rate_src
 #: is actual - model, applied to P(over).
 MEASURED = {
     12.5: (0.772, 0.806),
-    14.5: (0.685, 0.731),
-    15.5: (0.494, 0.536),
-    16.5: (0.452, 0.478),
-    17.5: (0.393, 0.411),
-    18.5: (0.188, 0.171),
-    20.5: (0.130, 0.118),
+    14.5: (0.682, 0.733),
+    15.5: (0.492, 0.535),
+    16.5: (0.448, 0.477),
+    17.5: (0.389, 0.411),
+    18.5: (0.184, 0.170),
+    20.5: (0.127, 0.117),
 }
 #: Nominal; the per-row figures run 0.010 to 0.015 and are in the docstring.
 SE = 0.013
@@ -107,14 +114,14 @@ SE = 0.013
 #: The date the table above was measured, and the engine it was measured on.
 #: Both views print it, because a correction is only as current as the hook
 #: underneath it and the last one went stale silently.
-MEASURED_ON = "2026-09-04"
+MEASURED_ON = "2026-09-05"
 
 #: The holdout mean the correction was measured around. A projection far
 #: from this is being extrapolated to, not interpolated.
 #:
 #: It is the MODEL's mean, not reality's 15.81, because what gets compared
 #: against it is a model projection.
-HOLDOUT_MEAN_OUTS = 15.62
+HOLDOUT_MEAN_OUTS = 15.59
 
 
 def correction(line: float) -> float:

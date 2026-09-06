@@ -782,19 +782,39 @@ def main(argv):
         os.environ["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
         os.execv(sys.executable,
                  [sys.executable, "-m", "scratchpad.battery"] + argv)
-    pos = [a for a in argv if not a.startswith("-")]
-    _SIMS = int(pos[0]) if pos else 40
     limit = None
     fold_years = [y for y, _ in FOLDS]
     diff_fp = None
+    mods = {"sim": sim, "game": game, "calibrate": cal}
+    # An option's space-separated value is CONSUMED — without this, the
+    # value of `--on calibrate.USE_PARK` fell through into the positional
+    # list and was parsed as the sim count.
+    consumed: set = set()
+    takes_value = ("--limit", "--folds", "--diff", "--on", "--off")
     for i, a in enumerate(argv):
+        if not any(a.startswith(t) for t in takes_value):
+            continue
+        v = a.split("=", 1)[1] if "=" in a else argv[i + 1]
+        if "=" not in a:
+            consumed.add(i + 1)
         if a.startswith("--limit"):
-            limit = int(a.split("=")[1] if "=" in a else argv[i + 1])
-        if a.startswith("--folds"):
-            v = a.split("=")[1] if "=" in a else argv[i + 1]
+            limit = int(v)
+        elif a.startswith("--folds"):
             fold_years = [int(y) for y in v.split(",")]
-        if a.startswith("--diff"):
-            diff_fp = a.split("=")[1] if "=" in a else argv[i + 1]
+        elif a.startswith("--diff"):
+            diff_fp = v
+        # `--on calibrate.USE_PARK,...` / `--off ...`: flip switches for
+        # THIS RUN. The header and the JSON record live values, so a run
+        # under a candidate config is attributable by construction — this
+        # is how an A/B goes through the battery without editing source.
+        else:
+            for dotted in v.split(","):
+                mod, attr = dotted.split(".")
+                assert hasattr(mods[mod], attr), f"unknown flag {dotted}"
+                setattr(mods[mod], attr, a.startswith("--on"))
+    pos = [a for i, a in enumerate(argv)
+           if not a.startswith("-") and i not in consumed]
+    _SIMS = int(pos[0]) if pos else 40
     maim = "--maim" in argv
     dev = bool(limit) or _SIMS != 40 or maim or \
         set(fold_years) != {y for y, _ in FOLDS}
@@ -863,6 +883,21 @@ def main(argv):
             bool(act_db_all.get(g, {}).get("venue_id")) for g in gids)
         print(f"\n  fold {year}: {len(gids)} paired games, venue coverage "
               f"{venue_cover:.1%}", flush=True)
+        if cal.USE_PARK:
+            # COVERAGE BEFORE ANY SCORE, and a parent-side pre-warm in one
+            # move: `park_for` caches per (venue, year), the workers
+            # inherit the cache through the fork, and no child ever races
+            # seven siblings to fetch the same Savant page.
+            rated = 0
+            for g in gids:
+                d = (pairs[g][1][0].get("date") or "")
+                pk = cal.park_for(pairs[g][1][0].get("venue_id"),
+                                  int(d[:4]) if d[:4].isdigit() else None)
+                rated += pk != sim.NEUTRAL_PARK
+            print(f"  fold {year}: park RATED for {rated}/{len(gids)} "
+                  f"games ({rated / len(gids):.1%}); the rest simulate "
+                  f"NEUTRAL and are coverage misses, not home-park guesses",
+                  flush=True)
         ctx = mp.get_context("fork")
         with ctx.Pool(max(1, (mp.cpu_count() or 4) - 2)) as pool:
             got_l = pool.map(_one, gids, chunksize=4)

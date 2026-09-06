@@ -943,18 +943,29 @@ def check_home_road_is_centred_on_the_season_mean():
     assert abs(cal.HOME_OPP_BB * cal.AWAY_OPP_BB - 1.0) < 1e-9
 
 
-def check_park_is_off_because_it_double_counts():
-    """MEASURED NEGATIVE. Mean Brier skill 7.25% without park, 7.15% with,
-    across 28 stat/line combinations — a wash, deltas alternating sign.
+def check_park_never_applies_to_raw_rates():
+    """Park ON requires NEUTRALISE ON — the double-count, as an invariant.
 
-    The cause is double-counting, not a wiring bug: player rates are raw
-    season totals that already contain that player's own park. Park cannot
-    contribute until the rates are park-neutralised first. The machinery is
-    kept and correct (`sim.park_mults`, `calibrate.park_for`); it is the
-    INPUTS that are not ready for it.
+    HISTORY, because this check used to pin `USE_PARK is False`: raw park
+    on raw rates measured a wash (mean Brier skill 7.25% without, 7.15%
+    with) because a player's season line already contains his own park, so
+    tonight's index counted the home half one and a half times. That was
+    resolved on 2026-09-05 by neutralising the rates first
+    (`rates.park_exposure` / `rates.neutralise`), and park shipped on the
+    pre-registered per-venue test — weighted mean |per-venue residual|
+    down in 3 of 4 folds on both full and F5 team totals, pooled ladder
+    inside one se everywhere.
+
+    What must survive that flip is the LESSON, not the flag value: the
+    day someone switches `NEUTRALISE_PARK` off while park stays on, the
+    engine is back to counting Coors one and a half times, and nothing
+    else would catch it — the pooled ladder is structurally blind to a
+    signed per-venue error.
     """
     from src.context import calibrate as cal
-    assert cal.USE_PARK is False
+    if cal.USE_PARK:
+        assert cal.NEUTRALISE_PARK, \
+            "USE_PARK without NEUTRALISE_PARK double-counts every home park"
 
 
 def check_home_hook_stays_zero_until_it_earns_a_place():

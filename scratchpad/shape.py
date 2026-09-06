@@ -83,6 +83,15 @@ def _one(args):
     away = next(x for x in v if not x[0]["is_home"])
     an = cal.adjust_lineup(away[2], False)
     hn = cal.adjust_lineup(home[2], True)
+    # The same park resolution `calibrate.replay` does. This file feeds the
+    # SHIPPED `outs_adjust` table, so it must simulate the shipped engine —
+    # measuring the correction on a no-park game the day park ships would
+    # bake the difference into a betting-layer constant.
+    park = None
+    if cal.USE_PARK:
+        d = (home[0].get("date") or "")
+        park = cal.park_for(home[0].get("venue_id"),
+                            int(d[:4]) if d[:4].isdigit() else None)
     # JOINT (outs, k) as well as the marginals: K = batters faced x K rate,
     # so "is K under-dispersed" only localises once length is held fixed.
     aj, hj = Counter(), Counter()
@@ -105,7 +114,7 @@ def _one(args):
                             _PENS.get((home[0]["team"] or "").upper(), []),
                             an, sim.Hook(), rng, team=home[0]["team"],
                             date=home[0].get("date"))
-        r = game.simulate_game(A, H, _LG, rng)
+        r = game.simulate_game(A, H, _LG, rng, park=park)
         ao[r.away_sp.outs] += 1
         ho[r.home_sp.outs] += 1
         ak[r.away_sp.k] += 1
