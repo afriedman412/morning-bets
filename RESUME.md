@@ -16,6 +16,24 @@ it belongs in `NOTES-context-layer.md`.
 
 ## WHERE THINGS STAND (2026-09-06, end of day)
 
+**ITEM 6 SHIPPED (`game.USE_PEN_ROLES`): late-inning arms are picked by
+the counted selection profile, not draw order.** The count refuted the
+plan's deterministic rule (real P(best remaining | close) 0.18-0.23 vs
+the draw's natural 0.157; the true defect was blowouts at 0.084 — good
+arms are SAVED) and the behaviour is signed: lead 44% top-fifth, trail
+near-flat. One uniform per entry from inning 7, drawn flag-on or off
+(the A/B stream rule); percentile rank so the real 12-arm profile fits
+the sampled 8. Battery flat everywhere — the PREDICTED result at the
+counted size (~0.01 runs/late inning vs pooled se 0.025); ships on
+rule 3. F5 untouched by construction (a 0.0002 bit-drift chased to the
+`mlb_stints` rebuild reaching `layoff_gap` for two 2024 starters — the
+stints table was 2026-only and is now four seasons, 87,855 rows).
+THE FINDING: late-inning margin gaps (+2.5 sigma pooled at margin 1)
+SURVIVE deployment — they are clustering's late face, not arm choice.
+441 checks; fingerprint 954c4a5f; baseline `battery_5216a886af94.json`.
+NEXT: item 5, weather — temperature into the HR channel; battery
+weather rows are stubs, instrument first.
+
 **ITEMS 4b + 4c SHIPPED (`sim.USE_GB_DP`, `sim.USE_GB_HITMIX`): double
 plays and the hit mix both read the matchup's GB profile**, as counted
 odds per quintile combined log5-style (validated on the 25-cell crosses),

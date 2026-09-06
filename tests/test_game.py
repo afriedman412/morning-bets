@@ -377,7 +377,7 @@ def check_a_mid_inning_hook_hands_over_the_out_count():
     hook_orig = game.USE_MEASURED_RELIEF_HOOK
     game.USE_MEASURED_RELIEF_HOOK = False
 
-    def spy(self, entry_outs=0):
+    def spy(self, entry_outs=0, *a, **kw):
         if not self.starter_out:
             seen.append(entry_outs)
         orig_next(self, entry_outs)
@@ -448,7 +448,7 @@ def check_a_reliever_can_be_pulled_mid_inning():
     seen = []
     orig_next = game.Side.next_arm
 
-    def spy(self, entry_outs=0):
+    def spy(self, entry_outs=0, *a, **kw):
         seen.append((self.starter_out, entry_outs))
         orig_next(self, entry_outs)
 
@@ -475,7 +475,7 @@ def check_the_relief_hook_flag_off_leaves_relievers_alone():
     seen = []
     orig_next = game.Side.next_arm
 
-    def spy(self, entry_outs=0):
+    def spy(self, entry_outs=0, *a, **kw):
         seen.append((self.starter_out, entry_outs))
         orig_next(self, entry_outs)
 
@@ -1102,3 +1102,93 @@ def check_the_engine_looks_up_the_layoff_by_pitcher_and_date():
     src = inspect.getsource(game.build_side)
     assert "sim.layoff_gap(starter.name, date)" in src, \
         "build_side skips the layoff lookup"
+
+
+def _pen_side(arms):
+    return game.Side(starter=sim.PitcherRates(name="sp"), pen=arms,
+                     lineup=[sim.BatterRates(name=f"b{i}")
+                             for i in range(9)])
+
+
+def check_pen_roles_ship_on_with_the_counted_profile():
+    """The flag defaults ON, every bucket's five weights are a
+    probability distribution, and the two signatures the count found are
+    pinned absolutely (a table reset to uniform agrees with itself):
+    protecting a lead leans hard on the best fifth, and a blowout leans
+    on the BOTTOM of the pen — good arms are saved, not just deployed."""
+    assert game.USE_PEN_ROLES, "ships ON"
+    for b, w in game.PEN_PICK.items():
+        assert abs(sum(w) - 1.0) < 2e-3, (b, sum(w))
+    assert game.PEN_PICK["lead"][0] > 0.40
+    assert game.PEN_PICK["blowout"][4] > game.PEN_PICK["blowout"][0]
+    assert game.PEN_PICK["lead"][0] > game.PEN_PICK["trail"][0] > \
+        game.PEN_PICK["blowout"][0]
+
+
+def check_late_pen_selection_reads_the_margin():
+    """Behavioural, through `next_arm` itself: over many fresh pens the
+    arm handed the ball protecting a one-run lead in the eighth is
+    better (K%-BB%) than the one mopping up a six-run game — and before
+    the seventh the order is untouched and NO randomness is consumed,
+    which is what keeps F5 bit-identical."""
+    def arms():
+        return [sim.PitcherRates(name=f"r{i}", k_pct=0.18 + 0.02 * i,
+                                 bb_pct=0.08) for i in range(6)]
+    got = {}
+    for margin in (1, -6):
+        rng = random.Random(11)
+        q = 0.0
+        for _ in range(800):
+            s = _pen_side(arms())
+            s.next_arm(0, rng, 8, margin)
+            q += s.current.k_pct - s.current.bb_pct
+        got[margin] = q / 800
+    assert got[1] > got[-6] + 0.005, got
+    rng = random.Random(3)
+    twin = random.Random(3)
+    s = _pen_side(arms())
+    s.next_arm(0, rng, 6, 1)
+    assert [a.name for a in s.pen] == [f"r{i}" for i in range(6)]
+    assert rng.random() == twin.random(), "inning six must consume nothing"
+
+
+def check_the_pen_roll_is_drawn_whether_or_not_the_flag_uses_it():
+    """The A/B rule: flag off still consumes exactly one draw at an
+    eligible entry, and changes nothing else — a switch that consumes a
+    different number of random numbers is not an A/B."""
+    orig = game.USE_PEN_ROLES
+    game.USE_PEN_ROLES = False
+    try:
+        rng = random.Random(5)
+        twin = random.Random(5)
+        s = _pen_side([sim.PitcherRates(name=f"r{i}", k_pct=0.18 + 0.02 * i)
+                       for i in range(6)])
+        s.next_arm(0, rng, 9, 0)
+        assert [a.name for a in s.pen] == [f"r{i}" for i in range(6)]
+        twin.random()
+        assert rng.random() == twin.random(), "exactly one draw"
+    finally:
+        game.USE_PEN_ROLES = orig
+
+
+def check_every_next_arm_call_passes_the_selection_context():
+    """Every `next_arm` call in `src/` must pass rng, inning and margin —
+    a call site that omits them silently reverts that entry to draw
+    order (the same dropped-kwarg failure the DP roll's `mu` had)."""
+    import ast
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent / "src"
+    bad = []
+    for f in sorted(root.rglob("*.py")):
+        for node in ast.walk(ast.parse(f.read_text())):
+            if not isinstance(node, ast.Call):
+                continue
+            fn = node.func
+            name = (fn.attr if isinstance(fn, ast.Attribute)
+                    else getattr(fn, "id", None))
+            if name != "next_arm":
+                continue
+            if len(node.args) < 4 and "rng" not in \
+                    {k.arg for k in node.keywords}:
+                bad.append(f"{f.relative_to(root.parent)}:{node.lineno}")
+    assert not bad, bad

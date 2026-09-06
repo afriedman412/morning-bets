@@ -8682,3 +8682,74 @@ across seasons too.
 
 NEXT. Item 5, weather — temperature into the HR channel; the battery
 weather rows are still stubs, so the instrument comes first.
+
+## 2026-09-06 — item 6: which arm gets the ball (`game.USE_PEN_ROLES`),
+## and the count that refuted the rule as planned
+
+QUESTION. Reliever quality was independent of the score — the pen was
+sampled by appearances and walked in draw order, so the closer could mop
+up a blowout and the twelfth man protect a one-run lead. The plan's
+DECIDED rule: inning >= 7 and |margin| <= 2 -> best available arm.
+
+THE COUNT REFUTED THE DECIDED RULE BEFORE IT WAS BUILT
+(`scratchpad/pen_pick.py`, 24,181 late entries, pre-July rows of all
+four seasons; `mlb_stints` rebuilt first — it held ONLY 2026 and only
+through Aug 23; `pbp.sync()` brought it to 87,855 rows over four
+seasons). Real P(chose the best still-unused arm | close) is 0.18-0.23
+against the draw order's own natural 0.157 — a deterministic best-arm
+rule would overshoot 5x. THE REAL DEFECT IS THE OTHER SIDE: in
+blowouts managers actively avoid the top of the pen (P(best) 0.084,
+top-3 share 0.226 vs 0.357 close) while the model spends good arms at
+the same rate everywhere. Good arms are SAVED, not just deployed. And
+the behaviour is SIGNED — protecting a lead 0.233, tied 0.205,
+TRAILING 0.096: a manager chasing does not spend his closer.
+
+WHAT SHIPPED INSTEAD: the whole counted SELECTION PROFILE — the chosen
+arm's quality percentile (K%-BB%, the rank deploy.py found projects at
+r +0.55) among arms still unused, in fifths, by signed margin bucket
+(lead / tied / trail / mid / blowout). Lead tilts 44% to the top fifth;
+blowout leans to the BOTTOM (0.236). Stability: lead/tied/mid at +0.98
+between-season correlation of the five weights; trail and blowout are
+flat shapes, their lower correlations are noise around flat.
+`Side.next_arm(entry_outs, rng, inning, margin)` draws one uniform per
+eligible entry (inning >= 7, drawn whether or not the flag uses it —
+the A/B stream rule) and maps it through the bucket's weights to a
+rank among the remaining pool. Percentile, not absolute rank, so the
+profile transfers from the real ~12-arm pen to the sampled 8.
+
+VERDICT. Battery diff vs 7ad09292: NO row moved past one se — and that
+is the PREDICTED result, stated with the power: the counted selection
+shifts the late arm by ~0.009 K-BB (~0.01-0.015 runs per late inning),
+against a pooled late-row se of ~0.025. The falsifier's run-level
+clause ("close-game late-inning runs do not move toward real") was
+pre-registered against the deterministic rule, whose effect would have
+been ~5x larger; at the counted size it sits below its own noise floor
+and cannot fire either way (rule 2). The mechanism ships on rule 3:
+counted, four-season stable, reproduced by the wire (behavioural
+checks), and confined — F1/F3 bit-identical everywhere, F5 identical
+in 3 of 4 folds.
+
+THE F5 BIT-DRIFT THAT WAS NOT THE MECHANISM: 2024 F5 moved +0.0002.
+Chased to ground: `sim._start_dates` UNIONS `mlb_pitching` with
+`mlb_stints` for `layoff_gap`, so the stints rebuild changed TWO 2024
+starters' layoff inputs — data arrival reaching a hook input, same
+class as the morning's roster drift. The mechanism cannot reach F5:
+no draw before an inning-7 entry, and the inning-six no-consumption
+rule is a standing check.
+
+THE FINDING THAT OUTLIVES THE ITEM: the late-inning margin gaps
+(margin-1 pooled +2.5 sigma) SURVIVE arm selection. The late defect is
+not primarily WHICH arm — TODO item 8's oracle ceiling (0.618 runs,
+"~0.6 of it is which arms are exposed") is not reachable through
+selection at the counted size. What remains looks like the clustering
+defect's late-inning face.
+
+441 checks green (4 new; 3 test spies widened for the new signature).
+Mutations four-for-four (flag off / profile flattened / selection
+never applied / a call site dropping the context — each kills exactly
+its own check). Fingerprint ccdb3903 -> 954c4a5f.
+
+NEXT. Item 5, weather — temperature into the HR channel; the battery
+weather rows are stubs, so the instrument comes first. And the late-
+inning margin gaps now have a named owner to hunt: clustering, not
+deployment.

@@ -140,28 +140,20 @@ worse.
 
 ---
 
-## 6. BULLPEN EXPOSURE — best available arms in a close game
+## 6. BULLPEN EXPOSURE — SHIPPED 2026-09-06 (`game.USE_PEN_ROLES`)
 
-STATUS: `build_side` draws eight arms weighted by appearances;
-`next_arm` walks them in draw order. Reliever quality is independent of
-score. TODO item 8 has the measurement: oracle ceiling 0.618 runs, ~0.6 of
-it is WHICH arms are exposed.
-
-THE RULE IS DECIDED, do not build a leverage index: from the seventh
-inning, when |margin| <= 2, the next arm is the best available by a
-measured quality rank (K% - BB%, or whatever `deploy.py` found projects);
-otherwise draw order as now. "Available" is the existing `pen_state`.
-
-COUNT FIRST: from `deploy.py` / `mlb_stints`, P(top-3 arm appears | inning
->= 7, |margin| <= 2) against P(top-3 arm appears | blowout). That is the
-number the rule has to reproduce.
-
-TEST: innings 7-9 runs allowed split by |margin| at the start of the
-inning, model vs real, holdout; one-run-game share (real 0.266, model
-0.247 as of 2026-08-30); F7 and full-game ladder; F5 as the control (must
-not move — nothing before the sixth is touched).
-FALSIFIER: close-game late-inning runs do not move toward real, or F5
-moves.
+The count REFUTED the decided rule before it was built: real
+P(best remaining | close) is 0.18-0.23 vs the draw order's natural
+0.157 — deterministic best-arm would overshoot 5x — and the real
+defect was the blowout side (0.084; good arms are SAVED). Shipped the
+whole counted selection profile instead, signed by margin (lead 44%
+top-fifth, trailing near-flat, blowout leans to the bottom), drawn per
+entry from inning seven. Battery flat everywhere, which is the
+predicted result at the counted effect size (~0.01 runs/late inning vs
+pooled se 0.025); ships on rule 3. THE SURVIVING FACT: the late-inning
+margin gaps are NOT deployment — the oracle ceiling in TODO item 8 is
+not reachable through selection; what remains is clustering's
+late-inning face. Full result in the notes.
 
 ---
 

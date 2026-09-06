@@ -179,6 +179,55 @@ USE_AUTO_RUNNER = True
 USE_RUNNERS_FIRST = False
 
 
+#: WHICH ARM GETS THE BALL, late — plan item 6. The pen was sampled by
+#: appearances and then walked IN DRAW ORDER, so reliever quality was
+#: independent of the score: the closer could mop up a blowout and the
+#: twelfth man protect a one-run lead. Counted on 24,181 real relief
+#: entries in inning >= 7 (`scratchpad/pen_pick.py`, pre-July rows of
+#: all four seasons): the chosen arm's QUALITY PERCENTILE among the
+#: arms still unused that night, in fifths, by the pitching side's
+#: margin at entry. Bin 1 is the best fifth. Protecting a lead managers
+#: take the top fifth 44% of the time; trailing they are nearly flat;
+#: in a blowout they lean to the BOTTOM of the pen (bin5 0.236) —
+#: good arms are SAVED, not just deployed. The lead/tied/mid shapes
+#: hold at +0.98 between-season correlation of the five weights; trail
+#: and blowout are flat shapes whose lower correlations are noise
+#: around flat. The plan's original deterministic rule ("close -> best
+#: available") is refuted by its own count — real P(best remaining |
+#: close) is 0.18-0.23 against the draw order's natural 0.157, and the
+#: big miss was the blowout side (0.084), so the shipped mechanism
+#: draws from the counted profile instead of forcing the top.
+#:
+#: Quality is K%-BB% — the rank `deploy.py` found projects (its
+#: high-leverage share holds at r +0.55 split-half). Percentile, not
+#: absolute rank, so the profile transfers from the real ~12-arm pen it
+#: was counted on to the 8-arm pool the model samples.
+PEN_PICK = {
+    "lead":    (0.4415, 0.1989, 0.1330, 0.1117, 0.1149),
+    "tied":    (0.3823, 0.2143, 0.1427, 0.1149, 0.1459),
+    "trail":   (0.2307, 0.2069, 0.1957, 0.1687, 0.1981),
+    "mid":     (0.3407, 0.2035, 0.1544, 0.1280, 0.1734),
+    "blowout": (0.2067, 0.1855, 0.1848, 0.1874, 0.2357),
+}
+#: Entry innings the profile was counted on; earlier the manager is
+#: covering for a short start, which is a different decision.
+PEN_PICK_LATE = 7
+USE_PEN_ROLES = True
+
+
+def _pick_bucket(margin: int) -> str:
+    """Signed where the behaviour is signed — margin is the PITCHING
+    side's lead, the same convention `mlb_stints.entry_margin` counts."""
+    a = abs(margin)
+    if a > 4:
+        return "blowout"
+    if a > 2:
+        return "mid"
+    if margin > 0:
+        return "lead"
+    return "tied" if margin == 0 else "trail"
+
+
 @dataclass
 class Side:
     """One team's PITCHING through a game: who is on, and what they allow."""
@@ -312,14 +361,43 @@ class Side:
             return self.starter
         return self.pen[min(self.pen_i, len(self.pen) - 1)]
 
-    def next_arm(self, entry_outs: int = 0) -> None:
-        """Go to the pen, or to the next arm in it.
+    def next_arm(self, entry_outs: int = 0, rng=None, inning: int = 0,
+                 margin: int | None = None) -> None:
+        """Go to the pen — and from inning seven, pick WHO by the counted
+        selection profile rather than draw order.
 
         `entry_outs` is the base-out state the incoming arm walks into, and
         it is the strongest predictor of how long he stays — 20% of arms
         handed a clean inning come back out, against 63% of those brought in
         with two down.
+
+        `inning` is the ENTRY inning — between-innings callers pass the
+        completed inning plus one. THE ROLL IS DRAWN WHETHER OR NOT THE
+        FLAG USES IT, same rule as the mid-inning relief hook above: a
+        switch that consumes a different number of random numbers is not
+        an A/B. One uniform covers both the profile bin and the position
+        inside it.
         """
+        slot = 0 if not self.starter_out else self.pen_i + 1
+        pool = self.pen[slot:]
+        if (rng is not None and margin is not None
+                and inning >= PEN_PICK_LATE and len(pool) > 1):
+            u = rng.random()
+            if USE_PEN_ROLES:
+                w = PEN_PICK[_pick_bucket(margin)]
+                c = 0.0
+                for k, wk in enumerate(w):
+                    if u < c + wk or k == 4:
+                        break
+                    c += wk
+                frac = min(max((u - c) / wk, 0.0), 1.0) if wk else 0.5
+                pct = min((k + frac) / 5, 1.0)
+                # Best fifth first: rank 0 is the highest K%-BB% left.
+                ranked = sorted(pool, key=lambda a: a.bb_pct - a.k_pct)
+                choice = ranked[round(pct * (len(pool) - 1))]
+                j = next(i for i in range(slot, len(self.pen))
+                         if self.pen[i] is choice)
+                self.pen[slot], self.pen[j] = self.pen[j], self.pen[slot]
         if not self.starter_out:
             self.starter_out = True
         else:
@@ -470,7 +548,7 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
             roll = rng.random()
             if (USE_MEASURED_RELIEF_HOOK
                     and roll < relief.mid_removal(rl.runs, rl.batters)):
-                side.next_arm(fr.outs)
+                side.next_arm(fr.outs, rng, inning, margin)
         elif not side.starter_out and USE_LEARNED_HOOK:
             if rng.random() < removal.predict(
                     _state(side, fr, inning, margin)):
@@ -479,7 +557,7 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
                 ln.left_on_base, ln.outs_when_pulled = fr.on_base, fr.outs
                 if not ln.covered_f5:
                     ln.runs_f5, ln.outs_f5 = ln.runs, ln.outs
-                side.next_arm(fr.outs)
+                side.next_arm(fr.outs, rng, inning, margin)
         elif not side.starter_out:
             ln = side.line
             if (_forced_out(side, ln)
@@ -509,7 +587,7 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
                 # He also inherits the OUT COUNT, which is what decides how
                 # long he stays: an arm handed two down finishes the inning
                 # and comes back out 63% of the time.
-                side.next_arm(fr.outs)
+                side.next_arm(fr.outs, rng, inning, margin)
 
     # Every exit from the loop above is a `break`, so one assignment here
     # covers them all. The walk-off `return` skips it and that is correct —
@@ -559,7 +637,7 @@ def _boundary_roll(side: Side, fr, inning: int, margin: int,
     # behind — the distinction the mid-inning path exists to carry.
     if not ln.covered_f5:
         ln.runs_f5, ln.outs_f5 = ln.runs, ln.outs
-    side.next_arm(0)
+    side.next_arm(0, rng, inning + 1, margin)
 
 
 def _state(side: "Side", fr, inning: int, margin: int) -> dict:
@@ -613,7 +691,7 @@ def _end_of_inning(side: Side, rng: random.Random, inning: int,
             if rng.random() < p:
                 side.cur_extra_innings += 1
                 return
-        side.next_arm()
+        side.next_arm(0, rng, inning + 1, margin)
         return
     ln.innings_completed = inning
     if inning == 5:
@@ -633,7 +711,7 @@ def _end_of_inning(side: Side, rng: random.Random, inning: int,
             or ln.pitches >= side.hook.hard_pitch_cap):
         if not ln.covered_f5:
             ln.runs_f5, ln.outs_f5 = ln.runs, ln.outs
-        side.next_arm()
+        side.next_arm(0, rng, inning + 1, margin)
 
 
 @dataclass
