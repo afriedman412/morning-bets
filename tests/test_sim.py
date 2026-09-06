@@ -2421,3 +2421,84 @@ def check_an_unknown_side_or_hand_is_neutral_and_off_is_off():
         assert sim.resolve(b_known, p_known, LG).m_hr == base
     finally:
         sim.USE_PLATOON = orig
+
+
+def check_the_dp_odds_reach_the_matchup():
+    """A high-GB pairing must carry the product of both counted odds
+    ratios; asserted against the table AND as absolute pins, because a
+    table silently reset to ones would agree with itself (the platoon
+    lesson, learned by mutation)."""
+    assert sim.USE_GB_DP, "the mechanism ships ON; every check below " \
+        "sets the flag itself and would pass with it mutated off"
+    hi_p = sim.PitcherRates(name="worm", gb_pct=0.60)
+    hi_b = sim.BatterRates(name="chop", gb_pct=0.60)
+    lo_p = sim.PitcherRates(name="fly", gb_pct=0.30)
+    orig = sim.USE_GB_DP
+    sim.USE_GB_DP = True
+    try:
+        both = sim.resolve(hi_b, hi_p, LG)
+        assert abs(both.m_dp
+                   - sim.DP_GB_PIT[1][4] * sim.DP_GB_BAT[1][4]) < 1e-9
+        assert sim.resolve(hi_b, lo_p, LG).m_dp \
+            == sim.DP_GB_PIT[1][0] * sim.DP_GB_BAT[1][4]
+    finally:
+        sim.USE_GB_DP = orig
+    # The counted slope is the reason the mechanism exists: a ground-ball
+    # arm raises DP odds by ~31%, a fly-ball arm cuts them ~31%.
+    assert sim.DP_GB_PIT[1][4] > 1.25 and sim.DP_GB_PIT[1][0] < 0.75
+    assert sim.DP_GB_BAT[1][4] > 1.10 and sim.DP_GB_BAT[1][0] < 0.85
+
+
+def check_an_unknown_gb_is_neutral_and_each_side_stands_alone():
+    """Silent-neutral per SIDE, not per pairing — unlike the platoon
+    cell, each side's odds ratio is its own counted quantity, so one
+    known GB% applies alone and an unknown one contributes exactly
+    nothing. Flag off is off with both known."""
+    b_gb = sim.BatterRates(name="chop", gb_pct=0.60)
+    b_no = sim.BatterRates(name="who")
+    p_gb = sim.PitcherRates(name="worm", gb_pct=0.60)
+    p_no = sim.PitcherRates(name="arm")
+    orig = sim.USE_GB_DP
+    sim.USE_GB_DP = True
+    try:
+        assert sim.resolve(b_no, p_no, LG).m_dp == 1.0
+        assert sim.resolve(b_no, p_gb, LG).m_dp == sim.DP_GB_PIT[1][4]
+        assert sim.resolve(b_gb, p_no, LG).m_dp == sim.DP_GB_BAT[1][4]
+    finally:
+        sim.USE_GB_DP = orig
+    sim.USE_GB_DP = False
+    try:
+        assert sim.resolve(b_gb, p_gb, LG).m_dp == 1.0
+    finally:
+        sim.USE_GB_DP = orig
+
+
+def check_gidp_rate_applies_the_matchup_odds_to_the_odds():
+    """`m_dp` is an ODDS multiplier and must land on the odds of the
+    era-gated base rate — not on the probability, and not through
+    `odds_mult`, which anchors at a league rate and means something
+    else. No matchup or a neutral one returns the base exactly, and
+    two out stays zero whatever the odds say."""
+    mu = sim.Matchup(m_dp=1.311)
+    base = sim.gidp_rate(0)
+    od = base / (1 - base) * 1.311
+    assert abs(sim.gidp_rate(0, mu) - od / (1 + od)) < 1e-12
+    assert sim.gidp_rate(0, None) == base
+    assert sim.gidp_rate(0, sim.Matchup()) == base
+    assert sim.gidp_rate(2, mu) == 0.0
+
+
+def check_the_dp_roll_reads_the_matchup():
+    """Behavioural, through `apply_pa` itself: with the odds pinned to
+    the sky every ball-in-play out with the force on is a double play,
+    and pinned to the floor none is. This is the check that fails if
+    the `mu` argument is dropped anywhere between the engine loop and
+    the roll."""
+    for m_dp, want in ((1e9, 2), (1e-9, 1)):
+        mu = sim.Matchup(m_dp=m_dp)
+        for seed in range(50):
+            r = sim.StartResult()
+            fr = sim.Frame()
+            fr.bases[0] = "runner"
+            sim.apply_pa(sim.OUT, r, fr, random.Random(seed), mu=mu)
+            assert fr.outs == want, (m_dp, seed, fr.outs)

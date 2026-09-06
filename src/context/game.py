@@ -425,7 +425,7 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
 
         before = side.cur_line.runs
         sim.apply_pa(o, side.cur_line, fr, rng,
-                     batter=side.lineup[slot].name)
+                     batter=side.lineup[slot].name, mu=mu)
         side.runs += side.cur_line.runs - before
         if fr.outs >= 3:
             _boundary_roll(side, fr, inning, margin, rng, outs_before)

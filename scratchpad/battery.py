@@ -156,12 +156,14 @@ def _install():
     _WRAPPED[0] = True
     orig = sim.apply_pa
 
-    def apply_pa(o, r, fr, rng, batter=None):
+    def apply_pa(o, r, fr, rng, batter=None, mu=None):
         # `batter` is the NAME STRING — `_half_inning` passes
-        # `side.lineup[slot].name`, not the BatterRates object.
+        # `side.lineup[slot].name`, not the BatterRates object. `mu` must
+        # travel through or the DP roll loses its GB odds inside battery
+        # runs only — a wrapper that swallows a kwarg is a silent flag-off.
         pre_first = bool(fr.bases[0])
         pre_outs = fr.outs
-        orig(o, r, fr, rng, batter)
+        orig(o, r, fr, rng, batter, mu)
         _PA_LOG.append((id(r), o, batter, pre_first, pre_outs,
                         fr.outs - pre_outs))
 

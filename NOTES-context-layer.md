@@ -8534,3 +8534,70 @@ hashes are stable, drift documented).
 NEXT. 4b: count DP rate by GB in a log5-style odds construction and make
 `gidp_rate` read the matchup. Then 4c: hit mix. Both score on the rows
 above.
+
+## 2026-09-06 — 4b: the double-play roll reads the matchup (`sim.USE_GB_DP`)
+
+QUESTION. The model's DP rate per opportunity was FLAT across pitcher GB%
+quintiles while reality slopes 0.168 -> 0.276 (battery rows
+`dp_by_pitcher_gb_q1..q5`, q5 at -3.9 sigma). Does a log5-style odds
+construction on both sides' GB% close the slope without moving the level?
+
+COUNTED (`scratchpad/dp_gb.py`, 36,508 opportunities): pre-July rows of
+ALL FOUR seasons only — July-onward of 2023-2025 is battery scoring
+territory, not just 2026's holdout, so the count stops at the cut in
+every season. Denominator imported from the battery, not re-typed
+(`EV_INPLAY_OUT` with a man on first and under two out; DP = `EV_DP`).
+Covariate is the SHRUNK `gb_pct` the engine reads at resolve time,
+frozen at each season's cut — table and mechanism share one scale.
+Coverage 100.0% both sides.
+
+    DP/opp by pitcher quintile  0.168 .203 .224 .255 .276  (odds 0.69->1.31)
+    DP/opp by batter quintile   0.186 .213 .219 .254 .255  (odds 0.79->1.18)
+
+THREE GATES, ALL PASSED BEFORE WIRING. (1) Era gate on the SHAPE: 0.891
+mean between-season correlation of the odds ratios — the LEVEL steps
+2024->2025 and stays era-gated in `GIDP_RATE`; the shape is stable all
+four seasons. (2) The 25-cell pitcher x batter cross sits within
+|z| <= 1.9 of the log5 prediction everywhere — odds MULTIPLY, so the
+plan's "not a product of two rate multipliers" is confirmed as the
+correct combination. (3) Self-centred over real opportunity rows:
+implied mean 0.2253 vs league 0.2253 (odds factor 0.9997, folded in).
+
+WIRED. `DP_GB_PIT` / `DP_GB_BAT` (quintile edges + odds multipliers),
+`Matchup.m_dp` assembled in `resolve` — silent-neutral PER SIDE, unlike
+the platoon cell: each side's odds ratio is its own counted quantity, so
+one known GB% applies alone. `gidp_rate(outs, mu)` puts the odds on the
+era-gated base directly (NOT through `odds_mult`, which is rate-anchored
+and means something else). `game.py` passes `mu` into `apply_pa`. THE
+BUG CAUGHT IN REVIEW: the battery's logging wrapper around `apply_pa`
+would have swallowed the new kwarg — the mechanism would have died
+inside battery runs only, invisible everywhere else. A wiring check now
+pins every `apply_pa` call site in `src/` to pass `mu=`.
+
+VERDICT — the falsifier ("per-quintile gap does not shrink across four
+folds, or the league DP / XBH rates move") DOES NOT FIRE. Battery diff
+vs `b4ee76d20cf3`: ONLY DP rows moved. Model slope now 0.165->0.277 /
+0.164->0.268 / 0.159->0.267 / 0.167->0.269 across the folds against real
+slopes of the same shape; q5 went from -3.9 sigma to -0.5. Sum |gap|
+over the five rows: 2024 0.119->0.064 and 2026 0.139->0.095 decisively
+better; 2023 and 2025 flat within noise (shifts ~0.5 of one row's se).
+Level control held — `dp_per_opportunity` under one se in every fold
+(2025 landed on zero, +0.0052 -> -0.0007); 2023's -0.023 level gap is
+the DOCUMENTED era-gate decision at `GIDP_RATE`, not this change. XBH
+rows bit-flat, league XBH share unmoved.
+
+435 checks green (5 new), all four mutations killed exactly the check
+that guards them (flag off / table reset / `gidp_rate` ignoring the
+matchup / engine dropping the kwarg). Engine fingerprint adac7bcd ->
+0db6300b, battery fp b4ee76d2 -> 3bec154c — moved because the mechanism
+is live, and the diff says only its target moved.
+
+WATCH, NOT CHASE. (1) A mild residual tilt — low quintiles slightly
+under-DP'd post-change — partly 2023's era-gated level, possibly the
+battery's per-fold starter-population quintile edges vs the shipped
+pooled-training edges; second order. (2) 2026 q2 sits at -2.9 sigma,
+but the ACTUAL there (0.2465) is out of line with every other fold's q2
+(~0.213) — one cell in twenty with an odd actual.
+
+NEXT. 4c: hit mix by GB% quintile into `Matchup.hit_mix` — the XBH
+rows (2026 q5 +4.4 sigma) are the standing target.

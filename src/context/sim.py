@@ -539,9 +539,48 @@ USE_MEASURED_GIDP = True
 #: The published per-opportunity number, on the wrong denominator.
 LEGACY_GIDP_RATE = 0.11
 
+#: DOUBLE PLAYS READ THE MATCHUP'S GROUND-BALL PROFILE — PLAN item 4b.
+#:
+#: Counted on 36,508 opportunities (`scratchpad/dp_gb.py`, 2026-09-06),
+#: pre-July rows of all four seasons only — July-onward of every season is
+#: battery scoring territory, not just 2026's holdout. The denominator is
+#: the battery's own: a ball-in-play out with a man on first and under two
+#: out, DP = grounded_into_double_play or double_play. The covariate is
+#: the SHRUNK `gb_pct` the engine reads at resolve time, frozen at each
+#: season's cut, so the table and the mechanism share one scale.
+#:
+#: Each tuple is (quintile edges over that shrunk GB%, odds of the
+#: quintile's DP rate against the pooled league's — an ODDS multiplier,
+#: applied to the odds of `GIDP_RATE`, never to the probability). The two
+#: sides combine by multiplication, which IS the log5 construction: the
+#: 25-cell pitcher x batter cross sits within |z| <= 1.9 of that
+#: prediction everywhere, so odds multiply and a product of two RATE
+#: multipliers would have overshot the corners. Centring over real
+#: opportunity rows came back 0.9997 (folded into the pitcher side); the
+#: LEVEL stays with the era-gated `GIDP_RATE` while this carries only the
+#: shape, whose era gate PASSES at 0.891 between-season correlation of
+#: the odds ratios (the level itself steps 2024->2025 and is gated above).
+#:
+#: The slope this closes: real DP/opp runs 0.168 -> 0.276 across pitcher
+#: quintiles and 0.186 -> 0.255 across batter quintiles; the model was
+#: flat at the league rate (battery rows dp_by_pitcher_gb_q1..q5,
+#: q5 at -3.9 sigma before this shipped).
+DP_GB_PIT = ((0.3902, 0.4155, 0.4399, 0.4678),
+             (0.6926, 0.8774, 0.9919, 1.1782, 1.311))
+DP_GB_BAT = ((0.3924, 0.4166, 0.4355, 0.4595),
+             (0.7852, 0.9304, 0.9633, 1.1681, 1.1778))
+USE_GB_DP = True
 
-def gidp_rate(outs: int) -> float:
-    return _rate(GIDP_RATE if USE_MEASURED_GIDP else LEGACY_GIDP_RATE, outs)
+
+def gidp_rate(outs: int, mu: "Matchup | None" = None) -> float:
+    base = _rate(GIDP_RATE if USE_MEASURED_GIDP else LEGACY_GIDP_RATE, outs)
+    if mu is None or mu.m_dp == 1.0 or not base:
+        return base
+    # `m_dp` is an odds multiplier BY CONSTRUCTION (counted odds ratios),
+    # so it applies to the odds directly — `odds_mult` is the rate-anchored
+    # operation and would mean something else here.
+    od = base / (1.0 - base) * mu.m_dp
+    return od / (1.0 + od)
 
 
 #: WHAT THE OTHER RUNNERS DO ON A DOUBLE PLAY, counted on four seasons
@@ -1009,6 +1048,9 @@ class Matchup:
     #: The 1B/2B/3B split of a hit, which is a league property and the one
     #: thing here that is not a matchup.
     hit_mix: dict = field(default_factory=dict)
+    #: ODDS multiplier on the double-play roll, from both sides' GB% —
+    #: see DP_GB_PIT / DP_GB_BAT. 1.0 when either side's GB% is unknown.
+    m_dp: float = 1.0
 
 
 #: THE LEAGUE PLATOON CELL, as an odds multiplier — PLAN item 3.
@@ -1111,6 +1153,16 @@ def resolve(b: BatterRates, p: PitcherRates, lg: dict,
             m_bb *= pm["bb_pct"]
             m_hr *= pm["hr_pct"]
             m_bip *= pm["babip"]
+    # THE DOUBLE-PLAY ODDS, from both sides' ground-ball profile. Same
+    # silent-neutral rule as the platoon cell: an unknown GB% contributes
+    # exactly nothing, and each side contributes independently — the
+    # log5 shape is the multiplication itself.
+    m_dp = 1.0
+    if USE_GB_DP:
+        if p.gb_pct is not None:
+            m_dp *= DP_GB_PIT[1][sum(p.gb_pct >= e for e in DP_GB_PIT[0])]
+        if b.gb_pct is not None:
+            m_dp *= DP_GB_BAT[1][sum(b.gb_pct >= e for e in DP_GB_BAT[0])]
     return Matchup(
         b_k=b.k_pct, b_bb=b.bb_pct, b_hr=b.hr_pct, b_bab=b.babip,
         p_k=p_k, p_bb=p_bb, p_hr=p_hr, p_bab=p_bab,
@@ -1118,7 +1170,7 @@ def resolve(b: BatterRates, p: PitcherRates, lg: dict,
         lg_hr=lgm["hr_pct"], lg_bab=lgm["babip"],
         m_bb=m_bb, m_k=m_k, m_hr=m_hr, m_bip=m_bip,
         sac=sac_r, hbp=hbp_r, cond=1.0 - sac_r - hbp_r,
-        hit_mix=lg["hit_mix"])
+        hit_mix=lg["hit_mix"], m_dp=m_dp)
 
 
 def pa_outcome(
@@ -3225,7 +3277,7 @@ def _credit(r: StartResult, fr: Frame, advanced: tuple, batter) -> None:
 
 
 def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random,
-             batter=None) -> None:
+             batter=None, mu: "Matchup | None" = None) -> None:
     """Apply one plate-appearance outcome. Mutates `r` and `fr`.
 
     EXTRACTED so the two engines could not drift apart, and it is why
@@ -3286,7 +3338,8 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random,
     elif o == OUT:
         # Double play only with a runner on first and a base open for the
         # force, and it ends the inning if it is the second and third out.
-        if bases[0] and fr.outs < 2 and rng.random() < gidp_rate(fr.outs):
+        if bases[0] and fr.outs < 2 and rng.random() < gidp_rate(fr.outs,
+                                                                 mu):
             # `None`, not `False` — this list carries runner tokens.
             bases[0] = None
             fr.outs += 2

@@ -948,3 +948,28 @@ def check_the_rate_builders_honor_park_neutralisation():
     finally:
         rate_src.park_exposure = orig_exp
         cal.NEUTRALISE_PARK = orig_flag
+
+
+def check_the_engine_passes_the_matchup_to_apply_pa():
+    """Every `apply_pa` call in `src/` must pass `mu=` — the DP roll
+    reads the matchup's GB odds through it, and a dropped keyword is a
+    silent flag-off (the battery's logging wrapper had exactly this bug
+    in review: it swallowed the kwarg and the mechanism died only inside
+    battery runs). Presence, not value — callers own the value."""
+    import ast
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent / "src"
+    bad = []
+    for f in sorted(root.rglob("*.py")):
+        for node in ast.walk(ast.parse(f.read_text())):
+            if not isinstance(node, ast.Call):
+                continue
+            fn = node.func
+            name = (fn.attr if isinstance(fn, ast.Attribute)
+                    else getattr(fn, "id", None))
+            if name != "apply_pa":
+                continue
+            if "mu" not in {k.arg for k in node.keywords}:
+                bad.append(f"{f.relative_to(root.parent)}:"
+                           f"{node.lineno} missing mu=")
+    assert not bad, bad

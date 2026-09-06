@@ -16,6 +16,23 @@ it belongs in `NOTES-context-layer.md`.
 
 ## WHERE THINGS STAND (2026-09-06, end of day)
 
+**ITEM 4b SHIPPED (`sim.USE_GB_DP`): the double-play roll reads the
+matchup.** Counted 36,508 pre-cut opportunities (`scratchpad/dp_gb.py` —
+pre-July of ALL four seasons; July-onward is battery scoring territory in
+every season, not just 2026). Odds per GB quintile 0.69->1.31 (pitcher) /
+0.79->1.18 (batter), log5 combination validated on the 25-cell cross
+(worst |z| 1.9), era gate on the shape 0.891, self-centred 0.9997.
+`Matchup.m_dp` from `resolve` (silent-neutral PER SIDE), applied to the
+odds of the era-gated `GIDP_RATE` in `gidp_rate(outs, mu)`, threaded
+`game.py -> apply_pa`. Falsifier did not fire: slope closed in all four
+folds (q5 -3.9 -> -0.5 sigma), `dp_per_opportunity` and XBH controls
+under one se everywhere, NOTHING else in the battery moved. 435 checks,
+four mutations each killed their own guard. Fingerprint 0db6300b;
+baseline `battery_3bec154cc90e.json`. Watch: 2026 q2 actual (0.2465)
+is out of line with every other fold's q2 (~0.213), one cell at -2.9.
+NEXT: 4c — hit mix by GB% into `Matchup.hit_mix`; the XBH quintile rows
+(2026 q5 +4.4 sigma) are the standing target.
+
 **PLATOON SHIPPED (`sim.USE_PLATOON`)** — the league cell as an odds
 multiplier per (batter side, pitcher hand) pairing, counted on 761,719
 PA. Per-batter falsifier passed 3/4 folds; 2026 improved on every row

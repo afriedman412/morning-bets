@@ -15,7 +15,10 @@ nothing here is rejected on one.
 ONE ITEM PER SESSION. Shipped so far: the battery (item 0, 2026-09-05),
 PARK (item 1, 2026-09-05), GIDP advancement (2a, 2026-09-06), PLATOON
 (item 3, 2026-09-06 — `sim.USE_PLATOON`, per-batter falsifier 3/4 folds,
-2026 on all rows). Item 2's sac table is PARKED below. Every remaining
+2026 on all rows), GB plumbing (4a, 2026-09-06), DP-by-GB (4b,
+2026-09-06 — `sim.USE_GB_DP`, slope closed all four folds, q5 -3.9 to
+-0.5 sigma, level and XBH controls held). Item 2's sac table is PARKED
+below. Every remaining
 item is scored on battery rows, ordered by runs per day of work and by
 dependency. Do not skip ahead. Before starting any item:
 
@@ -96,15 +99,13 @@ Inert, fingerprint unchanged, quintile rows live in the battery: model
 DP flat vs real 0.224->0.286 by pitcher quintile (q5 -3.9 sigma); model
 XBH flat vs real 0.273->0.228 by batter quintile (q5 +4.4 sigma).
 
-### 4b. Double plays by GB%
-COUNT: DP rate per opportunity (man on first, <2 out, ball in play that is
-an out) by pitcher GB% quintile and by batter GB% quintile, from
-play-by-play. Combine as a log5-style odds construction against the league
-DP rate — the same shape `resolve` uses for every other channel — not as a
-product of two multipliers.
-WIRE: `gidp_rate(outs)` becomes `gidp_rate(outs, mu)`.
-TEST: DP count per game unchanged at league level; DP rate by pitcher
-quintile model vs real on holdout; positive control by injection.
+### 4b. Double plays by GB% — SHIPPED 2026-09-06
+
+`sim.USE_GB_DP`: counted on 36,508 pre-cut opportunities
+(`scratchpad/dp_gb.py`), log5 odds construction validated on the 25-cell
+cross (worst |z| 1.9), era gate on the shape 0.891, self-centred 0.9997.
+Slope closed in all four folds; `dp_per_opportunity` and XBH controls
+held. Full result in the notes.
 
 ### 4c. Hit mix by GB%
 COUNT: 1B/2B/3B share of hits by batter GB% quintile and by pitcher GB%
