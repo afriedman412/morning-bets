@@ -16,6 +16,35 @@ it belongs in `NOTES-context-layer.md`.
 
 ## WHERE THINGS STAND (2026-09-06, end of day — Opus session)
 
+**TEST AUDIT, after item 7: the sweep was eight mechanisms behind and the
+suite's cost was one check.** `scratchpad/mutate.py` now runs 37 mutations
+covering every live flag AND its table (a flag check passing over a flat
+table is the failure it exists to find). 30 caught, 7 survived. THREE
+SURVIVORS ARE INERT, not unguarded, and the fingerprint proves it —
+`late_mid_per_pitch`/`late_mid_offset` sit in the `else` of
+`if USE_PITCH_HAZARD`, `MID_INNING_RUN_OFFSET` feeds only the early branch
+(`early_innings == 0`), `USE_BOUNDARY_HOOK` sits behind `USE_LEARNED_HOOK`;
+flipping any leaves the 400x6 fingerprint at b505bb6b. THE OTHER FOUR were
+real: USE_PLATOON, USE_FIELD_STATE, USE_PEN_STATE, USE_ROLE_HBP.
+AND THE DIAGNOSIS WAS WRONG THE FIRST TIME, which is the part worth
+keeping: each of the four HAD a wiring check. Every one sets its own flag
+(the house pattern), so the mechanism checks override the very thing being
+mutated and only the DEFAULT was unpinned.
+`check_the_measured_mechanisms_are_switched_on_by_default` pinned 4 of 17
+flags; it now pins all of them. Only genuinely new checks kept: pen_state's
+cached reading (its old checks asserted the BASELINE fallback, which is
+exactly what the off path returns), STATE_MULT not-flat, role HBP.
+SUITE 43.6s -> 22.8s, no coverage lost: `check_rps_is_proper` was 29s of
+44, sampling 4000x3000 for a STRUCTURAL property whose margin is 19.6%
+there and 18.5% at 1000x800. Segmentation already exists and needs no
+work — `make test ARGS=<module>` is ~7s. 451 checks.
+SCAR, second time in one day: hand-rolled mutation loops leaked
+`USE_PEN_STATE = False` into the tree and nearly shipped it. Use
+`scratchpad/mutate.py`, which refuses a dirty tree and restores via
+atexit, or `cp` backups — NEVER `git checkout` on an uncommitted file
+(that destroyed the wind block earlier).
+
+
 **ITEM 7 SHIPPED (`sim.USE_WIND_HR`): wind into the HR channel.** In 5+
 mph 0.9242, calm/cross 1.0002, out 5+ 1.0431 — counted on 4,798
 open-air pre-July games WITHIN VENUE and NET OF THE SHIPPED TEMPERATURE
