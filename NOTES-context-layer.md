@@ -9107,3 +9107,40 @@ the night before (0/11) and do appear by first pitch. STALE AND
 RECORDED, not fixed: `.cron-config` still schedules src.main /
 src.panel / src.emailer, all deleted 2026-09-05 with the betting layer
 — only the grading line still points at code that exists.
+
+## 2026-09-06 (Fable, third sitting): THE SHIPPED CONDITIONS EXPLAIN 10.2% OF THE NIGHT — AND RUN VARIANCE LIVES IN THE BALL IN PLAY
+
+QUESTION: the parked dispersion term needs sigma 0.10 per side; park,
+temperature, wind and the umpire have shipped since it was measured.
+How much of that variance does the counted stack now explain? This is
+the number the re-open decision needs.
+
+TEST: `scratchpad/night_variance.py`. Everything in one currency —
+per-game log-run-expectation shift. Elasticities measured from the
+engine itself (both lineups' channel scaled +-10%, 4,000 games a
+point): k -0.439, bb +0.202, hr +0.387, babip +1.186. Target = 0.10 x
+coherent sum = 0.2213. Shipped stack over 4,519 real July-onward games
+(coverage 100/100/100): sd 0.0709.
+
+CONCLUSION: **10.2% explained — park 7.4%, air 1.4%, umpire 0.1%**
+(0.4% at unshrunk tau). Three decision-grade facts:
+
+  * THE FUDGE IS 90% INTACT (residual sigma ~0.095 of 0.10). Counting
+    shared conditions is honest and slow; it does not reach the shape
+    defect in any reasonable number of items. Ship-the-remainder is
+    the only near-term route to the marginal shape and stays a HUMAN
+    decision.
+  * BABIP'S ELASTICITY IS 1.19 — 3x hr, 6x bb. Price every future
+    shared-night candidate in run-variance currency before building:
+    catcher framing (k/bb) is worth ~1/6th of an equal-sized
+    ball-in-play effect for the run distribution (still worth counting
+    for K props). The dispersion hunt should look at the BALL IN PLAY:
+    who is behind the plate matters less than what the air, the
+    defence and the surface do to a struck ball.
+  * The umpire's tiny share is the CURRENCY not the mechanism — tau
+    4.4% on walks is real, walks just move runs weakly.
+
+ESTABLISHED: the explained fraction and the elasticity ranking.
+INFERRED: that the remaining 90% is genuinely latent (pitcher's night,
+batter-side clustering) rather than an uncounted shared condition — no
+candidate was measured here.
