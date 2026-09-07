@@ -27,6 +27,18 @@ previous engine and do not reproduce. Only the first inning survives, at
 -1.7 sigma. Anything reasoning from a run deficit — runline pricing above
 all — needs re-deriving.
 
+## NEW 2026-09-07 — PITCH-HISTORY MODELING (`PLAN-pitch-history.md`)
+
+Track stuff per start from our own pitch data (velo shipped; spin, secondary
+velo, break, location queued). START WITH ONE PITCHER, per the operator —
+walk his season start by start and MEASURE per-start reliability (odd/even
+split-half) before believing any column. The plan carries what is
+established, the falsifiers to register, and the collisions (START_K_SIGMA,
+NIGHT_SIGMA ledger). Adjacent but separate: the per-channel leash half-life
+(outs only, K flat) — pre-registered day 22, and the Cease board miss
+(2026-09-07) is its poster case. Stopgap: board flag for sim-vs-last-10
+outs divergence.
+
 ## WORKING ONE ITEM PER SESSION — read this first
 
 Items are written to be picked up COLD. If one is not self-contained enough
