@@ -9600,3 +9600,126 @@ STILL OPEN from the plan: the leash-recency item (per-channel half-life,
 outs only) and the board divergence flag. FB spin -> K sits at +2.5
 sigma same-sign-four-seasons in the log for whoever accumulates the next
 round of small counted things.
+
+## 2026-09-07, fifth sitting — PLAN-pitch-expectation: the per-pitch
+## expectation surface, two real per-start quantities, and a clean null
+
+QUESTION (the operator's, and it is the granular version of the dead
+arsenal item): what did he throw, to whom, and was the outcome the one
+the pitch deserved? Not season tables crossed against season tables —
+per pitch, from our own cache.
+
+WHY IT WAS ALLOWED TO RE-OPEN: arsenal died three times as IMPORTED
+season-level quality scored as a static edge. This counted outcome
+expectations per pitch from our own four seasons and read DEVIATIONS —
+the same implementation change (imported static -> counted drift) that
+turned velocity and zone% from dead features into shipped terms. Stated
+before running, per the dead-list rule.
+
+WHAT WAS BUILT, and the surface is the reusable part:
+
+  * `pitch_walk.py` — one pitcher, one game, every pitch: type, physics,
+    location, PRE-pitch count, batter, outcome. RECONCILED AGAINST THE
+    BOX SCORE before anything was fitted (Cease 2026-03-22: 6 K, 2 BB,
+    20 PA, exact). THE FEED TRAP IT DOCUMENTS: `playEvents[i]["count"]`
+    is the count AFTER that pitch, so a naive read shifts every count
+    feature by one pitch.
+  * `pitch_e0.py` — P(ball/called/whiff/foul/inplay | pitch family,
+    count, location region), counted on 2,639,915 train + 244,978 test
+    pitches, 384 cells, 20 seconds. Location is measured against the
+    BATTER's own zone from the feed's strikeZoneTop/Bottom (the shipped
+    `velo.py` zone% deliberately uses the FIXED zone — there the question
+    is the pitcher's command and folding in the lineup's heights would
+    contaminate it; here the question is what the pitch deserved. Both
+    are right for their own question and the difference is deliberate).
+    It reads like baseball: SL/CH 0.30-0.32 whiff-per-swing against SI
+    0.12, swing rate 0.45 at 0-0 collapsing to 0.12 at 3-0, an 0-2 waste
+    slider drawing 22% swings and missing 72% of them.
+  * `pitch_e1.py` — the batter rung, a log-odds offset on whiff-given-
+    swing, TRAIN pitches only. SHRINKAGE MEASURED, NOT CHOSEN: split-half
+    over batters r +0.837, K = 84 swings, 1,006 batters with an offset,
+    sd 0.278 log-odds.
+
+TWO METHOD FAILURES, both caught, both worth more than the result:
+
+  1. SPLITTING A START ODD/EVEN BY PITCH BIASES THE HALVES' COUNT
+     COMPOSITION AGAINST EACH OTHER. Every PA's first pitch is 0-0, so
+     when one half catches more first pitches the other catches fewer,
+     and any count-dependent quantity see-saws. Expected called-strike
+     per pitch read r = -0.65 that way. Splitting by PLATE APPEARANCE
+     fixed it (actual ball/pitch -0.32 -> -0.01). NOTE FOR `pitch_one.py`,
+     which uses the by-pitch split: its VELO/SPIN/BREAK readings stand
+     (those are not count-dependent), but its zone% and whiff% rows are
+     understated by this artifact.
+  2. A POSITIVE CONTROL THAT BYPASSES THE STEP BEING TESTED CANNOT FAIL.
+     The first control planted a signal on start-level values and
+     confirmed r ~ 1 — it passed happily while the splitter underneath
+     was corrupting every real number, because it never touched the
+     split. Controls now run through the real splitter, aggregator and
+     correlator. And a NEGATIVE control was added — pitches reshuffled
+     across starts — which is what established that the harness's
+     no-signal baseline is 0.00 and the negative readings were therefore
+     real, not mechanical. "Negative means broken" was an assumption.
+
+ONE PITCHER COULD NOT ANSWER IT, and the directive to start there was
+still right. 27 starts gives se(r) ~ 0.20 and every column came back
+inside two se of zero — but the single-pitcher walk is what found the
+count artifact and verified the row. The ANSWER needed all 584 starters
+and 17,762 starts (se ~ 0.008), where the known-good velo column reads
++0.602 centred within pitcher and the controls read +0.98 / -0.01.
+
+FINDINGS — WITHIN-START, and both are real:
+
+    (b) THE EXPECTATION   r +0.249 (SB 0.399) on E0, rising to
+                          +0.369 (SB 0.539) once the batter rung is in
+    (a) THE RESIDUAL      r +0.143 (SB 0.250), and it SURVIVES the
+                          batter rung at +0.124 — so it is NOT merely
+                          "who he faced", which was the leading mundane
+                          explanation and was pre-registered as the
+                          decisive test
+    ACTUAL whiff/swing    +0.139 (SB 0.244) — small but real at league n.
+                          `pitch_one.py`'s "per-start whiff% is noise"
+                          was read off 27 starts and is too strong; it
+                          changes no shipped decision, since the term
+                          that shipped from that file was velocity.
+
+THE NULL THAT CLOSES THE ITEM — `expect_screen.py`, bar pre-registered
+(|t| >= 3 with velo AND zone controlled, same sign four seasons),
+positive control 7-13 sigma seen on every candidate, 9,380 rows:
+
+    expectation drift -> next K       -0.1 sigma, signs flip    DEAD
+    residual   drift -> next K        +0.6 sigma, signs flip    DEAD
+    expected-ball drift -> next BB    +2.6 sigma                WEAK
+    residual-ball drift -> next BB    +0.0 sigma                DEAD
+
+AND THE ONE NON-DEAD READING IS EXPLAINED, not banked: expected-ball
+drift correlates -0.838 with the SHIPPED zone drift. It is the zone term
+wearing pitch-level clothes, and an inferior copy — the direct term is
+-5.9 sigma, this proxy +2.6. Its arrival also drags zone's own
+coefficient in the same fit from -0.147 to -0.039, which is the
+collinearity showing itself. Nothing to add.
+
+THE GENERALISATION, and it is the sentence to keep: RELIABLE IS NOT
+PREDICTIVE. A quantity can be a real, repeatable property of a night —
+measured here at 16 sigma against a negative control — and carry nothing
+to the next start. That is the same shape as the K-drift result (a fade
+is real in its window and ~80% of it is that window's own noise), and it
+is a FOURTH measurement agreeing with the parked `form.py`: the "he does
+not have it tonight" state exists and cannot be seen the morning before,
+which is the only time we would need it. Three earlier attempts at that
+state used blunt instruments; this one had 2.9M pitches and a validated
+expectation surface, and it agrees.
+
+NOTHING SHIPPED. `src/` and `tests/` untouched, so no battery run and no
+fingerprint change — a measurement item that ends in a null changes no
+engine. The E0/E1 surface stays in the scratchpad as the reusable asset
+the plan predicted would be worth having even if every screen died; the
+partial-credit clause was written before the screens ran and it paid.
+
+STILL UNTESTED from the plan, and the prior is now low: the batter-side
+branch (per-batter deviation vs pitch-type expectation as a log5 matchup
+adjustment) — the batter offsets are counted and reliable (r +0.837), but
+after four dead arsenal constructions and this null, whoever opens it
+should pre-register hard. E2 (physics into the expectation) was NOT run:
+the screens it would feed are the ones that just died, and velocity
+already ships directly.

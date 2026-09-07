@@ -1,6 +1,18 @@
 # PLAN — pitch-level expectation: what he threw, to whom, and whether the
 # outcome was the one the pitch deserved
 
+**RUN AND CLOSED 2026-09-07. THE VERDICT: the instrument works, the
+per-start quantities are REAL, and NOTHING PREDICTS THE NEXT START.**
+The expectation and the residual are both reliable WITHIN a night
+(split-half SB 0.54 and 0.22 on 17,762 starts, negative control 0.00) —
+and all four next-start candidates came back dead at the pre-registered
+bar. RELIABLE IS NOT PREDICTIVE, and that distinction is the finding.
+This is a fourth and much sharper measurement agreeing with `form.py`:
+"he does not have it tonight" is a real property of the night that
+cannot be seen the morning before. Nothing shipped; nothing in `src/`
+was touched. The E0/E1 surface survives as the reusable asset the last
+section of this plan anticipated. Full log in `NOTES-context-layer.md`.
+
 Written 2026-09-07, out of the zone->BB session, on the operator's
 directive: go GRANULAR. Not season tables crossed against season tables —
 per pitch: type, physics, location, count, batter, and the outcome, all

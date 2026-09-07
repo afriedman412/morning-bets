@@ -27,6 +27,19 @@ previous engine and do not reproduce. Only the first inning survives, at
 -1.7 sigma. Anything reasoning from a run deficit — runline pricing above
 all — needs re-deriving.
 
+## PITCH-LEVEL EXPECTATION — RUN 2026-09-07, CLOSED WITH A NULL
+
+`PLAN-pitch-expectation.md`, the granular re-open of arsenal. The
+expectation surface got built and validated (E0 384 cells on 2.9M
+pitches; E1 batter offsets, shrinkage measured at K=84 swings) and the
+per-start quantities are REAL within a night — but NOTHING predicts the
+next start, all four candidates dead at the pre-registered bar. Do not
+re-run the screens. The reusable leftovers are `scratchpad/pitch_e0.py`
+and `pitch_e1.py`. The one branch never tested is the batter-side log5
+matchup adjustment, and after five dead arsenal constructions its prior
+is low. Full result in the notes; the sentence to remember is RELIABLE
+IS NOT PREDICTIVE.
+
 ## PITCH-HISTORY MODELING — RUN 2026-09-07, mostly CLOSED
 
 Steps one and two of `PLAN-pitch-history.md` are DONE and the results are
