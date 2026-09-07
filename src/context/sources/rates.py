@@ -660,7 +660,10 @@ def _load_seasons(season: int, back: int, lg_now: dict) -> list:
         # RAW when `USE_RAW_PRIOR`: these rates become the shrink TARGET
         # and `shrink_target` shrinks them once against their own effective
         # sample. Shrinking them here too is the double count.
-        raw = pitcher_rates(lg_prior, yr,
+        # `half_life=0`: a prior season is COMPLETE, and weighting it would
+        # re-read it from its own final week — the half-life applies to the
+        # current window only.
+        raw = pitcher_rates(lg_prior, yr, half_life=0,
                             shrink=not (USE_RAW_PRIOR
                                         or USE_MEASURED_PRIOR_PA))
         if raw and USE_MEASURED_PRIOR_PA and not USE_RAW_PRIOR:
@@ -901,6 +904,7 @@ def _park_neutralised(out: dict, side: str, season, before, conn) -> dict:
 def pitcher_rates(
     lg: dict, season: int | None = None, before: str | None = None,
     conn=None, prior: dict | None = None, shrink: bool = True,
+    half_life: float | None = None,
 ) -> dict[str, dict]:
     """{player_name: rates} for every pitcher with a line on record.
 
@@ -914,12 +918,25 @@ def pitcher_rates(
     shrinks toward HIS OWN last year rather than toward the league; when he
     does not — a genuine rookie — nothing changes and he shrinks to league
     as before. See `USE_PRIOR_SEASON`.
+
+    `half_life` discounts each appearance by age BEFORE any of the above
+    runs — None reads the `HALF_LIFE_DAYS` switch, an explicit 0 forces
+    flat. The weighted path feeds the SAME shrink targets (own prior,
+    defence, pool constants) and the same park neutralisation, so a
+    half-life sweep changes exactly one thing. See the recency block below.
     """
+    # None -> the module switch; 0 -> explicitly flat. The prior-season
+    # builder passes 0 so a half-life never reaches into a COMPLETED season
+    # and re-weights it from its own final week.
+    hl = HALF_LIFE_DAYS if half_life is None else (half_life or None)
+
     def _run(c):
-        return c.execute(
-            _PITCHER_Q.format(where=_where(season, before))).fetchall()
+        q = _PITCHER_GAMES_Q if hl else _PITCHER_Q
+        return c.execute(q.format(where=_where(season, before))).fetchall()
 
     rows = _run(conn) if conn is not None else _with(_run)
+    if hl:
+        rows = _weighted_rows(rows, hl)
     prior = (prior or _ensure_prior(season)) if USE_PRIOR_SEASON else {}
     # These are already per BATTER FACED, which is the footing the league
     # baselines now use (see sim._starter_league). It is the BATTER rates
@@ -974,6 +991,14 @@ def pitcher_rates(
                 _t(r, "babip"), max(bip, 0), "babip", r["name"]),
             "raw_k_pct": (r["k"] or 0) / bf,
         }
+        if hl:
+            # The shrink above ran on the EFFECTIVE sample (`bf` here is the
+            # weighted one — discounting the evidence must discount the
+            # confidence). The gates and features keep reading the raw
+            # count: `pa` answers "how much has he pitched", not "how much
+            # do we believe it".
+            out[r["name"]]["eff_pa"] = bf
+            out[r["name"]]["pa"] = r["raw_bf"]
     return _park_neutralised(out, "pitcher", season, before, conn)
 
 
@@ -1550,63 +1575,50 @@ def _days(a: str, b: str) -> int:
     return (_d(ya, ma, da) - _d(yb, mb, db)).days
 
 
+def _weighted_rows(games, hl: float) -> list[dict]:
+    """Per-game lines -> one aggregate row per pitcher, discounted by age.
+
+    Shaped exactly like a `_PITCHER_Q` row (plus `raw_bf`), so
+    `pitcher_rates` runs its normal machinery over it — same shrink
+    targets, same park neutralisation. Age is measured from the most
+    recent game IN THE WINDOW, not from today: scoring a July date must
+    not discount July as stale, or every backtest is quietly weaker than
+    production.
+    """
+    if not games:
+        return []
+    latest = max(g["date"] for g in games)
+    agg: dict[str, dict] = {}
+    for g in games:
+        bf = (g["o"] or 0) + (g["h"] or 0) + (g["bb"] or 0)
+        if bf < 1:
+            continue
+        w = 0.5 ** (_days(latest, g["date"]) / hl)
+        a = agg.setdefault(g["name"], {
+            "name": g["name"], "o": 0.0, "h": 0.0, "bb": 0.0, "k": 0.0,
+            "hr": 0.0, "apps": 0, "raw_bf": 0})
+        for f in ("o", "h", "bb", "k", "hr"):
+            a[f] += w * (g[f] or 0)
+        a["apps"] += 1
+        a["raw_bf"] += bf
+    return list(agg.values())
+
+
 def pitcher_rates_recent(lg: dict, season=None, before=None,
                          half_life: float | None = None,
                          conn=None) -> dict[str, dict]:
     """`pitcher_rates`, with appearances discounted by age.
 
+    A thin delegate since 2026-09-07: the weighting lives INSIDE
+    `pitcher_rates`, so the weighted path runs the SAME shrink targets —
+    own prior season, defence, the counted pool constants — and the same
+    park neutralisation as the flat one. The first version shrank every
+    weighted rate toward the league alone, which would have made any
+    half-life sweep measure two changes at once (recency AND losing the
+    prior pooling).
+
     `half_life=None` falls straight through to the unweighted version, so
     this is safe to call unconditionally.
     """
     hl = HALF_LIFE_DAYS if half_life is None else half_life
-    if not hl:
-        return pitcher_rates(lg, season, before, conn)
-
-    def _run(c):
-        return c.execute(
-            _PITCHER_GAMES_Q.format(where=_where(season, before))).fetchall()
-
-    rows = _run(conn) if conn is not None else _with(_run)
-    if not rows:
-        return {}
-    # Age is measured from the most recent game in the WINDOW, not from
-    # today. Scoring a July date must not discount July as if it were old
-    # news — that would make a backtest quietly weaker than production.
-    latest = max(r["date"] for r in rows)
-
-    agg: dict[str, dict] = {}
-    for r in rows:
-        w = 0.5 ** (_days(latest, r["date"]) / hl)
-        bf = (r["o"] or 0) + (r["h"] or 0) + (r["bb"] or 0)
-        if bf < 1:
-            continue
-        a = agg.setdefault(r["name"], {"bf": 0.0, "k": 0.0, "bb": 0.0,
-                                       "hr": 0.0, "h": 0.0, "raw": 0,
-                                       "apps": 0})
-        a["bf"] += w * bf
-        a["k"] += w * (r["k"] or 0)
-        a["bb"] += w * (r["bb"] or 0)
-        a["hr"] += w * (r["hr"] or 0)
-        a["h"] += w * (r["h"] or 0)
-        a["raw"] += bf
-        a["apps"] += 1
-
-    out = {}
-    for name, a in agg.items():
-        bf = a["bf"]
-        if bf < 1:
-            continue
-        bip = bf - a["k"] - a["bb"] - a["hr"]
-        # Shrink on the EFFECTIVE sample, not the raw one. Discounting the
-        # evidence but not the confidence is how this becomes an
-        # overreaction to a recent bad start.
-        out[name] = {
-            "name": name, "pa": a["raw"], "apps": a["apps"],
-            "eff_pa": bf,
-            "k_pct": _shrink(a["k"] / bf, lg["k_pct"], bf, "k_pct", who="pit"),
-            "bb_pct": _shrink(a["bb"] / bf, lg["bb_pct"], bf, "bb_pct", who="pit"),
-            "hr_pct": _shrink(a["hr"] / bf, lg["hr_pct"], bf, "hr_pct", who="pit"),
-            "babip": _shrink(((a["h"] - a["hr"]) / bip) if bip > 0 else None,
-                             lg["babip"], bip, "babip", who="pit"),
-        }
-    return out
+    return pitcher_rates(lg, season, before, conn, half_life=hl or 0)

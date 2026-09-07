@@ -14,8 +14,107 @@ it belongs in `NOTES-context-layer.md`.
     RESUME-ARCHIVE.md    Days six to sixteen, moved out of here. Not deleted,
                          but its figures predate several engine changes.
 
-## HANDOFF FOR THE NEXT (OPUS) SESSION — written 2026-09-06, late, to be
-## worked COLD. Read this block, then the sitting summaries below it.
+## HANDOFF FOR THE NEXT (FABLE) SESSION — written 2026-09-07 by the Opus
+## session that ran the direct-model comparison. Full log at the END of
+## `NOTES-context-layer.md` ("DAY TWENTY-ONE"). Read that, then this.
+
+STATE: nothing shipped, no engine change, no flag flipped, battery
+baseline still `battery_90590e37150f.json`. New scratchpads only:
+`direct.py` (the comparison harness), `knowable.py`, `team_platoon.py`,
+`one_game.py`, `tonight_two.py`. Items A and B below are UNTOUCHED.
+
+WHAT WAS SETTLED, so it is not re-run: a direct model on the settled
+quantity, given the same pregame inputs, is NEVER AHEAD OF THE SIMULATOR
+ON THE BULK of strikeouts, outs or the game total. Its one win is the K
+tail (9+ at .085 against a real .092 where the sim is .069). Outs is where
+the sim earns outright — starts end at inning boundaries and a Poisson
+cannot be lumpy. **The direct-model route is a dead end on two of three
+targets. Do not re-open it as a general replacement.**
+
+### C. THE OUTS MODEL, DONE PROPERLY — and the reason this is a Fable item
+
+THE HANDICAP WAS MINE AND IT PRODUCED THE SYMPTOM. `direct.py` withholds
+any exposure feature — no per-pitcher start length, no pitch count — so a
+fitted outs model cannot tell a workhorse from a short leash and lands
+near the league-average start for everyone. That handicap is CORRECT for
+auditing the hook and WRONG for pricing, and conflating the two jobs is
+what made a design choice look like a finding. The user spotted it as
+"the outs model always returns a mean of 15"; VERIFIED 2026-09-07
+(`scratchpad/diverge.py`, day-22 log): false as stated — fitted mean sd
+0.80, range 12.6..18.0 — but HALF the sim's spread (1.23), with 92% of
+its modes at 14-16 where the sim and reality split across 15/18/21. The
+handicap compresses, it does not flatten. The pricing-model job stands.
+Also measured there: per-start prop divergence at the line is 5c typical
+on K (graded dead even, and the divergence carries no mean signal the
+sim lacks) and 9c on OUTS, where the SIM WINS the grading at 4.1 sigma
+— the glm's only outs edge is a level intercept, not discrimination.
+
+THE JOB, if it survives that check: two models, named apart.
+  * AUDIT model — keeps the no-exposure rule, exists only to score the
+    hook. Already built; leave it alone.
+  * PRICING model — gets the pitcher's own recent start length, pitch
+    count per start and club hook, fitted to real outs, scored against
+    the sim on the same holdout with the same MC correction.
+THE EVIDENCE IT WILL WORK is already in these notes: `leash.py` measured
+that a pitcher's leave-one-out residual is +0.295 on OUTS and noise on
+k/h/bb/er — what varies between pitchers is HOW LONG THEY ARE LEFT IN,
+not how they pitch. Outs is the easiest of these to predict directly.
+
+WHY IT IS RESERVED: the model class is the decision. A Poisson was chosen
+deliberately because this project's history is that fitted things absorb
+defects, and the lumpiness of outs is exactly where a flexible model
+starts fitting the seed. Pick the class, register the falsifier, and note
+that CRPS cannot see a shape repair (rule 2) — score the 15/18/21 cells.
+
+### D. RECENCY WEIGHTING — MEASURED 2026-09-07, NOTHING SHIPPED. CLOSED.
+
+The sweep ran (30/60/90/150 days, day-22 second sitting in the notes) and
+the falsifier failed both clauses: K got WORSE in 16/16 fold x candidate
+cells including the clean fold (the registered "helps K most" is refuted
+— K stuff is stable), and outs improved on the CLEAN 2026 fold only
+(-0.048 at hl=60) with 2023/24 worse — 2/4 folds. Named mechanism for
+the split: the shipped constants were co-fitted with FLAT rates on
+2023-25 rows. `HALF_LIFE_DAYS` stays None; the wiring is in and proven
+inert (weighting now runs INSIDE `pitcher_rates` against the same shrink
+targets — the old `_recent` shrank to league and would have confounded
+the sweep). OPEN QUESTION it leaves, if anyone re-opens: a PER-CHANNEL
+half-life (outs only, k flat), consistent with the leash finding. New
+item, new falsifier — not a rescue of this one.
+
+### E. THE VELOCITY TERM (found 2026-09-07, third sitting — WIRE CANDIDATE)
+
+The streak question resolved into something better: recent fastball velo
+vs the pitcher's own season mean predicts his next start's K% DIRECTLY —
++1.63 ± 0.28 K% pts per mph, positive in all four seasons (2.0-4.0
+sigma each), 9,382 rows, positive control at 10 sigma
+(`scratchpad/streaks.py`, velo table `scratchpad/velo_build.py` — the
+pbp cache had per-pitch velocity all along and nobody had read it).
+With velo controlled the K-drift persistence falls 0.18 -> 0.04, so the
+real part of a "fade" largely IS lost velocity. Available pregame.
+BEFORE WIRING: refit on pre-holdout rows, register the k-shape/level
+falsifier, grep START_K_SIGMA and the leash for collisions, and if it
+ships rerun night_variance and SHRINK the sigma (k-stuff already
+carries 10.4% of the night ledger). Full protocol in the day-22 notes.
+
+### THE CONTAMINATION CAVEAT THE BATTERY DOES NOT STATE
+
+Every shipped constant is fitted on rows before 2026-07-01, and the
+battery scores July-onward of all four seasons — so 2023/24/25 are INSIDE
+the fitting window and only 2026 is clean. Defects survive the clean fold
+at equal or larger gap, so nothing is rescued by it; but a marginal
+result read "across four folds" is reading three contaminated ones. Say
+which fold carries a claim.
+
+### FOUR TRAPS THAT COST THIS SESSION TIME (all in the day-21 log)
+
+  * `build_cases` with no `season` returns THE CURRENT SEASON ONLY.
+  * `build_cases` aliases `outs_recorded` to `o`.
+  * Build training and holdout features THE SAME WAY — full-season rates
+    for training against three-month rates for the holdout compressed the
+    fitted tail and read as a finding for a whole turn.
+  * The per-start feature vector needs ALL FOUR park channels; it had two.
+
+## PREVIOUS HANDOFF (OPUS) — written 2026-09-06, late, still UNWORKED.
 
 STATE: tree clean at `23eac40`, 460 checks (~25s), battery baseline
 `battery_90590e37150f.json`, engine fingerprint 90590e37150f. Four

@@ -9197,3 +9197,283 @@ concedes THAT nights vary — it must only ever get smaller.
 Fingerprint e4de727f -> 90590e37150f; baseline
 battery_90590e37150f.json; 460 checks (5 new, all mutation-verified:
 flag, sigma, k-out-of-load, build_side wiring, stream-safety-off).
+
+## DAY TWENTY-ONE — A DIRECT MODEL ON THE SETTLED QUANTITY, SCORED AGAINST
+## THE SIMULATOR ON THE SAME ROWS (2026-09-07, Opus session)
+
+THE USER'S QUESTION, and it is a better one than the framing it replaced:
+if we are going to fill gaps with math anyway, why not fit a model to each
+settled quantity directly instead of tuning a remainder inside the engine?
+The sim gives COHERENCE — one game, every line mutually consistent. A
+direct model throws that away. **The gap between them is the measurement:
+what does coherence cost, per quantity?**
+
+`scratchpad/direct.py`. Same pregame inputs to both, holdout 2026-07-01,
+one simulation pass (200 draws, both starters off each replay), seven
+per-start targets plus the game total. Two fitted models: a Poisson GLM
+with NB dispersion, and `emp`, the empirical conditional (bucket by
+predicted mean, use the training rows' own histogram — no functional form).
+
+THE INPUT RULE, without which the comparison is void: the fitted model gets
+nothing the simulator does not get. In particular NO EXPOSURE TERM — no
+expected batters faced, no projected length — because length is downstream
+of the hook under test. **That handicap is the origin of the outs result
+below and was not stated loudly enough when the numbers were reported.**
+
+### THE RESULT: coherence is free on the bulk and costs one tail
+
+MC-corrected (the sim is scored on an empirical CDF and the fitted models
+on a smooth one; E[extra] = sum_x F(1-F)/draws, worth 0.0061 on k, 0.0108
+on outs, 0.0120 on the total — LARGER than the total's raw gap, which had
+the direct model nominally ahead when it is not):
+
+    target   sim(adj)   best direct   paired            tail cell
+    k          1.2519      1.2602     direct 1.4s worse  sim .069 vs .092 real
+    outs       2.0979      2.1397     direct 2.6s worse  sim .386 vs .412
+    total      2.4908      2.4896     dead even          both exact
+
+  * THE SIMULATOR IS NEVER BEHIND ON THE BULK of any of the three.
+  * The direct model's one win is the K TAIL: 9+ at .085 against a real
+    .092 (inside 1 se) where the sim is .069 (2.9 sigma low). That is the
+    lean `BETTING.md` section 0 exists to warn about.
+  * OUTS is where the sim EARNS. Starts end at inning boundaries; reality
+    spikes at 15/18/21 and the sim reproduces 15 and 21 almost exactly. A
+    Poisson cannot be lumpy — the GLM puts 32% of starts at six innings
+    where the real figure is 41% (6.8 sigma).
+  * CENTRAL TENDENCY splits the other way and the user caught it: outs
+    medians are sim 15, glm 16, ACTUAL 16; means 15.555 / 15.642 / 15.758.
+    Both short, the fitted centre closer. The shape is the sim's, the
+    centre is the fitted model's — read both.
+
+### HOW MUCH IS KNOWABLE AT ALL (`scratchpad/knowable.py`)
+
+644 clean-fold games, 200 draws, MC variance removed from the spread:
+
+    target      sd(actual)   our spread   r^2    slope
+    total          4.495        0.844    0.017    0.65
+    team runs      3.233        0.504    0.008    0.54
+    F5 team        2.326        0.365    0.008    0.53
+    margin         4.647        0.550    0.002    0.33
+
+**Our pregame ordering explains 1.7% of a game total and 0.2% of the
+margin.** Slopes are BELOW 1 by ~2.8 sigma on team totals — about 40% of
+the distinctions we draw between games are not there. This bounds every
+argument in this file: the model and the market are both betting on a ~2%
+signal, which is why the whole remaining prize measured 2.5 Brier points.
+
+### THE BATTERY'S FOLDS ARE NOT ALL OUT OF SAMPLE, AND THIS IS NOT RECORDED
+### ANYWHERE ELSE
+
+Every shipped constant is fitted on rows before 2026-07-01. The battery
+scores July-onward of 2023/24/25/26 — so THREE OF THE FOUR FOLDS SIT INSIDE
+THE CONSTANT-FITTING WINDOW. Only 2026 is clean on both rates and
+constants. Leakage flatters, and the defects survive the clean fold at
+equal or larger GAP (hook_bnd.70 +0.067, outs_over_14.5 -0.060, k_9_plus
+-0.021 in 2026), so nothing here is rescued — but a marginal future result
+read across four folds is reading three contaminated ones.
+
+### FIVE THINGS I GOT WRONG, ALL CAUGHT, ALL CHEAP TO REPEAT
+
+  1. `build_cases` WITH NO `season` RETURNS THE CURRENT SEASON ONLY — 3,909
+     starts where the cache holds four years. Cut the training set to a
+     fifth before anyone noticed. Same trap CLAUDE.md records against
+     `paired_cases`; it applies here too.
+  2. `build_cases` ALIASES `outs_recorded` TO `o`. Asking for the long name
+     silently drops every row.
+  3. TRAINING FEATURES FROM FULL SEASONS, HOLDOUT FEATURES FROM THREE
+     MONTHS. The holdout's rates were far more shrunk than the training
+     rates, which compressed predicted means and cost the direct model a
+     third of its 9+ tail (P(9+) .056 against a true .092) — it read as a
+     finding for a whole turn. Fixed by matching the battery's fold
+     construction: every row gets rates from the first three months of its
+     OWN season and is itself from July onward.
+  4. THE PER-START FEATURE VECTOR CARRIED ONLY TWO OF FOUR PARK CHANNELS
+     (k and bip, no hr/bb) while the game-level vector had all four. At
+     Camden (hr 1.10) that produced a home-run divergence four times
+     typical size, which I attributed to the missing feature — WIRING IT IN
+     MADE THE GAP BIGGER (+0.16 -> +0.22). The disagreement is real; my
+     diagnosis was not.
+  5. TWO CLAIMS ASSERTED WITHOUT EVIDENCE. (a) That the K tail and the
+     short-starts defect are ONE defect via "managers extend guys who are
+     missing bats" — the K-per-27-outs table I leaned on CONDITIONS ON
+     LENGTH, which is an outcome, so the comparison is partly guaranteed by
+     construction. The countable version is stated as item C below. (b)
+     That the fitted model always projects longer starts — true for four
+     starters, reversed for both at American Family Field (park k 1.11).
+
+### A CAPPER AUDIT, AND A CATEGORY OF CLAIM THAT IS UNKNOWABLE
+
+`scratchpad/team_platoon.py`, built to check "the Reds hit righties better
+than lefties this season". Counted over 2,132 cached 2026 games: CIN wOBA
+.329 vs LHP against .306 vs RHP — the claim is BACKWARDS, and CIN sits 27th
+of 30 in that direction. **But the useful finding is that the whole
+category is noise**: the sd of the 30 clubs' platoon gaps is 0.017 and the
+per-club standard error is ALSO 0.017, so the real spread is 0.000.
+Split-half over odd vs even games gives r +0.163 +/- 0.192, and the
+POSITIVE CONTROL — a planted 0.030-wOBA club spread — returns r +0.624. The
+harness sees a real effect of that size; there isn't one. A season of team
+platoon splits cannot be known by anyone, us or the person selling it.
+
+Also from that audit, for the record: the pitch-arsenal CSV is fine as a
+DESCRIPTIVE instrument (May's cutter, xwOBA .313 against a league-median
+.327 with 30.7% hard contact — his surface wOBA .356 is luck, not a
+hittable pitch). That is not the same as `USE_ARSENAL`, which stays False.
+
+### WHAT THE DIRECT-MODEL ROUTE IS AND IS NOT
+
+It is an ACCOMMODATION, the user's word and the right one — it does not
+repair anything, it declines to route through the broken part. Two costs
+that must travel with it: it will not keep the lines mutually consistent
+(a 10-K projection beside a five-inning start), and it removes the symptom
+that currently points at the hook.
+
+AND ONE ARGUMENT FOR IT THAT IS STRONGER THAN IT LOOKS: arsenal and
+handedness both failed as MULTIPLIERS ON TOP OF LOG5, which already
+contains both marginals — the multiplier is only entitled to the
+interaction and double counts everything else. A direct model fits a
+coefficient and can only use what the rate features do not already carry.
+Several of the 0-for-9 imported features have never been tried in a frame
+where that objection does not apply.
+
+## DAY TWENTY-TWO — THE PER-START DIVERGENCE BETWEEN THE SIM AND THE
+## DIRECT K/OUTS MODELS, GRADED (2026-09-07, Fable session)
+
+`scratchpad/diverge.py`, off the day-21 caches — 1,288 holdout starts,
+2026 clean fold, sim pmfs at 200 draws (per-row MC noise ~3.5c on P(over),
+corrected in both the Brier and the regression).
+
+ITEM C's PREMISE, VERIFIED FIRST: "the fitted outs model always returns a
+mean of 15" is FALSE AS STATED — per-start fitted mean sd 0.80, range
+12.6..18.0. But it is HALF the sim's spread (1.23), and the glm's pmf
+peaks at 14-16 on 92% of starts where the sim (and reality) split modes
+across 15/18/21. The no-exposure handicap compresses, it does not flatten.
+Item C's pricing-model job survives the check.
+
+THE DIVERGENCE, at the nearest half-line to the sim's own mean:
+  K     mean|div| 5.2c, 44% of starts past 5c, 12% past 10c.
+  OUTS  mean|div| 8.7c, 63% past 5c, 35% past 10c.
+
+GRADED PAIRED AT THE LINE (sim Brier MC-corrected):
+  K     dead even, -0.0002 +/- 0.0019. Divergence regression slope
+        (y - sim) ~ (glm - sim), MC-corrected: +0.08 +/- 0.17 — the glm's
+        K divergence carries NO mean signal the sim lacks. Its only K win
+        stays the 9+ tail shape (day 21), invisible at the bulk line.
+  OUTS  SIM BETTER BY 0.0122 +/- 0.0030 (4.1 sigma). The largest bucket
+        — 427 starts where the glm sits 8+ cents UNDER the sim — settled
+        over 59.0%, with the sim at 0.554 and the glm at 0.411: the
+        lumpiness pays exactly where the divergence is biggest.
+
+THE GLM'S ONE OUTS EDGE IS LEVEL, NOT DISCRIMINATION: centres 15.70 (glm)
+vs 15.56 (sim) vs 15.76 (real) — a fitted intercept absorbing the sim's
+known short bias; corrected slope +0.16 +/- 0.11 says the per-start
+ordering adds ~nothing. The sim's shortness shows here too: real
+over-rates 0.54-0.61 against sim ~0.50-0.55 in every divergence bucket.
+
+BOTH TAILS OF THE DISAGREEMENT LIST ARE THE SAME INPUT GAP: the glm reads
+only rates, so it projects long starts for contact arms the hook pulls
+early (Bassitt/Matz at 10.5 outs: P_glm 0.85-0.92 vs sim ~0.5). Exposure
+lives only in the sim — which is item C's argument for the PRICING model,
+not against the sim.
+
+## DAY TWENTY-TWO, SECOND SITTING — ITEM D: THE RECENCY HALF-LIFE,
+## WIRED PROPERLY AND MEASURED. NOTHING SHIPS. (2026-09-07, Fable)
+
+TRIGGERED live: Holmes (4.31 K/start pre-July, 3.18 since, raw K% .203 ->
+.152) priced today off the flat aggregate. Item D queued exactly this.
+
+THE WIRE, which is most of the session's value: `pitcher_rates_recent`
+shrank weighted rates toward the LEAGUE while the flat path shrinks toward
+the pitcher's OWN PRIOR with defence/pool/park — a sweep over that pair
+measures recency AND losing the prior pooling at once. The weighting now
+lives INSIDE `pitcher_rates` (weighted per-game rows feed the identical
+shrink machinery; confidence runs on the EFFECTIVE sample; `pa` stays raw
+for the gates; prior seasons pinned flat with half_life=0), `_recent` is a
+thin delegate, and the four existing recency checks pass unchanged.
+Flag-off proven bit-identical to pre-edit code by cp-swap fingerprint
+(0406b61fdf44 both ways). 460 checks green.
+
+TWO TRAPS, both caught by standing rules:
+  * battery.main RE-EXECS the interpreter (macOS fork fix), which reset an
+    in-process HALF_LIFE_DAYS — five candidates, five IDENTICAL
+    fingerprints (rule: a fingerprint that will not move is the bug). Fix:
+    export OBJC_DISABLE_INITIALIZE_FORK_SAFETY before launch, and
+    HALF_LIFE_DAYS now prints in the battery flags() header per the wiring
+    contract, so a vacuous run is visible on sight.
+  * The battery baseline moved overnight WITHOUT a code change: ten Sept
+    games finalised, 2026 fold 634 -> 644. Flag-off on TODAY'S data is the
+    baseline (battery_415f503b3101.json); 90590e37150f is history.
+
+THE SWEEP (30/60/90/150 days, falsifier registered first, all candidates
+sub-1-se per row at 60+, so this is direction and consistency):
+  * K: WORSE in 16/16 fold x candidate cells, clean fold included,
+    monotonic in half-life. The registered expectation ("helps K most") is
+    REFUTED — K stuff is stable and discounting April adds noise that the
+    effective-sample shrink hands to the prior.
+  * OUTS: the CLEAN fold improves at every candidate (-0.063 at 30,
+    -0.048 at 60), 2025 mildly at 60+, 2023/24 worsen — 2/4 folds, the
+    >= 3/4 clause FAILS. Named mechanism for the split: 2023-25 sit
+    inside the constant-fitting window, so the engine's constants were
+    co-fitted with FLAT rates on those rows; 2026-H2 is the only window
+    where nothing was co-tuned, and it is the fold that improves.
+  * Ladder within 1 se everywhere at 60+; hl=30 moves 2023 k_sd past
+    1 se away and is the grid edge — dead regardless.
+
+RESOLUTION: falsifier failed on both clauses, HALF_LIFE_DAYS stays None,
+the wiring stays in switched off. Rule 13: the narrow outs failure is
+recorded, not reinterpreted. THE QUESTION IT LEAVES, pre-registered for
+whoever opens it: a PER-CHANNEL half-life (outs/leash only, k flat) is a
+new item with its own falsifier — consistent with leash.py's finding that
+what varies between pitchers recently is how long they are left in, not
+how they pitch. Sweep logs `scratchpad/hl_sweep_*.log`, scorer
+`scratchpad/hl_score.py`.
+
+## DAY TWENTY-TWO, THIRD SITTING — THE STREAK QUESTION BECOMES A VELOCITY
+## TERM (2026-09-07, Fable, user-directed)
+
+QUESTION (the user's, after the half-life died): not every streak is
+equal — can anything observable separate fades that persist from fades
+that evaporate? HYPOTHESIS: trust-in-the-drift scales with evidence size,
+channel corroboration, or lost velocity.
+
+FIRST, THE POOLED EXCHANGE RATE (second sitting follow-up, 375
+pitcher-seasons): a recent-window K% drift carries +0.18 ± 0.08 of its
+face value into remaining starts. ~80% of a Holmes-sized fade is the
+110-BF window's own sampling noise; 63 big faders (-4.8 pts recent)
+subsequently ran -1.2 ± 0.7 under their season rate.
+
+THE INSTRUMENT: `scratchpad/velo_build.py` — per-start fastball velocity
+(FF/SI mean startSpeed, >= 10 pitches) extracted from the pbp cache,
+19,273 starter-start rows over four seasons, NEVER READ BEFORE.
+`scratchpad/streaks.py` — rolling per-start persistence screen, 9,382
+rows with 99.5% velo coverage, positive control (planted velo-gated
+fade) SEEN at 10.1 sigma.
+
+RESULT, and it reframes the item:
+  * drift*velo INTERACTION (the registered "dynamic lambda"): NULL —
+    +0.034 ± 0.027 pooled, sign flips in 2025. Velocity does not
+    validate the K drift.
+  * VELOCITY MAIN EFFECT: +1.63 ± 0.28 K% points per mph of recent-vs-
+    season fastball velo, positive ALL FOUR seasons (+2.5/+3.2/+2.0/
+    +4.0 sigma). It predicts the next start DIRECTLY, drift or no drift.
+  * With velo and bb controlled, the K-drift main falls 0.18 -> 0.04:
+    the persistent share of a fade largely IS the velocity component.
+  * drift*bb (corroborated fades persist more): +0.064 ± 0.027 pooled
+    but ~1 sigma per season 2023-25 — recorded, below the gate.
+  * drift*bf came out NEGATIVE 2.2 sigma (more recent evidence -> trust
+    LESS), unregistered and mechanism-free — treat as a confound to
+    understand before anyone acts on it, not a finding.
+
+APPLIED TO TONIGHT: Holmes season 93.8, last five 93.6 — stuff intact,
+so his K fade is exactly the kind that evaporates; the model's refusal
+to chase it agrees with the radar gun. Luzardo -0.4 mph -> -0.6 K%.
+
+WIRE CANDIDATE (not wired): a per-start `velo_kick` on the K channel,
+recent-5 FB velo minus season mean, x1.63 K% pts/mph counted above.
+Available pregame (prior starts are cached). FALSIFIER TO REGISTER
+BEFORE WIRING: recount the coefficient on pre-holdout rows only, k
+shape rows toward real >= 3/4 folds, run level within 1 se, and grep
+for collisions first — START_K_SIGMA and the leash both live near this
+channel (the suite's check names are the map). Note the k-stuff night
+ledger: 10.4% of NIGHT_SIGMA is already attributed to counted k-stuff —
+if velo ships, rerun night_variance and SHRINK the sigma per the
+maintenance rule.

@@ -139,6 +139,12 @@ def flags() -> dict:
                 out[f"{m.__name__.rsplit('.', 1)[-1]}.{k}"] = getattr(m, k)
     out["calibrate.NEUTRALISE_PARK"] = getattr(cal, "NEUTRALISE_PARK", None)
     out["calibrate.HOME_HOOK"] = getattr(cal, "HOME_HOOK", None)
+    # The recency half-life changes every pitcher rate a fold is built on.
+    # It earned this line the hard way: a five-candidate sweep set it
+    # in-process, `main`'s macOS re-exec silently reset it, and all five
+    # runs printed the same fingerprint — with the knob in the header the
+    # vacuous run would have been visible on sight.
+    out["rates.HALF_LIFE_DAYS"] = getattr(rate_src, "HALF_LIFE_DAYS", None)
     return out
 
 
