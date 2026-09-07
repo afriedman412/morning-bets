@@ -46,6 +46,14 @@ THE RESULT, 2026-09-06 — the guess was right on the line:
     shipped stack: per-game log-run sd 0.0709 -> EXPLAINS 10.2%
         park 7.4%   air 1.4%   umpire 0.1% (0.4% at unshrunk tau)
 
+AMENDED THE SAME NIGHT, wiring the remainder term: the 0.10 target
+predates `START_K_SIGMA` too (stuff shipped 2026-08-29, the target was
+measured 2026-08-27), so the counted k-stuff also eats the budget:
+0.439 x 0.1625 = 0.0713 of log-run sd — 10.4%, as much as the whole
+shared-night stack. TOTAL EXPLAINED 20.6%; remainder sd 0.1972; over
+the bb/hr/babip elasticity sum 1.775 that is NIGHT_SIGMA 0.111, k
+excluded from the load because the count owns it.
+
 Three conclusions, all decision-grade:
 
   * THE FUDGE IS 90% INTACT. Re-measured today the latent would need

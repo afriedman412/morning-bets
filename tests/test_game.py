@@ -1379,6 +1379,83 @@ def check_the_shared_ump_lookup_reads_the_crew_record():
         cal._UMPS, sim._UMP_KBB = orig_u, orig_t
 
 
+def check_the_night_term_ships_on_and_is_a_remainder():
+    """The night term is live, its size is the measured remainder (the
+    2026-08-27 sigma-0.10 target shrunk by everything shipped since —
+    shared-night stack 10.2%, counted k-stuff 10.4%;
+    `scratchpad/night_variance.py`), the draw moves bb/hr/babip
+    COHERENTLY, and `k_pct` passes through UNTOUCHED — strikeout nights
+    are `START_K_SIGMA`'s counted job, and loading k here would stack
+    two dispersions against one count. MUTATION: flag off, sigma to
+    zero, or k added back to the load, and this fails."""
+    import math
+    import statistics as st
+    assert sim.USE_NIGHT_SIGMA, "ships ON — a user decision, recorded"
+    assert abs(sim.NIGHT_SIGMA - 0.1111) < 1e-6, sim.NIGHT_SIGMA
+    assert "k_pct" not in sim.NIGHT_LOAD, "k is the counted stuff's job"
+    rng = random.Random(83)
+    draws = [sim.night(_pitcher(), rng) for _ in range(300)]
+    base = _pitcher()
+    assert all(d.k_pct == base.k_pct for d in draws), "k must not move"
+    bbs = [d.bb_pct / base.bb_pct for d in draws]
+    bs = [d.babip / base.babip for d in draws]
+    assert 0.09 < st.pstdev([math.log(b) for b in bs]) < 0.14
+    # Coherence: the SAME draw moves walks and babip TOGETHER.
+    assert st.correlation(bbs, bs) > 0.99, st.correlation(bbs, bs)
+
+
+def check_the_night_term_off_touches_neither_rates_nor_stream():
+    """The off path must return the pitcher UNCHANGED and consume NO
+    draws — a flag-off battery run has to reproduce the engine
+    fingerprint bit for bit, which is the proof the wire is inert.
+    MUTATION: draw the gauss before the flag test and this fails."""
+    orig = sim.USE_NIGHT_SIGMA
+    sim.USE_NIGHT_SIGMA = False
+    try:
+        rng = random.Random(84)
+        state = rng.getstate()
+        p = _pitcher()
+        assert sim.night(p, rng) is p, "off must be identity"
+        assert rng.getstate() == state, "off must not consume the stream"
+    finally:
+        sim.USE_NIGHT_SIGMA = orig
+
+
+def check_the_night_term_reaches_a_full_game():
+    """The draw lands on the STARTER inside `build_side`, so simulated
+    run totals spread wider with the term on than off. Amplified sigma so
+    a small sample settles it; the shipped size is the battery's
+    business. MUTATION: drop the `sim.night` call from `build_side` and
+    this fails while the sim-level checks pass."""
+    import statistics as st
+
+    def spread(n=400, seed=85):
+        rng = random.Random(seed)
+        runs = []
+        for _ in range(n):
+            # Through `build_side`, not a hand-built Side — the draw
+            # lives there, and a direct `Side(...)` never sees it.
+            a = game.build_side(_pitcher(), [], _lineup(), sim.Hook(), rng)
+            h = game.build_side(_pitcher(), [], _lineup(), sim.Hook(), rng)
+            r = game.simulate_game(a, h, LG, rng,
+                                   hr_air=1.0, ump_kbb=(1.0, 1.0))
+            runs.append(r.away + r.home)
+        return st.pstdev(runs)
+
+    orig = sim.NIGHT_SIGMA
+    sim.NIGHT_SIGMA = 0.5
+    try:
+        wide = spread()
+    finally:
+        sim.NIGHT_SIGMA = orig
+    sim.NIGHT_SIGMA = 0.0
+    try:
+        flat = spread()
+    finally:
+        sim.NIGHT_SIGMA = orig
+    assert wide > flat * 1.15, (flat, wide)
+
+
 def check_no_caller_builds_the_air_from_temperature_alone():
     """`sim.air_hr_mult` is the ONLY way into the `hr_air` slot from
     `src/`. A caller that reaches past it to `temp_hr_mult` prices every

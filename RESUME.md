@@ -16,6 +16,20 @@ it belongs in `NOTES-context-layer.md`.
 
 ## WHERE THINGS STAND (2026-09-06, night — Fable session)
 
+**THE NIGHT TERM SHIPS (`sim.USE_NIGHT_SIGMA`, fourth sitting) — the
+parked dispersion re-opened BY THE USER and shipped as a REMAINDER:**
+sigma 0.111 on bb/hr/babip only (k is START_K_SIGMA's counted job — the
+first wiring collided with it and was caught), run-mean invariant by
+construction after the uncentred version failed its A/B on level in all
+four folds (+2% runs = the convexity arithmetic, exactly). Centred A/B:
+level clean, shutouts toward real, blowups held, outs split
+2-folds-better/2-slightly-long — the registered outs clause failed
+narrowly and the USER made the ship call (wind's precedent). THE
+MAINTENANCE RULE: rerun `scratchpad/night_variance.py` after every
+counted ship and SHRINK the sigma; it must only get smaller. Ledger as
+of tonight: 20.6% of the night explained (park 7.4, air 1.4, ump 0.1,
+k-stuff 10.4). Baseline battery_90590e37150f.json, 460 checks.
+
 **THE HYGIENE LIST IS CLOSED (second sitting, same session).** Both hook
 curves refit on clean training rows — the era gate refused the
 four-season pool (managers are a moving regime; 2023-24 is another era)

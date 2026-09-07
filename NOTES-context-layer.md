@@ -9144,3 +9144,56 @@ ESTABLISHED: the explained fraction and the elasticity ranking.
 INFERRED: that the remaining 90% is genuinely latent (pitcher's night,
 batter-side clustering) rather than an uncounted shared condition — no
 candidate was measured here.
+
+## 2026-09-06 (Fable, fourth sitting): THE NIGHT TERM SHIPS (`sim.USE_NIGHT_SIGMA`) — VARIANCE ONLY, BY CONSTRUCTION, ON THE USER'S CALL
+
+THE DECISION: the user re-opened the parked flat dispersion term after
+`night_variance.py` showed the counted stack explains ~10% of the night
+(this sitting corrected that ledger to 20.6% — see below). The notes
+had reserved this re-open for a human since August; it is now made.
+
+THREE CATCHES ON THE WAY IN, each worth recording:
+
+  * THE K COLLISION. The first wiring loaded all four channels — and
+    the suite's neighbouring check names surfaced `START_K_SIGMA`:
+    strikeouts ALREADY carry a counted per-start dispersion (0.1625 on
+    4,777 starts, shipped 2026-08-29, two days AFTER the sigma-0.10
+    target was measured). Loading k here would stack to 0.19 against a
+    count, and the four-channel latent at full size was REJECTED on
+    2026-08-27 for wrecking outs. K came out of the load; the counted
+    stuff also joins the explained ledger: 0.439 x 0.1625 = 0.0713 of
+    log-run sd (10.4%, as much as the whole shared-night stack). Total
+    explained 20.6%; remainder sd 0.1972 over the bb/hr/babip
+    elasticity sum 1.775 -> SIGMA 0.111.
+  * THE CONVEXITY OVERSHOOT. The uncentred draw FAILED its registered
+    A/B on the level clause in all four folds: F5 gaps +0.11 to +0.15
+    high — exactly exp(0.5 x (sigma x 1.775)^2) - 1 ~ +2% of runs. The
+    August 0.10 experiment ran when the level was SHORT 0.04, so its
+    convexity helped then; a dozen ships since closed the level and the
+    same convexity double-paid it. Nothing was rescaled: the repair is
+    the umpire table's discipline made structural — a centre term
+    (-0.5 sigma^2 x elasticity_sum per channel) makes the run mean
+    INVARIANT BY CONSTRUCTION, and the battery's level rows are the
+    proof, not the target.
+  * THE OUTS CLAUSE SPLIT, and the user made the call. Centred A/B vs
+    e4de727f: NO level row past 1 se (neutrality proven), shutout and
+    low-mass rows toward real everywhere they resolve, blowup mass
+    held, k rows untouched. The outs family: five rows IMPROVED 1.1-1.5
+    se (2023/24, where the long-start tail was thin — good nights mean
+    less traffic, later hooks, longer starts) and three rows OVERSHOT
+    1.1-1.6 se (2025/26, where it was already right). The registered
+    kill-clause ("no outs row past 1 se") failed literally; per rule 13
+    the session did not reinterpret it and put the split to the user
+    with the mechanism named. SHIPPED ON, wind's precedent: clause
+    recorded as failed-narrow, nothing rescaled.
+
+THE MAINTENANCE RULE, which is what keeps this honest: NIGHT_SIGMA is a
+REMAINDER (0.10 August target, minus shared-night stack, minus counted
+k-stuff, re-derived in `scratchpad/night_variance.py`). Every time a
+counted condition or per-channel dispersion ships, rerun that scratchpad
+and SHRINK the sigma. Counted causes say WHICH night; this term only
+concedes THAT nights vary — it must only ever get smaller.
+
+Fingerprint e4de727f -> 90590e37150f; baseline
+battery_90590e37150f.json; 460 checks (5 new, all mutation-verified:
+flag, sigma, k-out-of-load, build_side wiring, stream-safety-off).

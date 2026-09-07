@@ -178,9 +178,13 @@ STAND: traffic/mass rows (battery), sac-table occupancy (bases loaded
 runs by margin (+2.5 sigma pooled at margin 1, survives pen roles).
 
 DEAD ENDS, do not re-run: per-pitcher/per-club dispersion (split-half
-0.07, powered to 0.32); a flat dispersion term (closed 44% of shape /
-86% of level but is calibration-not-discrimination — PARKED, and
-re-opening it is a DECISION for a human, not a session).
+0.07, powered to 0.32). THE FLAT DISPERSION TERM WAS RE-OPENED BY THE
+USER AND SHIPPED 2026-09-06 as `sim.USE_NIGHT_SIGMA` — a REMAINDER
+(sigma 0.111 on bb/hr/babip only; k belongs to START_K_SIGMA), run-mean
+invariant by construction, sized by `scratchpad/night_variance.py` and
+REQUIRED to shrink whenever a counted cause ships. Full trail (the k
+collision, the convexity overshoot and its centre, the outs-clause
+split the user shipped past) in the notes.
 
 ### 8a. COUNT within-inning feedback — RESOLVED 2026-09-06: NULL AT THE
 ### REGISTERED BAR. Nothing wired. Full result in the notes.

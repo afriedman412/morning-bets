@@ -252,6 +252,7 @@ def check_the_measured_mechanisms_are_switched_on_by_default():
     assert sim.USE_TEMP_HR is True
     assert sim.USE_WIND_HR is True
     assert sim.USE_UMP_KBB is True
+    assert sim.USE_NIGHT_SIGMA is True
     assert sim.USE_GIDP_ADVANCE is True
     assert sim.USE_MEASURED_GIDP is True
     assert sim.USE_STEAL_TABLE is True

@@ -750,6 +750,88 @@ def air_hr_mult(temp_f: int | None, carry: int | None = None,
 USE_UMP_KBB = True
 _UMP_KBB: dict | None = None
 
+#: THE NIGHT TERM — the model saying "I don't know" out loud, sized by
+#: what it demonstrably cannot know. One latent draw per STARTER per
+#: game scales bb, hr and babip together the way they travel on a bad
+#: night. Shipped 2026-09-06 BY USER DECISION, which the notes had
+#: reserved for a human since the flat term was parked in August.
+#:
+#: **K IS DELIBERATELY NOT IN THE LOAD.** Strikeouts already carry their
+#: own COUNTED per-start dispersion (`START_K_SIGMA`, 0.1625 on 4,777
+#: real starts) and loading k here would stack to 0.19 in quadrature —
+#: contradicting a count. The four-channel latent at full size was also
+#: tried on 2026-08-27 and REJECTED for wrecking the outs distribution
+#: through widened traffic; this term differs from that one twice over
+#: (no k load, about a third of its traffic variance) and the outs rows
+#: are its registered falsifier all the same.
+#:
+#: WHY IT IS HONEST AND NOT A FUDGE, the three measured facts:
+#:   * The defect is real: reality has more shutouts AND more blowups;
+#:     the model bunches (rule 2's standing example). A flat sigma 0.10
+#:     four-channel latent closed 44% of the shape error and 86% of the
+#:     level gap at once (2026-08-27) — one defect, both symptoms.
+#:   * The variance does not repeat where anyone looked: per-pitcher and
+#:     per-club dispersion split-half 0.07 (powered to 0.32), form.py
+#:     measured three ways and absent. A real, unpredictable spread is
+#:     MODELLED by a random term; certainty the world does not have is
+#:     also an error.
+#:   * THE SIZE IS A REMAINDER, NOT A FIT. The 0.10 target predates
+#:     everything that now supplies night variance, so it is shrunk by
+#:     what has shipped since, in one currency — per-game log-run sd
+#:     (`scratchpad/night_variance.py`): target 0.2213; shared-night
+#:     stack (park, air, umpire) 0.0709 (10.2%); tonight's counted
+#:     k-stuff 0.439 x 0.1625 = 0.0713 (10.4%). Remainder sd 0.1972
+#:     over the three loaded channels' elasticity sum 1.775 gives
+#:     SIGMA 0.111. THE MAINTENANCE RULE: every time a condition or a
+#:     counted per-channel dispersion ships, rerun night_variance and
+#:     SHRINK this. Counted causes are strictly better — they say WHICH
+#:     night; this term only concedes THAT nights vary.
+#:
+#: Starter only, as the parked experiment had it: relievers' nights are
+#: short and sampled from a pool that already varies. CRPS is EXPECTED
+#: to read flat-to-noise (rule 2, registered in advance): a flat spread
+#: buys calibration of the marginal distribution, not discrimination.
+#: The battery's shape rows — shutout/blowup shares, run mass — are the
+#: rows it exists to move, and the OUTS rows are the ones allowed to
+#: kill it.
+NIGHT_SIGMA = 0.1111
+NIGHT_LOAD = {"bb_pct": 1.0, "hr_pct": 1.0, "babip": 1.0}
+#: The three loaded channels' run elasticity sum, measured from the
+#: engine in `scratchpad/night_variance.py` (bb 0.202 + hr 0.387 +
+#: babip 1.186). It sets the convexity-cancelling centre below.
+NIGHT_RUN_ELASTICITY = 1.775
+USE_NIGHT_SIGMA = True
+
+
+def night(p: "PitcherRates", rng: random.Random) -> "PitcherRates":
+    """One starter's latent night, applied multiplicatively.
+
+    REDISTRIBUTES, NEVER ADDS — the umpire table's discipline, learned
+    here the hard way: the uncentred draw inflates MEAN runs by
+    exp(0.5 * (sigma * elasticity_sum)^2) ~ +2%, and its first battery
+    run overshot the F5 level in all four folds by exactly that
+    arithmetic (2026-09-06). The centre term cancels the convexity so
+    the run mean is invariant BY CONSTRUCTION and the battery's level
+    rows are the proof it worked, not the thing it was tuned to.
+
+    Draws EXACTLY ONE gauss when live and NONE when off — the off path
+    must leave the caller's stream untouched so a flag-off run
+    reproduces the engine fingerprint bit for bit. `k_pct` passes
+    through UNTOUCHED: tonight's strikeout stuff is `sharpen`'s counted
+    job, not this term's.
+    """
+    if not USE_NIGHT_SIGMA or not NIGHT_SIGMA:
+        return p
+    z = rng.gauss(0.0, 1.0)
+    e = NIGHT_SIGMA * z - (0.5 * NIGHT_SIGMA * NIGHT_SIGMA
+                           * NIGHT_RUN_ELASTICITY)
+    import dataclasses
+    return dataclasses.replace(
+        p,
+        bb_pct=p.bb_pct * math.exp(NIGHT_LOAD["bb_pct"] * e),
+        hr_pct=p.hr_pct * math.exp(NIGHT_LOAD["hr_pct"] * e),
+        babip=min(0.6, p.babip * math.exp(NIGHT_LOAD["babip"] * e)))
+
 
 def ump_kbb_mult(ump_id) -> tuple[float, float]:
     """(k, bb) multipliers for one game's plate umpire. Silent-neutral:

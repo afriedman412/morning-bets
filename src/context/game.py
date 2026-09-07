@@ -1021,7 +1021,14 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
 
         starter = _role(starter, sim.HBP_RATE_SP, sim.SAC_RATE_SP)
         arms = [_role(a, sim.HBP_RATE_RP, sim.SAC_RATE_RP) for a in arms]
-    return Side(starter=starter, pen=arms, lineup=lineup, hook=h,
+    # THE NIGHT TERM, last: one latent draw scaling this starter's four
+    # rates for THIS simulated game — see `sim.NIGHT_SIGMA` for why it is
+    # a remainder and not a fudge. After `_role` so the multiplicative
+    # draw lands on the rates the game will actually use, and here rather
+    # than in `sim` because this is the only place that knows which arm
+    # is the starter and holds the game's own rng.
+    return Side(starter=sim.night(starter, rng), pen=arms, lineup=lineup,
+                hook=h,
                 pen_state=sim.pen_state(team, date),
                 layoff_gap=sim.layoff_gap(starter.name, date),
                 forced_exit_outs=_draw_early_exit(h, rng))
