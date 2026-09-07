@@ -997,6 +997,17 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
         if vk:
             starter = replace(starter,
                               k_pct=min(max(starter.k_pct + vk, 0.005), 0.65))
+    if sim.USE_ZONE_BB:
+        # THE COMMAND CHANNEL, same discipline: recent fixed-zone share vs
+        # his own season mean into tonight's walk rate, counted at -0.1431
+        # BB% per share point (`velo.bb_kick_for`). It survived the
+        # box-score walk drift as a control; the walk column alone did
+        # not. STARTER only, deterministic, consumes no randomness.
+        zk = velo.bb_kick_for(starter.name, date)
+        if zk:
+            starter = replace(starter,
+                              bb_pct=min(max(starter.bb_pct + zk, 0.005),
+                                         0.50))
     if sim.USE_START_SHARPNESS:
         # TONIGHT'S STUFF, drawn ONCE for the start and for the STARTER
         # ONLY. Counted at sigma 0.1625 on 4,777 real starts; see

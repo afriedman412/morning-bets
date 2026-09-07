@@ -9517,3 +9517,86 @@ tonight off last week's radar — silent and mild, but add the rebuild to
 the cron pass when one exists.
 
 NEW BASELINE: `battery_a8d0e12817e5.json`, fingerprint a8d0e12817e5.
+
+## 2026-09-07, fourth sitting — PLAN-pitch-history steps one and two: the
+## reliability table, four candidates screened, ZONE->BB shipped
+
+QUESTION (the operator's framing, from the plan): walk ONE pitcher's
+stuff start by start before building any league-wide feature — which
+per-pitch columns are reliable at n = one start, and does any drift
+beyond fastball velo predict the next start?
+
+STEP ONE — `scratchpad/pitch_one.py`, per start per pitch type (n, velo,
+spin, vertical break raw+induced, fixed-zone%, whiff/swing) beside the
+start's K/BB/outs, split odd/even within start, halves correlated across
+starts. Cease 2026 (28 starts), Holmes 2026 (15) and 2025 (32); planted
+and noise controls SEEN in every run. POWER: se(r) ~ 0.2 at r=0 — this
+resolves reliable-vs-not, not fine ordering.
+
+CONCLUSION, and the pre-registered null is SETTLED: the expected
+ordering is confirmed. Full-start (Spearman-Brown) reliability on
+primary types: velo 0.89-0.99, spin 0.79-0.98, vertical break mostly
+0.8+; zone% 0.1-0.5; whiff/swing r between -0.30 and +0.22 — noise, as
+the binomial arithmetic said. Whiff left the candidate list without
+being screened. ESTABLISHED: the physicals are instrument reads and
+survive n=1 start; the outcome rates do not. The walk paid on its own:
+Cease's FF sat 97-98 through 07-08, an 8-pitch start 07-14, then 95-96
+for the rest of 2026 — a 2 mph regime change no box score printed, and
+his K totals held anyway.
+
+STEP TWO — `scratchpad/stuff_screen.py` on 9,382 streaks.py-style rows
+(features strictly prior, secondary type chosen from prior starts only),
+per-pitch columns via ONE extractor (`scratchpad/velo_build.py`,
+extended, not duplicated). BAR PRE-REGISTERED IN THE DOCSTRING before
+the first number: |t| >= 3 pooled with velo controlled AND same sign
+all four seasons; 2-3 sigma consistent = log, don't wire. Positive
+control planted per candidate, 8-13 sigma, all SEEN.
+
+  secondary velo -> K   +0.2 sigma, sign flips        DEAD
+  FB spin -> K          +2.5 sigma, ++++              WEAK (logged)
+  FB ivb -> K           +0.6 sigma, sign flips        DEAD
+  zone% -> K            +0.3 sigma                    DEAD
+  zone% -> BB           -5.3 sigma, ----              ALIVE
+
+THE ADVERSARIAL CHECK the survivor had to pass (asymmetric-skepticism
+rule — attack the positive): with the BOX-SCORE walk drift in the fit,
+zone STRENGTHENS to -5.9 sigma and the walk drift itself carries -2.0.
+Command drift is real, the plate coordinates see it before the walk
+column does — the exact mirror of velo-vs-K-streak.
+
+SHIPPED as `velo.bb_kick_for` + `sim.USE_ZONE_BB`, applied in
+`game.build_side` beside the velocity kick, starter only, deterministic,
+no variate consumed. Constants counted train-only (8,240 rows, the velo
+term's own denominator): ZONE_BB_PER_SHARE -0.1431 ± 0.0289 (-4.9
+sigma), ZONE_CENTER -0.002718. Table: the shipped
+`src/context/velo_starts.json` now carries a per-start fixed-zone share
+(100.0% of 19,273 rows); zone->bb kick coverage on July-onward 2026
+starts 86.2%, sd 0.0029 of bb_pct.
+
+THE REGISTERED CHECKS, stated before each run:
+  * BATTERY (pre a8d0e12817e5 already committed): no unrelated row may
+    move >1 se. RESULT: fingerprint -> 59f702b48b73, flags differ only
+    by USE_ZONE_BB, NO row moved past one se. Saved as
+    `battery_59f702b48b73.json` — the new baseline.
+  * PAIRED PER-START BB CRPS, 644 holdout games x 120 draws, same seeds
+    both arms (`scratchpad/zone_paired.py`): ships unless WORSE at >= 2
+    sigma; flat is the expected result at this size. RESULT: +0.00060
+    ± 0.00128 (+0.5 sigma), 586 improved / 642 worsened. Flat-to-
+    positive, consistent with a term a third the velo term's size on a
+    two-walk channel. Nothing was rescaled after seeing it.
+  * NIGHT_SIGMA LEDGER (it loads on bb_pct): kick sd 0.00293 / league
+    bb 0.0816 -> ln-mult sd 0.0359 x e_bb 0.202 = 0.0073 log-run sd;
+    remainder 0.1972 -> 0.1971, sigma 0.1111 -> 0.1110. Inside the
+    constant's precision; recorded on NIGHT_SIGMA, constant untouched.
+
+CHECKS: 3 new in `tests/test_velo.py` + the wiring-pin line, each
+mutation-verified. A LESSON THE MUTATION RUN BOUGHT: the zone leak
+check first PASSED the <-to-<= mutation because it had no start ON the
+probed date — a leak check with no row on the boundary guards nothing.
+The own-date probe was added and the mutation now kills exactly that
+check. 467 checks green.
+
+STILL OPEN from the plan: the leash-recency item (per-channel half-life,
+outs only) and the board divergence flag. FB spin -> K sits at +2.5
+sigma same-sign-four-seasons in the log for whoever accumulates the next
+round of small counted things.

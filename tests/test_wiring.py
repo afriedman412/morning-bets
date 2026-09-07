@@ -249,6 +249,9 @@ def check_the_measured_mechanisms_are_switched_on_by_default():
     # the holdout; pooled battery rows sub-1-se by design (leash
     # precedent — discrimination terms are invisible to pooled shape).
     assert sim.USE_VELO_K is True
+    # the zone->bb companion, shipped 2026-09-07 from the same screen:
+    # -4.9 sigma on train rows, survives the box-score walk drift.
+    assert sim.USE_ZONE_BB is True
     assert sim.USE_PEN_STATE is True
     assert game.USE_ROLE_HBP is True
     assert sim.USE_GB_DP is True

@@ -6,6 +6,12 @@ stuff start by start through a season and see what is actually there —
 before building any league-wide feature.** Exploration first, wiring
 later, falsifiers in between.
 
+**RUN THE SAME DAY, steps one and two both — results below in each
+section and in `NOTES-context-layer.md`. One survivor shipped
+(`sim.USE_ZONE_BB`, zone drift -> next-start BB%). What remains open
+here is the ADJACENT leash-recency item and the operational stopgap at
+the bottom.**
+
 ## WHY THIS EXISTS
 
 The box score is a bad thermometer for stuff and the radar gun is a good
@@ -57,6 +63,16 @@ start) reliable; outcome rates (whiff%, chase%, zone-contact) unreliable
 at n=1 start. If whiff% comes out reliable, the expected ordering is
 wrong and the candidate list reorders.
 
+**MEASURED 2026-09-07 (`scratchpad/pitch_one.py`, Cease 2026 n=28,
+Holmes 2026 n=15 and 2025 n=32; planted/noise controls SEEN in every
+run): the expected ordering is CONFIRMED.** Spearman-Brown full-start
+reliability on primary types — velo 0.89-0.99, spin 0.79-0.98, vertical
+break mostly 0.8+; zone% 0.1-0.5; whiff/swing r -0.30..+0.22, i.e.
+noise. Whiff is OFF the candidate list; location stays, last. The walk
+itself earned its keep: Cease's FF sat 97-98 through 2026-07-08, an
+8-pitch start on 07-14, and 95-96 ever after — a 2 mph regime change the
+box score never printed (his K totals held).
+
 ## STEP TWO — CANDIDATES, in the order the reliability table justifies
 
 Each candidate is the same shape as the shipped velo term: recent-window
@@ -75,6 +91,24 @@ start's K/BB beyond what fastball velo already carries.
 
 Screen harness exists: `scratchpad/streaks.py` (9,382 rows, positive
 control — a planted velo-gated fade — SEEN at 10.1 sigma). Reuse it.
+
+**SCREENED 2026-09-07 (`scratchpad/stuff_screen.py`, 9,382 rows, bar
+pre-registered in the docstring, positive control 8-13 sigma per
+candidate; extraction extended in `scratchpad/velo_build.py`, one
+walker as directed):**
+
+  1. SECONDARY-PITCH VELO -> K: DEAD (+0.2 sigma, sign flips).
+  2. FB SPIN -> K: WEAK (+2.5 sigma, positive all four seasons but
+     never individually; logged, not wired).
+  3. FB VERTICAL BREAK -> K: DEAD (+0.6, sign flips).
+  4. ZONE% -> K: DEAD (+0.3). ZONE% -> BB: **ALIVE AND SHIPPED** —
+     -5.3 sigma pooled with velo controlled, same sign all four
+     seasons, and it STRENGTHENS to -5.9 with the box-score walk drift
+     in the fit while the walk drift itself carries -2.0: command
+     drift is real and the plate coordinates lead the walk column, the
+     mirror of velo-vs-K-streak. Shipped as `velo.bb_kick_for` /
+     `sim.USE_ZONE_BB` at the train-only -0.1431/share (8,240 rows).
+  5. WHIFF BY TYPE: gated out by step one, never screened.
 
 ## PRE-REGISTERED, before any wiring
 

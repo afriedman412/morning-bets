@@ -787,6 +787,14 @@ _UMP_KBB: dict | None = None
 #:     SHRINK this. Counted causes are strictly better — they say WHICH
 #:     night; this term only concedes THAT nights vary.
 #:
+#:     LEDGER 2026-09-07, the zone->bb term (USE_ZONE_BB): kick sd
+#:     0.00293 of bb_pct on live starts / league bb 0.0816 -> ln-mult
+#:     sd 0.0359 x e_bb 0.202 = 0.0073 of log-run sd. Remainder
+#:     0.1972 -> 0.1971 in quadrature, sigma 0.1111 -> 0.1110 —
+#:     inside the constant's own precision, so it stays put (the
+#:     START_K_SIGMA/velo precedent: change it only via its own
+#:     recount).
+#:
 #: Starter only, as the parked experiment had it: relievers' nights are
 #: short and sampled from a pool that already varies. CRPS is EXPECTED
 #: to read flat-to-noise (rule 2, registered in advance): a flat spread
@@ -2484,6 +2492,22 @@ USE_START_SHARPNESS = True
 #: back +3.1 sigma better (1,288 starts). Nothing was rescaled after
 #: seeing a score.
 USE_VELO_K = True
+
+#: RECENT ZONE SHARE into the starter's BB rate — the second survivor of
+#: the pitch-history screen, counted 2026-09-07: -0.1431 BB% pts per point
+#: of recent-vs-season fixed-zone share drift, 4.9 sigma on the same 8,240
+#: train-only rows, same sign four seasons, 12-sigma positive control.
+#: THE ADVERSARIAL CHECK IT SURVIVED, unlike anything the box score offers:
+#: with the box-score walk drift in the fit it STRENGTHENS (-5.9 sigma)
+#: while the walk drift itself carries nothing (-2.0) — command drift is
+#: real and the plate coordinates see it before the walk column does, the
+#: exact mirror of velocity-vs-K-streak. Table and lookup in `velo.py`
+#: (`bb_kick_for`); applied beside the velocity kick in `game.build_side`,
+#: STARTER only, deterministic per start, no variate consumed. NIGHT_SIGMA
+#: loads on bb_pct, so the maintenance rule applies — the quadrature
+#: update is recorded on NIGHT_SIGMA below (it lands inside the
+#: constant's own precision, the START_K_SIGMA/velo precedent).
+USE_ZONE_BB = True
 
 
 def sharpen(p: "PitcherRates", rng: random.Random,

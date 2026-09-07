@@ -27,17 +27,18 @@ previous engine and do not reproduce. Only the first inning survives, at
 -1.7 sigma. Anything reasoning from a run deficit — runline pricing above
 all — needs re-deriving.
 
-## NEW 2026-09-07 — PITCH-HISTORY MODELING (`PLAN-pitch-history.md`)
+## PITCH-HISTORY MODELING — RUN 2026-09-07, mostly CLOSED
 
-Track stuff per start from our own pitch data (velo shipped; spin, secondary
-velo, break, location queued). START WITH ONE PITCHER, per the operator —
-walk his season start by start and MEASURE per-start reliability (odd/even
-split-half) before believing any column. The plan carries what is
-established, the falsifiers to register, and the collisions (START_K_SIGMA,
-NIGHT_SIGMA ledger). Adjacent but separate: the per-channel leash half-life
-(outs only, K flat) — pre-registered day 22, and the Cease board miss
-(2026-09-07) is its poster case. Stopgap: board flag for sim-vs-last-10
-outs divergence.
+Steps one and two of `PLAN-pitch-history.md` are DONE and the results are
+in the notes: per-start reliability measured on Cease and Holmes
+(physicals reliable, whiff/zone outcome rates noise at n=1 start), then
+the league-wide screen — secondary velo, FB spin, FB vertical break and
+zone->K all dead or weak; ZONE->BB ALIVE and SHIPPED as `sim.USE_ZONE_BB`
+(-0.1431/share, 4.9 sigma train-only, survives the box-score walk drift).
+STILL OPEN from that plan: the per-channel leash half-life (outs only, K
+flat) — pre-registered day 22, the Cease board miss (2026-09-07) is its
+poster case, wiring exists switched off in `pitcher_rates`. And the
+stopgap: board flag for sim-vs-last-10 outs divergence, display only.
 
 ## WORKING ONE ITEM PER SESSION — read this first
 
