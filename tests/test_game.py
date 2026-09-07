@@ -697,6 +697,34 @@ def check_per_batter_runs_add_up_to_the_team_score():
     assert sum(v["r"] for v in r.away_bats.values()) > 0
 
 
+def check_per_batter_hits_and_bases_are_recorded_and_consistent():
+    """The offence tallies carry H/TB/HR per batter, and they cohere.
+
+    Total bases are hits plus extra bases, so per batter `tb >= h + 3*hr`
+    (a homer is one hit worth four bases) and `hr <= h`. A tally that
+    counted every hit as one base, or dropped the increment entirely,
+    fails one of these — verified by mutation.
+    """
+    hit = 0
+    for seed in range(20):
+        away = _side(starter=_pitcher(name="a", k_pct=0.05, bb_pct=0.10,
+                                      hr_pct=0.06, babip=0.40),
+                     pen=_pen(k_pct=0.05, bb_pct=0.10, hr_pct=0.06,
+                              babip=0.40))
+        home = _side(starter=_pitcher(name="h", k_pct=0.05, bb_pct=0.10,
+                                      hr_pct=0.06, babip=0.40),
+                     pen=_pen(k_pct=0.05, bb_pct=0.10, hr_pct=0.06,
+                              babip=0.40))
+        r = game.simulate_game(away, home, dict(LG), random.Random(seed))
+        for bats in (r.away_bats, r.home_bats):
+            for who, v in bats.items():
+                assert v["hr"] <= v["h"], (seed, who, v)
+                assert v["tb"] >= v["h"] + 3 * v["hr"], (seed, who, v)
+                assert v["tb"] <= 4 * v["h"], (seed, who, v)
+                hit += v["h"]
+    assert hit > 0, "no hits recorded across 20 high-babip games"
+
+
 def check_relief_innings_are_not_dropped_from_the_offence_tally():
     """The specific defect the fold exists for.
 

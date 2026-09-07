@@ -315,6 +315,9 @@ class Side:
     #: so no caller has to remember an end-of-game step.
     bat_scored: dict = field(default_factory=dict)
     bat_rbi: dict = field(default_factory=dict)
+    bat_h: dict = field(default_factory=dict)
+    bat_tb: dict = field(default_factory=dict)
+    bat_hr: dict = field(default_factory=dict)
     #: Runs allowed ON a home run, across every arm. Folded for the same
     #: reason the dicts are: `next_arm` drops the line it sits on.
     bat_runs_hr: int = 0
@@ -329,7 +332,10 @@ class Side:
 
     def _fold(self, ln: sim.StartResult) -> None:
         for src, dst in ((ln.scored_by, self.bat_scored),
-                         (ln.rbi_by, self.bat_rbi)):
+                         (ln.rbi_by, self.bat_rbi),
+                         (ln.h_by, self.bat_h),
+                         (ln.tb_by, self.bat_tb),
+                         (ln.hr_by, self.bat_hr)):
             for who, n in src.items():
                 dst[who] = dst.get(who, 0) + n
         self.bat_runs_hr += ln.runs_hr
@@ -347,7 +353,7 @@ class Side:
         return self.bat_pa + self.cur_line.batters
 
     def offense(self) -> dict:
-        """{batter name: {"r": runs, "rbi": runs driven in}}, whole game.
+        """{batter: {"r", "rbi", "h", "tb", "hr"}}, whole game.
 
         NON-MUTATING, and that is the point: it merges what has been folded
         with the arm currently on the mound, so it is correct whenever it is
@@ -357,10 +363,14 @@ class Side:
         out: dict = {}
         live = self.cur_line
         for tag, folded, now in (("r", self.bat_scored, live.scored_by),
-                                 ("rbi", self.bat_rbi, live.rbi_by)):
+                                 ("rbi", self.bat_rbi, live.rbi_by),
+                                 ("h", self.bat_h, live.h_by),
+                                 ("tb", self.bat_tb, live.tb_by),
+                                 ("hr", self.bat_hr, live.hr_by)):
             for src in (folded, now):
                 for who, n in src.items():
-                    out.setdefault(who, {"r": 0, "rbi": 0})[tag] += n
+                    out.setdefault(who, {"r": 0, "rbi": 0, "h": 0,
+                                         "tb": 0, "hr": 0})[tag] += n
         return out
 
     @property
@@ -746,7 +756,7 @@ class GameResult:
     #: Note the crossing: a Side's `runs` are runs ALLOWED, so the away
     #: TEAM's score is what the HOME side gave up.
     prefix_side: dict = field(default_factory=dict)
-    #: {batter name: {"r": runs, "rbi": runs driven in}} per TEAM, over the
+    #: {batter: {"r", "rbi", "h", "tb", "hr"}} per TEAM, over the
     #: whole game and every arm that pitched. CROSSED the same way `away`
     #: and `home` are — see the assignment in `simulate_game`.
     away_bats: dict = field(default_factory=dict)

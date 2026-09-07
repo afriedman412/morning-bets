@@ -3557,6 +3557,13 @@ class StartResult:
     #: be credited to whoever scored it or drove it in.
     scored_by: dict = field(default_factory=dict)
     rbi_by: dict = field(default_factory=dict)
+    #: Per-batter hits, total bases and homers, recorded beside the H/HR
+    #: counters the same way `scored_by`/`rbi_by` sit beside the run total.
+    #: Empty unless a batter was passed in, and pure bookkeeping — no draw
+    #: is consumed, so adding them left the RNG stream untouched.
+    h_by: dict = field(default_factory=dict)
+    tb_by: dict = field(default_factory=dict)
+    hr_by: dict = field(default_factory=dict)
     wp_pb: int = 0
     #: Runs that scored ON a home run, batter included. See `apply_pa`.
     runs_hr: int = 0
@@ -3728,6 +3735,12 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random,
             r.h += 1
             if o == HR:
                 r.hr += 1
+            if batter is not None:
+                r.h_by[batter] = r.h_by.get(batter, 0) + 1
+                r.tb_by[batter] = (r.tb_by.get(batter, 0)
+                                   + {B1: 1, B2: 2, B3: 3, HR: 4}[o])
+                if o == HR:
+                    r.hr_by[batter] = r.hr_by.get(batter, 0) + 1
         before = r.runs
         _credit(r, fr, _advance(bases, o, rng, outs_before, batter), batter)
         if o == HR:
