@@ -245,6 +245,10 @@ def check_the_measured_mechanisms_are_switched_on_by_default():
     # mechanisms behind what ships.
     assert sim.USE_PLATOON is True
     assert sim.USE_FIELD_STATE is True
+    # item E, shipped 2026-09-07: +3.1 sigma paired per-start K CRPS on
+    # the holdout; pooled battery rows sub-1-se by design (leash
+    # precedent — discrimination terms are invisible to pooled shape).
+    assert sim.USE_VELO_K is True
     assert sim.USE_PEN_STATE is True
     assert game.USE_ROLE_HBP is True
     assert sim.USE_GB_DP is True

@@ -2469,6 +2469,22 @@ START_K_SIGMA = 0.1625
 #: stops being paired.
 USE_START_SHARPNESS = True
 
+#: RECENT FASTBALL VELOCITY into the starter's K rate — item E, counted
+#: 2026-09-07: +0.0157 K% pts per mph of recent-vs-season drift, 5.3 sigma
+#: on 8,240 train-only rows, same sign four seasons, 10-sigma positive
+#: control. The term and its table live in `velo.py`; `game.build_side`
+#: applies it to the STARTER only. Deterministic per start, so it consumes
+#: no random variate and the A/B stays paired. This is the DIRECT half of
+#: the streak question — the K-drift interaction (a "dynamic" trust in
+#: streaks) was a NULL, sign-flipping by season; see the day-22 notes.
+#: SHIPPED 2026-09-07 ON THE USER'S CALL: the registered battery clause
+#: failed 2/4 folds with every move sub-1-se — a discrimination term is
+#: invisible to pooled shape rows by design (the leash precedent) — and
+#: the paired per-start K CRPS on the holdout, same draws both arms, came
+#: back +3.1 sigma better (1,288 starts). Nothing was rescaled after
+#: seeing a score.
+USE_VELO_K = True
+
 
 def sharpen(p: "PitcherRates", rng: random.Random,
             sigma: float | None = None) -> "PitcherRates":

@@ -9477,3 +9477,43 @@ channel (the suite's check names are the map). Note the k-stuff night
 ledger: 10.4% of NIGHT_SIGMA is already attributed to counted k-stuff —
 if velo ships, rerun night_variance and SHRINK the sigma per the
 maintenance rule.
+
+## DAY TWENTY-TWO, FOURTH SITTING — ITEM E SHIPS: `sim.USE_VELO_K`
+## (2026-09-07, Fable, shipped on the user's call)
+
+THE TERM: `k_pct += 0.0157 * (recent5_fb - season_fb - 0.0677)` for the
+STARTER only, applied in `game.build_side` before the nightly sharpness
+draw, deterministic (consumes no variate — streams stay paired), silent-
+neutral 0.0 on thin history (<5 season / <3 recent starts with velo) or a
+missing table. Table `src/context/velo_starts.json` (19,273 rows), rebuild
+`python -m src.context.velo --build`, coverage 86.2% on 2026 July-onward
+starts, kick spread sd 0.006 k_pct pts, mean +0.0001 (centred on the
+TRAIN mean by construction).
+
+THE A/B, registered before the wire existed: flag-off reproduced
+415f503b3101 bit-for-bit; flag-on -> a8d0e12817e5. The battery K clause
+FAILED 2/4 (2025/26 toward real, 2023/24 away) — recorded, not
+reinterpreted — with EVERY move sub-1-se and zero rows past 1 se
+anywhere: a discrimination term is invisible to pooled shape rows by
+design, the leash precedent exactly. The user asked the right question
+("why is this measured at the team level"), and the per-start instrument
+answered: PAIRED K CRPS on 1,288 holdout starts, same draws both arms,
++0.00864 ± 0.00275 — +3.1 SIGMA BETTER, 671 improved / 597 worsened.
+Nothing was rescaled after seeing a score.
+
+CHECKS: 3 new in `tests/test_velo.py` (leak-free lookup, thin-history
+neutrality, wiring on/off), each mutation-verified (<= for <, gate
+removed, wire deleted — each kills exactly its own check). Default
+pinned True in the wiring pin list. 463 checks.
+
+LEDGER NOTES, for whoever recounts these: START_K_SIGMA (0.1625) now
+nominally double-counts the velo share of nightly K dispersion — in
+quadrature the counted kick (sd ~2.8% multiplicative) would take it to
+~0.160, inside its own measurement error; change it only via its own
+recount. NIGHT_SIGMA untouched — it rides bb/hr/babip and the velo term
+is K-mean. The staleness surface: the velo table is built from the pbp
+cache and serves lookups strictly-before-date, so a stale table prices
+tonight off last week's radar — silent and mild, but add the rebuild to
+the cron pass when one exists.
+
+NEW BASELINE: `battery_a8d0e12817e5.json`, fingerprint a8d0e12817e5.

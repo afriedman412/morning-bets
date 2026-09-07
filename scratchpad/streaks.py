@@ -85,8 +85,8 @@ def build():
                 if dv is not None:
                     n_velo += 1
                 rows.append({
-                    "season": int(season), "x": k_r - k_p,
-                    "y": tgt["k"] / tgt["bf"] - k_p,
+                    "season": int(season), "date": tgt["d"],
+                    "x": k_r - k_p, "y": tgt["k"] / tgt["bf"] - k_p,
                     "bf_r": bf_r, "d_bb": bb_r - bb_p, "d_velo": dv})
     print(f"  {len(rows)} start-rows; velo coverage "
           f"{n_velo / len(rows):.1%}  <- read nothing before this is high")

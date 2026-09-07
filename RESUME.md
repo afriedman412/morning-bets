@@ -81,20 +81,20 @@ the sweep). OPEN QUESTION it leaves, if anyone re-opens: a PER-CHANNEL
 half-life (outs only, k flat), consistent with the leash finding. New
 item, new falsifier — not a rescue of this one.
 
-### E. THE VELOCITY TERM (found 2026-09-07, third sitting — WIRE CANDIDATE)
+### E. THE VELOCITY TERM — SHIPPED 2026-09-07 (`sim.USE_VELO_K`)
 
-The streak question resolved into something better: recent fastball velo
-vs the pitcher's own season mean predicts his next start's K% DIRECTLY —
-+1.63 ± 0.28 K% pts per mph, positive in all four seasons (2.0-4.0
-sigma each), 9,382 rows, positive control at 10 sigma
-(`scratchpad/streaks.py`, velo table `scratchpad/velo_build.py` — the
-pbp cache had per-pitch velocity all along and nobody had read it).
-With velo controlled the K-drift persistence falls 0.18 -> 0.04, so the
-real part of a "fade" largely IS lost velocity. Available pregame.
-BEFORE WIRING: refit on pre-holdout rows, register the k-shape/level
-falsifier, grep START_K_SIGMA and the leash for collisions, and if it
-ships rerun night_variance and SHRINK the sigma (k-stuff already
-carries 10.4% of the night ledger). Full protocol in the day-22 notes.
+Recent fastball velo vs the pitcher's own season mean, +0.0157 K% pts
+per mph (train-only, 5.3 sigma, four-season sign), applied to the
+starter in `build_side`, centred, silent-neutral on thin history.
+Battery K clause failed 2/4 with every move sub-1-se — pooled shape
+cannot see a discrimination term (leash precedent) — and the PAIRED
+per-start K CRPS on 1,288 holdout starts came back +3.1 sigma better;
+shipped on the user's call, nothing rescaled. NEW BASELINE
+`battery_a8d0e12817e5.json`, fingerprint a8d0e12817e5, 463 checks.
+Table rebuild: `python -m src.context.velo --build` (add to cron when
+one exists — a stale table prices tonight off last week's radar).
+OPEN: START_K_SIGMA nominally double-counts the velo share (~0.1625 ->
+~0.160 in quadrature, inside its own se) — recount it, don't tune it.
 
 ### THE CONTAMINATION CAVEAT THE BATTERY DOES NOT STATE
 

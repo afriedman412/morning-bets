@@ -43,7 +43,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field, replace
 
-from src.context import relief, removal, sim
+from src.context import relief, removal, sim, velo
 from src.context.sources import rates as rate_src
 
 #: How many relief arms a club is assumed to have available. Real bullpens
@@ -975,6 +975,18 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
     h = hook or sim.Hook()
     if apply_leash:
         h = sim.for_start(h, team, starter.name)
+    if sim.USE_VELO_K:
+        # THE RADAR GUN, before the nightly draw: recent fastball velocity
+        # vs his own season mean, counted at +0.0157 K% per mph (item E,
+        # `velo.py`). STARTER only — measured on starters, and the recorded
+        # error pattern is applying that to every arm. Deterministic per
+        # start: consumes no randomness, so the A/B stream stays paired,
+        # and it sits BEFORE `sharpen` so tonight's stuff draw is centred
+        # on the velocity-adjusted base rather than under it.
+        vk = velo.kick_for(starter.name, date)
+        if vk:
+            starter = replace(starter,
+                              k_pct=min(max(starter.k_pct + vk, 0.005), 0.65))
     if sim.USE_START_SHARPNESS:
         # TONIGHT'S STUFF, drawn ONCE for the start and for the STARTER
         # ONLY. Counted at sigma 0.1625 on 4,777 real starts; see
