@@ -14,6 +14,81 @@ it belongs in `NOTES-context-layer.md`.
     RESUME-ARCHIVE.md    Days six to sixteen, moved out of here. Not deleted,
                          but its figures predate several engine changes.
 
+## HANDOFF FOR THE NEXT (OPUS) SESSION — written 2026-09-06, late, to be
+## worked COLD. Read this block, then the sitting summaries below it.
+
+STATE: tree clean at `23eac40`, 460 checks (~25s), battery baseline
+`battery_90590e37150f.json`, engine fingerprint 90590e37150f. Four
+things shipped today: the plate umpire, the hook refit, the leash
+rebuild+guard, and the night term. Nothing is half-done.
+
+THE TWO ITEMS QUEUED, in order, each session-sized and countable:
+
+### A. Ball-in-play shared-night conditions (weather on babip/XBH)
+QUESTION: temperature and wind ship on the HR channel only. Does the
+same air move BALLS IN PLAY — babip and the XBH share? The elasticity
+measurement (`scratchpad/night_variance.py`) says this is where run
+variance lives: e_babip 1.19 vs e_hr 0.39, so a babip effect is worth
+3x an equal-sized HR effect to the run distribution.
+COUNT: the `scratchpad/temp_hr.py` pattern verbatim — within-venue
+indirect standardisation, per-season multipliers pooled after, era
+gate, pre-holdout rows only (`from src.context.holdout import
+train_only`). Channels: babip (denominator BALLS IN PLAY, not PA —
+state_table's docstring carries the warning) and xbh-share-of-hits.
+Covariates: temp bins as shipped, wind carry bins as shipped.
+POWER, state before running: babip se over ~5k games/bin is ~0.004, so
+a 1% effect is ~2.5 se — well powered. XBH share se ~0.008/bin.
+TRAPS: (1) park's `bip` channel ALREADY carries the venue's ball-in-play
+level — count within venue or it double-counts, same as wind did.
+(2) A survivor SHRINKS `NIGHT_SIGMA` — rerun night_variance, update the
+sigma and its docstring arithmetic in the same commit. That rule is
+load-bearing: the night term must only ever get smaller.
+WIRE (only if the gate passes): a `bip_air` per-game value riding the
+`hr_air` rail (`resolve` takes it beside `k_game`/`bb_game`; grep
+`ump_kbb` for the six call sites — the caller-presence check in
+test_game will catch any you miss, extend it to the new argument).
+FALSIFIER, register verbatim before the A/B: flag-off reproduces
+90590e37150f exactly; flag-on moves babip/traffic rows toward real in
+>= 3 of 4 folds; run LEVEL inside 1 se (the night term's centre keeps
+the mean invariant — if level moves, the new term is adding, not
+redistributing); outs rows within 1 se.
+
+### B. The cruise state (the six-inning cell, worst in the battery)
+QUESTION: clean six-inning starts are real 0.230 vs model 0.198 and the
+clean hook refit did NOT move it — structural, not a coefficient. The
+recorded diagnosis: one smooth logistic cannot be bimodal; managers
+either cruise a starter or knock him out. Does the boundary hazard,
+conditioned on CLEAN-SO-FAR (zero runs allowed), have a visibly
+different shape than the pooled curve?
+COUNT ONLY THIS SESSION: split the 98,694 cached boundary decisions
+(`/tmp/boundary_rows.json`, dated; rebuild with
+`scratchpad/fit_boundary.py --rebuild` if missing) by runs-so-far == 0
+vs > 0, print hazard-by-pitch and hazard-by-inning for each, per
+season, train rows only. If the clean curve is flatter late (the cruise
+signature), fit it as its own branch the way late_mid_* got its own —
+but WIRING A SECOND BRANCH IS A SHIP DECISION RESERVED FOR THE USER OR
+A FABLE SESSION. Deliver the count and the proposed falsifier, stop.
+
+STANDING RULES THE SESSION MUST NOT RELEARN (each cost something today):
+  * Before loading ANY channel with a new effect, grep for an existing
+    counted mechanism on that channel (`START_K_SIGMA` nearly got
+    double-counted by the night term — the suite's check names are the
+    map).
+  * `NIGHT_SIGMA` changes ONLY via a night_variance rerun. Never tune
+    it to a battery row — its centre term means level rows are a PROOF,
+    not a target.
+  * Any Hook coefficient change turns the suite red until
+    `python -m src.context.leash --build --before 2026-07-01` reruns —
+    that is the forcing function working, not a broken test.
+  * A/B discipline: flag-off must reproduce the baseline fingerprint
+    EXACTLY before the flag-on run means anything. Register the
+    falsifier in writing before either run.
+  * Mutations: `scratchpad/mutate.py` or cp backups. NEVER
+    `git checkout` a file carrying uncommitted work.
+  * A failed registered clause is not yours to reinterpret (rule 13).
+    Narrow failures with a named mechanism go to the user — that is how
+    both wind and the night term shipped.
+
 ## WHERE THINGS STAND (2026-09-06, night — Fable session)
 
 **THE NIGHT TERM SHIPS (`sim.USE_NIGHT_SIGMA`, fourth sitting) — the
