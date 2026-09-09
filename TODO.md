@@ -448,7 +448,9 @@ out of it without touching the engine. `scratchpad/sims/` and
 **THEN SCORE IT, BECAUSE IT HAS NEVER BEEN SCORED.** BETTING.md keeps ML
 and run line OFF the board for exactly this reason. Replay paired
 historical games (`calibrate.replay`, `cal.paired_cases` builds a season's
-list in ~9 seconds, four seasons cached), emit P(home wins), and run a
+list in ~9 seconds, four seasons cached — **PASS `season=` EXPLICITLY or it
+infers the current one and returns nothing**, a trap that has already cost
+two turns), emit P(home wins), and run a
 Brier decomposition against who actually won plus a calibration table by
 bucket. That is the whole item. DO NOT start repairing the margin if it
 scores badly — stop and write the null.

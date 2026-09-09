@@ -63,11 +63,31 @@ handoff is a more expensive way to draw from the bullpen distribution we
 already sample — which is the exact argument `deploy.py` opens with, and it
 is why that module measured role stability BEFORE anything was built.
 
-TEST. From the play-by-play cache: for every start of <=6 outs, who pitched
-next and for how long? 531 such starts since 2025-01-01, ~1,143 over four
-seasons. Report, per club: the share of the time the follower is the club's
-modal bulk arm, and the split-half reliability of "is X the bulk arm for
-this club" across a season.
+TEST. **IT IS A SQL QUERY, NOT A PLAY-BY-PLAY WALK.** `mlb_stints` in
+`context.db` already holds 87,855 rows — one per pitcher per game with
+`appearance_order`, `entry_inning`, `entry_outs`, `entry_margin`, `batters`
+and `outs_recorded`. Join order 0 to order 1 on (game_id, team) and the
+whole question falls out. Do not write an extractor.
+
+**`appearance_order` IS 0-INDEXED AND THIS IS A LANDMINE.** Order 0 is the
+STARTER (mean 15.21 outs), order 1 the first reliever (3.96). Reading it as
+1-indexed silently measures "which reliever follows the first reliever",
+returns 17,106 rows instead of ~1,200, and produces a modal-follower share
+of 10.7% against a ~17% six-arm coin flip — i.e. **a clean-looking FALSE
+NULL that kills this item.** That mistake was made and caught on
+2026-09-09; sanity-check the row count against the ~1,143 short starts the
+sizing table above predicts before believing any share.
+
+Report, per club: the share of the time the follower is the club's modal
+bulk arm, and the split-half reliability of "is X the bulk arm for this
+club" across a season.
+
+PREVIEW, from the corrected query on 2026-09-09 — **not the answer, but
+enough to say the item is not obviously dead**: 1,220 short starts have an
+identified follower, the starter averages 4.09 outs and the follower
+averages **8.27** against 3.96 for a normal first reliever. So the second
+man IS being used as a bulk arm rather than as an ordinary reliever, which
+is the premise. What remains untested is whether WHICH man is predictable.
 
 PRE-REGISTERED BAR: the follower must be predictable at better than
 split-half r +0.40 — below `deploy.py`'s weakest measured role (+0.55) is
