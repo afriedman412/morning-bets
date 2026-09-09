@@ -152,6 +152,36 @@ def _mids(stat: str, d: str, wanted: set) -> dict:
     return out
 
 
+def _game_mids(d: str, wanted: set) -> dict:
+    """{(game, team, line, kind): mid} for totals, team totals and F5.
+
+    These series were listed as unmapped for weeks on the grounds that
+    their subtitles do not fit the player-prop shape. They do not need to:
+    every game-level market carries `floor_strike` and `strike_type`, so
+    the line and the side come straight off the payload. KXMLBF5TOTAL is
+    the first-five total, which is the market this model has actually
+    beaten a settled price on, and it was the last one still missing.
+    """
+    out = {}
+    for kind in ("total", "team", "f5"):
+        try:
+            ms = kalshi.game_markets(kind, d)
+        except Exception as e:
+            print(f"  (kalshi {kind} unavailable: {type(e).__name__})")
+            continue
+        for m in ms:
+            key = (m["game"], m["team"], m["line"], kind)
+            if key not in wanted:
+                continue
+            bid, ask = kalshi.book(m["ticker"])
+            if bid is None or ask is None:
+                continue
+            if (ask - bid) > kalshi.MAX_SPREAD:
+                continue
+            out[key] = (bid + ask) / 2
+    return out
+
+
 def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
     lg = sim.league()
     pr = rate_src.pitcher_rates(lg, before=d)  # never a start's own day
@@ -181,10 +211,11 @@ def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
     mids = {stat: _mids(stat, d, {(nm, ln) for nm in names for ln in lines})
             for stat, lines in (("k", K_LINES), ("outs", OUTS_LINES))}
 
-    blocks, declined = [], []
+    blocks, declined, not_quoted = [], [], []
     for g, r in zip(games, out):
         a, h = g["away"], g["home"]
         tag = f"{a['abbr']} @ {h['abbr']}"
+        code = f"{a['abbr']}{h['abbr']}"
         if r["why"]:
             declined.append((tag, f"{a['starter']} / {h['starter']}",
                              r["why"]))
@@ -194,19 +225,40 @@ def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
                            "away"), (f"{h['abbr']} total", "home")):
             lines = TOTAL_LINES if key == "total" else TEAM_LINES
             keep = 3 if key == "total" else 2
+            team = None if key == "total" else g[key]["abbr"]
             for ln, p in _rungs(r[key], lines, band, keep=keep):
-                b["rows"].append(("tot", label, ln, p, None, ""))
+                b["rows"].append(("tot", label, ln, p,
+                                  (code, team, ln, "team" if team
+                                   else "total"), ""))
         for ln, p in _rungs(r["f5"], F5_LINES, band):
-            b["rows"].append(("tot", "F5 total", ln, p, None, ""))
+            b["rows"].append(("tot", "F5 total", ln, p,
+                              (code, None, ln, "f5"), ""))
         for s in ("away", "home"):
             name = g[s]["starter"]
             pa = (pr.get(name) or {}).get("pa")
+            # THE ARM GATE MARKS, IT DOES NOT DECLINE. `slate.priceable`
+            # answers "is this a starter you can hang a normal line on" —
+            # openers, swingmen and debuts fail it, and the model prices
+            # them confidently anyway: Lake Bachar on 2026-09-09 averages
+            # 6.9 outs a start and came out at 61.7% to clear 4.5 K
+            # against a market at 7.5%.
+            #
+            # Operator decision 2026-09-09: SHOW THE ROW, FLAG THE ARM.
+            # Hiding a rung hides the disagreement too, and the THIN column
+            # already established that the useful move is to travel the
+            # caveat with the number rather than suppress it. The reason
+            # ships in brackets so a reader downstream can lift it whole.
+            ok, why = slate.priceable(name, pa or 0, d)
+            if not ok:
+                not_quoted.append((tag, name, why))
             confirmed = bool((h if s == "away" else a).get("lineup"))
             note = "" if confirmed else "proj lineup"
             # THIN: under 60% of the priced rate is his own record; a gap
             # here can be OUR SHRINKAGE rather than his talent (BETTING.md).
             if pa and slate.shrink_weight(pa) < slate.THIN_WEIGHT:
                 note = (note + "  " if note else "") + "THIN"
+            if not ok:
+                note = (note + "  " if note else "") + f"[{why}]"
             for stat, lines in (("k", K_LINES), ("outs", OUTS_LINES)):
                 vals = r[stat][s]
                 rungs = _rungs(vals, lines, band)
@@ -234,8 +286,18 @@ def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
                          if xtra or note else ""))
         blocks.append(b)
 
+    # Game-level mids last: collect every key the board actually printed so
+    # only those orderbooks are fetched, rather than the whole ladder.
+    wanted = {row[4] for b in blocks for row in b["rows"]
+              if row[0] == "tot" and row[4] is not None}
+    gm = _game_mids(d, wanted)
+    for b in blocks:
+        b["rows"] = [row[:4] + (gm.get(row[4]) if row[0] == "tot"
+                                else row[4],) + row[5:]
+                     for row in b["rows"]]
+
     return {"date": d, "n": n, "band": band, "blocks": blocks,
-            "declined": declined}
+            "declined": declined, "not_quoted": not_quoted}
 
 
 def print_board(payload):
@@ -255,6 +317,11 @@ def print_board(payload):
         for st_, who, ln, p, mid, note in b["rows"]:
             lbl = f"{who} {stat_label[st_]} {ln:g}".replace("  ", " ")
             print(_fmt(lbl, p, mid, note))
+        print()
+    if payload.get("not_quoted"):
+        print("ARMS FLAGGED — priced, but not a normal starter's line:")
+        for tag, nm, why in payload["not_quoted"]:
+            print(f"  {tag:<12}{nm:<24}{why}")
         print()
     if payload["declined"]:
         print("DECLINED — never filled with a league-average arm:")

@@ -14,6 +14,15 @@ context.db-shm
 morning_bets.db-wal
 morning_bets.db-shm
 bets/*.json
+# EXCEPT the printed boards. A `_board.json` is the frozen record of what we
+# said AND what Kalshi's mid was at print time, and the mid is unrecoverable
+# once the market moves — it is the evidence TODO item 14's falsifier is
+# scored against. ~85 KB a night.
+!bets/*_board.json
+# The rendered page is ~175 KB a night and rebuilds from that JSON in one
+# second, so it is a render and not a record. Same argument as
+# `scratchpad/board_*.html` below.
+bets/*_board.html
 bets/*_graded.md
 sent.json
 .cron-config

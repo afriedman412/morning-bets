@@ -201,6 +201,47 @@ def book(ticker: str) -> tuple[float | None, float | None]:
     return yes_bid, yes_ask
 
 
+#: Game-level series. Unlike the player props these need NO subtitle
+#: parsing — every market carries `floor_strike` (the line) and
+#: `strike_type='greater'` (YES is the over), and the ticker carries the
+#: matchup. The module comment used to say wiring these up "means a second
+#: parser"; it does not, it means reading two fields that were already in
+#: the payload. KXMLBF5TOTAL is the first-five total — the one market this
+#: model has ever beaten a settled price on.
+GAME_SERIES = {
+    "total": "KXMLBTOTAL",          # full-game total
+    "team": "KXMLBTEAMTOTAL",       # one club's runs
+    "f5": "KXMLBF5TOTAL",           # first five innings
+}
+
+#: '26SEP082140TEXSEA' -> 'TEXSEA'. Date is 7 chars, start time 4.
+_GAME_PREFIX = re.compile(r"^\d{2}[A-Z]{3}\d{2}\d{4}")
+
+
+def game_markets(kind: str, date_str: str) -> list[dict]:
+    """Open markets for a game-level series on one date.
+
+    Each row is {game, team, line, ticker}. `team` is None for a full-game
+    or F5 total and the club code for a team total; both use the same club
+    abbreviations this repo already uses, verified across all 30 on
+    2026-09-08, so no translation table is needed.
+    """
+    out = []
+    for m in markets(GAME_SERIES[kind]):
+        tk = m["ticker"]
+        if ticker_date(tk) != date_str:
+            continue
+        line = m.get("floor_strike")
+        if line is None:
+            continue
+        parts = tk.split("-")
+        game = _GAME_PREFIX.sub("", parts[1])
+        team = parts[-1].rstrip("0123456789") if kind == "team" else None
+        out.append({"game": game, "team": team,
+                    "line": float(line), "ticker": tk})
+    return out
+
+
 _MONTHS = {m: i for i, m in enumerate(
     ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT",
      "NOV", "DEC"], 1)}

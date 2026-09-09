@@ -53,6 +53,42 @@ flat) — pre-registered day 22, the Cease board miss (2026-09-07) is its
 poster case, wiring exists switched off in `pitcher_rates`. And the
 stopgap: board flag for sim-vs-last-10 outs divergence, display only.
 
+**THREE MORE POSTER CASES, 2026-09-09, and they point at STALENESS
+specifically rather than at the leash being wrong in general.** Each arm's
+shipped `sim.leash` offset against what he actually did in 2026:
+
+  * Yoshinobu Yamamoto, offset -1.16 (the largest magnitude on the board).
+    Career 17.60 outs a start, 2026 **19.68**. We price over 18.5 outs at
+    40.5% against his own 2026 rate of 52.0% (13/25, se 10.0).
+  * Cristopher Sanchez, offset -0.89. Outs by season 15.9 -> 16.9 -> 18.8
+    -> 18.1. Our K line implies 21.9 batters faced against the market's
+    24.0 and his own ~25; the outs market confirms it independently
+    (our over 18.5 at 36.0% against Kalshi 47.4%).
+  * Rhett Lowder, offset -0.16. Over 14.5 outs: his 2026 76.2% (16/21),
+    ours 66.1%.
+
+In all three the offset looks fitted on a SHORTER version of the pitcher
+than the one taking the ball, which is exactly what a half-life fixes and
+a static fit cannot.
+
+**BUT DO NOT PRE-JUDGE THE DIRECTION — the counter-evidence is real and
+sits in the same session.** Where the leash table has NO entry the error
+runs the other way: Robert Stock (offset 0.0, 13.0 outs a start) priced at
+65.4% over 14.5 against his own 33.3%, and Lake Bachar (offset 0.0, 6.9
+outs a start) at 61.7% to clear 4.5 K against a market at 7.5%. And Zebby
+Matthews has an offset (-0.74) and is STILL too long, 64.5% over 15.5
+against 42.2% on 45 starts. So "stale offsets pull too short, missing
+offsets run too long" is a HYPOTHESIS with one clear exception, not a
+finding.
+
+THE MEASUREMENT TO RUN FIRST, and it is cheap because both halves already
+exist: for every start in the holdout, compare the SIMULATED outs
+distribution to that pitcher's own trailing record, bucketed by (has an
+offset / no offset) and by (offset magnitude). State the power before the
+result. If the residual is flat in offset magnitude the staleness story is
+dead and the board flag is all that is warranted; if it slopes, the
+half-life has its falsifier ready-made.
+
 ## WORKING ONE ITEM PER SESSION — read this first
 
 Items are written to be picked up COLD. If one is not self-contained enough
@@ -266,10 +302,63 @@ HBP reliability +0.711, sd 0.00675, p10 0.0043 against p90 0.0200, ~0.035
 runs pitcher-only and near 0.05 with the batter side. Wild pitch +0.657 and
 ~0.020 runs.
 
-**14. Attribute a disagreement on the board.**
+**14. Attribute a disagreement on the board — RATE or HOOK.**
 The biggest edges arrive with no cause attached. On 2026-08-27 six of the top
 ten rows were ONE lineup effect and it took a manual investigation to see it.
 Attribute each gap to pitcher / lineup / park, and group correlated markets.
+
+THE CONCRETE VERSION, scoped 2026-09-09 after two by-hand spot checks cost a
+round of analysis each. A strikeout line is `batters faced x k_pct` — one
+equation, two unknowns — so an edge of a given size can be the model
+disagreeing about the PITCHER or about the MANAGER, and the printed number
+looks identical either way. Those two halves have opposite track records:
+the rate is measured accurate to a tenth through K 4.5-7.5, the hook is a
+manager decision reproduced only in aggregate.
+
+**THE SPLIT NEEDS TWO MARKETS ON THE SAME START AND THAT IS THE WHOLE
+TRICK.** The K market gives `BF x rate`; the OUTS market pins `BF`
+independently; rate falls out. From a K line alone the two are
+inseparable — do not attempt it, and do not tag a rung whose outs book is
+missing (several arms on the 2026-09-09 board had none).
+
+ESTABLISHED, both worked by hand on the 2026-09-09 board:
+  * Cristopher Sanchez u6.5 K. Our k_pct 26.4% against his own raw 27.2% —
+    essentially exact. The whole 0.54-K gap is exposure: our line implies
+    21.9 batters faced, the market's 24.0. The outs market confirms it
+    rather than assuming it — our over 18.5 at 36.0% against Kalshi 47.4%,
+    his 2026 average 18.1 outs. A HOOK gap with no strikeout opinion in it.
+    His leash offset (-0.89) looks fitted on a pitcher who no longer
+    exists: outs per start ran 15.9 -> 16.9 -> 18.8 -> 18.1 by season.
+  * Shane Baz u4.5 K, the contrast. Rate-driven, and his own under-rate
+    trends toward it: 28.6% -> 35.5% -> 46.4% across 2024/25/26.
+
+GENERALISES to earned runs, walks allowed and hits allowed — all the same
+`BF x rate` shape with outs as the shared anchor. `kalshi.SERIES_BY_STAT`
+ALREADY maps KXMLBERA / KXMLBWA / KXMLBHA and the board prices none of
+them. DOES NOT GENERALISE to game, team or F5 totals: no rate-times-
+exposure structure and no per-start history for a matchup that has never
+happened. Totals get aggregate calibration instead (fair lines averaged
+8.41 on 2026-09-08 against the league's ~8.5).
+
+THE SECOND CHECK, and it is weaker — the pitcher's own empirical clear rate
+for that exact line, by season, off `mlb_pitching`. A SANITY CHECK, NOT A
+VERDICT: n is about 30 starts a season so se is ~9 points, and it is
+UNCONDITIONAL while our number is conditional on tonight's nine. The model
+is SUPPOSED to disagree with a season average. The decomposition is the
+more robust half precisely because the leash barely moves with opponent.
+
+NOT ESTABLISHED, and this is the item: that a hook-tagged gap actually
+scores worse than a rate-tagged one. The tag is a plausible story until it
+is graded, and a plausible story that reorders a board is exactly the kind
+of thing this project has been wrong about before.
+
+FALSIFIER, pre-registered: tag every quoted rung, then score our
+probability against the Kalshi mid on OUTCOMES, split by tag. If
+hook-tagged rungs do not show worse resolution than rate-tagged ones, the
+tag is decoration and comes off the board. This needs stored boards
+carrying the mids as they were at print time; `bets/2026_09_08_board.json`
+and `bets/2026_09_09_board.json` are the first two and nothing grades them
+yet.
 
 **16. Propagate projected-lineup uncertainty.**
 Two wrong names out of nine moved a headline edge by half. Flag any edge
