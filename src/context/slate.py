@@ -55,8 +55,11 @@ MIN_STARTS = 3
 #: Batters faced before his rates are his rather than the league's.
 MIN_BF = 80
 #: Average outs per start below which he is an opener or a bulk arm, not
-#: someone a book offers a normal starter line on.
-MIN_AVG_OUTS = 11.0
+#: someone a book offers a normal starter line on. READ FROM `game` — it is
+#: the same cell `game.opener_record` re-models with the arm's own exit
+#: distribution, and two copies of one constant is how the board flags one
+#: population while the engine re-models a different one.
+MIN_AVG_OUTS = game.OPENER_AVG_OUTS
 #: Share of appearances that must be starts. A swingman's rates describe
 #: neither role.
 MIN_START_SHARE = 0.5

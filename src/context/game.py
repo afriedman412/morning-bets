@@ -75,6 +75,29 @@ USE_MEASURED_RELIEF_HOOK = True
 #: pooled tables. Only meaningful with `USE_MEASURED_RELIEF_LENGTH` on.
 USE_RELIEF_INTENT = True
 
+#: A flagged short-yardage starter gets HIS OWN exit distribution — a
+#: bootstrap from his own recorded outs per start — instead of the hook
+#: (TODO 15, PLAN-opener-bullpen.md). The hook plus leash cannot reach him:
+#: `OFFSET_CLAMP` bounds the per-pitcher adjustment at about +/-3.3 outs
+#: and an opener averaging 3.4 outs needs ~-12, so the model handed every
+#: opener a generic starter's ~16 outs and the relief intent tables fired
+#: on fictional late entry states in exactly the games they were built
+#: for. The gate is the same cell `slate.priceable` declines to quote
+#: (average under `OPENER_AVG_OUTS` outs a start), so the arm the board
+#: flags and the arm the engine re-models are the same arm.
+USE_OPENER_EXIT = True
+
+#: The short-yardage cell: mean outs a start below this marks an arm whose
+#: length the hook cannot represent. THE SAME NUMBER as
+#: `slate.MIN_AVG_OUTS`, which reads it from here — two copies of this
+#: constant is how the board flags one population and the engine re-models
+#: a different one.
+OPENER_AVG_OUTS = 11.0
+#: Starts on record before the bootstrap is trusted at all. Below this the
+#: arm keeps the generic hook — a one-start record is a coin, not a
+#: distribution.
+OPENER_MIN_STARTS = 2
+
 #: OFF. The learned removal model — a per-decision logistic on 63,531 real
 #: hooks, AUC 0.912 against `sim.Hook`'s 0.876 — replaces BOTH of the hook's
 #: branches with one roll per plate appearance.
@@ -1083,11 +1106,90 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
     # draw lands on the rates the game will actually use, and here rather
     # than in `sim` because this is the only place that knows which arm
     # is the starter and holds the game's own rng.
-    return Side(starter=sim.night(starter, rng), pen=arms, lineup=lineup,
+    starter = sim.night(starter, rng)
+    # DRAW ORDER IS LOAD-BEARING: `night` then the early-exit roll, exactly
+    # as the old constructor evaluated them, so an engine without a flagged
+    # arm consumes the identical stream.
+    fx = _draw_early_exit(h, rng)
+    rec = opener_record(starter.name, date)
+    if rec is not None:
+        # THE ROLL IS DRAWN WHETHER OR NOT THE FLAG USES IT — the same rule
+        # as the mid-inning relief hook: a switch that consumes a different
+        # number of random numbers is not an A/B. The bootstrap from his own
+        # starts IS the exit distribution — disasters, quick hooks and the
+        # odd long day all at their own frequency — and `_forced_out` /
+        # `_hook_may_pull` already keep the hook off a start that carries a
+        # drawn exit.
+        own = rec[rng.randrange(len(rec))]
+        if USE_OPENER_EXIT:
+            fx = own
+    return Side(starter=starter, pen=arms, lineup=lineup,
                 hook=h,
                 pen_state=sim.pen_state(team, date),
                 layoff_gap=sim.layoff_gap(starter.name, date),
-                forced_exit_outs=_draw_early_exit(h, rng))
+                forced_exit_outs=fx)
+
+
+_OPENER_STARTS: dict | None = None
+
+
+def _opener_starts(conn=None) -> dict:
+    """{pitcher_name: sorted [(date, outs)]} for every recorded start.
+
+    Cached in-process like `sim._start_dates`, and keyed by name for the
+    same recorded reason: `mlb_pitching` carries no pitcher id, and both
+    sides of every lookup are populated from the same statsapi payload.
+    """
+    global _OPENER_STARTS
+    if _OPENER_STARTS is not None:
+        return _OPENER_STARTS
+    from src import db
+    q = """
+      select p.player_name nm, g.date d, p.outs_recorded o
+      from mlb_pitching p join games g on g.game_id = p.game_id
+      where g.sport = 'mlb' and g.status = 'Final' and p.is_starter = 1
+    """
+
+    def _run(c):
+        out: dict = {}
+        for r in c.execute(q):
+            out.setdefault(r["nm"], []).append((r["d"], r["o"] or 0))
+        return out
+    if conn is not None:
+        out = _run(conn)
+    else:
+        with db.connect() as c:
+            out = _run(c)
+    _OPENER_STARTS = {k: sorted(v) for k, v in out.items()}
+    return _OPENER_STARTS
+
+
+def reload_opener_starts() -> None:
+    """Drop the cached start index so a backfill is picked up in-process."""
+    global _OPENER_STARTS
+    _OPENER_STARTS = None
+
+
+def opener_record(name: str | None, date: str | None) -> list[int] | None:
+    """His own outs per start before `date` — for a short-yardage arm only.
+
+    None for an ordinary starter, an unknown name, or a missing date, and
+    None switches the mechanism off entirely — the same missing-group rule
+    as `pen_state`, `leash` and `layoff_gap`. The evidence is bounded by
+    the GAME's date, which is what the live path knows the morning of and
+    contains nothing from the game being simulated.
+    """
+    if not name or not date:
+        return None
+    rows = _opener_starts().get(name)
+    if not rows:
+        return None
+    outs = [o for d, o in rows if d < date]
+    if len(outs) < OPENER_MIN_STARTS:
+        return None
+    if sum(outs) / len(outs) >= OPENER_AVG_OUTS:
+        return None
+    return outs
 
 
 def _draw_early_exit(h: sim.Hook, rng: random.Random) -> int | None:

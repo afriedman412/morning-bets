@@ -9865,3 +9865,94 @@ intent cells (76% continuation, the bulk-arm shape, counted and waiting)
 fire on truthful states, and the falsifier above should be rerun and is
 expected to flip. Until then the board's gate flag travels on every rung
 of those games (the stopgap), which is the honest interim state.
+
+## 2026-09-09 (later) — The opener exit ships: his own record, not the hook (TODO 15 closed)
+
+The sharp remaining job from this morning's entry, run to completion in one
+sitting. `game.USE_OPENER_EXIT`, ON: a starter averaging under 11 outs a
+start (`OPENER_AVG_OUTS`, >= 2 starts, evidence bounded by the GAME's date)
+draws his exit by BOOTSTRAP from his own outs record and rides the existing
+`forced_exit_outs` machinery, which already keeps both hook curves off a
+drawn exit. No loss function anywhere — the record IS the distribution,
+disasters and long days at their own frequency. `slate.MIN_AVG_OUTS` now
+reads `game.OPENER_AVG_OUTS`, so the arm the board declines to quote and
+the arm the engine re-models are one population by construction.
+
+QUESTION: does giving a flagged short-yardage starter his own exit
+distribution improve the simulation of the games he starts, against what
+actually happened? HYPOTHESIS: the sim hands him ~16 outs and cannot do
+otherwise (`OFFSET_CLAMP` reaches ~+/-3.3, he needs ~-12); with truthful
+exits the intent tables fire on real states and the morning entry's failed
+falsifier should flip.
+
+TEST, three instruments. POWER stated first: the affected population is
+124 paired games over four folds (34/52/20/18), the recorded intent
+failure was +0.0152 CRPS at se 0.0090 on the same harness, and anything
+much under one se is unresolvable there. So beside the run-level harness
+(`opener_score.py`, now taking the flag to A/B as an argument) the direct
+instrument is `scratchpad/opener_outs.py` — the flagged arm's simulated
+outs against his real line, 12,500 paired draws, which is the high-n ratio
+where the CRPS is the low-n aggregate.
+
+EVALUATE:
+
+  * THE QUANTITY THE MECHANISM TARGETS, and it is decisive. Flagged
+    starters' real outs in these games: 10.91 (sd 5.69, se 0.51, 125
+    starts). Flag off the sim hands them 14.31 (+3.40, 6.7 sigma, sd 4.19
+    — a distribution that cannot produce their real short half). Flag on:
+    9.71 (-1.20, 2.4 sigma) with the SD essentially exact (5.61 against
+    5.69). Share of starts at <= 9 outs: real 0.424, off 0.137, on 0.536
+    — the error falls from -0.287 to +0.112.
+  * THE RUN LEVEL MOVES TOWARD REALITY. Affected-game totals: real 8.49,
+    off 9.01, on 8.95 (se 0.39). The morning entry's line that the sim
+    "under-scores" this population came off the OLD engine and does not
+    reproduce — it OVER-scores these games, and the -0.032/side mean move
+    the A/B showed is in the correct direction.
+  * THE RECORDED INTENT FAILURE DISSOLVES. Rerun with truthful exits,
+    `USE_RELIEF_INTENT` on-minus-off in the opener population goes from
+    +0.0152 (se 0.0090, 4/4 folds adverse) to +0.0025 (se 0.0107, 0.2
+    sigma, folds mixed). The prediction was "flip"; the result is
+    "neutralise" — the tables were never wrong, the states they fired on
+    were, and with the states fixed the harness can no longer resolve the
+    conditioning at this n. That is the expected result for a mechanism
+    whose strongest cells are a minority of relief entries.
+  * THE OPENER EXIT'S OWN RUN-LEVEL A/B IS UNRESOLVABLE, said before
+    running: full-game CRPS +0.0019 (se 0.0164, 0.1 sigma). F5 CRPS
+    +0.0137 (se 0.0130, 1.1 sigma) is the one adverse-direction reading,
+    unresolved at this n; recorded here so it is not re-derived, not a
+    reason to hold a counted structural fix (leverage-floor rule).
+  * THE BATTERY DIFF IS EXPLAINED ARITHMETIC, per rule 15 (baseline
+    08cb3b6fe285 -> 640abdb42799). Every moved row is a starter-outs
+    shape row: 2023 outs_mean gap -0.35 -> -0.59, 2024 -0.26 -> -0.43,
+    and flagged arms are ~1.7% of starts x ~12 outs of removed overshoot
+    = 0.2, which is the whole move. The old aggregate was two wrongs
+    cancelling — openers run 12 outs too long were MASKING ~0.2 outs of
+    pre-existing under-length on ordinary starters, and the same masking
+    padded outs_over_12.5/14.5 with starts real openers never produce.
+    The unmasked under-length belongs to item 7a (the boundary backbone),
+    which now has a truer baseline to work against.
+
+CONCLUSION. ESTABLISHED: the flagged arm's outs distribution is now right
+to 2.4 sigma on the mean and exact on the spread, from 6.7 sigma and a
+shape that could not produce his real starts; the run level moves toward
+actuals; the intent failure was downstream of the exit, as claimed.
+INFERRED: the residual -1.20 on the outs mean and the +0.11 overshoot on
+the short-start share are RECORD STALENESS inside the flagged population —
+arms whose role drifted after the cut (opener promoted to rotation) carry
+their short record into the bootstrap. That is the same staleness/
+compression family as the leash poster cases in TODO's pitch-history
+block, measured here in the opposite direction.
+
+NEXT STEPS, recorded not started: (1) the bulk-arm rates path — step two's
+counted role diff (K +1.0, HR -0.6, BABIP -1.1 interleaved) still waits
+unwired, and the follower the engine now hands the ball to in inning 1-2
+is drawn from the pen at his blended rates; (2) if the flagged-population
+bootstrap ever gets refined, weight recent starts, do not fit a curve.
+
+Wiring: two new checks (`a_flagged_opener_exits_on_his_own_record`,
+`the_opener_draw_keeps_the_ab_streams_paired`), each mutation-verified —
+severed wiring, a draw moved inside the flag, and a broken gate each kill
+exactly their own check. The A/B stream-pairing rule is enforced by a
+check for the first time rather than by comment. Suite 476 -> 478.
+Fingerprint 589af9ce -> 2fb70d57, explained: flagged arms consume the
+bootstrap draw and take their own exits.

@@ -382,68 +382,44 @@ carrying the mids as they were at print time; `bets/2026_09_08_board.json`
 and `bets/2026_09_09_board.json` are the first two and nothing grades them
 yet.
 
-**15. MODEL THE OPENER INSTEAD OF DECLINING TO BELIEVE HIM.**
-**RUN 2026-09-09 — see the notes entry of that date. Steps zero, two,
-three and four are DONE: the named bulk arm measured a positive-controlled
-null (do not model WHO), but the same count established INTENT — the
-follower of a planned opener goes 9.50 outs against a first reliever's
-3.96 — and `USE_RELIEF_INTENT` now conditions the relief continuation
-hazard on (entry bucket, entry_outs, entry margin). The role-rate diff is
-counted (interleaved swingmen: K +1.0, HR -0.6, BABIP -1.1, all
-relief-better; per-pitcher does not repeat, pooled or nothing) and WAITS
-UNWIRED for a bulk-arm rates path. Closers parked by the leverage screen.
-THE FALSIFIER RAN AND **FAILED IN THE OPENER POPULATION** (4/4 folds
-adverse, +0.015 CRPS, ~2 sigma — notes 2026-09-09): the intent hazard is
-correct league-wide (battery clean on the fixed harness) but operates on
-fictional entry states in opener games because THE EXIT IS STILL WRONG —
-the sim hands an opener ~16 outs. THE SHARP REMAINING JOB: a flagged
-short-yardage starter gets his OWN exit distribution (his outs record,
-not the leash, which cannot reach him). Then rerun
-`scratchpad/opener_score.py`; it is expected to flip.
+**15. THE OPENER — the exit SHIPPED; the typed bulk arm and the slate
+override are what remain.**
 
-OPERATOR DIRECTIVE 2026-09-09, and it is the shape of the build: the
-pitching side of an opener game is a SEQUENCE OF TYPED ROLES —
+SHIPPED 2026-09-09 (notes, both entries of that date): `USE_RELIEF_INTENT`
+(the follower of an early exit continues like the bulk arm he is) and
+`USE_OPENER_EXIT` — a flagged short-yardage starter (avg < 11 outs a
+start, the same `slate.priceable` cell, one shared constant now) exits on
+a BOOTSTRAP from his own outs record via the existing `forced_exit_outs`
+machinery. Measured: flagged arms' outs error +3.40 (6.7 sigma, sd far
+too narrow) -> -1.20 (2.4 sigma, sd exact); affected-game totals move
+toward actuals (9.01 -> 8.95 against a real 8.49); the intent falsifier's
+recorded 4/4-fold failure dissolves to 0.2 sigma on truthful states. The
+leash never could reach these arms (`OFFSET_CLAMP` ~+/-3.3 outs against a
+needed ~-12). `scratchpad/opener_outs.py` is the instrument; the residual
+-1.20 is role-drift staleness in the record, and if refined it gets a
+recency WEIGHT, not a curve.
+
+OPERATOR DIRECTIVE 2026-09-09, and it is the shape of the remaining
+build: the pitching side of an opener game is a SEQUENCE OF TYPED ROLES —
 (opener) -> (bulk arm) -> pen — and the bulk arm is one of THREE types,
 counted at 40.6% bona fide starter / 18.6% swingman / 40.8% pure
 reliever (full bullpen game). Model each: the starter-as-bulk uses his
-own rates plus the counted role diff (interleaved-swingman numbers,
-above); the pure-bullpen game is the pen we already sample plus the
-intent tables. AND THE SLATE ACCOMMODATES ANNOUNCED COMBOS: the opener
-and his follower are usually public before lineups, but
-`mlb_schedule_with_probables` carries one arm per side — add a manual
-override on the slate ("bulk arm: X") before building any scraper. The
-step-zero null killed PREDICTING the follower from history; an announced
-name is input, not prediction. What follows is the original item for
-reference.**
-Raised by the operator 2026-09-09 and it is the right call: the gate marks
-these arms, it does not fix them, and 43% of the game-level rungs on that
-day's board (54 of 126) sat in a game containing a flagged arm with no
-warning of any kind on the total, team total or F5 rows.
+own rates plus the counted role diff (interleaved swingmen, relief minus
+start: K% +1.01, BB% -0.54, HR% -0.61, BABIP -1.06; per-pitcher does not
+repeat, POOLED or nothing — still unwired, nothing consumes it). The
+pure-bullpen game is the pen we already sample plus the intent tables.
+AND THE SLATE ACCOMMODATES ANNOUNCED COMBOS: the opener and his follower
+are usually public before lineups, but `mlb_schedule_with_probables`
+carries one arm per side — add a manual override on the slate ("bulk arm:
+X") before building any scraper. The step-zero null killed PREDICTING the
+follower from history; an announced name is input, not prediction.
 
-WHY IT IS NOT A LEASH PROBLEM AND CANNOT BE FIXED BY ONE. `OFFSET_CLAMP`
-bounds the per-pitcher adjustment at about +/-3.3 outs. Braydon Fisher
-starts on 2026-09-09 averaging 3.38 outs a start (log 4,3,4,3,3,4,3,3) and
-Brady Basso 9.44; the model hands each a generic starter's ~16. No value
-inside the clamp reaches them. The representation is wrong, not the fit.
-
-THE SHAPE, and the operator's point is the load-bearing one: an opener
-start is TWO pitchers, and the SECOND one is the one who matters. Model it
-as (opener, short) then (bulk arm, long relief) rather than as one
-starter. Both halves already exist — `relief.py` has outing length
-conditioned on the state he entered in, and `deploy.py` measured that role
-is stable and projects (split-half r +0.55 to +0.78 over 319 relievers).
-
-COUNT THE HANDOFF FIRST, do not import it. From the play-by-play cache:
-when a starter is removed at or before 2 innings, WHO follows him and for
-how long? That is one pass over 10,000 cached games and it answers whether
-the bulk arm is predictable at all. If the follower is a coin flip among
-six relievers the whole item dies there and the gate stays the answer.
-
-FALSIFIER, pre-registered: score the RUN DISTRIBUTION in opener games
-against what actually happened — not against the market, which is the
-whole point of the objective. If modelling the handoff does not improve
-the ladder on those games, it does not ship however sensible it looks.
-Note the population is small, so state the POWER before running it.
+FALSIFIER for the remaining build, unchanged: the run distribution in
+opener games against what actually happened. Note `opener_score.py`'s
+run-level CRPS se (0.0164 at 124 games x 100 sims) is larger than the
+effects measured so far — score the bulk arm on HIS OWN line (outs, K)
+the way `opener_outs.py` scores the opener, or the result will read as a
+null whatever the truth.
 
 **16. Propagate projected-lineup uncertainty.**
 Two wrong names out of nine moved a headline edge by half. Flag any edge

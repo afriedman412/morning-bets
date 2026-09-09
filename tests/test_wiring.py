@@ -652,6 +652,95 @@ def check_the_early_exit_mixture_reaches_a_simulated_start():
         sim.EARLY_EXIT_DIST.update(was)
 
 
+def check_a_flagged_opener_exits_on_his_own_record():
+    """TODO 15: a short-yardage starter is priced off HIS outs record.
+
+    The leash clamp tops out around +/-3.3 outs and an opener averaging 3.4
+    needs ~-12, so before this the engine handed him a generic starter's
+    ~16 outs and every reliever behind him entered a fictional late state.
+    The forced-exit machinery already existed; this checks the flagged
+    arm's exit is drawn from his own starts, and that an ordinary starter
+    is untouched.
+    """
+    was = game._OPENER_STARTS
+    try:
+        # An opener's log: 3s and 4s, average 3.5, well inside the gate.
+        game._OPENER_STARTS = {"p": [(f"2026-0{m}-01", o)
+                                     for m, o in zip(range(1, 9),
+                                                     [3, 4, 3, 4, 3, 4, 3, 4])]}
+        outs = []
+        for seed in range(12):
+            rng = random.Random(seed)
+            side = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                                   apply_leash=False, date="2026-09-01")
+            assert side.forced_exit_outs in (3, 4), side.forced_exit_outs
+            other = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                                    apply_leash=False)
+            game.simulate_game(side, other, LG, rng)
+            outs.append(side.line.outs)
+        # He may run past the drawn total only to the end of the plate
+        # appearance in progress; he must never pitch on like a starter.
+        assert all(3 <= o <= 6 for o in outs), outs
+        assert sum(outs) / len(outs) < 6, outs
+
+        # Only starts BEFORE the game date count: on a date before any of
+        # the record exists the arm has no evidence and keeps the hook.
+        rng = random.Random(0)
+        side = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                               apply_leash=False, date="2026-01-01")
+        assert side.forced_exit_outs is None, side.forced_exit_outs
+
+        # An ordinary rotation starter — same plumbing, average over the
+        # gate — is not touched.
+        game._OPENER_STARTS = {"p": [("2026-01-01", 18), ("2026-02-01", 15),
+                                     ("2026-03-01", 17)]}
+        rng = random.Random(0)
+        side = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                               apply_leash=False, date="2026-09-01")
+        assert side.forced_exit_outs is None, side.forced_exit_outs
+
+        # And the flag is an A/B: off restores the hook without unseeding
+        # the record.
+        game._OPENER_STARTS = {"p": [("2026-01-01", 3), ("2026-02-01", 4)]}
+        prev = game.USE_OPENER_EXIT
+        game.USE_OPENER_EXIT = False
+        try:
+            rng = random.Random(0)
+            side = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                                   apply_leash=False, date="2026-09-01")
+            assert side.forced_exit_outs is None, side.forced_exit_outs
+        finally:
+            game.USE_OPENER_EXIT = prev
+    finally:
+        game._OPENER_STARTS = was
+
+
+def check_the_opener_draw_keeps_the_ab_streams_paired():
+    """`USE_OPENER_EXIT` on and off must consume the SAME random stream.
+
+    The rule is written at both hook call sites: a switch that consumes a
+    different number of random numbers is not an A/B — every event after
+    it lands on a different draw and the two arms stop being the same
+    game. The bootstrap is therefore drawn whether or not the flag uses
+    it, and this fails if anyone moves it inside the flag.
+    """
+    was = game._OPENER_STARTS
+    prev = game.USE_OPENER_EXIT
+    try:
+        game._OPENER_STARTS = {"p": [("2026-01-01", 3), ("2026-02-01", 4)]}
+        after = {}
+        for state in (True, False):
+            game.USE_OPENER_EXIT = state
+            rng = random.Random(7)
+            game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                            apply_leash=False, date="2026-09-01")
+            after[state] = rng.random()
+        assert after[True] == after[False], after
+    finally:
+        game.USE_OPENER_EXIT = prev
+        game._OPENER_STARTS = was
+
+
 def check_the_bullpen_gets_the_same_shrink_target_as_the_rotation():
     """`bullpens` CARRIED A COPY of the rate block with `lg[stat]` hardcoded.
 

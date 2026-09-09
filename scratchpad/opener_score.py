@@ -19,7 +19,13 @@ cancels most draw noise; the se that matters is across GAMES and is
 printed with every number. If the CRPS diff se comes out larger than any
 plausible effect, the honest conclusion is "underpowered", not "null".
 
-    venv/bin/python -m scratchpad.opener_score [n_sims_per_state]
+    venv/bin/python -m scratchpad.opener_score [n_sims_per_state] [flag]
+
+`flag` is the `game` attribute the A/B flips — default `USE_RELIEF_INTENT`
+(the original falsifier). Pass `USE_OPENER_EXIT` to score the opener exit
+distribution itself (TODO 15's sharp remaining job); everything else about
+the harness — population, seeds, scoring — is identical, so the two runs
+are directly comparable.
 """
 import random
 import sys
@@ -33,6 +39,7 @@ from src.context.sources import rates as rate_src
 FOLDS = [(2023, "2023-07-01"), (2024, "2024-07-01"),
          (2025, "2025-07-01"), (2026, "2026-07-01")]
 N = int(sys.argv[1]) if len(sys.argv) > 1 else 100
+FLAG = sys.argv[2] if len(sys.argv) > 2 else "USE_RELIEF_INTENT"
 SHORT_AVG = 11.0
 
 
@@ -79,7 +86,7 @@ def main():
                 continue
             draws = {}
             for state in (True, False):
-                game.USE_RELIEF_INTENT = state
+                setattr(game, FLAG, state)
                 d = {"ar": [], "hr": [], "af5": [], "hf5": []}
                 for i in range(N):
                     rng = random.Random(yr * 1000003 + gi * 1009 + i)
@@ -89,7 +96,7 @@ def main():
                     d["af5"].append(r.away_f5)
                     d["hf5"].append(r.home_f5)
                 draws[state] = d
-            game.USE_RELIEF_INTENT = True
+            setattr(game, FLAG, True)
             row = {"gid": gid, "yr": yr}
             for state, tag in ((True, "on"), (False, "off")):
                 d = draws[state]
@@ -115,7 +122,8 @@ def main():
         sd = (sum((x - m) ** 2 for x in ds) / (n - 1)) ** 0.5
         return m, sd / n ** 0.5, n
 
-    print(f"\n{len(rows)} affected games, {N} sims a state, common seeds")
+    print(f"\n{len(rows)} affected games, {N} sims a state, common seeds,"
+          f" A/B on {FLAG}")
     for key, label in (("crps", "full-game team-run CRPS"),
                        ("crps_f5", "F5 team-run CRPS"),
                        ("mean", "mean team runs")):
