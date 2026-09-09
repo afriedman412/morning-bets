@@ -445,16 +445,46 @@ Same table and same code as per-runner speed (item 6); screen them together.
 **19. MONEYLINES — THE EASY VERSION. Persist the draws, count, score, stop.**
 Raised by the operator 2026-09-09. 15 is the opener item, so this is 19.
 
-**STARTED 2026-09-09: `scratchpad/moneyline.py` ran the whole loop once.**
-Draws persisted (`scratchpad/sims/ml_<fold>.json.gz`, 3,548 games x 200,
-gitignored — regenerate in ~15 min if absent). First numbers: reliability
-0.0005 (F5) / 0.0007 (full game) — well calibrated; resolution 0.0040 /
-0.0030 — thin, nearly everything in the 0.4-0.6 band; F5 tie share
-0.151 against a real 0.145. THE MARGIN IS 5.9 SIGMA TOO NARROW (mean
-|margin| 3.32 against 3.59) while the one-run share reads HIGH (0.294
-against 0.273) — the OPPOSITE sign of the adopted item-1 finding below,
-and the two instruments differ (20 pooled draws a game here), so apply
-rule 11 before believing either. What follows is the original item.
+**STARTED 2026-09-09 — the persist-and-score loop is DONE; pick up from
+"WHAT REMAINS" below.** `scratchpad/moneyline.py` replayed all four
+folds (3,548 paired games x 200 draws, July-onward, rates frozen at each
+cut) and persisted every draw's `(away, home, away_f5, home_f5)` to
+`scratchpad/sims/ml_<fold>.json.gz` — gitignored, ~15 min to regenerate,
+and the script LOADS the cache when the file exists and `n_sims`
+matches, so rescoring is seconds, not minutes. NOTE the engine gained
+`USE_OPENER_EXIT` / `USE_OPENER_POOL` the same day (commits baa3b8f,
+5db4e17) — the cached draws include them; regenerate rather than mixing
+cached and fresh draws across engine states.
+
+ESTABLISHED by that pass, Brier-decomposed on outcomes:
+
+  * CALIBRATION IS GOOD: reliability 0.0005 (F5 winner, no-tie
+    conditional, 3,032 games) / 0.0007 (full-game ML, 3,548). Every
+    populated decile is inside 2 se except full-game 0.5-0.6 (forecast
+    0.544, actual 0.513) — mild home-side overstatement in the modal
+    band. F5 tie share 0.151 against a real 0.145 (se 0.006).
+  * RESOLUTION IS THIN: 0.0040 / 0.0030 against uncertainty ~0.2495.
+    The model hugs the coin flip — 2,861 of 3,548 full-game forecasts
+    sit in 0.4-0.6. Whether that clears a vig is a pricing question the
+    scored record can now answer; nothing here says it cannot.
+  * THE MARGIN CONTRADICTION, open and pre-flagged (rule 11 — the two
+    instruments do NOT measure the same thing): this pass reads mean
+    |margin| 3.32 against a real 3.594 (se 0.047, 5.9 sigma NARROW) and
+    one-run share 0.294 against 0.273 (HIGH). Item 1's adopted survivor
+    read one-run share 0.247 against 0.266 (LOW) on a different engine
+    and instrument. This pass pooled 20 draws a game; walk-off and
+    auto-runner handling differ between the instruments. RESOLVE THE
+    INSTRUMENTS BEFORE TOUCHING ANY MECHANISM.
+
+WHAT REMAINS, in order: (1) settle the margin contradiction — same
+draws, one instrument, item 1's definition recomputed on the cached
+files; (2) the calibration-at-extremes cell the item pre-registered —
+the table above is consistent with margins too narrow (win probs
+under-confident, not over), which flips the item's prior; (3) wire
+`KXMLBF5` / `KXMLBSPREAD` (same floor_strike parse as KXMLBTOTAL,
+~half an hour) so the scored probabilities meet a settled price; (4)
+score the team-total SPLIT off the same cached draws — it is a marginal
+and needs no new sims. What follows is the original item.
 
 **THE NUMBER IS NOT MISSING, THE ARRAY IS.** `game.simulate_game` already
 returns each draw's away and home runs, so P(home wins) is a COUNTER, not a
