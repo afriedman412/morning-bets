@@ -31,10 +31,12 @@ carries the failure that motivates it; read those once, then use this index.
   12. **RUN INVESTIGATIONS AS LABELLED STAGES**, state the POWER and the
       STANDARD ERROR before the result.
   12b. **ONE HOLDOUT IS NOT A MEASUREMENT OF GENERALISATION.** The
-      between-season spread of the baseline error is 0.040 to 0.059 —
+      between-season spread of the baseline error is 0.040 to 0.058 —
       LARGER than most effects being measured. Score across FOUR FOLDS
       (`scratchpad/pxi_cv.py`, `hz_cv.py`), report all of them, and set the
-      bar before running.
+      bar before running. RE-MEASURED 2026-09-09 on the current engine with
+      live bullpens in all four folds (`pxi_cv`, boundary cell error, flag
+      off): 0.0577 / 0.0524 / 0.0399 / 0.0451. The bar is unchanged.
   13. **DO NOT LOOSEN A TEST TO ADMIT A CHANGE.** Verify every check by
       MUTATION — one that guards nothing looks identical to one that does.
   14. **HUNT LEVEL ERRORS AND STRUCTURAL GAPS FIRST**, then refinements.

@@ -7,7 +7,8 @@ QUESTION    The counted hazard halves the 12.5-17.5 band error and closes
             Does it hold in every season?
 
 WHY THE BAR IS FOUR FOLDS. Day twenty measured the between-fold spread of
-the baseline cell error at 0.0401 to 0.0590 — LARGER than the effect being
+the baseline cell error at 0.0401 to 0.0590, re-measured 2026-09-09 with
+live bullpens at 0.0399 to 0.0577 — LARGER than the effect being
 measured — and the pitch x inning table looked like a clear win on 2026 and
 failed in 2023. One fold is not a weak version of this test; it is a coin
 flip with a narrative attached.

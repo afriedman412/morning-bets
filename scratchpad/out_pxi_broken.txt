@@ -1,0 +1,39 @@
+  389,628 decisions, 4 folds, 10 sims per game. Table REFIT per fold.
+
+  FOLD 2023  (1000 games, 48,925 real decisions, table refit on 340,703)
+    off bnd   mean|gap| 0.0574   signed +0.0424   (11 cells)
+    off mid   mean|gap| 0.0225   signed +0.0172   (14 cells)
+    ON  bnd   mean|gap| 0.0617   signed +0.0617   (11 cells)
+    ON  mid   mean|gap| 0.0294   signed +0.0292   (14 cells)
+
+  FOLD 2024  (958 games, 49,349 real decisions, table refit on 340,279)
+    off bnd   mean|gap| 0.0527   signed +0.0333   (11 cells)
+    off mid   mean|gap| 0.0171   signed +0.0055   (14 cells)
+    ON  bnd   mean|gap| 0.0507   signed +0.0507   (11 cells)
+    ON  mid   mean|gap| 0.0157   signed +0.0151   (14 cells)
+
+  FOLD 2025  (929 games, 49,525 real decisions, table refit on 340,103)
+    off bnd   mean|gap| 0.0400   signed +0.0075   (11 cells)
+    off mid   mean|gap| 0.0170   signed -0.0010   (14 cells)
+    ON  bnd   mean|gap| 0.0296   signed +0.0269   (11 cells)
+    ON  mid   mean|gap| 0.0128   signed +0.0104   (14 cells)
+
+  FOLD 2026  (661 games, 32,034 real decisions, table refit on 357,594)
+    off bnd   mean|gap| 0.0451   signed +0.0108   (9 cells)
+    off mid   mean|gap| 0.0181   signed -0.0002   (14 cells)
+    ON  bnd   mean|gap| 0.0227   signed +0.0202   (9 cells)
+    ON  mid   mean|gap| 0.0111   signed +0.0102   (14 cells)
+
+  SUMMARY — mean|gap|, off -> ON, every fold reported
+
+  fold                  boundary              mid-inning
+  2023          0.0574 -> 0.0617        0.0225 -> 0.0294
+  2024          0.0527 -> 0.0507        0.0171 -> 0.0157
+  2025          0.0400 -> 0.0296        0.0170 -> 0.0128
+  2026          0.0451 -> 0.0227        0.0181 -> 0.0111
+
+  fold                 mid SIGNED, off -> ON
+  2023              +0.0172          +0.0292
+  2024              +0.0055          +0.0151
+  2025              -0.0010          +0.0104
+  2026              -0.0002          +0.0102

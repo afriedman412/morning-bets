@@ -10032,3 +10032,383 @@ zero; fingerprint unmoved because fold 2026 holds zero such games).
 LIVE CAVEAT that follows: a conversion is often ANNOUNCED ("stretching
 out"), which is morning-of information the model lacks — same family as
 the "bulk arm: X" slate override in TODO 15, noted there.
+
+## 2026-09-09 (fourth entry) — TODO 19, steps 1/2/4: the instruments never disagreed, and the margin is too NARROW through TWO channels
+
+QUESTION.  The item stopped on a flagged contradiction (rule 11): the
+            moneyline pass read one-run games 0.294 against a real 0.273
+            (HIGH), item 1's retired survivor read 0.247 against 0.266
+            (LOW). Resolve the instruments before touching a mechanism.
+            Then the pre-registered calibration cell — is the win
+            probability over- or under-confident — and the sum-vs-split
+            score, both of which are marginals off draws already on disk.
+
+TEST.       `scratchpad/ml_margin.py` and `scratchpad/ml_split.py`, both
+            reading ONLY the cached `scratchpad/sims/ml_<fold>.json.gz`
+            draws (3,548 paired games x 200, four folds, July-onward).
+            NO NEW SIMULATION, so the engine cannot drift between the two
+            numbers being compared — and the draws are verifiably HEAD:
+            written 13:08-13:28 against `sim.py` as committed, before the
+            13:40 `PITCH_HAZARD_BND` edit now sitting uncommitted in the
+            tree. Battery `640abdb42799` (same flags, `USE_PITCH_HAZARD_
+            BND` false) is the cross-instrument check. One-run share uses
+            `battery._paired` verbatim.
+
+POWER.      Pooled 3,548 games: one-run share se 0.0075, mean |margin|
+            paired se 0.047, a correlation se 0.0168. The calibration
+            slope has se ~0.13 against a null of 1.0 — only a gross
+            confidence error is resolvable, stated before reading it.
+
+EVALUATE.   **THERE IS NO CONTRADICTION. THE TWO LIVE INSTRUMENTS AGREE
+            TO 0.001.**
+
+                instrument                       model    real
+                moneyline draws, 200/game        0.2929   0.2731
+                same draws, first 20 (the pass)  0.2940   0.2731
+                battery 640abdb42799, 40/game    0.2917   0.2731
+
+            The draw count moves nothing (0.001) and the game sets match
+            (1000/958/929/661). Item 1's 0.247 is an OLD ENGINE reading,
+            and this file already recorded the flip on 2026-09-04: "one-
+            run-game share is now +0.028 HIGH where the 08-30 note had it
+            low, an engine drift worth reading off the next diff rather
+            than acting on." That line was right and the item was written
+            from the stale number. THE ITEM'S PREMISE IS DEAD: the model
+            does not under-produce one-run games, it over-produces them.
+
+            THE SHAPE, pooled, paired per game (rule 2 — the mean is not
+            the result). Mean |margin| 3.330 against 3.594, gap -0.264,
+            se 0.047, **-5.6 sigma NARROW**:
+
+                |margin|    model    real     gap      se      z
+                1          0.2929  0.2731  +0.0198  0.0075  +2.64
+                2          0.1957  0.1807  +0.0151  0.0065  +2.33
+                3          0.1461  0.1401  +0.0061  0.0058  +1.04
+                4          0.1100  0.1189  -0.0089  0.0055  -1.64
+                6          0.0579  0.0662  -0.0083  0.0042  -1.99
+                8+         0.0757  0.0924  -0.0168  0.0049  -3.45
+
+            **AND IT IS TWO DEFECTS, NOT ONE.** The variance
+            decomposition, model against real on the same games:
+
+                        sd(away) sd(home) sd(margin) sd(sum)   corr
+                real       3.208    3.174      4.562   4.463  -0.0219
+                model      3.117    2.988      4.195   4.437  +0.0561
+
+            (1) each club's total is too narrow — home worse, -5.9% —
+            which is the known clustering defect seen per club; and
+            (2) **THE MODEL COUPLES THE TWO CLUBS WHERE REALITY DOES
+            NOT.** Like-for-like (one draw a game, 20 repeats) the model
+            correlation is +0.0593, sd 0.0162 over repeats, against a
+            real -0.0219 with se 0.0168 — **3.5 sigma**. Split: BETWEEN
+            games (the two clubs' model means) +0.2995 but on means of sd
+            0.594/0.511, contributing only ~0.010 of correlation; WITHIN
+            a game +0.0478, which is the bulk. So it is a shared GAME
+            STATE, not the environment (park/weather/umpire are too small
+            to do it).
+
+            **THE SUM LOOKS HEALTHY FOR THE WRONG REASON:** sd(sum) 4.437
+            against 4.463 is a dead heat only because the spurious +0.056
+            coupling adds back exactly what the too-narrow clubs took
+            out. A game-total instrument is structurally blind to both
+            defects at once — the same lesson as the ladder being blind
+            to a signed per-venue error.
+
+            STEP 2, the pre-registered calibration cell. Both windows lean
+            OVER-confident, which is what too-narrow margins predict (a
+            fixed edge over a tighter noise distribution pushes P further
+            from 0.5) — and it is the same conclusion the item reached
+            from the now-dead premise, by the opposite mechanism:
+
+                window                 slope b     se    z vs 1.0
+                F5 winner (no tie)       0.804  0.129      -1.51
+                full-game moneyline      0.774  0.126      -1.80
+
+            Both tails point inward — full-game 0.65-1.00 forecasts 0.673
+            against an actual 0.611 (se 0.043), 0.35-0.45 forecasts 0.418
+            against 0.439 (se 0.025). NOT A FINDING at 2 se, and the
+            reason is the forecast sd of 0.067: the model barely spreads,
+            so the slope is poorly determined. Stated before the run.
+
+            STEP 4, sum against split, discrete CRPS over the full
+            support against a CLIMATOLOGY benchmark (the fold's own pooled
+            empirical distribution) so the three are comparable:
+
+                window  quantity            crps    clim   skill      z
+                full    game total (SUM)  2.4477  2.4758  +0.0114   -3.2
+                full    team total        1.7227  1.7385  +0.0091   -4.0
+                full    margin            2.5015  2.5178  +0.0065   -2.5
+                F5      game total (SUM)  1.8133  1.8279  +0.0080   -2.5
+                F5      team total        1.2464  1.2555  +0.0073   -3.3
+                F5      margin            1.8313  1.8422  +0.0059   -2.3
+
+            Every quantity beats climatology and the margin is the
+            WEAKEST of the three in both windows — the split is where the
+            model knows least, which is the ordering the item guessed
+            from the market and is here established on outcomes.
+
+CONCLUSION  ESTABLISHED: (a) no instrument contradiction — the moneyline
+            pass and the battery are the same measurement and item 1's
+            LOW reading is stale, so the item's margin-too-wide premise
+            is refuted; (b) the margin is 5.6 sigma NARROW and it is two
+            separable defects, under-dispersed club totals AND a 3.5
+            sigma spurious positive coupling between the two clubs, with
+            the coupling mostly WITHIN a game; (c) the win probability
+            leans over-confident at 1.5-1.8 sigma, direction only.
+
+            NOT ESTABLISHED: what the coupling IS. Extra innings are the
+            obvious candidate (they add runs to both clubs, and the model
+            reaches extras at 0.0997 against a real 0.0968), but the
+            cache holds four numbers a draw and cannot say — that needs a
+            re-run that records whether the draw went past nine. Nothing
+            shipped, no flag flipped, no engine change.
+
+NEXT STEPS  The coupling is the item now, and it is a STRUCTURAL gap
+            rather than a refinement (rule 14). Re-run the four folds
+            recording the last inning per draw, then read the within-game
+            correlation with extras excluded — if it collapses, the
+            defect is the extras handling and it is one mechanism; if it
+            survives, it is a shared state inside nine innings, and the
+            bullpen-sampling path is the first place to look. Note the
+            re-run must be on a decided engine: the tree currently holds
+            an uncommitted `USE_PITCH_HAZARD_BND` change (item 7a), so
+            regenerate after that lands, not across it.
+
+
+## Item 11, the first inning: the premise was stale and the counted mechanism points the wrong way (2026-09-09)
+
+QUESTION    The operator's framing: "we have a first inning problem and we
+            might as well just adjust it directly in the model instead of
+            trying to find the real life cause." So: how big is the gap
+            now, and what is the honest direct adjustment?
+
+POWER       Stated before the result, rule 12. The battery is four folds,
+            ~3,550 games, se ~0.024 runs on a combined per-inning row — it
+            resolves a 0.05-run inning effect at 2 sigma. The PA-level
+            count is 306,506 pre-holdout starter plate appearances, which
+            resolves a 3% rate effect at better than 2 sigma.
+
+TEST        (a) The battery's `inning` row, combined across the four folds
+            by inverse variance. (b) `scratchpad/inn1.py` — a new counter:
+            within a starter's FIRST lineup pass, compare his rates in
+            inning 1 against the SAME batters' second pass, differenced
+            against the batters whose first pass fell in inning 2+. Batter
+            quality cancels inside each ratio, the pass-1 -> pass-2 decay
+            cancels across them.
+
+EVALUATE    THE GAP HAS LARGELY CLOSED. Combined over four folds the first
+            inning is -0.036 runs, -3.5%, z -1.5, sign stable 4/4 (-0.6,
+            -0.4, -1.7, -0.3). The item carried -12.0% / z -2.5 from
+            2026-08-30. Rule 11 applied before acting: both numbers are the
+            same quantity under the same convention, measured on different
+            games against different engines, so this is the engine having
+            improved rather than two instruments disagreeing.
+
+            AND THE FIRST INNING IS NO LONGER THE WORST ROW. Inning 6 is
+            -0.056 runs / -5.3% / z -2.2, also 4/4.
+
+            THE ONLY COUNTED INNING-1 MECHANISM IS STRIKEOUTS, AND IT
+            SUBTRACTS RUNS. k_pct 1.0663 at an honest z of +5.7; bb, hr and
+            babip all null. Per-season +1.4 +2.4 +3.2 +2.7, 4/4.
+
+            Three gates, because a null and a positive both had to be
+            trusted here. Positive control: +10% injected into inning 1
+            reads +12.3 on k and +7.6 on babip. Null: labels shuffled
+            globally reads a mean of 0.9954 over 25 permutations, and that
+            spread also CALIBRATES the se — the analytic binomial se is
+            within 8% of the permutation sd on babip/hr and slightly
+            conservative on k/bb, so the z above is the calibrated one.
+            Collider control: splitting by LINEUP SLOT 1-3 vs 7-9 — which
+            is fixed before a pitch is thrown — reproduces it at 1.0546,
+            z +3.2.
+
+            THE NULL THAT FAILED FIRST IS THE REUSABLE LESSON. The obvious
+            null — permute the inning-1 label WITHIN a game-side — read
+            z +14 on BABIP with nothing injected. It is mis-specified, and
+            the reason is a collider: HOW MANY BATTERS BAT IN INNING 1 IS
+            AN OUTCOME OF INNING 1. Three up three down puts three men in
+            the group; a four-run rally puts eight. Preserving that count
+            re-weights the treated cell toward high-offence game-sides.
+            The tell was arithmetic rather than statistical — permuted
+            pass-1 BABIP came out 0.3161 against source groups of 0.2869
+            and 0.2795, ABOVE BOTH, which no random subset can do. A
+            global shuffle and a per-batter coin flip both read flat.
+            `scratchpad/inn1_dbg3.py` is the three-way discriminator.
+
+CONCLUSION  ESTABLISHED: the first-inning run gap is -3.5% / z -1.5 on the
+            current engine, a third of the recorded figure and no longer
+            significant; inning 6 is now the largest per-inning defect; and
+            real starters strike out 6.6% more in the first inning, which
+            is a genuine mechanism the model does not have.
+
+            INFERRED, and it is why NOTHING WAS WIRED: adjusting the first
+            inning upward would be solving for a level (rule 5) against a
+            1.5-sigma residual, and the one counted inning-1 mechanism
+            pushes the OPPOSITE way. Wiring the K table makes inning 1
+            score less where the model is already 3.5% short, and — since
+            the pass-1 mean must stay re-centred — moves K out of inning 2
+            where the model is already 3.3% long. Pre-registered: it moves
+            both rows the wrong way. That is a falsifier for the whole
+            "missing inning-1 rate effect" story, and it leaves the
+            standing clustering/advancement defect as the explanation.
+
+            NOT ESTABLISHED: whether the 6.6% is fatigue, adrenaline, or
+            the top of the order being a selected population. The count
+            measures the sum, as `tto.py` measures its own.
+
+ITEM 20     Checked, on the operator's prompt, and it does NOT contaminate
+            this. The no-bullpen fold bug was fixed at the root in
+            `rates._where` in e1ebfda, which is an ancestor of HEAD, so
+            this battery run has live pens in all four folds. The
+            inning-1 count never touches the simulator at all — it is
+            play-by-play arithmetic on what happened.
+
+NEXT STEPS  Inning 6 is the successor item. Nothing shipped, no flag
+            flipped, no engine change; the battery fingerprint is
+            unchanged at 640abdb42799.
+
+### TODO 20 (three of four folds had no bullpen) against the entry above — checked, and it does not touch it
+
+The operator asked. It is exactly the class of harness defect that voids a
+cached-draw result, so it was checked rather than argued.
+
+THREE INDEPENDENT REASONS, in ascending order of strength:
+
+  * `moneyline.py` line 57 passes `bullpens(lg, season=yr, before=cut)`
+    with `season=` EXPLICIT, which was correct even before the root fix.
+    The broken call is the one that omits it.
+  * The draws were written 13:08-13:28 against a tree that already had
+    the fix — e1ebfda landed at 12:18, fifty minutes earlier.
+  * THE EVIDENCE, not the argument: the cached draws are compared fold by
+    fold against battery `640abdb42799`, which was run WITH the fix in.
+    F5 total agrees to +0.021 / +0.044 / -0.004 / +0.001, club shutout
+    share to 0.001, club 8+ share to 0.005 — MC noise between 200-draw
+    and 40-draw runs on different seeds.
+
+POSITIVE CONTROL, because an agreement is only worth what the instrument
+could have seen (rule 7). The bug's own signature, broken `538f29ee3751`
+against fixed `55b73d1d3ed5`, identical flags:
+
+    row              2023      2024      2025      2026
+    F5             -0.1038   -0.0893   -0.0664   -0.0002
+    F7             -0.2523   -0.1943   -0.1774   +0.0032
+    mass_8_plus    -0.0208   -0.0166   -0.0130   +0.0003
+    one_run_share  +0.0152   +0.0068   +0.0091   +0.0005
+
+2026 moves by nothing (it always had a live pen) and 2023-2025 move by
+5-20x the agreement above. The check had ample power and the cache passes.
+
+**AND THE CONTROL SAYS SOMETHING ABOUT ITEM 1'S STALE NUMBER, which is
+the reason to keep this table:** an empty pen hands relief innings to the
+STARTER, runs go up, blowouts go up (8+ share +0.013 to +0.021) and
+one-run games go DOWN by 0.007 to 0.015 in exactly the folds it hit —
+the same direction as the retired 0.247. So a broken-pen harness is a
+NAMED, QUANTIFIED contributor to the low reading, about a third of the
+0.046 gap, with engine drift accounting for the rest. It strengthens the
+conclusion above rather than qualifying it: the LOW reading was an
+artifact twice over, and the current HIGH one stands.
+
+## 2026-09-09 (fifth entry) — TODO 20: every cross-fold result re-run with live bullpens. Nothing on record changes its verdict.
+
+QUESTION    `bullpens(lg, before=cut)` without `season=` returned zero clubs
+            for 2023-2025, and an empty pen makes `Side.current` hand every
+            relief inning to the STARTER'S rates. Three of the four folds in
+            every cross-fold result on record were therefore measured on a
+            bullpen-free engine. Which recorded conclusions move?
+
+            THE OPERATOR SET THE METHOD, and it is the cheaper one: we trust
+            the current sim, so do not measure the old engine's delta —
+            RE-RUN each harness now, with live pens, and REPLACE the
+            recorded numbers.
+
+POWER       Stated before the results. `hz_cv 20` is 3,548 paired games x 20
+            draws a fold, which resolves a band change of ~0.004 against
+            effects of 0.014; `pxi_cv 10` resolves a cell-error change of
+            ~0.005 against a between-fold spread of 0.018. The battery at 40
+            sims resolves a run-level row at se 0.024-0.05. 2026 is the
+            built-in negative control everywhere — it always had a live pen,
+            so any harness that is working reproduces its old 2026 column
+            exactly.
+
+TEST        Every harness named in the item, on the committed engine
+            (`USE_PITCH_HAZARD_BND` off — item 7a's table is uncommitted and
+            inert with the flag down, so this is HEAD): `hz_cv`, `pxi_cv`,
+            and a battery A/B for `game.USE_PEN_ROLES` against today's
+            `640abdb42799`, whose flag set differs from the candidate by
+            that switch alone.
+
+            Pens verified live before anything was scored, not assumed:
+            2023 at a 2023-07-01 cut returns 30 clubs / 400 arms, 2026
+            returns 30 / 377. `scratchpad/pen_ab.py` reproduces the bug on
+            demand (an empty pens dict in the pre-2026 folds) and was used
+            as the positive control that the harnesses can see a pen at all.
+
+EVALUATE    **THE HOOK CURVES ARE STARTER-SIDE AND THE BUG NEVER REACHED
+            THEM.** `hz_cv`, band o12.5-o17.5, off -> ON, live pens:
+
+                fold        off       ON     change     was
+                2023     0.0850   0.0709    -0.0142
+                2024     0.0576   0.0420    -0.0155   "-0.016
+                2025     0.0408   0.0267    -0.0141    to -0.018"
+                2026     0.0557   0.0409    -0.0148
+
+            Four folds, same sign, and a TIGHTER range than the record.
+            Long lines -0.0046 / -0.0047 / +0.0040 / +0.0043; mean outs
+            +0.08 toward a real 15.60/15.74/15.78/15.75 in every fold
+            without crossing it. Item 7's ship stands.
+
+            `pxi_cv`, boundary cell error off -> ON: 0.0577 -> 0.0623,
+            0.0524 -> 0.0505, 0.0399 -> 0.0290, 0.0451 -> 0.0227. Worse in
+            2023, flat in 2024, better in the two recent folds — the same
+            shape as the record (0.0590/0.0516/0.0401/0.0420), so 7d's
+            refutation holds. The signed mid offset still trends by season
+            (+0.0279 / +0.0166 / +0.0105 / +0.0102), so "it is just a
+            constant" is still one fold's property.
+
+            **RULE 12b'S BAR IS UNCHANGED: 0.0399 to 0.0577 against a
+            recorded 0.0401 to 0.0590.** That is the number every
+            measurement in this project is judged against and it survives
+            intact. CLAUDE.md now carries the re-measured figure.
+
+            THE ONE PLACE THE BUG HAD REAL POWER IS THE PEN ITSELF, and
+            `USE_PEN_ROLES` is the recorded verdict that was taken on a
+            bullpen-free engine in three folds ("no row moved past one se",
+            "F5 identical in 3 of 4 folds" — that 3-of-4 identity is the
+            plumbing signature, not a null). Re-run with live pens,
+            `f8f32d4d92f4` against `640abdb42799`: **no row moved by more
+            than one se.** Same verdict, now on evidence that could have
+            moved. The mechanism keeps shipping on rule 3, which is what it
+            shipped on in the first place.
+
+CONCLUSION  ESTABLISHED: no recorded cross-fold conclusion changes its
+            verdict. The hook-curve results (item 7's counted MID hazard,
+            7d's PITCH x INNING refutation, rule 12b's between-season
+            spread) replicate on live pens because the quantity they score
+            — the starter's own outs and his own removal cells — is not
+            reachable by who pitches the seventh. The pen-side verdict
+            (`USE_PEN_ROLES`) also replicates, and that is the one that was
+            genuinely untested before today.
+
+            AMENDED FROM THE RECORD: 7d's MID half no longer loses in three
+            folds of four. That is ENGINE DRIFT, not the bullpen — the
+            counted MID hazard shipped after the original run, so the
+            baseline the table is scored against is a different and better
+            one. Do not quote "mid worse in 3 of 4" against the current
+            engine; the boundary half is what carries the refutation.
+
+            NOT ESTABLISHED: anything about run-LEVEL fold history. The
+            2023-2025 columns of any battery run before `55b73d1d3ed5` are
+            wrong at the level (traffic, late-inning and contact rows moved
+            by 2-5 se when the pen came back), and those runs are not worth
+            re-running — they are superseded by the current engine's own
+            battery, which is what the next item should read.
+
+NEXT STEPS  Nothing shipped, no flag flipped. `scratchpad/pen_ab.py` stays
+            as the positive control for the next harness that comes back
+            identical to four decimals across folds — that signature means
+            a dead wire, and this project has now paid for it twice.
+
+AND A SEPARATE FIND, worth its own line because it was a red tree: the
+working copy had `sim.USE_PITCH_HAZARD = False` left over from an A/B run
+(`sim.py.bak` and two failing checks both identify it as a leftover, not a
+decision). Restored to True; 480 checks green.
