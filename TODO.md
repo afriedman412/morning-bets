@@ -445,6 +445,17 @@ Same table and same code as per-runner speed (item 6); screen them together.
 **19. MONEYLINES — THE EASY VERSION. Persist the draws, count, score, stop.**
 Raised by the operator 2026-09-09. 15 is the opener item, so this is 19.
 
+**STARTED 2026-09-09: `scratchpad/moneyline.py` ran the whole loop once.**
+Draws persisted (`scratchpad/sims/ml_<fold>.json.gz`, 3,548 games x 200,
+gitignored — regenerate in ~15 min if absent). First numbers: reliability
+0.0005 (F5) / 0.0007 (full game) — well calibrated; resolution 0.0040 /
+0.0030 — thin, nearly everything in the 0.4-0.6 band; F5 tie share
+0.151 against a real 0.145. THE MARGIN IS 5.9 SIGMA TOO NARROW (mean
+|margin| 3.32 against 3.59) while the one-run share reads HIGH (0.294
+against 0.273) — the OPPOSITE sign of the adopted item-1 finding below,
+and the two instruments differ (20 pooled draws a game here), so apply
+rule 11 before believing either. What follows is the original item.
+
 **THE NUMBER IS NOT MISSING, THE ARRAY IS.** `game.simulate_game` already
 returns each draw's away and home runs, so P(home wins) is a COUNTER, not a
 model. Nothing computes it because nothing persists the per-draw `(away,
