@@ -10566,3 +10566,312 @@ September, it is the named cause of every adverse row above, and the model
 cannot see the date at all. Recorded as TODO 7e. Do NOT close it by
 re-fitting the table on July-onward rows — that is fitting to the evaluation
 window, and the 2026 half of it is the holdout.
+
+## DAY TWENTY — THE PITCHER-USE SESSION: FOUR NULLS, TWO COUNTS, ONE SHIP
+
+Opened by the operator with four objections to the opener/bullpen work, all
+four of which turned out to be answerable by counting rather than by
+building. Everything below is on the four-season cache (88,517 stints,
+2023-03-15 .. 2026-09-08), data confirmed current by `data_status` before
+any measurement and NOT backfilled at any point during the session, so the
+battery pair below is valid.
+
+### SHIPPED — `OPENER_HALF_LIFE_DAYS`, the outs record decays (item A)
+
+THE DEFECT. `game.opener_record` averaged EVERY prior start with equal
+weight, so it could not see a role change in either direction. Both were
+costing, and the false-alarm direction had never been noticed at all:
+
+    the gate as a classifier, train rows, 253 real opener starts
+      flat mean (shipped)   recall 63.6%   false alarm 23.3%   fires on 507
+      decay 120 days        recall 70.4%   false alarm 21.1%   fires on 564
+
+A false alarm is a genuine rotation start handed an opener's exit draw —
+18.2% of the own-record starts the gate fired on went fifteen outs or more.
+**IT DOMINATES ON BOTH AXES RATHER THAN TRADING THEM**, which is why it
+ships without also moving `OPENER_AVG_OUTS`; there was no trade to make.
+
+THE HALF-LIFE IS A MEASUREMENT, NOT A TUNED LEVEL. Chosen on TRAIN rows by
+RMSE against the arm's actual outs — the quantity the gate exists to
+anticipate — with the grid run from 20 to 540 days so the optimum is
+INTERIOR and not a missing mechanism (rule 8). Confirmed on holdout rows
+after the choice: overall RMSE 3.8420 -> 3.7737 (-2.4 sd paired), and on the
+short-record population where the gate actually fires, 4.2811 -> 3.5687.
+Days beat starts as the decay axis, which is what a calendar mechanism
+(offseason, injury, demotion) predicts. `scratchpad/opener_decay.py`.
+
+SCORED IN THE AFFECTED GAMES, per the plan, because the battery cannot see a
+2-3% population — and it did not: **no row moved by more than one se across
+four folds**, 02e66b9970fc -> e050af9398ae. That is the absence of collateral
+damage, not a result. The result is `scratchpad/opener_decay_score.py`,
+which scores exactly the starts whose classification CHANGES, split by
+direction because the two predict opposite moves:
+
+    NEWLY CAUGHT (27 starts)    real 10.11    sim 15.51 -> 13.61   err 5.40 -> 3.50
+    NEWLY RELEASED (9 starts)   real 14.33    sim 10.41 -> 13.74   err 3.93 -> 0.59
+
+Both move TOWARD reality. **STATE THE POWER: the caught direction survives
+the real mean's own se (0.86) comfortably; the RELEASED direction is 9
+starts at se 1.54 and does NOT — two se of movement in the real mean flips
+its sign.** So one direction is established and the other is consistent and
+under-powered, and they must not be reported as one result. Fold 2023 has
+zero affected games, as it must: it is the first season in the cache and
+nobody has enough history for a decay to disagree with a flat mean.
+
+`USE_OPENER_DECAY` is NOT a stream-paired A/B, unlike `USE_OPENER_EXIT`
+beside it, and the constant says so: a flagged arm consumes a bootstrap draw
+that an unflagged arm does not, so the games where the answer changes
+diverge downstream. That is inherent to changing which population is
+flagged. Suite 485 -> 486, mutation-verified (revert to the flat mean and
+`check_a_stale_outs_record_cannot_hide_a_role_change` fails on the converted
+opener).
+
+DELIBERATELY NOT BUNDLED: weighting the bootstrap DRAW by the same decay.
+It needs a different call into the rng and two mechanisms behind one flag
+cannot be told apart.
+
+### THE CLOSER — nameable from usage, and the news does not beat it
+
+The operator's case: we know every club's closer, he should almost never
+appear before the ninth, and if he is hurt or traded the news knows before
+the data does. `scratchpad/closer_slot.py`, 4,623 save slots (a ninth
+entered with a 1-3 lead).
+
+NAMING HIM IS FREE. The arm with the most ninth-with-a-lead entries in the
+club's last 25 games takes the next save slot 62.7% of the time.
+
+**"HE SHOULD NEVER APPEAR BEFORE THE NINTH" IS REFUTED BY HIS OWN RECORD** —
+9th 68%, 8th 18%, 7th 6%, 6th 4%, extras 4%. Nearly 30% of his work is
+earlier, so removing him from the sampled pen would be wrong in the
+direction that matters most.
+
+AND THE PERCENTILE MECHANISM ALREADY HALF-FINDS HIM: the closer is his
+club's top-fifth K%-BB% arm 73.3% of the time, mean percentile 0.163, so
+`PEN_PICK`'s 44.15% top-fifth-in-a-lead is largely drawing the closer —
+IN THE WRONG INNING. That is TODO 21 confirmed from a second direction: the
+missing thing is the SLOT, not a closer object.
+
+**THE NEWS FEED IS A NULL, AND IT IS POSITIVE-CONTROLLED.** A forward-looking
+oracle — the same count over the club's NEXT 25 games, which is the most any
+headline can know — scores 63.8% against the backward count's 62.7%. The
+whole ceiling for scraping anything is 1.1 points. Restricting to the
+population where a feed can only help, the transitions where backward and
+forward DISAGREE (1,597 slots, 35%): backward 30.1%, oracle 33.4%. **A
+transition is a COMMITTEE, not an information gap**, which is why perfect
+knowledge is worth almost nothing there. Where the club has a settled
+closer, the count already gets 79.8%.
+
+THE OPERATOR IS STILL RIGHT ABOUT THE SHARP BREAK, and it is the one place
+the data genuinely lags:
+
+    days since the named man last pitched     slots        takes the save
+      0-3                                     74.2%            65.1%
+      4-9                                     21.1%            67.2%
+      10+                                      4.8%             3.7%
+
+When he is gone we are not slightly wrong, we are COMPLETELY wrong. But the
+repair is offline: stepping down to the next arm on the same count when the
+named man has been idle ten days takes 62.7% -> 63.5%, which is within 0.3
+points of the oracle. A feed buys the days between the injury and the cliff.
+If that is ever wanted, the source is the statsapi transactions/roster feed,
+which is structured, dated and BACKFILLABLE — never a scraped headline,
+which exists only going forward and therefore can never be cross-validated
+across four folds (rule 12b). A live-only input is the one input this engine
+cannot measure.
+
+### FATIGUE — dead as a RATE, alive as AVAILABILITY
+
+The operator remembered trying this and it not working. Half right, and the
+halves are worth separating. What SHIPPED is `sim.USE_PEN_STATE`: two
+CLUB-level columns on both hook curves, i.e. a depleted pen makes the
+manager leave his STARTER in longer. A decision model. Nothing has ever
+touched the reliever himself, and the engine redraws the pen every game and
+every draw, so no simulated reliever has thrown a pitch before.
+
+MEASURED HERE, never before: does a tired arm pitch worse. Within-pitcher
+paired, 56,793 pre-holdout relief outings, 311 arms with 10+ outings each
+side (`scratchpad/pen_fatigue.py`):
+
+    pitched yesterday MINUS 2+ days rest
+      k -0.6 sd    bb +1.0 sd    hr +1.0 sd    h -0.2 sd    outs -0.2 sd
+
+Three appearances in four days is equally flat. **POSITIVE CONTROL: an
+injected 2.0 points of K% comes back at -4.9 sd, attenuated to about two
+thirds by zero-clipping on short outings — so read the power as "this sees
+about one point of K%".** Nothing that size is there. Fatigue as a rate
+effect is dead, with a number and a control behind it this time.
+
+FATIGUE AS AVAILABILITY IS NOT DEAD AND HAS NEVER BEEN TRIED: the same
+closer takes the save slot 65.0% rested against 58.7% having pitched the
+club's previous game, +6.2% at 4.2 sigma. It is a SELECTION effect, which is
+exactly the unbuilt "fatigue" bullet of TODO 8, and it is the same mechanism
+as the stale-closer gate above — who is available to be picked.
+
+### THE BULK ARM IS HALF THE TIME A STARTER, AND HE IS HOOKED EARLY
+
+The operator's reframing of TODO 15, and it is the most useful count of the
+session (`scratchpad/bulk_type.py`). Typing the follower off his OWN
+trailing 30 appearances, where a REAL start means an order-0 outing of 12+
+outs so a run of opener starts cannot classify a man as a starter:
+
+    planned openers (starter <=6 outs on <=2 runs), 687 games
+      starter    31.3%   13.00 outs   70.5 pitches
+      swingman   20.2%   11.84 outs   65.1 pitches
+      reliever   48.5%    6.33 outs   35.8 pitches
+
+**51.5% of the time a real arm follows the opener; 48.5% is a bullpen
+game.** And the starter type is HOOKED EARLY rather than pitching
+differently — paired against his own normal starts, -3.15 outs (se 0.30) and
+-15.56 pitches (se 1.43), both about -10 sigma, which is 4.95 pitches per
+lost out against his normal 5.3.
+
+**THIS REOPENS THE LEASH REPRESENTATION FOR THE BULK ARM.** The plan rules
+out a leash fix because `OFFSET_CLAMP` tops out near +/-3.3 outs and an
+opener needs ~-12. True of the OPENER. The BULK ARM needs -3.15, which is
+inside the clamp — the engine can already express him.
+
+AND IT EXPLAINS AN EARLIER ANOMALY. The engine's bulk arm is too GOOD: the
+real follower sits at quality percentile 0.564 of his club's pen against the
+appearance-weighted draw's 0.452 (+3.8 sd, 92 games, 2026 only, current-
+season rates as the proxy — needs a four-fold recount before wiring).
+`PEN_PICK_LATE = 7`, so NO selection happens before the seventh at all and
+early relief is pure draw order. Half the time the real follower is an
+ordinary pen arm and the other half a starter the engine cannot represent,
+so an appearance-weighted draw splits the difference and gets both wrong.
+
+### THE OPENER GATE'S REMAINING MISS, for whoever takes this next
+
+Detection of real opener starts by the SHIPPED gate as of each game date,
+before the decay landed: Mar/Apr 55.6% (n=63), May 73.1%, Jun+ 72.4%. The
+operator raised the early-season case and it is real but small — 28 missed
+starts in Mar/Apr over four seasons. **The larger fact is the flat ~27% miss
+in EVERY month**, which is what the decay attacks and only partly closes.
+Openers are 2.27% of all starts (460 of 20,251) and March is always the
+thinnest month; April 2026 was 3.32%, so it is not a non-issue.
+
+### ITEM B SCOPED, AND THE OBVIOUS BUILD WOULD HAVE BOUGHT NOTHING
+
+Not wired — this is the pre-work, and the attribution control is the whole
+of it. `scratchpad/bulk_shape.py` measures what the ENGINE gives the arm
+behind a flagged opener, against what that arm really did, over four folds
+(172 opener games, 40 draws each):
+
+    THE ARM BEHIND THE OPENER — outs
+      real                    mean 7.39    <=6 55.2%   7-14 35.1%   >=15  9.8%
+      sim (shipped)           mean 5.00    <=6 77.2%   7-14 19.3%   >=15  3.6%
+      sim, relief hook OFF    mean 7.03    <=6 61.6%   7-14 26.6%   >=15 11.8%
+
+THE FIRST TWO ROWS ARE THE DEFECT: the follower is 2.4 outs short and gets
+a THIRD of the long outings. The third row is why the item is not what it
+looked like.
+
+**THE PLAN WAS TO COUNT A BULK-ARM CONTINUATION TABLE**, and the count was
+done — the shipped intent bucket 0 under-continues a real bulk arm at every
+depth (entry-clean 0.7821 against 0.7569, and by the fourth extra inning
+0.5000 against 0.3788, 1,135 train rows). That is a real pooling defect and
+it is worth perhaps half an out.
+
+**BUT CHAINING THE SHIPPED HAZARD BY HAND PREDICTS ~9.0 OUTS AND THE ENGINE
+PRODUCES 5.00**, so something else was doing the cutting. Switching off
+`USE_MEASURED_RELIEF_HOOK` — the per-plate-appearance relief hook — moves
+the follower to 7.03 outs and 11.8% at fifteen or more, i.e. **close to
+right on both**. So the binding constraint is `RELIEF_MID_REMOVAL`, not the
+continuation table, and shipping the continuation fix alone would have been
+a null with a good explanation attached.
+
+WHY IT IS WRONG HERE, and it is the highest-value defect class in this
+project (rule 14, and the fourth instance): `RELIEF_MID_REMOVAL` was counted
+over 50,023 in-inning relief plate appearances — a population dominated by
+one-inning arms — and is applied to EVERY arm. It runs 7-10% per plate
+appearance once a man is past his third batter, which is survivable for a
+setup man facing four and fatal for a bulk arm facing twenty. Same shape as
+hit-by-pitch, sacrifices and wild pitches: measured on one role, applied to
+all of them.
+
+**DO NOT "FIX" THIS BY TURNING THE HOOK OFF.** 58.2% of real handovers are
+mid-inning; the mechanism is right and its CONDITIONING is wrong. The fix
+is the same one-more-column move that intent was: condition the mid-removal
+hazard on why the arm is out there. Note the control also slightly
+OVERSHOOTS the long tail (11.8% against a real 9.8%), so the answer is a
+softened hazard for this cell, not an absent one.
+
+NEXT SESSION PICKS THIS UP COLD FROM: `scratchpad/bulk_shape.py` (the
+diagnostic and its `--nohook` control), the counted continuation cell above,
+and the knowledge that the mid-removal table is the thing to count. Counting
+it needs PLATE-APPEARANCE rows, not stints, so it is `pbp.plays()` and not
+the one-row-per-stint query the continuation count used.
+
+### SHIPPED — `relief.MID_INTENT`, the relief hook reads intent (item B, part one)
+
+Counted on 9,254 games before the holdout by `scratchpad/mid_intent.py`,
+walking the play-by-play because this is a PLATE-APPEARANCE hazard and the
+stint table cannot see it.
+
+    P(replaced before the next batter), batters already faced
+                       1-3    4-6    7-9  10-12  13-15  16-18    19+
+      entered 1-3     0.5%   3.6%   4.0%   5.6%   8.7%   7.4%  15.0%
+      entered 4-6     2.1%  11.7%  11.3%  10.0%   9.5%   9.5%  10.0%
+      entered 7+      1.6%  11.5%  12.7%   8.9%      -      -      -
+      SHIPPED (r=0)   1.5%   9.9%   7.3%  ------ 7.0% flat ------
+
+An early-entry arm is about THREE TIMES less likely to be pulled through
+the 4-12 batter range — exactly where a bulk arm lives, and exactly where
+the flat table was charging him 7-10% a plate appearance. Fourth instance
+of "measured on one role, applied to all of them".
+
+**TWO CANDIDATE DIMENSIONS WENT IN AND ONE CAME OUT.** The other was DEPTH:
+the shipped axis caps at nine batters and holds 7.0% flat, and the guess
+was that the real hazard falls past the cap. **REFUTED** — pooled it runs
+8.5 / 9.1 / 8.2 / 13.7 and RISES at the end. A 600-game smoke test showed it
+falling to 3.0% and that was noise; the full walk killed it. Recorded
+because a plausible mechanism that a partial sample supports is exactly
+what this project keeps having to un-learn.
+
+**AND THE BULK ARM NEEDS NO CELL OF HIS OWN.** Keyed on "first reliever
+behind a short start" the row reads 0.3 / 3.6 / 3.5 / 4.8 / 8.4 / 7.2 /
+15.4, within noise of the intent-bucket-0 row. So this is ONE dimension and
+no opener special case — the general mechanism covers the specific
+population, which is the outcome to prefer.
+
+Keyed (intent bucket, min(runs,3), min(batters//3, 6)) with a documented
+fallback to the (intent, depth) marginal where a three-way cell is under 200
+rows, and to the flat table below that — thin exactly where the new
+dimension matters most, an early entry that has allowed runs. Train rows
+only, unlike the flat table it sits in front of. `relief.USE_MID_INTENT`,
+and unlike `USE_OPENER_DECAY` this IS a clean paired A/B: it changes the
+probability a roll is compared against, not the number of rolls.
+
+Suite 486 -> 487, THREE mutations each killing exactly this check (the
+`entry_inning` kwarg dropped at the call site, the flag flipped, the
+marginal fallback removed). Two pre-existing stubs in `test_game.py` needed
+the new kwarg — a real consequence of the signature, not a workaround.
+Battery e050af9398ae -> cc4475863ce0, **no row moved by more than one se**.
+
+**THE RESULT IS PARTIAL AND MUST BE REPORTED AS PARTIAL.**
+
+    the arm behind the opener      mean outs    <=6      >=15
+      real                            7.39     55.2%     9.8%
+      sim, before                     5.00     77.2%     3.6%
+      sim, after                      5.64     70.2%     4.3%
+      sim, relief hook OFF            7.03     61.6%    11.8%
+
+It moves the right way on every column and closes about a third of the gap
+to the hook-off control. It does not close the item.
+
+**WHERE THE REST OF IT IS, attributed rather than guessed.** One candidate
+was checked and REFUTED: the engine does not roll this hazard on
+inning-ending plate appearances (`_half_inning` breaks at `fr.outs >= 3`
+before the removal block), so its denominator already matches the count's
+`same_half` convention. That leaves the BETWEEN-INNINGS continuation hazard,
+and `scratchpad/bulk_continue.py` already counted it too aggressive for this
+cell: 0.7821 against a shipped 0.7569 on a clean entry, widening to 0.5000
+against 0.3788 by the fourth extra inning. The arithmetic agrees — with the
+per-plate-appearance hook off entirely the engine still reaches only 7.03
+against a real 7.39, so the continuation table is short on its own before
+any mid-inning removal is applied.
+
+SO ITEM B PART TWO IS: recount `CONTINUE_INTENT` on train rows with the
+same machinery and ship the deep-j cells. NOT DONE HERE deliberately — it
+replaces a shipped table with its own history and dependents, and doing that
+at the end of a long session is how a marginal thing ships wrong. The counts
+are in hand and the instrument exists.

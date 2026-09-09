@@ -444,7 +444,7 @@ def check_a_reliever_can_be_pulled_mid_inning():
     orig = game.USE_MEASURED_RELIEF_HOOK
     keep = relief.mid_removal
     game.USE_MEASURED_RELIEF_HOOK = True
-    relief.mid_removal = lambda runs, batters: 1.0
+    relief.mid_removal = lambda runs, batters, entry_inning=None: 1.0
     seen = []
     orig_next = game.Side.next_arm
 
@@ -471,7 +471,7 @@ def check_the_relief_hook_flag_off_leaves_relievers_alone():
     orig = game.USE_MEASURED_RELIEF_HOOK
     keep = relief.mid_removal
     game.USE_MEASURED_RELIEF_HOOK = False
-    relief.mid_removal = lambda runs, batters: 1.0
+    relief.mid_removal = lambda runs, batters, entry_inning=None: 1.0
     seen = []
     orig_next = game.Side.next_arm
 

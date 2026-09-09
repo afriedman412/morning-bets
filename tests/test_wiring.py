@@ -19,7 +19,7 @@ alone would guard the default and not the wiring.
 import random
 
 from src.context import calibrate as cal
-from src.context import game, sim
+from src.context import game, relief, sim
 from tests import fixtures as fx
 
 LG = sim.league()
@@ -219,6 +219,66 @@ def check_the_relief_mid_inning_hook_reaches_the_bullpen():
     assert a_on > a_off, (a_on, a_off)
 
 
+def check_the_mid_inning_relief_hook_reads_intent():
+    """`relief.MID_INTENT`: the per-plate-appearance hook is conditioned on
+    WHY the arm is out there, not just on what he has done.
+
+    THE DEFECT (TODO 15 / item B). `RELIEF_MID_REMOVAL` was counted over
+    every in-inning relief plate appearance — a population of one-inning
+    arms — and applied to every arm, at 7-10% a batter once he is past his
+    third. Survivable facing four men, fatal facing twenty, and it was the
+    BINDING CONSTRAINT on the arm behind an opener: he came out at 5.00
+    outs against a real 7.39, and switching the hook off entirely gave
+    7.03. An arm entering in innings 1-3 is really pulled about a third as
+    often through the 4-12 batter range.
+
+    Both halves are checked because the table being right buys nothing if
+    `game` never passes the dimension — which is the mutation that would
+    otherwise pass every existing relief check.
+    """
+    # THE TABLE. A bulk arm and a late arm in the identical state.
+    early = relief.mid_removal(0, 6, entry_inning=2)
+    late = relief.mid_removal(0, 6, entry_inning=8)
+    assert early < late / 2, (early, late)
+
+    # THE FALLBACK, and it must land on the MARGINAL rather than the flat
+    # table: (0, 2, 0) has 88 rows and is deliberately absent from
+    # MID_INTENT, so a thin cell degrades to something still counted on
+    # intent. Falling through to the flat table instead would silently
+    # restore the defect for exactly the thinnest cells.
+    assert (0, 2, 0) not in relief.MID_INTENT
+    assert relief.mid_removal(2, 1, entry_inning=2) == \
+        relief.MID_INTENT_DEPTH[(0, 0)]
+
+    # OFF IS THE FLAT TABLE, exactly.
+    prev = relief.USE_MID_INTENT
+    try:
+        relief.USE_MID_INTENT = False
+        assert (relief.mid_removal(0, 6, entry_inning=2)
+                == relief.mid_removal(0, 6)
+                == relief.RELIEF_MID_REMOVAL[0][2])
+    finally:
+        relief.USE_MID_INTENT = prev
+
+    # THE WIRING. `game` must hand the entry inning over; without it the
+    # table above is unreachable and every other check still passes.
+    seen = []
+    orig = relief.mid_removal
+
+    def spy(runs, batters, entry_inning=None):
+        seen.append(entry_inning)
+        return orig(runs, batters, entry_inning)
+
+    relief.mid_removal = spy
+    try:
+        _games(USE_MEASURED_RELIEF_HOOK=True)
+    finally:
+        relief.mid_removal = orig
+    assert seen, "the relief hook never fired"
+    assert any(e is not None for e in seen), \
+        "game.py calls mid_removal without the intent dimension"
+
+
 def check_the_measured_mechanisms_are_switched_on_by_default():
     """The checks above set each flag THEMSELVES, in both directions, so
     they prove the mechanism works and say nothing about which way it ships.
@@ -238,6 +298,10 @@ def check_the_measured_mechanisms_are_switched_on_by_default():
     assert game.USE_MEASURED_RELIEF_LENGTH is True
     assert game.USE_MEASURED_RELIEF_HOOK is True
     assert game.USE_RELIEF_INTENT is True
+    # item B, 2026-09-09: intent on the per-plate-appearance relief hook,
+    # counted on 9,254 pre-holdout games. The check above sets this flag
+    # itself, so without this line only the mechanism is guarded.
+    assert relief.USE_MID_INTENT is True
     # ADDED 2026-09-06 after a sweep flipped four shipped flags with all
     # 448 checks green. Every one HAD a wiring check; each of those sets
     # the flag itself (the house pattern above), so the mechanism checks
@@ -804,6 +868,60 @@ def check_the_opener_draw_keeps_the_ab_streams_paired():
         game.USE_OPENER_POOL = prev_pool
         game._OPENER_STARTS = was
         game._OPENER_ROLES = was_roles
+
+
+def check_a_stale_outs_record_cannot_hide_a_role_change():
+    """`OPENER_HALF_LIFE_DAYS`: the gate weights recent starts more.
+
+    A flat mean over four seasons is blind to a role change in BOTH
+    directions, and both were costing (`scratchpad/opener_decay.py`, item
+    A). The two arms below are the two failures, and each is checked
+    against the flag so a regression to the flat mean fails here rather
+    than quietly widening the population the engine mis-prices.
+
+      * CONVERTED TO AN OPENER — two seasons of eighteen-out starts and a
+        recent month of threes. Flat mean 14.6, so the shipped gate stayed
+        silent and he got a generic starter's sixteen outs. This is 36.4%
+        of real opener starts on the four-season count.
+      * CONVERTED BACK TO THE ROTATION — the reverse, and the reason
+        23.3% of the starts the gate fired on went fifteen outs or more:
+        an ordinary starter handed an opener's exit draw.
+    """
+    was = game._OPENER_STARTS
+    prev = game.USE_OPENER_DECAY
+    try:
+        stale = [(f"2024-05-{d:02d}", 18) for d in range(1, 25)]
+        fresh_short = [(f"2026-08-{d:02d}", 3) for d in range(1, 8)]
+        recent_long = [(f"2026-08-{d:02d}", 17) for d in range(1, 8)]
+        old_short = [(f"2024-05-{d:02d}", 3) for d in range(1, 25)]
+
+        game._OPENER_STARTS = {"p": stale + fresh_short}
+        assert game.opener_record("p", "2026-09-09") is not None, \
+            "a converted opener must trip the gate"
+        game._OPENER_STARTS = {"p": old_short + recent_long}
+        assert game.opener_record("p", "2026-09-09") is None, \
+            "an arm back in the rotation must not keep an opener's exit"
+
+        # OFF IS THE FLAT MEAN, and the flat mean gets BOTH backwards —
+        # which is the mutation this check exists to catch.
+        game.USE_OPENER_DECAY = False
+        game._OPENER_STARTS = {"p": stale + fresh_short}
+        assert game.opener_record("p", "2026-09-09") is None
+        game._OPENER_STARTS = {"p": old_short + recent_long}
+        assert game.opener_record("p", "2026-09-09") is not None
+
+        # The weights must be a DECAY, not a window: an arm who has been an
+        # opener throughout reads the same either way, so a change here
+        # cannot leak into the population that was already handled.
+        game.USE_OPENER_DECAY = True
+        steady = [(f"2026-0{m}-01", 4) for m in range(1, 9)]
+        game._OPENER_STARTS = {"p": steady}
+        on = game._record_mean(steady, "2026-09-09")
+        game.USE_OPENER_DECAY = False
+        assert abs(on - game._record_mean(steady, "2026-09-09")) < 0.01, on
+    finally:
+        game.USE_OPENER_DECAY = prev
+        game._OPENER_STARTS = was
 
 
 def check_the_bullpen_gets_the_same_shrink_target_as_the_rotation():

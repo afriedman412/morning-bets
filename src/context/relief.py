@@ -357,13 +357,104 @@ RELIEF_MID_REMOVAL = {
 }
 
 
-def mid_removal(runs: int, batters: int) -> float:
+#: THE SAME TABLE, CONDITIONED ON INTENT (`scratchpad/mid_intent.py`,
+#: 9,254 games before the holdout). `RELIEF_MID_REMOVAL` above was counted
+#: over every in-inning relief plate appearance — a population of
+#: one-inning arms — and applied to every arm alike, which is the
+#: "measured on one role, applied to all of them" error that hit-by-pitch,
+#: sacrifices and wild pitches all had. It is the BINDING CONSTRAINT on the
+#: arm behind an opener: `scratchpad/bulk_shape.py` gets him to 5.00 outs
+#: against a real 7.39, and switching this hook off entirely gets 7.03.
+#:
+#: An arm entering in innings 1-3 is about THREE TIMES less likely to be
+#: pulled through the 4-12 batter range than a late entry, which is exactly
+#: where a bulk arm lives:
+#:
+#:     batters faced      1-3    4-6    7-9  10-12  13-15  16-18    19+
+#:       entered 1-3     0.5%   3.6%   4.0%   5.6%   8.7%   7.4%  15.0%
+#:       entered 4-6     2.1%  11.7%  11.3%  10.0%   9.5%   9.5%  10.0%
+#:       entered 7+      1.6%  11.5%  12.7%   8.9%      -      -      -
+#:       flat (shipped)  1.5%   9.9%   7.3%  ------ 7.0% flat ------
+#:
+#: TWO THINGS THIS IS NOT. It is not a depth fix — the guess that the real
+#: hazard falls past the shipped 9-batter cap is REFUTED (pooled it runs
+#: 8.5/9.1/8.2/13.7 and rises at the end). And it is not an opener special
+#: case — keyed on "first reliever behind a short start" the row is within
+#: noise of the intent-bucket-0 row, so the bulk arm needs no cell of his
+#: own. One dimension, no special case.
+#:
+#: Keyed (intent bucket, min(runs, 3), min(batters // 3, 6)). Counted on
+#: rows before `HOLDOUT`, unlike the flat table above, which was not.
+MID_INTENT = {
+    (0, 0, 0): 0.0046, (0, 0, 1): 0.0344, (0, 0, 2): 0.0349,
+    (0, 0, 3): 0.0442, (0, 0, 4): 0.1007, (0, 0, 5): 0.0648,
+    (0, 1, 0): 0.0157, (0, 1, 1): 0.0239, (0, 1, 2): 0.0440,
+    (0, 1, 3): 0.0445, (0, 1, 4): 0.0778, (0, 1, 5): 0.0905,
+    (0, 2, 1): 0.0722, (0, 2, 2): 0.0508, (0, 2, 3): 0.0694,
+    (0, 2, 4): 0.1064,
+    (0, 3, 2): 0.0460, (0, 3, 3): 0.0909, (0, 3, 4): 0.0637,
+    (0, 3, 5): 0.0557, (0, 3, 6): 0.1171,
+    (1, 0, 0): 0.0191, (1, 0, 1): 0.1163, (1, 0, 2): 0.1083,
+    (1, 0, 3): 0.0913, (1, 0, 4): 0.1009,
+    (1, 1, 0): 0.0493, (1, 1, 1): 0.1126, (1, 1, 2): 0.1204,
+    (1, 1, 3): 0.1008, (1, 1, 4): 0.1098,
+    (1, 2, 0): 0.0361, (1, 2, 1): 0.1389, (1, 2, 2): 0.1097,
+    (1, 2, 3): 0.1093, (1, 2, 4): 0.0875,
+    (1, 3, 0): 0.0549, (1, 3, 1): 0.1091, (1, 3, 2): 0.1178,
+    (1, 3, 3): 0.1043, (1, 3, 4): 0.0815, (1, 3, 5): 0.1094,
+    (2, 0, 0): 0.0145, (2, 0, 1): 0.1018, (2, 0, 2): 0.0865,
+    (2, 0, 3): 0.0661,
+    (2, 1, 0): 0.0421, (2, 1, 1): 0.1300, (2, 1, 2): 0.1133,
+    (2, 1, 3): 0.0784,
+    (2, 2, 0): 0.0667, (2, 2, 1): 0.1522, (2, 2, 2): 0.1738,
+    (2, 3, 0): 0.0810, (2, 3, 1): 0.1622, (2, 3, 2): 0.1978,
+    (2, 3, 3): 0.0974,
+}
+
+#: The (intent, depth) MARGINAL, and it is load-bearing rather than
+#: decorative: the three-way cell is thinnest exactly where the new
+#: dimension matters most — an early entry that has allowed runs — and a
+#: rate counted on forty rows is a rumour. A cell missing from `MID_INTENT`
+#: (under 200 rows) falls through to here, and a cell missing from here
+#: falls through to the flat table, so the degradation is monotone and
+#: every level is something that was actually counted.
+MID_INTENT_DEPTH = {
+    (0, 0): 0.0051, (0, 1): 0.0363, (0, 2): 0.0401, (0, 3): 0.0563,
+    (0, 4): 0.0871, (0, 5): 0.0740, (0, 6): 0.1498,
+    (1, 0): 0.0215, (1, 1): 0.1171, (1, 2): 0.1127, (1, 3): 0.0998,
+    (1, 4): 0.0946, (1, 5): 0.0947, (1, 6): 0.1000,
+    (2, 0): 0.0162, (2, 1): 0.1151, (2, 2): 0.1269, (2, 3): 0.0892,
+}
+
+#: Off restores the flat table exactly, so OFF is bit-for-bit the
+#: pre-intent engine. No random variate is involved either way — this
+#: changes the PROBABILITY a roll is compared against, not the number of
+#: rolls — so unlike `game.USE_OPENER_DECAY` this one IS a clean paired
+#: A/B and the streams stay aligned.
+USE_MID_INTENT = True
+
+
+def mid_removal(runs: int, batters: int,
+                entry_inning: int | None = None) -> float:
     """P(replaced before the next batter) for the reliever now pitching.
 
     `runs` and `batters` are what he has already given up and already faced
     IN THIS STINT — the state at the decision, not the stint total. See the
     survivorship note above; conditioning on stint totals reads plausibly
     and is inflated by the arms that stayed in and kept being scored on.
+
+    `entry_inning` is the INTENT dimension and is the state AT ENTRY, not
+    at the decision — the same conditioning `continues` takes, and for the
+    same reason: that is what the table was counted on. Without it the flat
+    table answers, which is also the `USE_MID_INTENT`-off state.
     """
-    r = RELIEF_MID_REMOVAL[min(max(runs, 0), 3)]
-    return r[min(max(batters, 0) // 3, 3)]
+    r = min(max(runs, 0), 3)
+    if USE_MID_INTENT and entry_inning is not None:
+        e = intent_bucket(max(entry_inning, 1))
+        d = min(max(batters, 0) // 3, 6)
+        p = MID_INTENT.get((e, r, d))
+        if p is None:
+            p = MID_INTENT_DEPTH.get((e, d))
+        if p is not None:
+            return p
+    return RELIEF_MID_REMOVAL[r][min(max(batters, 0) // 3, 3)]

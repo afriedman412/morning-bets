@@ -14,9 +14,34 @@ it belongs in `NOTES-context-layer.md`.
     RESUME-ARCHIVE.md    Days six to sixteen, moved out of here. Not deleted,
                          but its figures predate several engine changes.
 
-## HANDOFF FOR THE NEXT (FABLE) SESSION — written 2026-09-07 by the Opus
-## session that ran the direct-model comparison. Full log at the END of
-## `NOTES-context-layer.md` ("DAY TWENTY-ONE"). Read that, then this.
+## HANDOFF — 2026-09-09, the PITCHER-USE session.
+
+**STATUS LIVES IN `TODO.md`, NOT HERE.** This block is a pointer and is
+kept short on purpose: a second copy of the status is how one of them goes
+stale, which is the failure CLAUDE.md opens by warning about. Detail is in
+TODO items 15, 21 and 8; the log is at the END of `NOTES-context-layer.md`
+("DAY TWENTY").
+
+SHIPPED, both measured and both scored where they fire: `USE_OPENER_DECAY`
+(the opener gate weights recent starts) and `relief.MID_INTENT` (the
+per-plate-appearance relief hook reads intent). Suite 486 -> 487. Battery
+02e66b9970fc -> e050af9398ae -> cc4475863ce0, no row moving more than one se
+at either step — both are 2-3% populations a pooled battery cannot resolve,
+so that is the absence of collateral damage and NOT the result.
+
+NEXT: **TODO 15 part two**, which is a finish rather than a start — the
+between-innings continuation hazard, counts already in hand. Then TODO 21,
+which has three measured hooks and needs no new data.
+
+**DO NOT CONFUSE THE OPENER DECAY WITH THE CLOSED "RECENCY WEIGHTING" ITEM
+BELOW.** That one is `HALF_LIFE_DAYS` on PITCHER RATES, swept and closed
+2026-09-07, still None. This is a decay on the OPENER'S OUTS RECORD inside
+the classification gate. Different quantity, table and falsifier — the name
+collision is the only reason this paragraph exists.
+
+## PREVIOUS HANDOFF — written 2026-09-07 by the session that ran the
+## direct-model comparison. Superseded in part by the section above; its
+## items C and E stand, and its D is the RATE half-life, not the opener's.
 
 STATE: nothing shipped, no engine change, no flag flipped, battery
 baseline still `battery_90590e37150f.json`. New scratchpads only:
@@ -589,6 +614,24 @@ Fork, never spawn. A spawned child re-imports at DEFAULT globals and every
 `USE_*` flag silently reverts.
 
 ## TOOLS BUILT TODAY — CHECK HERE BEFORE WRITING ONE
+
+2026-09-09, the pitcher-use session:
+
+    opener_decay.py        record staleness; the gate scored as a CLASSIFIER
+                           rather than by RMSE, which is its actual job
+    opener_decay_score.py  scores a gate change on the starts it CHANGES,
+                           split by direction — the two predict opposite moves
+    closer_slot.py         naming the closer from usage, the forward-looking
+                           ORACLE that bounds any news feed, the stale cliff
+    pen_fatigue.py         the fatigue null, with its positive control
+    bulk_type.py           the follower's type mix and his early hook
+    bulk_shape.py          what the engine gives the follower; `--nohook` is
+                           the attribution control that redirected TODO 15
+    bulk_continue.py       the between-innings hazard for the bulk cell
+    mid_intent.py          the per-PA hazard by intent; `--emit` prints the
+                           shippable literals, and the count is CACHED
+
+2026-09-07 and earlier:
 
     memory.py           3 arms (none/pool/prior) x 2 cuts, on outs, K,
                         game totals and F5. THE main experiment.

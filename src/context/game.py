@@ -41,6 +41,7 @@ over intact.
 from __future__ import annotations
 
 import bisect
+import datetime
 import random
 from dataclasses import dataclass, field, replace
 
@@ -98,6 +99,48 @@ OPENER_AVG_OUTS = 11.0
 #: arm keeps the generic hook — a one-start record is a coin, not a
 #: distribution — unless his RELIEF USAGE identifies him (below).
 OPENER_MIN_STARTS = 2
+
+#: THE RECORD GOES STALE, and a flat mean over four seasons cannot see a
+#: role change in either direction (TODO 15, `scratchpad/opener_decay.py`).
+#: Both directions were costing: the gate MISSED 36.4% of real opener
+#: starts because a converted arm still carried three seasons of sixteen-out
+#: starts, and FIRED on rotation starts for months after the reverse
+#: conversion — 23.3% of the starts it fired on went fifteen outs or more.
+#:
+#: Weighting each prior start by 0.5 ** (days_ago / HALF) fixes both with
+#: one number. Chosen on TRAIN rows by RMSE against the arm's actual outs
+#: — an interior optimum of a grid running 20 to 540 days, so it is not a
+#: grid-edge parameter — and confirmed on the holdout, where it takes
+#: overall RMSE 3.8420 -> 3.7737 (-2.4 sd paired) and the short-record
+#: population, which is where the gate fires, 4.2811 -> 3.5687.
+#:
+#: THIS IS A MEASUREMENT OF STALENESS, NOT A FITTED LEVEL. The half-life
+#: was fitted to predict the quantity it is used to predict — how long he
+#: goes tonight — the same posture `stabilise.py` takes with its four
+#: shrinkage constants. Nothing here was tuned against a run loss.
+#:
+#: As a classifier it dominates the flat mean on BOTH axes rather than
+#: trading them off, which is why it ships without a threshold change:
+#: recall 63.6% -> 70.4%, false alarms 23.3% -> 21.1% (train rows).
+OPENER_HALF_LIFE_DAYS = 120.0
+
+#: Off restores the flat mean exactly, so OFF is bit-for-bit the pre-decay
+#: engine and the scored baseline is recoverable.
+#:
+#: BUT THIS FLAG IS NOT A PAIRED A/B, unlike `USE_OPENER_EXIT` beside it,
+#: and the difference is worth stating rather than discovering. Those flags
+#: draw the exit unconditionally and gate only its USE, so both states
+#: consume one identical stream. This one changes WHICH ARMS ARE FLAGGED,
+#: and `build_side` draws an exit only for a flagged arm — so in exactly
+#: the games where the gate's answer changes, the stream diverges and
+#: everything downstream of it moves. That is inherent to the change, not
+#: an oversight: flagging a different population cannot be stream-neutral.
+#: Judge it on the battery diff over four folds, not on a paired draw.
+#:
+#: Weighting the bootstrap DRAW by the same decay is the obvious next step
+#: and is deliberately NOT bundled here — it needs a different call into
+#: the rng, and two mechanisms behind one flag cannot be told apart.
+USE_OPENER_DECAY = True
 
 #: The no-record fallback (operator's insight, 2026-09-09: nothing says
 #: "bullpen" like almost never pitching in the 3rd). An arm with fewer
@@ -653,7 +696,15 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
             rl = side.cur_line
             roll = rng.random()
             if (USE_MEASURED_RELIEF_HOOK
-                    and roll < relief.mid_removal(rl.runs, rl.batters)):
+                    and roll < relief.mid_removal(
+                        rl.runs, rl.batters,
+                        # INTENT, the same dimension the continuation hazard
+                        # takes and gated on the same flag, so the two halves
+                        # of "how long does this arm stay" cannot end up
+                        # conditioned on different things. Entry state, not
+                        # the live state — that is what the table counted.
+                        entry_inning=(side.cur_entry_inning
+                                      if USE_RELIEF_INTENT else None))):
                 side.next_arm(fr.outs, rng, inning, margin)
         elif not side.starter_out and USE_LEARNED_HOOK:
             if rng.random() < removal.predict(
@@ -1284,7 +1335,8 @@ def opener_record(name: str | None,
     if not name or not date:
         return None
     rows = _opener_starts().get(name)
-    outs = [o for d, o in rows if d < date] if rows else []
+    prior = [(d, o) for d, o in rows if d < date] if rows else []
+    outs = [o for _, o in prior]
     if len(outs) < OPENER_MIN_STARTS:
         # No usable start record — his RELIEF USAGE can still identify a
         # first-time opener, and gets him the pooled curve counted on
@@ -1296,9 +1348,35 @@ def opener_record(name: str | None,
                                 for _ in range(n)]
             return (_OPENER_POOL, True) if _OPENER_POOL else None
         return None
-    if sum(outs) / len(outs) >= OPENER_AVG_OUTS:
+    if _record_mean(prior, date) >= OPENER_AVG_OUTS:
         return None
     return outs, False
+
+
+def _record_mean(prior: list[tuple[str, int]], date: str) -> float:
+    """His outs a start, recent starts counting for more.
+
+    The BOOTSTRAP SUPPORT is deliberately left flat — every start he has
+    made stays in the list the exit is drawn from, and only the gate's
+    threshold sees the weights. See `USE_OPENER_DECAY` for why the two are
+    separated.
+    """
+    if not USE_OPENER_DECAY:
+        return sum(o for _, o in prior) / len(prior)
+    num = den = 0.0
+    for d, o in prior:
+        w = 0.5 ** (_days_between(date, d) / OPENER_HALF_LIFE_DAYS)
+        num += w * o
+        den += w
+    # A club that has not played in years cannot underflow to a divide by
+    # zero: fall through to the flat mean rather than invent a level.
+    return num / den if den > 0 else sum(o for _, o in prior) / len(prior)
+
+
+def _days_between(a: str, b: str) -> int:
+    ya, ma, da = (int(x) for x in a.split("-"))
+    yb, mb, dbb = (int(x) for x in b.split("-"))
+    return (datetime.date(ya, ma, da) - datetime.date(yb, mb, dbb)).days
 
 
 def _draw_early_exit(h: sim.Hook, rng: random.Random) -> int | None:
