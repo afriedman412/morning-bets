@@ -313,8 +313,9 @@ carrying the mids as they were at print time; `bets/2026_09_08_board.json`
 and `bets/2026_09_09_board.json` are the first two and nothing grades them
 yet.
 
-**15. THE OPENER — the exit and the RECENCY WEIGHT have shipped; the typed
-bulk arm and the slate override are what remain.**
+**15. THE OPENER — the exit, the RECENCY WEIGHT and both halves of the
+relief hazard have shipped. What remains is the LEASH DELTA and the slate
+override, and the operator has ruled the typed bulk arm out of scope.**
 
 What shipped: `USE_RELIEF_INTENT` and `USE_OPENER_EXIT` (a flagged
 short-yardage starter exits on a bootstrap from his own outs record), plus
@@ -402,26 +403,65 @@ The bulk cell turned out redundant with intent bucket 0, so it is one
 dimension and no opener special case. Battery clean, suite 486 -> 487,
 three mutations.
 
-**PART TWO IS THE ITEM NOW, AND THE RESIDUAL IS ATTRIBUTED, NOT GUESSED.**
+**PART TWO SHIPPED 2026-09-09, AND IT WAS NOT AN OPENER FIX AT ALL.**
+`CONTINUE_INTENT` and `EXTRA_INTENT` were counted on the wrong denominator
+for EVERY reliever in EVERY game — the opener's bulk arm was only where it
+showed, because he faces the most batters. `relief.asked()` carries the
+argument; two errors, both pushing one way:
 
-    the arm behind the opener   mean outs    <=6     >=15
-      real                         7.39     55.2%    9.8%
-      sim before / after       5.00/5.64  77.2/70.2  3.6/4.3
-      sim, relief hook OFF         7.03     61.6%   11.8%
+  * an arm PULLED MID-INNING was scored as declining to come back out,
+    while `mid_removal` had already charged him per plate appearance —
+    removal counted twice;
+  * an arm who CLOSED OUT THE GAME was scored as declining an inning that
+    never existed. The engine's roll there decides nothing.
 
-Part one moves every column the right way and closes about a third of the
-gap. The rest is the BETWEEN-INNINGS continuation hazard: with the
-per-plate-appearance hook off entirely the engine still reaches only 7.03
-against a real 7.39, so `CONTINUE_INTENT` is short before any mid-inning
-removal applies. `scratchpad/bulk_continue.py` has the counts — 0.7821
-against a shipped 0.7569 on a clean entry, widening to 0.5000 against 0.3788
-by the fourth extra inning. Recount it on train rows with the same machinery
-and ship the deep-j cells.
+The late clean entry — the cell nearly every reliever in every game hits —
+went 0.0992 to 0.1803. Recounted on 62,278 pre-holdout stints (the first
+version used every row, holdout included). `scratchpad/continue_intent.py`
+separates the three denominators; `relief.tally` reproduces it independently.
+
+SCORED ON RELIEF LENGTH, `scratchpad/pen_shape.py`, all four folds, every
+relief outing (23,844 real):
+
+    outs         mean    <=2      3     4-6    >=7    arms/side
+      real       3.34   22.3%  53.7%  19.5%   4.5%      3.383
+      before     3.01   29.3%  52.5%  15.2%   2.9%      3.726
+      after      3.20   29.1%  47.7%  18.7%   4.5%      3.505
+
+Mean gap 57% closed, arms-per-side gap 64% closed, the 7+ share landing
+exactly. Battery diff against `cc4475863ce0`: NO ROW MOVED BY MORE THAN ONE
+SE — which is the expected result for a change that swaps one reliever for
+another rather than changing a rate. Suite 487 -> 490, three mutations.
+MIND THE INSTRUMENT: `pen_shape` first read 4.23 arms a side because
+`_end_of_inning` fires after the LAST inning too, so a failed continuation
+roll warms up a phantom reliever who never faces a batter. Filter on
+`batters > 0`.
+
+**THE RESIDUAL, and it is now the honest next question about relief length:
+29.1% of simulated outings are two outs or fewer against a real 22.3%,
+unmoved by this change.** Too many very short outings, which is the
+mid-inning hook or the mid-inning ENTRY rate, not the boundary. Level and
+tail are now right and the short end is not.
 
 ONE CANDIDATE IS ALREADY REFUTED, do not re-check it: the engine does NOT
 roll the mid-inning hazard on inning-ending plate appearances
 (`_half_inning` breaks at `fr.outs >= 3` first), so its denominator matches
 the count's `same_half` convention.
+
+**OPERATOR RULING 2026-09-09, AND IT SCOPES THE REST OF THIS ITEM DOWN.**
+The typed-role sequence is over-specified for a population that is 3.5% of
+starts: "the shape was obvious immediately and openers are rare, so it might
+be good enough". So the remaining opener build is NOT the three-type model —
+it is the counted -3.15 outs (se 0.30) that a real starter following an
+opener goes against his own normal start, which is inside `OFFSET_CLAMP` and
+which the engine can already express. Detect the opener, decide bullpen game
+or not, apply the delta. Do not build the swingman/pure-reliever typing
+unless something else forces it.
+
+AND THE STANDING PRIORITY IS STRUCTURE IN THE PITCHING, operator, same day:
+anything that pins down which arm is on the mound reduces what the model has
+to guess. Openers are one route and item 21's closer is the other, on the
+SELECTION side rather than the LENGTH side.
 AND THE SLATE ACCOMMODATES ANNOUNCED COMBOS: the opener and his follower
 are usually public before lineups, but `mlb_schedule_with_probables`
 carries one arm per side — add a manual override on the slate ("bulk arm:

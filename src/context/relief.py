@@ -33,6 +33,15 @@ on second.
     venv/bin/python -m src.context.relief
 
 reprints the tables from the database.
+
+AND THE QUESTION HAS TO BE THE ONE THE ENGINE ASKS. The intent tables were
+first counted as "he pitched in that inning, did he pitch in the next one",
+which is not it: the engine rolls this only for an arm who has just recorded
+the third out, and only when another inning will be played. Counting the
+other two populations charges mid-inning removal twice and scores a man who
+closed out a game as declining to come back out. `asked()` holds the
+argument; both errors ran the same way and the late clean-entry cell — the
+one nearly every reliever in every game hits — was low by 8 points.
 """
 from collections import defaultdict
 
@@ -56,52 +65,75 @@ CONTINUE_TAIL = 0.4411
 #: INTENT (added 2026-09-09, PLAN-opener-bullpen.md step three). The pooled
 #: tables above average over WHY the arm is out there, and entry inning is
 #: where that intent is readable: with a clean-inning entry, an arm brought
-#: in during innings 1-3 continues 76% of the time (he is the bulk man
-#: behind an opener or an early exit), innings 4-6 42%, innings 7+ 12%. The
-#: shipped pooled 20.1% is dominated by late innings and is wrong by a
-#: factor of nearly four for exactly the games the opener item is about.
+#: in during innings 1-3 continues 79% of the time (he is the bulk man
+#: behind an opener or an early exit), innings 4-6 44%, innings 7+ 18%. The
+#: pre-intent pooled 20.1% is dominated by late innings and is wrong by a
+#: factor of four for exactly the games the opener item is about.
 #: The follower of a planned opener averages 9.50 outs against 3.96 for an
 #: ordinary first reliever, and WHO he is does not predict (split-half at
 #: the null against a positive-controlled harness), so intent is carried by
 #: the entry state alone — which is all the engine knows anyway.
 #:
 #: Margin earns its cell the same way `entry_outs` does: the long man in a
-#: blowout stays out there (E1 clean entry: 38.0% close vs 50.7% blown
+#: blowout stays out there (E1 clean entry: 43.7% close vs 54.1% blown
 #: open). Keyed (intent bucket, entry_outs, blowout) where blowout is
-#: |margin at entry| >= 4. Counted over 87,855 stints; thinnest cell 127.
+#: |margin at entry| >= 4.
+#:
+#: RE-COUNTED 2026-09-09 ON THE DENOMINATOR THE ENGINE ASKS — see `asked`,
+#: which is where the argument lives. The first version counted "he pitched
+#: in the inning; did he pitch in the next one" over every stint in the
+#: table, which charges mid-inning removal a second time and scores an arm
+#: who closed out the game as having declined an inning that never existed.
+#: Both errors push one way, so every cell here ROSE, and worst for the arms
+#: who face the most batters — the late clean entry, which nearly every
+#: reliever in every game hits, went 9.9% -> 18.0%.
+#:
+#: Now counted on 62,278 stints BEFORE `HOLDOUT` (the first version used
+#: every row, including the ones it is scored on). Thinnest cell 153.
 CONTINUE_INTENT = {
-    (0, 0, False): 0.7569, (0, 0, True): 0.7988,
-    (0, 1, False): 0.7373, (0, 1, True): 0.8110,
-    (0, 2, False): 0.7577, (0, 2, True): 0.8209,
-    (1, 0, False): 0.3796, (1, 0, True): 0.5070,
-    (1, 1, False): 0.5539, (1, 1, True): 0.6784,
-    (1, 2, False): 0.7169, (1, 2, True): 0.7795,
-    (2, 0, False): 0.0992, (2, 0, True): 0.1545,
-    (2, 1, False): 0.3160, (2, 1, True): 0.3213,
-    (2, 2, False): 0.4809, (2, 2, True): 0.4626,
+    (0, 0, False): 0.7949, (0, 0, True): 0.8497,
+    (0, 1, False): 0.7489, (0, 1, True): 0.8103,
+    (0, 2, False): 0.7403, (0, 2, True): 0.8125,
+    (1, 0, False): 0.4367, (1, 0, True): 0.5405,
+    (1, 1, False): 0.5866, (1, 1, True): 0.6917,
+    (1, 2, False): 0.7230, (1, 2, True): 0.7754,
+    (2, 0, False): 0.1803, (2, 0, True): 0.2993,
+    (2, 1, False): 0.4216, (2, 1, True): 0.4720,
+    (2, 2, False): 0.5823, (2, 2, True): 0.6411,
 }
 
 #: Continuation after j full extra innings, keyed (intent bucket, j,
-#: blowout). The bulk arm keeps going where the pooled table said 21% —
-#: 70% after one extra inning for an early entry. Beyond the last measured
-#: j the last cell carries, same posture as CONTINUE_TAIL. Innings-7+
-#: entries almost never see a second extra inning; the measured 0-4% cells
-#: carry that.
+#: blowout), same recount and same denominator. The early entry does not
+#: fade the way the old table said: 79% after one extra inning and still
+#: 75% after three, where the old convention read 70% and 62% because every
+#: mid-inning hook was being counted against it twice.
+#:
+#: THE CAP MOVED WITH THE DENOMINATOR. Uncensoring drops the arms who
+#: finished the game, which is most of a late entry's deep rows, so E2 now
+#: runs out after j=1 and E1 after j=3 — cells that were being published off
+#: rows the engine never asks about. Missing cells walk DOWN in j (see
+#: `continues`), so the deepest measured cell carries, the same posture as
+#: `CONTINUE_TAIL`.
 EXTRA_INTENT = {
-    (0, 1, False): 0.7030, (0, 1, True): 0.6667,
-    (0, 2, False): 0.6850, (0, 2, True): 0.5226,
-    (0, 3, False): 0.6168, (0, 3, True): 0.4964,
-    (0, 4, False): 0.3788, (0, 4, True): 0.4493,
-    (1, 1, False): 0.2003, (1, 1, True): 0.3393,
-    (1, 2, False): 0.2759, (1, 2, True): 0.3154,
-    (1, 3, False): 0.2206, (1, 3, True): 0.2555,
-    (1, 4, False): 0.1169, (1, 4, True): 0.1605,
-    (2, 1, False): 0.0396, (2, 1, True): 0.1020,
-    (2, 2, False): 0.0376, (2, 2, True): 0.0000,
+    (0, 1, False): 0.7896, (0, 1, True): 0.7099,
+    (0, 2, False): 0.8091, (0, 2, True): 0.6186,
+    (0, 3, False): 0.7513, (0, 3, True): 0.6311,
+    (0, 4, False): 0.5619, (0, 4, True): 0.5510,
+    (0, 5, False): 0.3582,
+    (1, 1, False): 0.3091, (1, 1, True): 0.4188,
+    (1, 2, False): 0.4566, (1, 2, True): 0.4617,
+    (1, 3, False): 0.4863, (1, 3, True): 0.5769,
+    (2, 1, False): 0.1118, (2, 1, True): 0.2905,
 }
 
-#: Last measured j per intent bucket; deeper outings carry that cell.
-_EXTRA_MAX_J = {0: 4, 1: 4, 2: 2}
+#: Deepest j measured for any margin in each bucket; deeper outings carry
+#: it, and a bucket missing THAT margin's cell walks further down.
+_EXTRA_MAX_J = {0: 5, 1: 3, 2: 1}
+
+
+#: Rows below this and a cell is a rumour; the lookup walks to a shallower
+#: `j` instead. Same floor the pooled `extra` recount has always used.
+MIN_CELL = 30
 
 
 def intent_bucket(entry_inning: int) -> int:
@@ -130,27 +162,88 @@ def continues(entry_outs: int, extra_innings: int,
         b = abs(entry_margin or 0) >= 4
         if extra_innings <= 0:
             return CONTINUE_INTENT[(e, k, b)]
-        return EXTRA_INTENT[(e, min(extra_innings, _EXTRA_MAX_J[e]), b)]
+        # Walk DOWN in j to the deepest cell that was actually counted for
+        # this margin. A KeyError here would be a table with a hole in it,
+        # which is what the old fixed cap turned into once uncensoring took
+        # the deep late-entry cells away.
+        j = min(extra_innings, _EXTRA_MAX_J[e])
+        while j > 1 and (e, j, b) not in EXTRA_INTENT:
+            j -= 1
+        return EXTRA_INTENT[(e, j, b)]
     if extra_innings <= 0:
         return CONTINUE_AFTER_ENTRY_INNING[k]
     return CONTINUE_AFTER_EXTRA.get(extra_innings, CONTINUE_TAIL)
 
 
-def outings(conn=None) -> list[dict]:
-    """Every relief stint, with the fields the hazard is counted over."""
+def outings(conn=None, before: str | None = None) -> list[dict]:
+    """Every relief stint, with the fields the hazard is counted over.
+
+    `game_id`, `team` and `date` are here for the two denominators below,
+    not for the rates themselves: the side's last inning on the mound says
+    whether the arm ever had a next inning to come out for, and `before`
+    holds the intent tables to training rows (rule 6).
+    """
     q = """
-        select entry_inning, entry_outs, outs_recorded, last_inning,
-               on_1b, on_2b, on_3b, entry_margin
+        select game_id, team, date, appearance_order, entry_inning,
+               entry_outs, outs_recorded, last_inning, on_1b, on_2b, on_3b,
+               entry_margin
         from mlb_stints
-        where appearance_order > 0
     """
 
     def _run(c):
-        return [dict(r) for r in c.execute(q)]
+        rows = [dict(r) for r in c.execute(q)]
+        # The side's last inning on the mound comes from EVERY stint, the
+        # starter included, so the relief filter is applied afterwards.
+        end: dict = {}
+        for r in rows:
+            k = (r["game_id"], r["team"])
+            end[k] = max(end.get(k, 0), r["last_inning"] or 0)
+        out = []
+        for r in rows:
+            if r["appearance_order"] <= 0:
+                continue
+            r["side_last_inning"] = end[(r["game_id"], r["team"])]
+            out.append(r)
+        return out
     if conn is not None:
-        return _run(conn)
-    with store.connect(attach=False) as c:
-        return _run(c)
+        rows = _run(conn)
+    else:
+        with store.connect(attach=False) as c:
+            rows = _run(c)
+    if before is not None:
+        rows = [r for r in rows if (r.get("date") or "") < before]
+    return rows
+
+
+def asked(r: dict, j: int) -> bool:
+    """Was this arm ever ASKED the question the engine asks at `j`?
+
+    THE ENGINE ONLY ROLLS `continues` FOR AN ARM STANDING ON THE MOUND WHEN
+    THE THIRD OUT IS RECORDED, AND ONLY WHEN THERE IS ANOTHER INNING TO
+    PITCH. Two denominators follow, and the pooled tables above use neither:
+
+      * HE FINISHED THE INNING. `last_inning > entry_inning + j` over
+        everyone who APPEARED in inning `entry_inning + j` scores an arm
+        yanked mid-inning as a non-continuation — but the engine has already
+        charged him `mid_removal` for that, per plate appearance. The
+        boundary table was charging removal a second time. He finished iff
+        he recorded the outs the inning owed: `(3 - entry_outs) + 3j`.
+      * THERE WAS A NEXT INNING. An arm who closes out the game is scored as
+        declining to come back out for an inning that never existed. The
+        engine's roll at that point decides nothing, so those rows do not
+        belong in the denominator either — worth 6 points on a late clean
+        entry, more than every other correction here put together.
+
+    Both push the same way and both are level errors, so the shipped table
+    ran low everywhere and worst for the arms who face the most batters.
+    """
+    eo = min(max(r.get("entry_outs") or 0, 0), 2)
+    if (r.get("outs_recorded") or 0) < (3 - eo) + 3 * j:
+        return False
+    last = r.get("side_last_inning")
+    if last is None:                     # synthetic rows: assume he was asked
+        return True
+    return last > (r.get("entry_inning") or 0) + j
 
 
 def tally(rows: list[dict] | None = None) -> dict:
@@ -158,6 +251,11 @@ def tally(rows: list[dict] | None = None) -> dict:
 
     Returned as rates AND counts so a thin cell is visible rather than
     quietly authoritative.
+
+    THE POOLED `entry`/`extra` COUNTS KEEP THE OLD DENOMINATOR on purpose:
+    they document `CONTINUE_AFTER_ENTRY_INNING` and `CONTINUE_AFTER_EXTRA`,
+    which are the `USE_RELIEF_INTENT`-off path and are frozen as the
+    pre-intent engine. The `intent` counts use `asked` above.
     """
     rows = outings() if rows is None else rows
     out: dict = {"n": len(rows), "entry": {}, "extra": {}}
@@ -184,23 +282,37 @@ def tally(rows: list[dict] | None = None) -> dict:
     for (e, k, b) in CONTINUE_INTENT:
         g = [r for r in rows if intent_bucket(r["entry_inning"]) == e
              and r["entry_outs"] == k
-             and (abs(r["entry_margin"]) >= 4) == b]
+             and (abs(r["entry_margin"]) >= 4) == b
+             and asked(r, 0)]
         if not g:
             continue
         c = sum(1 for r in g if r["last_inning"] > r["entry_inning"])
         out["intent"][(e, k, b)] = (c / len(g), c, len(g))
-    for (e, j, b) in EXTRA_INTENT:
-        g = [r for r in rows if intent_bucket(r["entry_inning"]) == e
-             and r["last_inning"] - r["entry_inning"] >= j
-             and (abs(r["entry_margin"]) >= 4) == b]
-        if not g:
-            continue
-        c = sum(1 for r in g if r["last_inning"] - r["entry_inning"] > j)
-        out["intent_extra"][(e, j, b)] = (c / len(g), c, len(g))
+    # `j` is swept rather than read off the shipped keys, so the recount can
+    # say where the sample actually runs out instead of confirming a cap it
+    # was handed. `MIN_CELL` is the same floor the pooled `extra` block uses.
+    for e in (0, 1, 2):
+        for b in (False, True):
+            for j in range(1, 9):
+                g = [r for r in rows if intent_bucket(r["entry_inning"]) == e
+                     and (abs(r["entry_margin"]) >= 4) == b
+                     and asked(r, j)]
+                if len(g) < MIN_CELL:
+                    break
+                c = sum(1 for r in g
+                        if r["last_inning"] - r["entry_inning"] > j)
+                out["intent_extra"][(e, j, b)] = (c / len(g), c, len(g))
     return out
 
 
-def report(t: dict | None = None) -> None:
+def report(t: dict | None = None, ti: dict | None = None) -> None:
+    """`t` counts the pooled tables over every row; `ti` the intent tables.
+
+    They are separate tallies because they are counted on different rows and
+    a single one would silently mix them: the pooled tables are the frozen
+    pre-intent engine over the whole table, the intent tables are training
+    rows only.
+    """
     t = tally() if t is None else t
     print(f"\n{t['n']:,} relief outings")
     print(f"  mean outs recorded {t['mean_outs']:.3f}"
@@ -215,24 +327,28 @@ def report(t: dict | None = None) -> None:
         print(f"    j={j}   {r:6.1%}   {c:>5}/{n:<5}")
     print("\n  A manager's intent, not stamina: the arm brought in for one")
     print("  out has not finished his job when the inning ends.")
-    if t.get("intent"):
-        print("\n  INTENT: continuation by (entry bucket, entry_outs, "
-              "blowout)")
-        for key, (r, c, n) in sorted(t["intent"].items()):
+    ti = t if ti is None else ti
+    if ti.get("intent"):
+        print(f"\n  INTENT, recounted over {ti['n']:,} rows on the"
+              " denominator the ENGINE asks (see `asked`)")
+        print("\n  continuation by (entry bucket, entry_outs, blowout)")
+        for key, (r, c, n) in sorted(ti["intent"].items()):
             e, k, b = key
             ship = CONTINUE_INTENT[key]
             print(f"    E{e} k={k} {'blow ' if b else 'close'}  {r:6.1%}"
                   f"  shipped {ship:6.1%}   {c:>5}/{n:<5}")
-        print("\n  INTENT: continuation after j extra innings")
-        for key, (r, c, n) in sorted(t["intent_extra"].items()):
+        print("\n  continuation after j extra innings")
+        for key, (r, c, n) in sorted(ti["intent_extra"].items()):
             e, j, b = key
-            ship = EXTRA_INTENT[key]
+            ship = EXTRA_INTENT.get(key)
+            s = "  -   " if ship is None else f"{ship:6.1%}"
             print(f"    E{e} j={j} {'blow ' if b else 'close'}  {r:6.1%}"
-                  f"  shipped {ship:6.1%}   {c:>5}/{n:<5}")
+                  f"  shipped {s}   {c:>5}/{n:<5}")
 
 
 if __name__ == "__main__":
-    report()
+    from src.context.holdout import HOLDOUT
+    report(tally(), tally(outings(before=HOLDOUT)))
 
 
 # ---------------------------------------------------------------------------

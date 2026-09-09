@@ -145,7 +145,7 @@ def check_removal_inputs_are_clamped():
 def check_intent_orders_the_entry_innings():
     """The 2026-09-09 finding: entry inning reads the manager's INTENT, and
     it is not a small effect — a clean-inning arm entering in innings 1-3
-    is the bulk man and continues 76%, innings 7+ is a specialist at 12%.
+    is the bulk man and continues 79%, innings 7+ is a specialist at 18%.
     The pooled 20.1% sits on neither. If this ordering ever flattens, the
     intent tables have been regressed to the pooled constant, which would
     still produce a plausible mean outing and is exactly what would get
@@ -173,14 +173,25 @@ def check_intent_tail_carries_the_last_measured_cell():
     the same posture as CONTINUE_TAIL, not a fall-through to a different
     bucket's number."""
     got = relief.continues(0, 99, entry_inning=2, entry_margin=0)
-    assert got == relief.EXTRA_INTENT[(0, 4, False)], got
+    assert got == relief.EXTRA_INTENT[(0, 5, False)], got
     got = relief.continues(0, 99, entry_inning=9, entry_margin=0)
-    assert got == relief.EXTRA_INTENT[(2, 2, False)], got
+    assert got == relief.EXTRA_INTENT[(2, 1, False)], got
+
+
+def check_intent_tail_walks_down_to_a_cell_that_was_counted():
+    """The deepest j is measured per MARGIN, not per bucket: uncensoring left
+    (0, 5, False) with rows and (0, 5, True) without. A fixed per-bucket cap
+    indexes the hole and raises, which is a crash in the middle of a
+    simulation rather than a wrong number — hence the walk down.
+    """
+    assert (0, 5, True) not in relief.EXTRA_INTENT
+    got = relief.continues(0, 5, entry_inning=2, entry_margin=7)
+    assert got == relief.EXTRA_INTENT[(0, 4, True)], got
 
 
 def check_blowout_margin_reaches_the_intent_table():
-    """The long man in a blowout stays out there: E1 clean entry is 38.0%
-    close against 50.7% blown open. Margin is at ENTRY, matching the count."""
+    """The long man in a blowout stays out there: E1 clean entry is 43.7%
+    close against 54.1% blown open. Margin is at ENTRY, matching the count."""
     close = relief.continues(0, 0, entry_inning=5, entry_margin=1)
     blow = relief.continues(0, 0, entry_inning=5, entry_margin=6)
     assert blow > close + 0.05, (close, blow)
@@ -208,9 +219,55 @@ def check_intent_entry_inning_is_clamped():
 def check_tally_recounts_the_intent_cells():
     """The intent constants stay checkable against rows the same way the
     pooled ones do. Two rows in one cell, one continuation: 0.5."""
-    rows = [_o(entry_inning=2, last_inning=4),
-            _o(entry_inning=2, last_inning=2)]
+    rows = [_o(entry_inning=2, last_inning=4, outs_recorded=6),
+            _o(entry_inning=2, last_inning=2, outs_recorded=3)]
     t = relief.tally(rows)
     rate, cont, n = t["intent"][(0, 0, False)]
+    assert (cont, n) == (1, 2), (cont, n)
+    assert abs(rate - 0.5) < 1e-9, rate
+
+
+def check_the_intent_denominator_drops_an_arm_pulled_mid_inning():
+    """`game.py` charges mid-inning removal per plate appearance through
+    `mid_removal`, and then asks `continues` only of the arm standing there
+    when the third out lands. Counting the yanked arm as a non-continuation
+    charges his removal a SECOND time, and it is what made the boundary
+    table read low everywhere.
+
+    The rows have to disagree under the two conventions or the check passes
+    under either: the middle row spans one inning on two outs.
+    """
+    rows = [
+        _o(entry_inning=2, last_inning=3, outs_recorded=3),   # finished, on
+        _o(entry_inning=2, last_inning=2, outs_recorded=2),   # yanked: out
+        _o(entry_inning=2, last_inning=2, outs_recorded=3),   # finished, off
+    ]
+    rate, cont, n = relief.tally(rows)["intent"][(0, 0, False)]
+    assert (cont, n) == (1, 2), (cont, n)
+    assert abs(rate - 0.5) < 1e-9, rate
+
+
+def check_the_intent_denominator_drops_an_arm_who_closed_out_the_game():
+    """An arm who records the last out of the game did not decline to come
+    back out — there was nothing to come back out for, and the engine's roll
+    at that point decides nothing. Worth 8 points on the late clean-entry
+    cell, which is the one nearly every reliever in every game hits.
+
+    `side_last_inning` is the last inning ANY arm on that side worked, so a
+    row without one (a synthetic row, or a caller passing its own) is treated
+    as having been asked — the old behaviour.
+    """
+    rows = [
+        # closed out the game: not asked, so not in the denominator
+        _o(entry_inning=9, last_inning=9, outs_recorded=3,
+           side_last_inning=9),
+        # asked and declined
+        _o(entry_inning=9, last_inning=9, outs_recorded=3,
+           side_last_inning=10),
+        # asked and came back out
+        _o(entry_inning=9, last_inning=10, outs_recorded=6,
+           side_last_inning=10),
+    ]
+    rate, cont, n = relief.tally(rows)["intent"][(2, 0, False)]
     assert (cont, n) == (1, 2), (cont, n)
     assert abs(rate - 0.5) < 1e-9, rate

@@ -10875,3 +10875,102 @@ same machinery and ship the deep-j cells. NOT DONE HERE deliberately — it
 replaces a shipped table with its own history and dependents, and doing that
 at the end of a long session is how a marginal thing ships wrong. The counts
 are in hand and the instrument exists.
+
+---
+
+## 2026-09-09 (day twenty-eight) — TODO 15 part two: the continuation table was counted on the wrong denominator, and not just for the opener
+
+**QUESTION.** Part one closed a third of the bulk arm's length gap and
+attributed the rest to the between-innings continuation hazard.
+`bulk_continue.py` had the bulk cell at 0.7821 against a shipped 0.7569.
+Recount `CONTINUE_INTENT` on train rows and ship the deep-j cells.
+
+**AND THE FIRST STEP WAS RULE 11, WHICH IS WHY THIS DID NOT BECOME A BULK
+CELL.** The new number and the old one were counted with different
+conventions, so before acting: do they measure the same thing.
+`scratchpad/continue_intent.py` separates three denominators and the answer
+is no. On the shipped convention the train rows REPRODUCE the shipped table
+to within noise in every cell (E2 k=0 close: 0.0992 against a shipped
+0.0992), so this was never a train/holdout contamination problem. It is a
+specification problem, and it has two halves:
+
+  * **HE FINISHED THE INNING.** "He pitched in inning `entry+j`, did he
+    pitch in `entry+j+1`" scores an arm yanked mid-inning as a
+    non-continuation — but `game.py` has already charged him `mid_removal`,
+    per plate appearance, for exactly that. Removal was being counted twice.
+    The engine only asks `continues` of the arm standing there when the
+    third out lands, and he finished iff he recorded `(3 - entry_outs) + 3j`
+    outs.
+  * **THERE WAS A NEXT INNING.** An arm who records the last out of the game
+    is scored as declining to come back out for an inning that never
+    existed. `_end_of_inning` fires there too and its roll decides nothing.
+    This is the bigger of the two and nobody had looked at it: it is 38% of
+    late clean-entry rows.
+
+Both push the same way, so every cell ran LOW, and worst for the arms who
+face the most batters — which is why it surfaced as an opener defect.
+
+    clean entry, by intent bucket   shipped   train, engine denominator
+      innings 1-3 (the bulk arm)     0.7569        0.7949
+      innings 4-6                    0.3796        0.4367
+      innings 7+                     0.0992        0.1803
+
+The 7+ cell is the one nearly every reliever in every game hits.
+`relief.tally` was rewritten to count what `asked()` defines and reproduces
+the scratchpad exactly — two independent implementations, which is the only
+reason to trust either. The tables are now counted on 62,278 PRE-HOLDOUT
+stints; the first version used every row in the table, holdout included.
+
+**THE CAP MOVED WITH THE DENOMINATOR.** Uncensoring removes most of a late
+entry's deep-j rows, so E2 now runs out after j=1 and E1 after j=3, while E0
+gains j=5. The published deep cells for late entries were rates over rows the
+engine never asks about. `_EXTRA_MAX_J` is per bucket but the sample is per
+MARGIN, so `continues` now walks DOWN in j to the deepest counted cell; a
+fixed cap indexes a hole and raises mid-simulation.
+
+**SCORED, and on relief LENGTH rather than on runs.** `scratchpad/
+pen_shape.py`, four folds, every relief outing on the same games:
+
+    outs         mean    <=2      3     4-6    >=7    arms/side
+      real       3.34   22.3%  53.7%  19.5%   4.5%      3.383
+      before     3.01   29.3%  52.5%  15.2%   2.9%      3.726
+      after      3.20   29.1%  47.7%  18.7%   4.5%      3.505
+
+57% of the mean gap and 64% of the arms-per-side gap, with the 7+ share
+landing exactly. Battery cc4475863ce0 -> 7a1ed8609895: **no row moved by
+more than one se**, which is the EXPECTED result and not a null — this
+changes which reliever is on the mound, not any rate, and relievers resemble
+each other. Rule 2: judge it on the shape it targets, not on a run total
+that cannot resolve it. Suite 487 -> 490, all three verified by mutation.
+
+**THE INSTRUMENT WAS WRONG FIRST, AND THE FIRST READING WAS A FALSE ALARM.**
+`pen_shape` initially reported 4.23 arms a side against a real 3.38 and 41%
+of outings at two outs or fewer, which reads as a catastrophic engine defect.
+It is a denominator bug in the instrument: `_end_of_inning` fires after the
+LAST inning too, so a failed continuation roll warms up a phantom reliever
+who never faces a batter, and `mlb_stints` has no row for him. He is ~80% of
+sides. Filtering on `batters > 0` is the fix. Rule 10 again, and the tell was
+that the number was too bad to be true.
+
+**WHAT IS LEFT ON RELIEF LENGTH, and it is not the boundary.** 29.1% of
+simulated outings are two outs or fewer against a real 22.3%, UNMOVED by
+this change. The level and the long tail are now right and the short end is
+not, which points at the mid-inning hook or the mid-inning ENTRY rate.
+
+**NOT SHIPPED, MEASURED AND HANDED ON: the bulk arm still has his own cell
+inside bucket 0, on the corrected denominator.** j=0 is a dead heat (+0.8
+sd) but j=1/2/3 are +0.1466 / +0.1896 / +0.1481, at +5.6 / +5.4 / +2.8 sd
+(bulk 1,136 train rows against 691). Left out deliberately: a level error and
+a new dimension behind one change cannot be told apart, and the level error
+is rule 14's priority. Note this does NOT contradict `mid_intent.py` finding
+the bulk cell redundant — that was the mid-inning hazard, this is the
+boundary.
+
+**OPERATOR DIRECTION, three messages during the session, and it re-scopes
+the item.** The typed-role build (starter / swingman / pure reliever) is out:
+the shape is obvious and openers are 3.5% of starts, so the counted -3.15
+outs a real starter loses following an opener — inside `OFFSET_CLAMP`, which
+the engine can already express — is good enough. The standing priority is
+STRUCTURE IN THE PITCHING, because every inning where the engine has the
+wrong arm on the mound is an inning it fills by guessing. Length was this
+item; SELECTION is item 21's closer, which is next.
