@@ -364,6 +364,62 @@ PEN_PICK = {
 PEN_PICK_LATE = 7
 USE_PEN_ROLES = True
 
+#: THE SAME PROFILE, KEYED ON THE INNING TOO (TODO 21, raised by the
+#: operator). `PEN_PICK` above was counted POOLED over innings 7-9, and the
+#: real structure is setup in the 7th and 8th, closer in the 9th — so the
+#: pooled weight is wrong at BOTH ends rather than merely blurred, and the
+#: engine could spend a club's best arm two innings early.
+#:
+#: Protecting a lead, the share of entries that take the best remaining arm:
+#:
+#:     inning        7th      8th      9th+     pooled (shipped)
+#:       lead     0.3356   0.4108   0.5750       0.4415
+#:       tied     0.3213   0.3642   0.4356       0.3823
+#:       mid      0.2462   0.3014   0.4906       0.3407
+#:
+#: The lead row moves +0.2394 from the 7th to the 9th at 15.3 sd, and every
+#: bucket rises monotonically — including the blowout, where managers lean
+#: to the bottom of the pen throughout. `scratchpad/pen_pick_inning.py`,
+#: same quality-percentile construction as `pen_pick.py` (rank among the
+#: arms still unused tonight, in fifths, bin 1 = best remaining) so the two
+#: counts are comparable line for line. Pre-holdout rows of all four
+#: seasons; thinnest cell 771.
+#:
+#: WHAT THIS IS NOT: a closer OBJECT. `closer_slot.py` measured that the
+#: club's top-fifth K%-BB% arm already takes the save slot 73.3% of the
+#: time, so `PEN_PICK` was largely drawing the right man — in the wrong
+#: inning. The missing thing was the SLOT, which is one more key, not a
+#: named role. And he must stay in the pen for the earlier innings: almost
+#: 30% of a closer's work is before the ninth (8th 18%, 7th 6%, 6th 4%).
+PEN_PICK_BY_INNING = {
+    ("lead", "7"): (0.3356, 0.2220, 0.1601, 0.1318, 0.1505),
+    ("lead", "8"): (0.4108, 0.2172, 0.1512, 0.1172, 0.1034),
+    ("lead", "9+"): (0.5750, 0.1567, 0.0891, 0.0865, 0.0927),
+    ("tied", "7"): (0.3213, 0.2438, 0.1514, 0.1237, 0.1597),
+    ("tied", "8"): (0.3642, 0.2292, 0.1585, 0.1179, 0.1302),
+    ("tied", "9+"): (0.4356, 0.1825, 0.1275, 0.1075, 0.1469),
+    ("trail", "7"): (0.2169, 0.2082, 0.2024, 0.1631, 0.2094),
+    ("trail", "8"): (0.2331, 0.2150, 0.1964, 0.1659, 0.1896),
+    ("trail", "9+"): (0.2568, 0.1881, 0.1764, 0.1881, 0.1907),
+    ("mid", "7"): (0.2462, 0.2144, 0.1800, 0.1497, 0.2097),
+    ("mid", "8"): (0.3014, 0.2101, 0.1713, 0.1394, 0.1777),
+    ("mid", "9+"): (0.4906, 0.1826, 0.1072, 0.0913, 0.1282),
+    ("blowout", "7"): (0.1805, 0.1919, 0.1890, 0.1976, 0.2411),
+    ("blowout", "8"): (0.1968, 0.1894, 0.1809, 0.1883, 0.2445),
+    ("blowout", "9+"): (0.2415, 0.1751, 0.1854, 0.1771, 0.2209),
+}
+
+#: Off restores the pooled table exactly, so OFF is the pre-item engine.
+#: No random variate is involved either way — this changes which WEIGHTS a
+#: uniform is walked against, not how many are drawn — so it is a clean
+#: paired A/B and the streams stay aligned.
+USE_PEN_INNING = True
+
+
+def _pick_inning(inning: int) -> str:
+    """7, 8, or 9+. Extras go with the ninth: same slot, same arms."""
+    return "7" if inning <= 7 else ("8" if inning == 8 else "9+")
+
 
 def _pick_bucket(margin: int) -> str:
     """Signed where the behaviour is signed — margin is the PITCHING
@@ -610,7 +666,15 @@ class Side:
                 and inning >= PEN_PICK_LATE and len(pool) > 1):
             u = rng.random()
             if USE_PEN_ROLES:
-                w = PEN_PICK[_pick_bucket(margin)]
+                b = _pick_bucket(margin)
+                # THE INNING IS THE SLOT. Pooled over 7-9 the weight is
+                # wrong at both ends, so this is not a refinement of the
+                # bucket — it is the dimension the bucket was averaging
+                # over. Falls back to the pooled row if a cell is ever
+                # missing, which keeps the degradation monotone.
+                w = PEN_PICK[b]
+                if USE_PEN_INNING:
+                    w = PEN_PICK_BY_INNING.get((b, _pick_inning(inning)), w)
                 c = 0.0
                 for k, wk in enumerate(w):
                     if u < c + wk or k == 4:

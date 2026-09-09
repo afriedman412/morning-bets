@@ -587,7 +587,54 @@ Kalshi was 3.03 points on the game total against 3.65 on the team totals
 to 0.5 while disagreeing 4.8 on the split. Score the split in the same
 replay pass.
 
-**21. THE CLOSER IS SPENT IN THE SEVENTH — SPLIT `PEN_PICK` BY INNING.**
+**21. THE INNING KEY SHIPPED 2026-09-09 as `USE_PEN_INNING`. AVAILABILITY
+AND THE STALE GATE ARE WHAT REMAIN.**
+
+The operator was right and the engine was worse than the item claimed — not
+flat across innings but INVERTED. Simulated share taking the best remaining
+arm, against the real count on the same construction:
+
+    entry inning                    7th      8th     9th+
+      real                        0.2594   0.3007   0.4264
+      sim, pooled table           0.3001   0.2719   0.2582
+      sim, split by inning        0.2481   0.2581   0.3157
+
+Managers save the best arm for the ninth; the engine SPENT him in the
+seventh and had nothing left, and it compounds — an arm used in the seventh
+is gone from the ninth's pool. That is why the pooled weight is wrong at
+both ends rather than merely blurred.
+
+Counted by `scratchpad/pen_pick_inning.py` on pre-holdout rows of all four
+seasons, same quality-percentile construction as `pen_pick.py`: protecting a
+lead, the best-fifth share runs 0.3356 / 0.4108 / 0.5750 for 7th / 8th / 9th
+against a pooled 0.4415, +15.3 sd from the 7th to the 9th, MONOTONE IN ALL
+FIVE MARGIN BUCKETS, thinnest cell 771. Battery `66768f2136fc`: no row moved
+by more than one se. Suite 499 -> 503, three mutations.
+`scratchpad/closer_score.py` is the instrument.
+
+**STILL SHORT IN THE NINTH, 0.3157 against 0.4264, and the reason is
+structural rather than a mis-count.** `PEN_PICK` draws from a PROFILE, so
+even in the ninth it deliberately takes a mid-pen arm about 68% of the time.
+Some of reality's 0.4264 is a NAMED closer, and a percentile draw cannot
+reproduce a name. Closing that last gap means the two unbuilt bullets below,
+not a reweighting of this table — do not tune these cells to hit 0.4264,
+which is the forbidden solve-for-a-level.
+
+THE TWO THAT REMAIN, both measured, both offline, both from
+`scratchpad/closer_slot.py`:
+  * AVAILABILITY — he takes the slot 65.0% rested against 58.7% having
+    pitched the club's previous game, +4.2 sigma. This is TODO 8's unbuilt
+    "fatigue" bullet, and note fatigue is a SELECTION effect only: as a
+    RATE it is dead (see item 8).
+  * THE STALE GATE — when the named man has not appeared in ten days he
+    takes the slot 3.7% of the time (4.8% of slots). Stepping down to the
+    next arm on the same count is worth +0.8 points and lands within 0.3
+    of a perfect-forward-knowledge oracle. Rare, cheap, and it is the
+    whole of what a news feed would have bought.
+
+--- the original item, kept for the counts behind it ---
+
+**THE CLOSER IS SPENT IN THE SEVENTH — SPLIT `PEN_PICK` BY INNING.**
 Raised by the operator 2026-09-09. The closer is in the pool and nothing
 reserves him for the ninth: `PEN_PICK` routes by margin bucket only, and
 its weights were COUNTED POOLED over innings 7-9 — the real structure

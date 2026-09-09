@@ -1643,3 +1643,77 @@ def check_a_bulk_arm_actually_reaches_a_simulated_game():
     assert away.bulk_in is True
     assert seen and seen[0][0] is bulk, seen
     assert seen[0][1].batters > 0, "he never faced anyone"
+
+
+# --------------------------------------------------------------------------
+# THE CLOSER'S SLOT (TODO 21). `PEN_PICK` was counted POOLED over innings
+# 7-9, so the engine could spend a club's best arm two innings early.
+# --------------------------------------------------------------------------
+
+def check_the_best_arm_is_saved_for_the_ninth():
+    """The whole item, and it is not a blur but an error at BOTH ends:
+    protecting a lead, the real share of entries taking the best remaining
+    arm is 0.3356 in the 7th and 0.5750 in the 9th against a pooled 0.4415.
+    If this ordering ever flattens, the table has been regressed to the
+    pooled row — which still produces a plausible mean reliever quality and
+    is exactly what would get believed."""
+    lead7 = game.PEN_PICK_BY_INNING[("lead", "7")][0]
+    lead8 = game.PEN_PICK_BY_INNING[("lead", "8")][0]
+    lead9 = game.PEN_PICK_BY_INNING[("lead", "9+")][0]
+    assert lead7 < lead8 < lead9, (lead7, lead8, lead9)
+    pooled = game.PEN_PICK["lead"][0]
+    assert lead7 < pooled < lead9, (lead7, pooled, lead9)
+
+
+def check_every_inning_cell_is_a_distribution():
+    """Five weights that do not sum to one silently reweight the whole
+    profile, and `next_arm` walks them cumulatively so the error lands on
+    the last bin."""
+    for key, w in game.PEN_PICK_BY_INNING.items():
+        assert len(w) == 5, key
+        assert abs(sum(w) - 1.0) < 0.001, (key, sum(w))
+
+
+def check_extras_take_the_ninth_inning_slot():
+    """The same arms work the tenth as the ninth. Falling through to a
+    missing cell would raise, and keying extras to their own row would count
+    them on nothing."""
+    assert game._pick_inning(9) == "9+"
+    assert game._pick_inning(12) == "9+"
+    assert game._pick_inning(7) == "7"
+    assert game._pick_inning(8) == "8"
+
+
+def check_the_inning_split_actually_changes_who_pitches_the_seventh():
+    """PLUMBING. A constant table that never reaches `next_arm` is the
+    failure this project has shipped three times, and it looks identical to
+    a mechanism that did not help.
+
+    Protecting a lead in the SEVENTH, the split should reach for the best
+    remaining arm LESS often than the pooled table does.
+    """
+    def best_share(flag):
+        keep = game.USE_PEN_INNING
+        game.USE_PEN_INNING = flag
+        try:
+            hits = 0
+            for i in range(400):
+                rng = random.Random(i)
+                # Rank 0 is the highest K%-BB%, so name the arms by quality.
+                pen = [sim.PitcherRates(name=f"R{j}", k_pct=0.30 - 0.02 * j,
+                                        bb_pct=0.05, hr_pct=LG["hr_pct"],
+                                        babip=LG["babip"], pa=200)
+                       for j in range(5)]
+                # `starter_out` stays False so `slot` is 0 and the WHOLE
+                # pen is the pool — setting it True first marks `pen[0]` as
+                # already used and the best arm can never be picked, which
+                # reads as 0.0 either way and looks like a dead flag.
+                s = _side(pen=pen)
+                s.next_arm(0, rng, 7, 2)
+                hits += s.current.name == "R0"
+            return hits / 400
+        finally:
+            game.USE_PEN_INNING = keep
+
+    pooled, split = best_share(False), best_share(True)
+    assert split < pooled - 0.03, (pooled, split)

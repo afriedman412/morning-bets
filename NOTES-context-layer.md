@@ -11035,3 +11035,63 @@ counted relief-minus-start diffs still consume nothing. And `slate.py` has
 no override, so nothing fires on a live board yet: `bulk_follower` reads the
 RECORDED follower, which is the announced pairing only for a game already
 played.
+
+## 2026-09-09 (same day) — TODO 21: the engine was not flat across innings, it was INVERTED
+
+**QUESTION.** `PEN_PICK`'s weights were counted pooled over innings 7-9.
+Split them by inning and see whether the closer's slot recovers. The
+operator's framing: the ninth-inning closer is one of the few stable,
+reliable pieces of bullpen behaviour, so this is a count, not a model.
+
+**IT RESOLVES AT 15 SIGMA AND IT IS MONOTONE EVERYWHERE.** Protecting a
+lead, the share of late entries taking the best remaining arm:
+
+    inning        7th      8th     9th+    pooled (shipped)
+      lead     0.3356   0.4108   0.5750      0.4415
+      tied     0.3213   0.3642   0.4356      0.3823
+      mid      0.2462   0.3014   0.4906      0.3407
+      trail    0.2169   0.2331   0.2568      0.2307
+      blowout  0.1805   0.1968   0.2415      0.2067
+
++0.2394 from the 7th to the 9th on the lead row at 15.3 sd, rising in all
+five margin buckets including the blowout, where managers lean to the bottom
+of the pen throughout. Cells 771 to 2,037 — the operator's "check the cell
+sizes first" is satisfied with room. `scratchpad/pen_pick_inning.py`, same
+quality-percentile construction as `pen_pick.py` so the two are comparable
+line for line, pre-holdout rows of all four seasons.
+
+**AND THE SIMULATED SIDE WAS WORSE THAN THE ITEM CLAIMED.**
+
+    entry inning                    7th      8th     9th+
+      real                        0.2594   0.3007   0.4264
+      sim, pooled table           0.3001   0.2719   0.2582
+      sim, split by inning        0.2481   0.2581   0.3157
+
+The engine's profile FELL from the seventh to the ninth where reality rises.
+Not a blur around the right answer — the opposite of what managers do, and
+it compounds, because an arm spent in the seventh is out of the ninth's pool
+entirely. That is the mechanism behind "the closer is spent in the seventh"
+and it is now visible rather than argued. `scratchpad/closer_score.py`
+patches `next_arm` and reads the pool BEFORE the call, so its denominator is
+"the arms he still had", matching the real count's "still unused tonight".
+
+Battery 66768f2136fc -> 847ed46ee069: no row moved by more than one se.
+Suite 499 -> 503, three mutations, one of which caught a plumbing test that
+read 0.0 both ways because it set `starter_out` True before calling
+`next_arm` — which marks `pen[0]` used, so the best arm could never be
+picked and a live flag looked dead.
+
+**WHAT IS LEFT AND WHY IT IS NOT A REWEIGHTING.** The ninth is still 0.3157
+against a real 0.4264. `PEN_PICK` draws from a PROFILE, so even in the ninth
+it takes a mid-pen arm about 68% of the time by construction, and part of
+reality's 0.4264 is a NAMED closer that a percentile draw cannot reproduce.
+Tuning these cells until the ninth lands on 0.4264 is the forbidden
+solve-for-a-level; the two unbuilt bullets — availability (+4.2 sigma) and
+the stale gate (+0.8 points, within 0.3 of a forward-knowledge oracle) — are
+where the rest of it lives.
+
+**THE SHAPE THE OPERATOR NAMED, and it held for both items today.** Anything
+that adds structure to the pitching reduces what the model has to guess.
+Item 15's bulk arm was structure on LENGTH; this is structure on SELECTION.
+Neither moved a battery row, and neither should be read on one: both change
+WHICH pitcher is standing there, and the run rows cannot resolve that.
