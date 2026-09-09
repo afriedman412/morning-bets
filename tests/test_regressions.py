@@ -6,6 +6,7 @@ hypothetical, and nothing touches the network.
 """
 from __future__ import annotations
 
+
 from src import roster
 from src.context.sources import catcher, park, statsapi
 
@@ -733,3 +734,35 @@ def check_a_past_season_cut_does_not_produce_an_empty_query():
     # Explicit season with a later cut: honoured, not overridden.
     w = rate_src._where(2024, "2026-07-01")
     assert "'2024%'" in w, w
+
+
+def check_fit_hooks_rebuild_flag_is_not_parsed_as_a_limit():
+    """`fit_hooks --rebuild` raised ValueError before it could rebuild.
+
+    `main()` did `int(sys.argv[1])` unconditionally and only checked for
+    the flag on the NEXT line, so the one documented way to refresh
+    `/tmp/hook_rows.json` crashed on its own flag. The file feeds every
+    hook fit and the battery, and it lives in `/tmp`, so it does not
+    survive a reboot — the refresh path failing silently is how a stale
+    386k-row cache gets fitted on for weeks.
+
+    Found 2026-09-09 while wiring `/backfill-data`, by RUNNING the chain
+    rather than reading it. Same class as the `make calibrate` finding in
+    CLAUDE.md: a command in the docs that could not work.
+
+    Asserted against `limit_arg`, which the fix extracted for exactly this
+    reason — invoking `main()` would rebuild 10,000 games from the
+    play-by-play cache.
+
+    THE FIRST VERSION OF THIS CHECK asserted `"int(sys.argv[1])" not in
+    inspect.getsource(main)` and failed on the COMMENT that explained the
+    fix. A source-text assertion cannot tell code from prose about code;
+    testing the function is both stricter and honest.
+    """
+    from scratchpad.fit_hooks import limit_arg
+    # The flag must never be read as the limit — this raised ValueError.
+    assert limit_arg(["--rebuild"]) is None
+    assert limit_arg([]) is None
+    assert limit_arg(["500"]) == 500
+    assert limit_arg(["500", "--rebuild"]) == 500
+    assert limit_arg(["--rebuild", "500"]) == 500

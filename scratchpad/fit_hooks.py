@@ -119,10 +119,25 @@ def fit_one(rows, feats, label, cutoff=CUTOFF):
 CACHE = "/tmp/hook_rows.json"
 
 
+def limit_arg(argv) -> int | None:
+    """The positional row limit, ignoring flags. None means "all rows".
+
+    ITS OWN FUNCTION so it can be tested without rebuilding 10,000 games.
+    The bug it replaces: `main` did `int(sys.argv[1])` unconditionally and
+    checked for `--rebuild` on the NEXT line, so the one documented way to
+    refresh `/tmp/hook_rows.json` crashed on its own flag. Found 2026-09-09
+    wiring `/backfill-data`, and it is the same class as the `make
+    calibrate` finding in CLAUDE.md — a command in the docs that could not
+    work.
+    """
+    pos = [a for a in argv if not a.startswith("-")]
+    return int(pos[0]) if pos else None
+
+
 def main():
     import json
     import os
-    lim = int(sys.argv[1]) if len(sys.argv) > 1 else None
+    lim = limit_arg(sys.argv[1:])
     if lim is None and os.path.exists(CACHE) and "--rebuild" not in sys.argv:
         rows = json.load(open(CACHE))
         print(f"{len(rows):,} decisions from cache")

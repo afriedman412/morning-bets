@@ -64,7 +64,8 @@ MODULES = ["tests.test_pure", "tests.test_regressions",
            "tests.test_prior",
            "tests.test_stabilise", "tests.test_tto",
            "tests.test_weather", "tests.test_velo",
-           "tests.test_store", "tests.test_battery"]
+           "tests.test_store", "tests.test_battery",
+           "tests.test_data_status"]
 
 
 def _run_one(job):
