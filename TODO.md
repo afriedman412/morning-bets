@@ -448,15 +448,55 @@ roll the mid-inning hazard on inning-ending plate appearances
 (`_half_inning` breaks at `fr.outs >= 3` first), so its denominator matches
 the count's `same_half` convention.
 
-**OPERATOR RULING 2026-09-09, AND IT SCOPES THE REST OF THIS ITEM DOWN.**
-The typed-role sequence is over-specified for a population that is 3.5% of
-starts: "the shape was obvious immediately and openers are rare, so it might
-be good enough". So the remaining opener build is NOT the three-type model —
-it is the counted -3.15 outs (se 0.30) that a real starter following an
-opener goes against his own normal start, which is inside `OFFSET_CLAMP` and
-which the engine can already express. Detect the opener, decide bullpen game
-or not, apply the delta. Do not build the swingman/pure-reliever typing
-unless something else forces it.
+**THE BULK ARM SHIPPED 2026-09-09 as `game.USE_BULK_STARTER`, and the build
+was not the typed-role sequence.** The counted answer — a real starter
+following an opener goes -3.15 outs (se 0.30) against his own normal start,
+inside `OFFSET_CLAMP` — needed a place to attach, and there was none: once
+`starter_out` trips, the follower is drawn from the pen and never touches a
+hook curve. So he is installed WITHOUT tripping it, which hands him back all
+five things that flag gates — his own rates, times through the order,
+mid-inning removal, the boundary hook and the continuation hazard.
+
+**TTO WAS THE HIDDEN HALF AND NOBODY HAD COUNTED IT AS A DEFECT.** A
+rotation starter working as a bulk arm was being run with NO TTO DECAY AT
+ALL while really facing the order nearly twice. `tto` now reads `cur_line`
+rather than `side.line` — a no-op for an ordinary start, since they are the
+same object.
+
+    the named bulk arm, outs    mean    <=6     >=12
+      real (23 outings)        12.57    8.7%    78.3%
+      sim, flag off             6.03   65.1%    14.2%
+      sim, flag on              9.62   29.5%    38.4%
+
+55% of the mean gap, every column the right way. Battery `7a1ed8609895`:
+no row moved by more than one se. Suite 490 -> 499, four mutations.
+
+**READ THE POWER BEFORE READING THAT TABLE.** The mechanism fires on 23 of
+7,096 sides over four folds — 174 sides are opener-flagged and only 23 have
+a follower who types as a starter. A RUN TOTAL OVER 23 SIDES CANNOT RESOLVE
+THIS AND MUST NOT BE QUOTED; the pre-registered falsifier said to score his
+own line and that is what `scratchpad/bulk_score.py` does.
+
+STILL OPEN INSIDE THE BULK ARM:
+  * **He is still 2.95 outs short of real.** Direction good, level not
+    closed. Check `leash.offset_for(-3.15)` = 1.9026 against
+    `OFFSET_CLAMP` = 2.0 — the conversion lands at 95% of the available
+    range, so the delta is very nearly being clipped and a slightly larger
+    one would be.
+  * **The swingman is unbuilt and is 20.2% of followers.** Only the
+    starter type is routed; a swingman falls through to the pen. The
+    counted relief-minus-start diffs (K% +1.01, BB% -0.54, HR% -0.61,
+    BABIP -1.06, POOLED or nothing) still consume nothing.
+  * **The live path has no name.** `bulk_follower` reads the RECORDED
+    follower from `mlb_stints`, which is the announced pairing for a game
+    that has been played. `slate.py` needs the manual override ("bulk arm:
+    X", and "stretching out: X" for the relief-to-rotation conversion)
+    before this fires on a live board at all.
+
+The operator's framing that scoped this: the typed-role sequence is
+over-specified for a population that is 3.5% of starts — "the shape was
+obvious immediately and openers are rare, so it might be good enough". Do
+not build the three-type model unless something forces it.
 
 AND THE STANDING PRIORITY IS STRUCTURE IN THE PITCHING, operator, same day:
 anything that pins down which arm is on the mound reduces what the model has

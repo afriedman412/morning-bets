@@ -1495,3 +1495,151 @@ def check_no_caller_builds_the_air_from_temperature_alone():
     bad = [str(f.relative_to(root.parent)) for f in sorted(root.rglob("*.py"))
            if "temp_hr_mult(" in f.read_text() and f.name != "sim.py"]
     assert not bad, bad
+
+
+# --------------------------------------------------------------------------
+# THE BULK ARM BEHIND AN OPENER (TODO 15). He is a STARTER, so he goes down
+# the starter's path — hook, leash, times through the order — instead of
+# being run as a one-inning reliever, which is what `starter_out` used to
+# condemn him to.
+# --------------------------------------------------------------------------
+
+def check_the_bulk_arm_takes_the_ball_instead_of_the_pen():
+    """The whole mechanism: a named bulk arm follows the opener, and
+    `starter_out` STAYS FALSE so the five things that key on it — rates,
+    TTO, mid-inning removal, the boundary hook, the continuation hazard —
+    all keep applying to him."""
+    bulk = _pitcher(name="bulk")
+    s = _side(bulk=bulk, forced_exit_outs=3)
+    assert s.to_bulk() is True
+    assert s.starter_out is False, "the bullpen flag must not trip"
+    assert s.starter is bulk, s.starter.name
+    assert s.bulk_in is True
+
+
+def check_the_bulk_arm_is_used_once_and_then_it_is_the_pen():
+    """Second time of asking he is already out there, so the ball goes to
+    the pen — otherwise one arm pitches the whole game on repeat."""
+    s = _side(bulk=_pitcher(name="bulk"))
+    assert s.to_bulk() is True
+    assert s.to_bulk() is False
+
+
+def check_no_named_bulk_arm_means_the_pen_exactly_as_before():
+    """48.5% of planned openers are pure bullpen games and must be
+    untouched — `to_bulk` declining is what routes them."""
+    assert _side().to_bulk() is False
+
+
+def check_the_bulk_arm_keeps_the_openers_line_for_props():
+    """`line` is the man the board named. Handing the bulk arm the starter's
+    line reports HIS fifteen outs as the opener's in every replay, and the
+    prop settles on the opener."""
+    s = _side(bulk=_pitcher(name="bulk"))
+    s.cur_line.outs = 4
+    s.cur_line.k = 2
+    opener_line = s.line
+    s.to_bulk()
+    assert s.line is opener_line, "the opener's line was replaced"
+    assert s.line.outs == 4, s.line.outs
+    assert s.cur_line is not s.line
+    assert s.cur_line.outs == 0, s.cur_line.outs
+
+
+def check_the_bulk_arm_does_not_inherit_the_openers_drawn_exit():
+    """`forced_exit_outs` was the OPENER's bootstrap draw. Left set, it pulls
+    the bulk arm at the same out count the moment he arrives — a mechanism
+    that fires and instantly undoes itself."""
+    s = _side(bulk=_pitcher(name="bulk"), forced_exit_outs=3)
+    s.to_bulk()
+    assert s.forced_exit_outs is None
+
+
+def check_times_through_the_order_restarts_for_the_bulk_arm():
+    """The lineup has seen the OPENER, not him. Reading the SIDE's starter
+    line hands him a second or third time through before he has faced nine
+    men, and the counted TTO decay is 19% of K% by the third pass.
+
+    THIS HAS TO SPY ON THE VALUE THE ENGINE PASSES, not on the line
+    `to_bulk` installs. The first version asserted `cur_line.batters == 0`
+    after the handover, which is true whichever line the TTO expression
+    reads — it survived the mutation that pointed TTO back at `side.line`
+    and guarded nothing.
+    """
+    # A DISTINCTIVE K RATE IS HOW HIS PLATE APPEARANCES ARE PICKED OUT.
+    # `Matchup` carries no pitcher name, and pooling both sides' `tto`
+    # values is what let the first version of this check pass under the
+    # mutation — the HOME starter's opening pass supplied the 1 the away
+    # side was supposed to produce.
+    mark = 0.1111
+    bulk = _pitcher(name="bulk", k_pct=mark)
+    # An opener who goes twelve outs has faced enough men to put the side's
+    # starter line into its SECOND pass, so the two readings disagree.
+    away = _side(bulk=bulk, forced_exit_outs=12)
+    home = _side()
+    ttos = []
+    orig = sim.pa_from
+
+    def spy(mu, rng, tto=None, **kw):
+        if abs(mu.p_k - mark) < 1e-9 and tto is not None:
+            ttos.append(tto)
+        return orig(mu, rng, tto=tto, **kw)
+    try:
+        sim.pa_from = spy
+        game.simulate_game(away, home, dict(LG), random.Random(19))
+    finally:
+        sim.pa_from = orig
+    assert away.bulk_in is True, "the mechanism never fired"
+    assert ttos, "the bulk arm never faced anyone"
+    assert min(ttos) == 1, ttos
+
+
+def check_the_bulk_flag_off_sends_him_to_the_pen():
+    """OFF must be the pre-item engine: the ball goes to the bullpen."""
+    keep = game.USE_BULK_STARTER
+    game.USE_BULK_STARTER = False
+    try:
+        assert _side(bulk=_pitcher(name="bulk")).to_bulk() is False
+    finally:
+        game.USE_BULK_STARTER = keep
+
+
+def check_the_bulk_arm_gets_a_shorter_leash_than_his_own_start():
+    """The counted -3.15 outs, and it must arrive as a hook the engine can
+    read rather than as a number in a docstring. A POSITIVE `team_offset`
+    shift is a shorter leash."""
+    rng = random.Random(11)
+    s = game.build_side(_pitcher(), [], _lineup(), sim.Hook(), rng,
+                        team="XXX", date="2026-05-01",
+                        bulk=_pitcher(name="bulk"))
+    assert s.bulk_hook is not None
+    assert s.bulk_hook.team_offset > s.hook.team_offset, (
+        s.bulk_hook.team_offset, s.hook.team_offset)
+
+
+def check_a_bulk_arm_actually_reaches_a_simulated_game():
+    """PLUMBING, and this project has shipped three flags that never arrived.
+    An opener forced out after three outs, with a named follower, must leave
+    that follower on the mound and pitching — not the first man in the pen.
+    """
+    bulk = _pitcher(name="bulk")
+    away = _side(bulk=bulk, forced_exit_outs=3)
+    home = _side()
+    # His own line is folded away when his own hook eventually pulls him —
+    # which it should, this is a nine-inning game — so grab it at handover
+    # rather than asserting on the state at the final out.
+    seen = []
+    orig = game.Side.to_bulk
+    try:
+        def spy(self):
+            ok = orig(self)
+            if ok:
+                seen.append((self.starter, self.cur_line))
+            return ok
+        game.Side.to_bulk = spy
+        game.simulate_game(away, home, dict(LG), random.Random(7))
+    finally:
+        game.Side.to_bulk = orig
+    assert away.bulk_in is True
+    assert seen and seen[0][0] is bulk, seen
+    assert seen[0][1].batters > 0, "he never faced anyone"

@@ -10974,3 +10974,64 @@ the engine can already express — is good enough. The standing priority is
 STRUCTURE IN THE PITCHING, because every inning where the engine has the
 wrong arm on the mound is an inning it fills by guessing. Length was this
 item; SELECTION is item 21's closer, which is next.
+
+## 2026-09-09 (same day) — TODO 15: the bulk arm is a STARTER, so stop running him as a reliever
+
+**QUESTION.** The counted delta — a real starter following an opener goes
+-3.15 outs (se 0.30) and -15.56 pitches (se 1.43) against his own normal
+start, about ten sigma each — had nowhere to attach. Where does an outs
+delta go for an arm the engine treats as a reliever?
+
+**AND THAT WAS THE FINDING: IT HAS NOWHERE TO GO, BECAUSE HE IS NOT A
+STARTER IN THE ENGINE.** `Side.starter_out` gates five separate things —
+which arm's rates are used, times through the order, mid-inning removal, the
+boundary hook, the continuation hazard — and it trips the moment the opener
+leaves. A rotation starter working as a bulk arm was getting none of them.
+
+The operator named the fix directly: build the opener/starter handover so it
+does not trip the flag. `Side.to_bulk()` does exactly that — folds the
+opener's line, installs the follower's rates and his own hook, clears the
+opener's drawn `forced_exit_outs`, and leaves `starter_out` False.
+
+**TTO WAS THE HIDDEN HALF.** Nobody had counted it as a defect: the bulk arm
+faces the order nearly twice and was getting NO decay at all, where the
+counted fall is 19% of K% by the third pass. `tto` now reads `cur_line`
+instead of `side.line`, a no-op for an ordinary start because they are the
+same object.
+
+**WHAT `line` KEEPS MEANING, and getting this backwards would have been
+silent.** `line` stays the OPENER's — he is the man the board named and a
+start prop settles on him. Only `cur_line` moves. The starter-path hook
+reads `cur_line` now too, which is what "whoever is on now" already meant.
+
+    the named bulk arm, outs    mean    <=6     >=12
+      real (23 outings)        12.57    8.7%    78.3%
+      sim, flag off             6.03   65.1%    14.2%
+      sim, flag on              9.62   29.5%    38.4%
+
+**THE POWER, STATED BEFORE THE RESULT.** The mechanism fires on 23 of 7,096
+sides across four folds. The funnel is 174 opener-flagged sides, all with a
+follower found, and 23 whose follower types as a starter — the rest are the
+pure bullpen game (48.5%) and the flagged openers who then pitched a normal
+start (the gate's ~21% false alarms). At 23 sides a run total resolves
+nothing, and the item's pre-registered falsifier said so in advance: score
+his own line. `scratchpad/bulk_score.py`. Battery 7a1ed8609895: no row moved
+by more than one se, which at 0.32% of sides is arithmetic, not evidence.
+
+**A TEST THAT GUARDED NOTHING, CAUGHT BY MUTATION.** The first TTO check
+asserted `cur_line.batters == 0` after the handover — true whichever line
+the engine's `tto` expression reads, and it survived pointing `tto` back at
+`side.line`. The second version pools both sides' `tto` values and survived
+too, because the HOME starter's opening pass supplied the 1 the away side
+was supposed to produce. The version that kills the mutation marks the bulk
+arm with a distinctive `k_pct` and reads `Matchup.p_k` to attribute plate
+appearances to him. Rule 13, and it took two attempts to obey it.
+
+**WHAT IS LEFT, written down rather than implied.** He is still 2.95 outs
+short. `leash.offset_for(-3.15)` is 1.9026 against `OFFSET_CLAMP` 2.0 — the
+conversion sits at 95% of the range, so this delta very nearly clips and a
+larger one would. The swingman (20.2% of followers) is unrouted and the
+counted relief-minus-start diffs still consume nothing. And `slate.py` has
+no override, so nothing fires on a live board yet: `bulk_follower` reads the
+RECORDED follower, which is the announced pairing only for a game already
+played.

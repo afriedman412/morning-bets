@@ -45,6 +45,7 @@ import datetime
 import random
 from dataclasses import dataclass, field, replace
 
+from src.context import leash as _leash
 from src.context import relief, removal, sim, velo
 from src.context.sources import rates as rate_src
 
@@ -95,6 +96,36 @@ USE_OPENER_EXIT = True
 #: constant is how the board flags one population and the engine re-models
 #: a different one.
 OPENER_AVG_OUTS = 11.0
+
+#: THE BULK ARM BEHIND AN OPENER IS A STARTER, SO RUN HIM DOWN THE STARTER'S
+#: PATH (TODO 15). Counted prospectively off the follower's own trailing 30
+#: appearances (`scratchpad/bulk_type.py`, 687 planned openers): 31.3% of
+#: the time a bona fide starter follows, 20.2% a swingman, 48.5% a pure
+#: bullpen game. And the starter type is HOOKED EARLY rather than pitching
+#: differently — paired against his own normal starts, -3.15 outs (se 0.30)
+#: and -15.56 pitches (se 1.43), about ten sigma each.
+#:
+#: WHAT `starter_out` COSTS HIM, and it is more than the leash. Five things
+#: key on that flag — which arm's rates are used, times through the order,
+#: mid-inning removal, the boundary hook and the continuation hazard — so a
+#: rotation starter working as a bulk arm was being run as a one-inning
+#: reliever with NO TTO DECAY AT ALL, while really facing the order nearly
+#: twice. Not tripping the flag puts him back on all five.
+#:
+#: NOT A PAIRED A/B, and for a reason worth stating rather than hiding: off,
+#: the ball goes to the pen and a different pitcher throws the rest of the
+#: game. `next_arm` draws no random number before `PEN_PICK_LATE` and an
+#: opener exits long before the seventh, so the streams are aligned AT the
+#: switch and diverge after it because the mechanism differs — which is what
+#: a mechanism flag is supposed to do.
+USE_BULK_STARTER = True
+
+#: How much SHORTER than his own normal start the bulk arm is left in.
+#: Converted to a hook offset through `leash.offset_for`, which is the same
+#: road every per-pitcher leash adjustment already travels, and it is well
+#: inside `leash.OFFSET_CLAMP` — unlike the opener himself, who needs about
+#: -12 outs and gets the bootstrap in `USE_OPENER_EXIT` instead.
+BULK_OUTS_DELTA = -3.15
 #: Starts on record before the bootstrap is trusted at all. Below this the
 #: arm keeps the generic hook — a one-start record is a coin, not a
 #: distribution — unless his RELIEF USAGE identifies him (below).
@@ -425,7 +456,22 @@ class Side:
     #: an ordinary start. Drawn once in `build_side`, before a pitch, because
     #: it is a mode of the start rather than a decision inside it.
     forced_exit_outs: int | None = None
+    #: THE NAMED BULK ARM behind an opener, and the hook he gets — his own
+    #: leash shifted by `BULK_OUTS_DELTA`. None on an ordinary start and on
+    #: a pure bullpen game, which is 48.5% of planned openers; then the ball
+    #: goes to the pen exactly as it always did.
+    #:
+    #: HE IS AN INPUT, NOT A PREDICTION. Step zero killed predicting WHO
+    #: follows an opener from history. This is the announced pairing off the
+    #: slate, or the recorded follower when replaying a game that has been
+    #: played — the same information class as the probable starter, which
+    #: the slate has always taken as given.
+    bulk: sim.PitcherRates | None = None
+    bulk_hook: sim.Hook | None = None
+    bulk_in: bool = False
     #: The starter's own line, so props and F5 still read off one pitcher.
+    #: IT STAYS THE OPENER'S when the bulk arm comes in — he is who the
+    #: board named and whose line a start prop settles on.
     line: sim.StartResult = field(default_factory=sim.StartResult)
     #: Whoever is on now, and his line (the starter's IS `line`).
     cur_line: sim.StartResult | None = None
@@ -506,6 +552,40 @@ class Side:
         if not self.pen:
             return self.starter
         return self.pen[min(self.pen_i, len(self.pen) - 1)]
+
+    def to_bulk(self) -> bool:
+        """Hand the ball to the named bulk arm WITHOUT tripping `starter_out`.
+
+        Returns False when there is no bulk arm to hand it to — no name, the
+        flag is off, or he has already been used — and the caller then goes
+        to the pen exactly as before.
+
+        `line` IS DELIBERATELY NOT REPLACED. It is the opener's, and a start
+        prop settles on the man the board named; the starter-path hook reads
+        `cur_line` instead, which already means "whoever is on now". Getting
+        that backwards would report the bulk arm's fifteen outs as the
+        opener's line in every replay.
+
+        `forced_exit_outs` is cleared because it was the OPENER's drawn exit
+        — leaving it set pulls the bulk arm at the same out count the moment
+        he arrives, which is a one-line way to build a mechanism that fires
+        and then immediately undoes itself.
+        """
+        if not USE_BULK_STARTER or self.bulk is None or self.bulk_in:
+            return False
+        self.bulk_in = True
+        self._fold(self.cur_line)
+        self.cur_line = sim.StartResult()
+        self.starter = self.bulk
+        if self.bulk_hook is not None:
+            self.hook = self.bulk_hook
+        self.forced_exit_outs = None
+        # Counted on a starter's days since his OWN previous start, which
+        # nobody has for an arm arriving in the second inning. Unknown is
+        # silent-neutral on both hook curves, which is the right answer.
+        self.layoff_gap = None
+        self._mups = self._mups_for = None
+        return True
 
     def next_arm(self, entry_outs: int = 0, rng=None, inning: int = 0,
                  margin: int | None = None) -> None:
@@ -632,7 +712,12 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
         # TTO applies to the STARTER only. A reliever has no meaningful
         # lineup pass, and passing 1 for him would hand every arm out of the
         # bullpen a 1.105 strikeout bonus.
-        tto = None if side.starter_out else side.line.batters // 9 + 1
+        # PER ARM, NOT PER SIDE. `cur_line` is `line` for an ordinary start,
+        # so this is unchanged there — but the bulk arm behind an opener is
+        # meeting the lineup for the FIRST time whatever the opener already
+        # faced, and reading the side's starter line would hand him a third
+        # time through before he had faced nine men.
+        tto = None if side.starter_out else side.cur_line.batters // 9 + 1
         # LAZY, PER SLOT. Resolving all nine on every arm change built ~90
         # matchups a game against ~76 plate appearances — MORE objects than
         # the per-PA version it replaced, and measured 23% slower. A
@@ -709,14 +794,14 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
         elif not side.starter_out and USE_LEARNED_HOOK:
             if rng.random() < removal.predict(
                     _state(side, fr, inning, margin)):
-                ln = side.line
+                ln = side.cur_line
                 ln.pulled_mid_inning = True
                 ln.left_on_base, ln.outs_when_pulled = fr.on_base, fr.outs
                 if not ln.covered_f5:
                     ln.runs_f5, ln.outs_f5 = ln.runs, ln.outs
                 side.next_arm(fr.outs, rng, inning, margin)
         elif not side.starter_out:
-            ln = side.line
+            ln = side.cur_line
             if (_forced_out(side, ln)
                     or (_hook_may_pull(side, ln)
                         and rng.random() < side.hook.mid_removal_p(
@@ -744,7 +829,12 @@ def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
                 # He also inherits the OUT COUNT, which is what decides how
                 # long he stays: an arm handed two down finishes the inning
                 # and comes back out 63% of the time.
-                side.next_arm(fr.outs, rng, inning, margin)
+                #
+                # UNLESS THE BULK ARM IS NAMED — then this is not a handover
+                # to the pen at all, it is the second starter of a planned
+                # two-man game.
+                if not side.to_bulk():
+                    side.next_arm(fr.outs, rng, inning, margin)
 
     # Every exit from the loop above is a `break`, so one assignment here
     # covers them all. The walk-off `return` skips it and that is correct —
@@ -789,7 +879,7 @@ def _boundary_roll(side: Side, fr, inning: int, margin: int,
     st["outs"] = outs_before
     if rng.random() >= removal.predict(st):
         return
-    ln = side.line
+    ln = side.cur_line
     # He finished the inning, so nothing is inherited and no runner is left
     # behind — the distinction the mid-inning path exists to carry.
     if not ln.covered_f5:
@@ -799,7 +889,7 @@ def _boundary_roll(side: Side, fr, inning: int, margin: int,
 
 def _state(side: "Side", fr, inning: int, margin: int) -> dict:
     """What the manager can see, in the learned model's feature names."""
-    ln = side.line
+    ln = side.cur_line
     p = side.starter
     return {
         "pitches": ln.pitches, "bf": ln.batters,
@@ -837,7 +927,7 @@ def _hook_may_pull(side: Side, ln: sim.StartResult) -> bool:
 def _end_of_inning(side: Side, rng: random.Random, inning: int,
                    margin: int) -> None:
     """The between-innings decision, starter only."""
-    ln = side.line
+    ln = side.cur_line
     if side.starter_out:
         # Does he come back out? Measured on 13,248 relief outings and
         # conditioned on the state he entered in — a flat give-way puts the
@@ -872,7 +962,8 @@ def _end_of_inning(side: Side, rng: random.Random, inning: int,
             or ln.pitches >= side.hook.hard_pitch_cap):
         if not ln.covered_f5:
             ln.runs_f5, ln.outs_f5 = ln.runs, ln.outs
-        side.next_arm(0, rng, inning + 1, margin)
+        if not side.to_bulk():
+            side.next_arm(0, rng, inning + 1, margin)
 
 
 @dataclass
@@ -1065,7 +1156,8 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
                lineup: list[sim.BatterRates], hook: sim.Hook | None,
                rng: random.Random, depth: int = PEN_DEPTH,
                team: str | None = None, apply_leash: bool = True,
-               date: str | None = None) -> Side:
+               date: str | None = None,
+               bulk: sim.PitcherRates | None = None) -> Side:
     """Draw a bullpen for one club and assemble its pitching side.
 
     Arms are sampled WITHOUT replacement and weighted by appearances: a
@@ -1219,11 +1311,116 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
         own = dist[rng.randrange(len(dist))]
         if USE_OPENER_EXIT and (USE_OPENER_POOL or not pooled):
             fx = own
+    # THE BULK ARM'S OWN HOOK, built off the SAME base as the opener's so
+    # club patience is not lost, then his own leash, then the counted role
+    # delta. `leash.offset_for` is the one road an outs delta travels into a
+    # hook in this codebase; a hand-rolled shift here would be a second
+    # conversion to keep in step with the first.
+    bh = None
+    if bulk is not None:
+        bh = hook or sim.Hook()
+        if apply_leash:
+            bh = sim.for_start(bh, team, bulk.name)
+        off = _leash.offset_for(BULK_OUTS_DELTA)
+        bh = sim.Hook(**{**bh.__dict__,
+                         "team_offset": bh.team_offset + off})
     return Side(starter=starter, pen=arms, lineup=lineup,
                 hook=h,
                 pen_state=sim.pen_state(team, date),
                 layoff_gap=sim.layoff_gap(starter.name, date),
-                forced_exit_outs=fx)
+                forced_exit_outs=fx,
+                bulk=bulk, bulk_hook=bh)
+
+
+#: THE BULK ARM'S TYPE, read the way `scratchpad/bulk_type.py` counted it —
+#: prospectively, off his OWN trailing appearances before this date, where a
+#: REAL start is an order-0 outing of `BULK_REAL_START_OUTS` or more. That
+#: definition is the point: without it a run of opener starts classifies a
+#: man as a starter, and the type would be reading the very thing it is
+#: supposed to predict. Window matches `OPENER_ROLE_WINDOW` so the two role
+#: reads see the same span.
+BULK_ROLE_WINDOW = 30
+BULK_REAL_START_OUTS = 12
+BULK_MIN_HISTORY = 5
+BULK_STARTER_SHARE = 0.5
+
+_BULK_INDEX: tuple | None = None
+
+
+def _bulk_index(conn=None) -> tuple:
+    """({(date, TEAM): follower name}, {name: [(date, was a real start)]}).
+
+    Both off `mlb_stints`, one pass, cached for the process the same way
+    `_opener_starts` is.
+    """
+    global _BULK_INDEX
+    if _BULK_INDEX is not None:
+        return _BULK_INDEX
+
+    def _run(c):
+        rows = [dict(r) for r in c.execute(
+            "select game_id, date, team, player_name nm, appearance_order ao,"
+            " outs_recorded o from mlb_stints"
+            " order by date, game_id, appearance_order")]
+        log: dict = {}
+        first: dict = {}
+        for r in rows:
+            log.setdefault(r["nm"], []).append(
+                (r["date"], r["ao"] == 0 and (r["o"] or 0)
+                 >= BULK_REAL_START_OUTS))
+            if r["ao"] == 1:
+                key = (r["date"], (r["team"] or "").upper())
+                first.setdefault(key, r["nm"])
+        return first, log
+    # A MISSING TABLE MEANS "NO BULK ARM", NOT A CRASH. `mlb_stints` is
+    # derived from the play-by-play cache and a fresh checkout may not have
+    # built it — the same degradation `_opener_roles` takes, and for the
+    # same reason: a silently weaker gate beats a raise inside `build_side`.
+    try:
+        if conn is not None:
+            _BULK_INDEX = _run(conn)
+        else:
+            from src.context import store
+            with store.connect() as c:
+                _BULK_INDEX = _run(c)
+    except Exception:
+        _BULK_INDEX = ({}, {})
+    return _BULK_INDEX
+
+
+def bulk_follower(date: str | None, team: str | None) -> str | None:
+    """The named bulk arm behind tonight's opener, or None.
+
+    None means "go to the pen" and covers the pure bullpen game, which is
+    48.5% of planned openers — the majority case, and the one the existing
+    relief machinery already handles.
+
+    NOT A PREDICTION. For a game that has been played this is the recorded
+    follower; live it is the announced pairing off the slate. Step zero
+    killed predicting WHO follows from history, and this does not attempt
+    it: the name is an input, and only his TYPE is read from his record.
+    """
+    if not date or not team:
+        return None
+    first, log = _bulk_index()
+    nm = first.get((date, (team or "").upper()))
+    if not nm:
+        return None
+    w = [s for d, s in log.get(nm, []) if d < date][-BULK_ROLE_WINDOW:]
+    if len(w) < BULK_MIN_HISTORY:
+        return None
+    n = sum(w)
+    # `n < 2` is a reliever outright: one real start in thirty appearances
+    # is a spot start, not a role.
+    if n < 2 or n / len(w) < BULK_STARTER_SHARE:
+        return None
+    return nm
+
+
+def reload_bulk_index() -> None:
+    """Drop the cache — the tests rebuild `mlb_stints` under it."""
+    global _BULK_INDEX
+    _BULK_INDEX = None
 
 
 _OPENER_STARTS: dict | None = None

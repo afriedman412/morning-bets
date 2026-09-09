@@ -615,10 +615,12 @@ def replay(pair, lg, pens, rng, innings=9, track=(), apply_leash=True,
                         int(d[:4]) if d[:4].isdigit() else None)
     A = game.build_side(away[1], pens.get((away[0]["team"] or "").upper(), []),
                         an, hook, rng, team=away[0]["team"],
-                        apply_leash=apply_leash, date=away[0].get("date"))
+                        apply_leash=apply_leash, date=away[0].get("date"),
+                        bulk=away[0].get("bulk"))
     H = game.build_side(home[1], pens.get((home[0]["team"] or "").upper(), []),
                         hn, hook, rng, team=home[0]["team"],
-                        apply_leash=apply_leash, date=home[0].get("date"))
+                        apply_leash=apply_leash, date=home[0].get("date"),
+                        bulk=home[0].get("bulk"))
     if HOME_HOOK:
         H.hook = sim.Hook(**{
             **H.hook.__dict__,
@@ -778,6 +780,23 @@ def build_cases(season=None, before=None, max_starts=None, since=None,
                 if v:
                     x.arsenal_mult = v["contact"]
                     x.arsenal_k_mult = v["k"]
+        # THE BULK ARM behind a flagged opener, attached to the row rather
+        # than to the case tuple: `(row, rates, lineup)` is unpacked
+        # positionally in a dozen places and widening it to carry an
+        # optional fourth would touch all of them. `s` is already a plain
+        # dict (`actual_starts` materialises the rows), and `replay` reads
+        # it back out. None for an ordinary start and for a pure bullpen
+        # game, which is the majority of planned openers.
+        s["bulk"] = None
+        if game.opener_record(s["player_name"], s.get("date")) is not None:
+            bn = game.bulk_follower(s.get("date"), s.get("team"))
+            bp = pr.get(bn) if bn else None
+            if bp:
+                s["bulk"] = sim.PitcherRates(
+                    name=bp["name"], k_pct=bp["k_pct"], bb_pct=bp["bb_pct"],
+                    hr_pct=bp["hr_pct"], babip=bp["babip"], pa=bp["pa"],
+                    hand=_throws(bp["name"]),
+                    gb_pct=gb_pit.get(bp["name"]))
         cases.append((s, sim.PitcherRates(
             name=p["name"], k_pct=p["k_pct"], bb_pct=p["bb_pct"],
             hr_pct=p["hr_pct"], babip=p["babip"], pa=p["pa"],
