@@ -705,3 +705,31 @@ def check_a_walk_off_needs_the_lead_not_just_a_run():
         f"opposing_runs {opp} is not the pitching club's score {own}"
     assert opp != batting, \
         f"opposing_runs tracked the BATTING club's score {batting}"
+
+
+def check_a_past_season_cut_does_not_produce_an_empty_query():
+    """`bullpens(lg, before="2023-07-01")` with no `season=` resolved to
+    THE CURRENT SEASON and a date filter two seasons earlier — empty by
+    construction. Every fold-iterating harness (battery, pxi_cv, hz_cv)
+    made that call, got zero pen clubs for 2023-2025, and `Side.current`
+    handed every relief inning to the STARTER'S rates: three of the four
+    battery folds measured a bullpen-free engine. Caught 2026-09-09 by an
+    A/B identical to four decimals in exactly those folds.
+
+    A `before` whose year predates the resolved season now means that
+    year. A current-season `before` and an explicit `season=` behave as
+    they always did.
+    """
+    from src.context import scope
+    from src.context.sources import rates as rate_src
+
+    w = rate_src._where(None, "2023-07-01")
+    assert "'2023%'" in w, w
+    assert f"'{scope.CURRENT_SEASON}%'" not in w, w
+    assert "< '2023-07-01'" in w, w
+    # Current-season cut: unchanged.
+    w = rate_src._where(None, f"{scope.CURRENT_SEASON}-07-01")
+    assert f"'{scope.CURRENT_SEASON}%'" in w, w
+    # Explicit season with a later cut: honoured, not overridden.
+    w = rate_src._where(2024, "2026-07-01")
+    assert "'2024%'" in w, w

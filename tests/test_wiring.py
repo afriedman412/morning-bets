@@ -237,6 +237,7 @@ def check_the_measured_mechanisms_are_switched_on_by_default():
     assert sim.USE_TTO is True
     assert game.USE_MEASURED_RELIEF_LENGTH is True
     assert game.USE_MEASURED_RELIEF_HOOK is True
+    assert game.USE_RELIEF_INTENT is True
     # ADDED 2026-09-06 after a sweep flipped four shipped flags with all
     # 448 checks green. Every one HAD a wiring check; each of those sets
     # the flag itself (the house pattern above), so the mechanism checks
@@ -1102,3 +1103,30 @@ def check_the_role_decides_its_own_hit_by_pitch_rate():
         game.USE_ROLE_HBP = orig
 
     assert game.USE_ROLE_HBP is True, "ships ON"
+
+
+def check_relief_intent_reaches_the_game():
+    """`USE_RELIEF_INTENT`: the continuation hazard conditions on the
+    inning the arm ENTERED at. The observable is the opener shape — force
+    the starter out at three outs and the first reliever is the bulk man,
+    who really continues at ~76% per inning (9.50 outs a follower) where
+    the pooled table cut everyone to ~20% (3.96). With intent on, that
+    side must burn measurably fewer arms; with it off, the flag is
+    decoration and this check is what catches the wiring rotting."""
+    def _pen_arms(use_intent, n=300, seed=11):
+        prev = game.USE_RELIEF_INTENT
+        game.USE_RELIEF_INTENT = use_intent
+        try:
+            used = []
+            for i in range(n):
+                rng = random.Random(seed + i)
+                a = game.build_side(_pitcher(), _pen(), _nine(), None, rng)
+                h = game.build_side(_pitcher(), _pen(), _nine(), None, rng)
+                a.forced_exit_outs = 3
+                game.simulate_game(a, h, dict(LG), rng)
+                used.append(a.pen_i)
+            return sum(used) / len(used)
+        finally:
+            game.USE_RELIEF_INTENT = prev
+    on, off = _pen_arms(True), _pen_arms(False)
+    assert on < off - 0.5, (on, off)

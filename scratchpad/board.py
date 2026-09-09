@@ -225,6 +225,19 @@ def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
                              r["why"]))
             continue
         b = {"tag": tag, "g": g, "r": r, "rows": []}
+        # THE GATE RUNS FIRST AND STAMPS THE WHOLE GAME. On 2026-09-09,
+        # 54 of 126 game-level rungs sat in a game containing a flagged arm
+        # and none carried a warning — the flag printed on the pitcher's
+        # own K and outs rows only, while the total, team totals and F5
+        # inherit the identical defect and are the rows an operator
+        # actually bets. Display only; the modelling item is TODO 15.
+        gate = {s: slate.priceable(g[s]["starter"],
+                                   (pr.get(g[s]["starter"]) or {}).get("pa")
+                                   or 0, d)
+                for s in ("away", "home")}
+        game_note = "  ".join(
+            f"[{g[s]['starter']}: {gate[s][1]}]" for s in ("away", "home")
+            if not gate[s][0])
         for label, key in (("total", "total"), (f"{a['abbr']} total",
                            "away"), (f"{h['abbr']} total", "home")):
             lines = TOTAL_LINES if key == "total" else TEAM_LINES
@@ -233,10 +246,10 @@ def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
             for ln, p in _rungs(r[key], lines, band, keep=keep):
                 b["rows"].append(("tot", label, ln, p,
                                   (code, team, ln, "team" if team
-                                   else "total"), ""))
+                                   else "total"), game_note))
         for ln, p in _rungs(r["f5"], F5_LINES, band):
             b["rows"].append(("tot", "F5 total", ln, p,
-                              (code, None, ln, "f5"), ""))
+                              (code, None, ln, "f5"), game_note))
         for s in ("away", "home"):
             name = g[s]["starter"]
             pa = (pr.get(name) or {}).get("pa")
@@ -252,7 +265,7 @@ def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
             # already established that the useful move is to travel the
             # caveat with the number rather than suppress it. The reason
             # ships in brackets so a reader downstream can lift it whole.
-            ok, why = slate.priceable(name, pa or 0, d)
+            ok, why = gate[s]
             if not ok:
                 not_quoted.append((tag, name, why))
             confirmed = bool((h if s == "away" else a).get("lineup"))

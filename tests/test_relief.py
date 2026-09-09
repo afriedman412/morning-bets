@@ -140,3 +140,77 @@ def check_removal_inputs_are_clamped():
     """`runs` and `batters` arrive from a live line and must not raise."""
     assert 0.0 <= relief.mid_removal(99, 99) <= 1.0
     assert 0.0 <= relief.mid_removal(-1, -1) <= 1.0
+
+
+def check_intent_orders_the_entry_innings():
+    """The 2026-09-09 finding: entry inning reads the manager's INTENT, and
+    it is not a small effect — a clean-inning arm entering in innings 1-3
+    is the bulk man and continues 76%, innings 7+ is a specialist at 12%.
+    The pooled 20.1% sits on neither. If this ordering ever flattens, the
+    intent tables have been regressed to the pooled constant, which would
+    still produce a plausible mean outing and is exactly what would get
+    believed."""
+    early = relief.continues(0, 0, entry_inning=2, entry_margin=0)
+    mid = relief.continues(0, 0, entry_inning=5, entry_margin=0)
+    late = relief.continues(0, 0, entry_inning=9, entry_margin=0)
+    assert early > mid > late, (early, mid, late)
+    assert early - late > 0.50, (early, late)
+
+
+def check_intent_keeps_the_bulk_arm_out_there_in_extras():
+    """The pooled extras table (21% after one full extra inning) is what
+    cut the bulk arm to ~4 outs while the real follower of an opener
+    averages 9.50. Early entries must stay high through several extras."""
+    for j in (1, 2, 3):
+        early = relief.continues(0, j, entry_inning=2, entry_margin=0)
+        late = relief.continues(0, j, entry_inning=9, entry_margin=0)
+        assert early > 0.5, (j, early)
+        assert late < 0.15, (j, late)
+
+
+def check_intent_tail_carries_the_last_measured_cell():
+    """Beyond the measured span the last cell carries, per intent bucket —
+    the same posture as CONTINUE_TAIL, not a fall-through to a different
+    bucket's number."""
+    got = relief.continues(0, 99, entry_inning=2, entry_margin=0)
+    assert got == relief.EXTRA_INTENT[(0, 4, False)], got
+    got = relief.continues(0, 99, entry_inning=9, entry_margin=0)
+    assert got == relief.EXTRA_INTENT[(2, 2, False)], got
+
+
+def check_blowout_margin_reaches_the_intent_table():
+    """The long man in a blowout stays out there: E1 clean entry is 38.0%
+    close against 50.7% blown open. Margin is at ENTRY, matching the count."""
+    close = relief.continues(0, 0, entry_inning=5, entry_margin=1)
+    blow = relief.continues(0, 0, entry_inning=5, entry_margin=6)
+    assert blow > close + 0.05, (close, blow)
+
+
+def check_no_intent_args_reproduces_the_pooled_tables():
+    """`entry_inning=None` is the `USE_RELIEF_INTENT`-off state and every
+    pre-intent caller. It must reproduce the pooled tables exactly, or the
+    flag's off position no longer restores the engine it claims to."""
+    assert relief.continues(0, 0) == relief.CONTINUE_AFTER_ENTRY_INNING[0]
+    assert relief.continues(2, 0) == relief.CONTINUE_AFTER_ENTRY_INNING[2]
+    assert relief.continues(0, 1) == relief.CONTINUE_AFTER_EXTRA[1]
+    assert relief.continues(0, 99) == relief.CONTINUE_TAIL
+
+
+def check_intent_entry_inning_is_clamped():
+    """`entry_inning` arrives from a live frame; 0 or an extra-innings 14
+    must not raise."""
+    assert 0.0 <= relief.continues(0, 0, entry_inning=0,
+                                   entry_margin=0) <= 1.0
+    assert 0.0 <= relief.continues(3, 2, entry_inning=14,
+                                   entry_margin=-9) <= 1.0
+
+
+def check_tally_recounts_the_intent_cells():
+    """The intent constants stay checkable against rows the same way the
+    pooled ones do. Two rows in one cell, one continuation: 0.5."""
+    rows = [_o(entry_inning=2, last_inning=4),
+            _o(entry_inning=2, last_inning=2)]
+    t = relief.tally(rows)
+    rate, cont, n = t["intent"][(0, 0, False)]
+    assert (cont, n) == (1, 2), (cont, n)
+    assert abs(rate - 0.5) < 1e-9, rate

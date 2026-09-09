@@ -383,9 +383,24 @@ and `bets/2026_09_09_board.json` are the first two and nothing grades them
 yet.
 
 **15. MODEL THE OPENER INSTEAD OF DECLINING TO BELIEVE HIM.**
-**PLANNED — see `PLAN-opener-bullpen.md` (2026-09-09) for the full item,
-including the gate question that can kill it, the closer screen and the
-display stopgap. What follows is the summary.**
+**RUN 2026-09-09 — see the notes entry of that date. Steps zero, two,
+three and four are DONE: the named bulk arm measured a positive-controlled
+null (do not model WHO), but the same count established INTENT — the
+follower of a planned opener goes 9.50 outs against a first reliever's
+3.96 — and `USE_RELIEF_INTENT` now conditions the relief continuation
+hazard on (entry bucket, entry_outs, entry margin). The role-rate diff is
+counted (interleaved swingmen: K +1.0, HR -0.6, BABIP -1.1, all
+relief-better; per-pitcher does not repeat, pooled or nothing) and WAITS
+UNWIRED for a bulk-arm rates path. Closers parked by the leverage screen.
+THE FALSIFIER RAN AND **FAILED IN THE OPENER POPULATION** (4/4 folds
+adverse, +0.015 CRPS, ~2 sigma — notes 2026-09-09): the intent hazard is
+correct league-wide (battery clean on the fixed harness) but operates on
+fictional entry states in opener games because THE EXIT IS STILL WRONG —
+the sim hands an opener ~16 outs. THE SHARP REMAINING JOB: a flagged
+short-yardage starter gets his OWN exit distribution (his outs record,
+not the leash, which cannot reach him). Then rerun
+`scratchpad/opener_score.py`; it is expected to flip. What follows is
+the original item for reference.**
 Raised by the operator 2026-09-09 and it is the right call: the gate marks
 these arms, it does not fix them, and 43% of the game-level rungs on that
 day's board (54 of 126) sat in a game containing a flagged arm with no
@@ -615,3 +630,21 @@ Found while measuring extras, where it drops precisely the walk-off halves
 and therefore the highest-scoring ones: runs per extra half read 0.553
 against a real 1.049 while the half-inning itself produced a correct 0.969.
 Verified inert on outcomes — fingerprint unchanged with the auto runner off.
+
+**20. RE-READ EVERY CROSS-FOLD RESULT RECORDED BEFORE 2026-09-09 —
+THREE OF ITS FOUR FOLDS HAD NO BULLPEN.** Found by the opener item's
+falsifier (notes, 2026-09-09): `bullpens(lg, before=cut)` without
+`season=` returned zero clubs for 2023-2025, and an empty pen makes
+`Side.current` hand every relief inning to the STARTER'S rates. The
+battery fold loop, `pxi_cv.py`, `hz_cv.py` and `mid_inning_cv.py` all
+made that call. Fixed at the root in `rates._where` and pinned by a
+mutation-verified regression check; the battery JSONs in this commit are
+the first with live pens in all four folds. WHAT THIS TOUCHES: any
+recorded cross-fold conclusion that leans on innings after the starter —
+the rule-12b between-season baseline spread (0.040-0.059), the 7d
+PITCH x INNING refutation's fold scores, and every hz_cv/pxi_cv number.
+Starter-only quantities (the hook curves themselves, per-start outs/K
+shape) are least exposed; run-level and late-inning tables most. Do NOT
+re-litigate wholesale — re-run the battery's own history where a decision
+actually hinged on a 2023-2025 fold, and re-read 12b's spread first,
+since it sets the bar every measurement is judged against.

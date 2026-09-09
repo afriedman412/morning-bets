@@ -9723,3 +9723,145 @@ after four dead arsenal constructions and this null, whoever opens it
 should pre-register hard. E2 (physics into the expectation) was NOT run:
 the screens it would feed are the ones that just died, and velocity
 already ships directly.
+
+
+## 2026-09-09 — The opener item: two nulls that pay, one structural fix wired (PLAN-opener-bullpen.md)
+
+Ran steps zero, two, three and the closer screen from the plan in one
+sitting. One engine change came out of it — `USE_RELIEF_INTENT` — plus two
+measured nulls that close branches, and the display stopgap.
+
+**STEP ZERO — the named bulk arm does not exist. NULL, positive-controlled,
+and it pays.** QUESTION: after a short start, is WHO follows predictable?
+TEST: `mlb_stints` order 0 -> order 1 self-join (`scratchpad/bulkarm.py`),
+chronological modal-follower hit rate plus split-half r of the per-arm
+follower share, against a synthetic positive control (true 60% bulk arm)
+and a uniform null. POWER: 710-1,220 events, median 4-8 per club-season —
+thin, said so before running. RESULT: hit rate 0.130 on all short starts
+(null control 0.165, positive 0.514); restricted to planned openers
+(starter season avg < 11 outs, the false-null specification check) hit
+rate 0.188 against null 0.177 and positive 0.488; split-half r sits on the
+null in both populations. The pre-registered bar (r > +0.40) fails in a
+harness proven able to see it. ESTABLISHED: managers do not run a
+designated bulk man; the follower is drawn from the pen. The named-handoff
+version of step one is DEAD — do not model WHO.
+
+**But the same count established INTENT, and it is enormous.** The
+follower of a planned opener averages 9.50 outs against 3.96 for an
+ordinary first reliever (~700 events, tens of se). Identity is a coin
+flip; the ROLE is not. That is exactly the step-three conditioning
+variable, and it never needed identity.
+
+**STEP THREE — intent wired, and it is not just openers.** With a clean
+inning entry a reliever continues past his entry inning 66.8-78.8% when he
+enters in innings 1-3, 41.8% in 4-6, 11.7% in 7+. The shipped pooled
+constant was 20.1% — dominated by late innings and wrong by ~4x for every
+EARLY starter exit, opener or disaster. Margin at entry earns its cell in
+the middle and late buckets (E1 clean entry 38.0% close vs 50.7% blown
+open). New tables in `relief.py`: `CONTINUE_INTENT` keyed (entry bucket
+1-3/4-6/7+, entry_outs, |entry margin| >= 4), 18 cells, thinnest 127;
+`EXTRA_INTENT` the same for full extra innings thrown, last measured cell
+carries as the tail. Counted over 87,855 stints, no loss function,
+recountable via `relief.tally()` like the tables it extends. Wired in
+`game.py` under `USE_RELIEF_INTENT` (ships ON): `Side` now carries
+`cur_entry_inning`/`cur_entry_margin` — margin at ENTRY, matching
+`mlb_stints.entry_margin`, not the live margin, which would be a different
+conditioning wearing the same name. Guarded by seven new measurement
+checks and one wiring check (forced three-out exit: intent on burns
+measurably fewer arms); both mutation-verified — severing the wiring and
+flattening one cell each kill exactly their own check. Full suite 475
+green. Battery run around it per rule 15; diff reported in TODO 15's entry
+and the commit.
+
+**STEP TWO — the role diff is real, half the naive size, and the clean
+number comes from the population it fires in.** QUESTION: what do a
+pitcher's rates do when he relieves instead of starts? TEST: within
+pitcher-season, both roles >= 30 BF (`scratchpad/rolediff.py`), paired,
+counted on date < 2026-07-01. POWER: 360 pitcher-seasons, pooled se
+~0.003 on K% — a two-point shift is >6 sigma. RESULT, relief minus start:
+K% +1.24 (3.4 sigma), HR% -0.47 (3.5), BABIP -1.48 (3.3), BB% null. BUT
+the demotion/promotion split shows selection: K% and BABIP concentrate in
+starts-first pitcher-seasons (+1.90/-2.37) and mostly vanish in
+relief-first (+0.30/-0.20), and both orderings' selection biases point the
+same way. On INTERLEAVED swingmen (>= 4 role switches, assignment by
+schedule not performance — and the population a bulk arm actually comes
+from): K% +1.01 (2.0 sigma), BB% -0.54 (1.8), HR% -0.61 (3.4), BABIP
+-1.06 (1.8). Per-pitcher version does not repeat (split-half +0.080
+against +0.141 for a true sd-0.03 trait through the same harness) — POOLED
+number or nothing, same posture as `advance.py`. NOT WIRED: the engine has
+no role-mismatch path today (TTO is re-centred on a starter's pass mix,
+relievers deliberately untouched), so this is the counted constant waiting
+for the step-one build, not a shipped term. ESTABLISHED: direction and the
+interleaved sizes. INFERRED: mechanism is mostly first-pass-only exposure.
+
+**STEP FOUR — closers: the screen says park it.** The save cell (clean
+entry, inning 9+, margin 1-3) fires in 65.7% of games but is ~3.8% of
+half-innings, cannot touch F5 (the lead product) at all, and its raw
+runs-allowed distribution is nearly identical to a rate-matched middle
+inning (zeros 73.6% vs 71.2%, mean 0.442 vs 0.494 — the mean gap is the
+better arms, which `USE_PEN_ROLES` already routes). Caveat recorded:
+walk-off truncation clips the save cell's right tail, so this count
+understates any feast-or-famine shape; if moneylines (TODO 19) ever make
+the ninth decisive, re-open with a half-inning-level count and a
+positive-controlled dispersion screen. Until then a closer term is
+leverage-starved by construction.
+
+**STOPGAP shipped:** `board.py` now computes the arm gate before the
+game-level rows and stamps the flag reason on every total, team-total and
+F5 rung in an affected game — 43% of game-level rungs on the day that
+motivated it carried no warning. `board_json.py` already parses `[...]`
+notes per row, so it flows to the JSON unchanged.
+
+**AND THE FALSIFIER CAUGHT A HARNESS HOLE WORTH MORE THAN THE ITEM.** The
+first run of `scratchpad/opener_score.py` came back +0.0000 TO FOUR
+DECIMALS in folds 2023-2025 and moved only in 2026 — and the repo already
+records what an identical-to-four-decimals A/B is: a plumbing result,
+never a null (build_side's own docstring). Traced: `bullpens(lg,
+before=cut)` without `season=` resolves the season to CURRENT (scope.py's
+deliberate default) and then filters `date < cut` two seasons earlier —
+empty BY CONSTRUCTION. Zero pen clubs come back, and `Side.current` with
+an empty pen quietly returns THE STARTER, so every relief inning of every
+2023-2025 replay was pitched on the starter's own rates. **The battery's
+fold loop, `pxi_cv.py`, `hz_cv.py` and `mid_inning_cv.py` all make
+exactly that call, so three of the four folds in every cross-fold result
+on record measured a bullpen-free engine** — pen sampling, pen roles,
+relief length, relief hook, all silently off. FIXED at the root in
+`rates._where` (a `before` whose year predates the resolved season now
+means that year — the old reading returns nothing and no caller can mean
+it), made explicit with `season=` in the battery's fold loop, and pinned
+by `check_a_past_season_cut_does_not_produce_an_empty_query`,
+mutation-verified. FOLLOW-UP flagged in TODO: any recorded cross-fold
+conclusion that leans on relief innings in the 2023-2025 folds (the
+between-season baseline spread in rule 12b included) predates this fix
+and should be re-read with that in mind.
+
+**THE VERDICT ON `USE_RELIEF_INTENT`, with the fixed harness (both
+batteries rerun with live pens in all four folds):**
+
+  * SLATE-WIDE: no battery row moved by more than one se, on against off,
+    four folds. The battery cannot see it, which is the expected result
+    for a mechanism whose strongest cells are a minority of relief
+    entries — not a refutation (leverage-floor rule).
+  * THE PRE-REGISTERED FALSIFIER **FAILS IN THE OPENER POPULATION**, and
+    it is written here as a failure: in the 124 affected games
+    (`scratchpad/opener_score.py`, 100 sims a state, common seeds)
+    intent-on is WORSE — full-game team-run CRPS +0.0152 (se 0.0090),
+    F5 +0.0041 (se 0.0019), the same direction in all four folds, and
+    mean runs fall 0.024 in a population the sim already under-scores.
+  * WHY IT SHIPS ANYWAY, and the distinction matters: the tables are
+    counted league behaviour on conditioning the engine reproduces, and
+    the failure is not in them — it is DOWNSTREAM of the un-modelled
+    opener exit. The sim still hands an opener ~16 outs, so in exactly
+    those games the relievers enter fictional late states and a correct
+    hazard keeps the wrong arm in. A correct conditioning under a wrong
+    state distribution can lose; that is a statement about the state
+    distribution.
+
+**SO THE SHARP REMAINING JOB ON TODO 15 IS THE EXIT, NOT THE PEN: give a
+flagged short-yardage starter his own exit distribution** (his own outs
+record is 3-9, the engine's leash clamp cannot reach it — the plan's
+opening point). Once the opener exits in inning 1-2 in the SIM, the E0
+intent cells (76% continuation, the bulk-arm shape, counted and waiting)
+fire on truthful states, and the falsifier above should be rerun and is
+expected to flip. Until then the board's gate flag travels on every rung
+of those games (the stopgap), which is the honest interim state.

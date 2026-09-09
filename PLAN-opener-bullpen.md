@@ -1,5 +1,13 @@
 # PLAN — the opener, the bulk arm, and whether relief roles need models
 
+**STATUS 2026-09-09: RUN. Steps zero, two, three, four and the stopgap are
+done — results in `NOTES-context-layer.md` under this date. Step zero was
+a positive-controlled null on WHO follows (do not model the named bulk
+arm) and a huge positive on INTENT (the follower goes 9.50 outs), which
+shipped as `USE_RELIEF_INTENT` via step three. Step one's named-handoff
+version is dead per the step-zero stop; its content survives in the
+intent tables. The falsifier below ran as `scratchpad/opener_score.py`.**
+
 Written 2026-09-09 out of the TOR @ ATH board, where BOTH listed starters
 were openers (Braydon Fisher, 3.38 outs a start; Brady Basso, 9.44) and the
 model handed each of them a generic starter's ~16. Every number in that

@@ -992,7 +992,7 @@ def main(argv):
     yr, cut = [f for f in FOLDS if f[0] == max(fold_years)][0]
     pairs = cal.paired_cases(season=yr, rates_before=cut, since=cut)
     lg = sim.league(season=yr, before=cut)
-    pens = rate_src.bullpens(lg, before=cut)
+    pens = rate_src.bullpens(lg, season=yr, before=cut)
     fp = engine_fingerprint(pairs, lg, pens)
     print(f"\n  engine fingerprint {fp}")
 
@@ -1012,7 +1012,13 @@ def main(argv):
         gids = sorted(pairs)[:limit] if limit else sorted(pairs)
         _CASES = {g: pairs[g] for g in gids}
         _LG = sim.league(season=year, before=cut)
-        _PENS = rate_src.bullpens(_LG, before=cut)
+        # `season=` IS LOAD-BEARING: without it the resolver defaulted to
+        # the current season, the 2023-2025 folds got ZERO pen clubs, and
+        # `Side.current` quietly handed every relief inning to the
+        # STARTER'S rates. Three of four folds measured a bullpen-free
+        # engine until 2026-09-09. `_where` now heals this class of call,
+        # but the fold loop says what it means.
+        _PENS = rate_src.bullpens(_LG, season=year, before=cut)
         # Warm the weather table IN THE PARENT so forked workers inherit
         # it instead of each opening the database at first replay.
         cal.air_mult_for({"game_id": ""})

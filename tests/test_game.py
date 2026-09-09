@@ -327,7 +327,7 @@ def check_a_reliever_can_work_more_than_one_inning():
     hook_orig = game.USE_MEASURED_RELIEF_HOOK
     game.USE_MEASURED_RELIEF_HOOK = False
     keep = relief.continues
-    relief.continues = lambda entry_outs, extra: 1.0
+    relief.continues = lambda entry_outs, extra, **kw: 1.0
     try:
         away = _side(starter=_pitcher(k_pct=0.01, bb_pct=0.30, hr_pct=0.10))
         home = _side()
@@ -349,7 +349,7 @@ def check_relief_length_flag_off_restores_one_inning_each():
     hook_orig = game.USE_MEASURED_RELIEF_HOOK
     game.USE_MEASURED_RELIEF_HOOK = False
     keep = relief.continues
-    relief.continues = lambda entry_outs, extra: 1.0
+    relief.continues = lambda entry_outs, extra, **kw: 1.0
     try:
         away = _side(starter=_pitcher(k_pct=0.01, bb_pct=0.30, hr_pct=0.10))
         home = _side()
@@ -417,7 +417,7 @@ def check_the_continuation_hazard_advances_with_each_extra_inning():
     game.USE_MEASURED_RELIEF_HOOK = False
     keep = relief.continues
 
-    def spy(entry_outs, extra):
+    def spy(entry_outs, extra, **kw):
         seen.append(extra)
         return 1.0 if extra < 2 else 0.0
 

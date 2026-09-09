@@ -53,18 +53,86 @@ CONTINUE_AFTER_EXTRA = {1: 0.2147, 2: 0.3974, 3: 0.4411}
 #: rare enough that the tail costs nothing either way.
 CONTINUE_TAIL = 0.4411
 
+#: INTENT (added 2026-09-09, PLAN-opener-bullpen.md step three). The pooled
+#: tables above average over WHY the arm is out there, and entry inning is
+#: where that intent is readable: with a clean-inning entry, an arm brought
+#: in during innings 1-3 continues 76% of the time (he is the bulk man
+#: behind an opener or an early exit), innings 4-6 42%, innings 7+ 12%. The
+#: shipped pooled 20.1% is dominated by late innings and is wrong by a
+#: factor of nearly four for exactly the games the opener item is about.
+#: The follower of a planned opener averages 9.50 outs against 3.96 for an
+#: ordinary first reliever, and WHO he is does not predict (split-half at
+#: the null against a positive-controlled harness), so intent is carried by
+#: the entry state alone — which is all the engine knows anyway.
+#:
+#: Margin earns its cell the same way `entry_outs` does: the long man in a
+#: blowout stays out there (E1 clean entry: 38.0% close vs 50.7% blown
+#: open). Keyed (intent bucket, entry_outs, blowout) where blowout is
+#: |margin at entry| >= 4. Counted over 87,855 stints; thinnest cell 127.
+CONTINUE_INTENT = {
+    (0, 0, False): 0.7569, (0, 0, True): 0.7988,
+    (0, 1, False): 0.7373, (0, 1, True): 0.8110,
+    (0, 2, False): 0.7577, (0, 2, True): 0.8209,
+    (1, 0, False): 0.3796, (1, 0, True): 0.5070,
+    (1, 1, False): 0.5539, (1, 1, True): 0.6784,
+    (1, 2, False): 0.7169, (1, 2, True): 0.7795,
+    (2, 0, False): 0.0992, (2, 0, True): 0.1545,
+    (2, 1, False): 0.3160, (2, 1, True): 0.3213,
+    (2, 2, False): 0.4809, (2, 2, True): 0.4626,
+}
 
-def continues(entry_outs: int, extra_innings: int) -> float:
+#: Continuation after j full extra innings, keyed (intent bucket, j,
+#: blowout). The bulk arm keeps going where the pooled table said 21% —
+#: 70% after one extra inning for an early entry. Beyond the last measured
+#: j the last cell carries, same posture as CONTINUE_TAIL. Innings-7+
+#: entries almost never see a second extra inning; the measured 0-4% cells
+#: carry that.
+EXTRA_INTENT = {
+    (0, 1, False): 0.7030, (0, 1, True): 0.6667,
+    (0, 2, False): 0.6850, (0, 2, True): 0.5226,
+    (0, 3, False): 0.6168, (0, 3, True): 0.4964,
+    (0, 4, False): 0.3788, (0, 4, True): 0.4493,
+    (1, 1, False): 0.2003, (1, 1, True): 0.3393,
+    (1, 2, False): 0.2759, (1, 2, True): 0.3154,
+    (1, 3, False): 0.2206, (1, 3, True): 0.2555,
+    (1, 4, False): 0.1169, (1, 4, True): 0.1605,
+    (2, 1, False): 0.0396, (2, 1, True): 0.1020,
+    (2, 2, False): 0.0376, (2, 2, True): 0.0000,
+}
+
+#: Last measured j per intent bucket; deeper outings carry that cell.
+_EXTRA_MAX_J = {0: 4, 1: 4, 2: 2}
+
+
+def intent_bucket(entry_inning: int) -> int:
+    """0 = planned long outing (innings 1-3), 1 = middle, 2 = late."""
+    return 0 if entry_inning <= 3 else (1 if entry_inning <= 6 else 2)
+
+
+def continues(entry_outs: int, extra_innings: int,
+              entry_inning: int | None = None,
+              entry_margin: int | None = None) -> float:
     """P(this reliever comes back out for one more inning).
 
     `entry_outs` is how many outs were recorded when he entered — 0 for a
     clean inning, 1 or 2 for a mid-inning entry. `extra_innings` is how many
     FULL innings he has thrown since the one he entered, so 0 the first time
     this is asked of him.
+
+    With `entry_inning` and `entry_margin` the intent tables answer —
+    conditioning matches the count exactly: both are the state AT ENTRY,
+    not at the decision. Without them the pre-intent pooled tables answer,
+    which is also the `USE_RELIEF_INTENT`-off state.
     """
+    k = min(max(entry_outs, 0), 2)
+    if entry_inning is not None:
+        e = intent_bucket(max(entry_inning, 1))
+        b = abs(entry_margin or 0) >= 4
+        if extra_innings <= 0:
+            return CONTINUE_INTENT[(e, k, b)]
+        return EXTRA_INTENT[(e, min(extra_innings, _EXTRA_MAX_J[e]), b)]
     if extra_innings <= 0:
-        return CONTINUE_AFTER_ENTRY_INNING.get(min(max(entry_outs, 0), 2),
-                                               CONTINUE_AFTER_ENTRY_INNING[0])
+        return CONTINUE_AFTER_ENTRY_INNING[k]
     return CONTINUE_AFTER_EXTRA.get(extra_innings, CONTINUE_TAIL)
 
 
@@ -112,6 +180,23 @@ def tally(rows: list[dict] | None = None) -> dict:
             continue
         c = sum(1 for r in g if r["last_inning"] - r["entry_inning"] > j)
         out["extra"][j] = (c / len(g), c, len(g))
+    out["intent"], out["intent_extra"] = {}, {}
+    for (e, k, b) in CONTINUE_INTENT:
+        g = [r for r in rows if intent_bucket(r["entry_inning"]) == e
+             and r["entry_outs"] == k
+             and (abs(r["entry_margin"]) >= 4) == b]
+        if not g:
+            continue
+        c = sum(1 for r in g if r["last_inning"] > r["entry_inning"])
+        out["intent"][(e, k, b)] = (c / len(g), c, len(g))
+    for (e, j, b) in EXTRA_INTENT:
+        g = [r for r in rows if intent_bucket(r["entry_inning"]) == e
+             and r["last_inning"] - r["entry_inning"] >= j
+             and (abs(r["entry_margin"]) >= 4) == b]
+        if not g:
+            continue
+        c = sum(1 for r in g if r["last_inning"] - r["entry_inning"] > j)
+        out["intent_extra"][(e, j, b)] = (c / len(g), c, len(g))
     return out
 
 
@@ -130,6 +215,20 @@ def report(t: dict | None = None) -> None:
         print(f"    j={j}   {r:6.1%}   {c:>5}/{n:<5}")
     print("\n  A manager's intent, not stamina: the arm brought in for one")
     print("  out has not finished his job when the inning ends.")
+    if t.get("intent"):
+        print("\n  INTENT: continuation by (entry bucket, entry_outs, "
+              "blowout)")
+        for key, (r, c, n) in sorted(t["intent"].items()):
+            e, k, b = key
+            ship = CONTINUE_INTENT[key]
+            print(f"    E{e} k={k} {'blow ' if b else 'close'}  {r:6.1%}"
+                  f"  shipped {ship:6.1%}   {c:>5}/{n:<5}")
+        print("\n  INTENT: continuation after j extra innings")
+        for key, (r, c, n) in sorted(t["intent_extra"].items()):
+            e, j, b = key
+            ship = EXTRA_INTENT[key]
+            print(f"    E{e} j={j} {'blow ' if b else 'close'}  {r:6.1%}"
+                  f"  shipped {ship:6.1%}   {c:>5}/{n:<5}")
 
 
 if __name__ == "__main__":

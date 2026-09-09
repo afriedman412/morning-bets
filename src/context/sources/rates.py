@@ -287,6 +287,18 @@ def _where(season: int | None, before: str | None) -> str:
     # None means THIS SEASON, not every season — see `context.scope`. Pass
     # `scope.ALL_SEASONS` to pool history on purpose.
     season = scope.resolve(season)
+    # A `before` whose YEAR predates the resolved season is a fold cut from
+    # a past season, and the combined filter ("this season AND before a date
+    # two seasons ago") is empty BY CONSTRUCTION — no caller can mean it.
+    # Found 2026-09-09: every fold-iterating harness (`battery.py`,
+    # `pxi_cv.py`, `hz_cv.py`, `opener_score.py`) called
+    # `bullpens(lg, before=cut)` without `season=`, got zero clubs for
+    # 2023-2025, and `Side.current` fell back to THE STARTER for every
+    # relief inning of three of the four folds. The symptom that exposed it
+    # was an A/B identical to four decimals — a plumbing result, never a
+    # null. The season a past-year `before` means is its own year.
+    if season and before and before[:4].isdigit() and int(before[:4]) < season:
+        season = int(before[:4])
     if season:
         bits.append(f"and g.date like '{season}%'")
     if before:

@@ -65,6 +65,16 @@ USE_MEASURED_RELIEF_LENGTH = True
 #: and have to stay independently scoreable.
 USE_MEASURED_RELIEF_HOOK = True
 
+#: The relief continuation hazard conditions on INTENT — the inning and
+#: margin the arm ENTERED at — not just the base-out state
+#: (PLAN-opener-bullpen.md, 2026-09-09). The pooled 20.1% clean-entry
+#: continuation is dominated by late innings: an arm entering in innings
+#: 1-3 (the bulk man behind an opener or an early exit) really continues
+#: 76% and averages 9.50 outs against a first reliever's 3.96, and the old
+#: table cut him off at one inning like a setup man. Off restores the
+#: pooled tables. Only meaningful with `USE_MEASURED_RELIEF_LENGTH` on.
+USE_RELIEF_INTENT = True
+
 #: OFF. The learned removal model — a per-decision logistic on 63,531 real
 #: hooks, AUC 0.912 against `sim.Hook`'s 0.876 — replaces BOTH of the hook's
 #: branches with one roll per plate appearance.
@@ -288,6 +298,13 @@ class Side:
     #: be maintained wherever `next_arm` is called.
     cur_entry_outs: int = 0
     cur_extra_innings: int = 0
+    #: The inning and margin the CURRENT reliever ENTERED at — the intent
+    #: dimension of `relief.continues`. Margin at ENTRY, not at the
+    #: decision, because that is what the table was counted on
+    #: (`mlb_stints.entry_margin`); using the live margin would be a
+    #: different conditioning wearing the same name.
+    cur_entry_inning: int = 0
+    cur_entry_margin: int = 0
     #: Runs allowed in the half-inning that just finished. The between-
     #: innings decision is made after the Frame is gone, and the early
     #: boundary branch keys on how the last inning went — a starter who has
@@ -428,6 +445,8 @@ class Side:
         self.cur_line = sim.StartResult()
         self.cur_entry_outs = entry_outs
         self.cur_extra_innings = 0
+        self.cur_entry_inning = inning
+        self.cur_entry_margin = margin or 0
 
 
 def _half_inning(side: Side, lg: dict, rng: random.Random, inning: int,
@@ -708,7 +727,11 @@ def _end_of_inning(side: Side, rng: random.Random, inning: int,
         # mean relief outing at 3.000 outs against a real 3.473, and burns
         # more arms per game than the league does.
         if USE_MEASURED_RELIEF_LENGTH:
-            p = relief.continues(side.cur_entry_outs, side.cur_extra_innings)
+            p = relief.continues(
+                side.cur_entry_outs, side.cur_extra_innings,
+                entry_inning=side.cur_entry_inning if USE_RELIEF_INTENT
+                else None,
+                entry_margin=side.cur_entry_margin)
             if rng.random() < p:
                 side.cur_extra_innings += 1
                 return
