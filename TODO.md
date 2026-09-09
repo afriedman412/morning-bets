@@ -399,8 +399,22 @@ fictional entry states in opener games because THE EXIT IS STILL WRONG —
 the sim hands an opener ~16 outs. THE SHARP REMAINING JOB: a flagged
 short-yardage starter gets his OWN exit distribution (his outs record,
 not the leash, which cannot reach him). Then rerun
-`scratchpad/opener_score.py`; it is expected to flip. What follows is
-the original item for reference.**
+`scratchpad/opener_score.py`; it is expected to flip.
+
+OPERATOR DIRECTIVE 2026-09-09, and it is the shape of the build: the
+pitching side of an opener game is a SEQUENCE OF TYPED ROLES —
+(opener) -> (bulk arm) -> pen — and the bulk arm is one of THREE types,
+counted at 40.6% bona fide starter / 18.6% swingman / 40.8% pure
+reliever (full bullpen game). Model each: the starter-as-bulk uses his
+own rates plus the counted role diff (interleaved-swingman numbers,
+above); the pure-bullpen game is the pen we already sample plus the
+intent tables. AND THE SLATE ACCOMMODATES ANNOUNCED COMBOS: the opener
+and his follower are usually public before lineups, but
+`mlb_schedule_with_probables` carries one arm per side — add a manual
+override on the slate ("bulk arm: X") before building any scraper. The
+step-zero null killed PREDICTING the follower from history; an announced
+name is input, not prediction. What follows is the original item for
+reference.**
 Raised by the operator 2026-09-09 and it is the right call: the gate marks
 these arms, it does not fix them, and 43% of the game-level rungs on that
 day's board (54 of 126) sat in a game containing a flagged arm with no
@@ -648,3 +662,17 @@ shape) are least exposed; run-level and late-inning tables most. Do NOT
 re-litigate wholesale — re-run the battery's own history where a decision
 actually hinged on a 2023-2025 fold, and re-read 12b's spread first,
 since it sets the bar every measurement is judged against.
+
+**21. THE CLOSER IS SPENT IN THE SEVENTH — SPLIT `PEN_PICK` BY INNING.**
+Raised by the operator 2026-09-09. The closer is in the pool and nothing
+reserves him for the ninth: `PEN_PICK` routes by margin bucket only, and
+its weights were COUNTED POOLED over innings 7-9 — the real structure
+(setup 7th-8th, closer 9th) is smeared into "44% best-fifth whenever
+leading late", so the engine can spend the best arm two innings early.
+Same pooling defect as the hook curves and the relief hazard, same fix:
+recount the selection profile keyed (inning 7/8/9, margin bucket).
+`deploy.py` already measured role as stable (split-half r +0.55 to
++0.78), so the split should resolve cleanly. Check cell sizes first; the
+operator's point is that the ninth-inning closer is one of the few
+STABLE, RELIABLE pieces of bullpen behaviour, so this is a count, not a
+model. Battery around the wiring per rule 15.
