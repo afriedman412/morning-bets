@@ -67,9 +67,31 @@ shipped `sim.leash` offset against what he actually did in 2026:
   * Rhett Lowder, offset -0.16. Over 14.5 outs: his 2026 76.2% (16/21),
     ours 66.1%.
 
-In all three the offset looks fitted on a SHORTER version of the pitcher
-than the one taking the ball, which is exactly what a half-life fixes and
-a static fit cannot.
+**THE SIGN WAS READ BACKWARDS WHEN THIS WAS FIRST WRITTEN (2026-09-09,
+corrected same day).** `team_offset` is added to a REMOVAL hazard, so a
+NEGATIVE offset buys a LONGER outing — `OUTS_PER_OFFSET` says -2.0 maps to
++3.00 outs. All three arms above already carry a negative offset pushing
+them longer, and we STILL price them short of their own record. So the
+offset is not fitted short; it is not moving FAR ENOUGH.
+
+THAT REWRITES THE HYPOTHESIS INTO A BETTER ONE — COMPRESSION, not
+staleness. The base hook regresses everyone toward a generic length and
+the per-pitcher offset under-corrects, so short-leash arms are run too
+long and long-leash arms are pulled too short. That single mechanism
+explains the poster cases AND the counter-evidence below, which staleness
+never did. `OFFSET_CLAMP = 2.0` caps the whole adjustment at about +/-3.3
+outs, which is the structural reason it cannot reach an opener.
+
+FIRST CUT, and it is NOT a finding: regressing (our implied outs line -
+his own 2026 mean) on (his own 2026 mean) over 12 arms gives slope -0.42,
+r -0.56. **THE TEST AS RUN IS CONFOUNDED AND MUST NOT BE QUOTED.** His own
+mean appears on BOTH sides and is measured on ~25 starts, so its standard
+error is around 0.9 outs against a between-pitcher spread of about 1.1 —
+noise in a regression PREDICTOR attenuates the slope, which is the failure
+CLAUDE.md already records for `m_er`. Redo it SPLIT-HALF: estimate his
+length on odd-numbered starts, score the residual on even-numbered ones.
+The sample is also selected — arms whose implied line falls outside the
+printed rungs drop out, which is why Yamamoto and Baz are missing.
 
 **BUT DO NOT PRE-JUDGE THE DIRECTION — the counter-evidence is real and
 sits in the same session.** Where the leash table has NO entry the error
@@ -359,6 +381,40 @@ tag is decoration and comes off the board. This needs stored boards
 carrying the mids as they were at print time; `bets/2026_09_08_board.json`
 and `bets/2026_09_09_board.json` are the first two and nothing grades them
 yet.
+
+**15. MODEL THE OPENER INSTEAD OF DECLINING TO BELIEVE HIM.**
+**PLANNED — see `PLAN-opener-bullpen.md` (2026-09-09) for the full item,
+including the gate question that can kill it, the closer screen and the
+display stopgap. What follows is the summary.**
+Raised by the operator 2026-09-09 and it is the right call: the gate marks
+these arms, it does not fix them, and 43% of the game-level rungs on that
+day's board (54 of 126) sat in a game containing a flagged arm with no
+warning of any kind on the total, team total or F5 rows.
+
+WHY IT IS NOT A LEASH PROBLEM AND CANNOT BE FIXED BY ONE. `OFFSET_CLAMP`
+bounds the per-pitcher adjustment at about +/-3.3 outs. Braydon Fisher
+starts on 2026-09-09 averaging 3.38 outs a start (log 4,3,4,3,3,4,3,3) and
+Brady Basso 9.44; the model hands each a generic starter's ~16. No value
+inside the clamp reaches them. The representation is wrong, not the fit.
+
+THE SHAPE, and the operator's point is the load-bearing one: an opener
+start is TWO pitchers, and the SECOND one is the one who matters. Model it
+as (opener, short) then (bulk arm, long relief) rather than as one
+starter. Both halves already exist — `relief.py` has outing length
+conditioned on the state he entered in, and `deploy.py` measured that role
+is stable and projects (split-half r +0.55 to +0.78 over 319 relievers).
+
+COUNT THE HANDOFF FIRST, do not import it. From the play-by-play cache:
+when a starter is removed at or before 2 innings, WHO follows him and for
+how long? That is one pass over 10,000 cached games and it answers whether
+the bulk arm is predictable at all. If the follower is a coin flip among
+six relievers the whole item dies there and the gate stays the answer.
+
+FALSIFIER, pre-registered: score the RUN DISTRIBUTION in opener games
+against what actually happened — not against the market, which is the
+whole point of the objective. If modelling the handoff does not improve
+the ladder on those games, it does not ship however sensible it looks.
+Note the population is small, so state the POWER before running it.
 
 **16. Propagate projected-lineup uncertainty.**
 Two wrong names out of nine moved a headline edge by half. Flag any edge

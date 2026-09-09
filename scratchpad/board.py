@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import statistics as st
 import sys
+import time
 from datetime import date as _date
 
 from src import roster
@@ -195,17 +196,20 @@ def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
         league_bats=sim.BatterRates(
             name="league", k_pct=lg["k_pct"], bb_pct=lg["bb_pct"],
             hr_pct=lg["hr_pct"], babip=lg["babip"]))
+    t_sim = time.monotonic()
     import multiprocessing as mp
     ctx = mp.get_context("fork")
     with ctx.Pool(max(1, min(len(games) or 1,
                              (mp.cpu_count() or 2) - 1))) as pool:
         out = pool.map(_one, range(len(games)))
+    t_sim = time.monotonic() - t_sim
 
     # KALSHI FIRST, for every rung, so the rung a book actually hangs
     # prints even when OUR fair sits outside the band. Found 2026-09-07:
     # Ryan's book was at 3.5 and Cease's at 7.5 while the band kept our
     # 4.5 and 6.5 — the board hid exactly the rows where the disagreement
     # was biggest, which are the only rows worth a second look.
+    t_mkt = time.monotonic()
     names = {g[s]["starter"] for g, r in zip(games, out)
              if not r["why"] for s in ("away", "home")}
     mids = {stat: _mids(stat, d, {(nm, ln) for nm in names for ln in lines})
@@ -291,13 +295,15 @@ def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
     wanted = {row[4] for b in blocks for row in b["rows"]
               if row[0] == "tot" and row[4] is not None}
     gm = _game_mids(d, wanted)
+    t_mkt = time.monotonic() - t_mkt
     for b in blocks:
         b["rows"] = [row[:4] + (gm.get(row[4]) if row[0] == "tot"
                                 else row[4],) + row[5:]
                      for row in b["rows"]]
 
     return {"date": d, "n": n, "band": band, "blocks": blocks,
-            "declined": declined, "not_quoted": not_quoted}
+            "declined": declined, "not_quoted": not_quoted,
+            "t_sim": t_sim, "t_mkt": t_mkt}
 
 
 def print_board(payload):
@@ -334,6 +340,12 @@ def print_board(payload):
           " term); Sept unmeasured.")
     print("Re-run after lineups post: a projected nine has cost half an"
           " edge before.")
+    ts, tm = payload.get("t_sim"), payload.get("t_mkt")
+    if ts is not None:
+        print(f"\nwall clock: {payload['elapsed']:.0f}s total — "
+              f"{ts:.0f}s simulating, {tm:.0f}s fetching markets, "
+              f"{payload['elapsed'] - ts - tm:.0f}s loading rates. "
+              f"RE-RUNNING IS CHEAP; do it when lineups post.")
 
 
 def main(argv):
@@ -341,7 +353,10 @@ def main(argv):
     d = args[0] if args else _date.today().isoformat()
     n = int(args[1]) if len(args) > 1 else 20000
     band = None if "--all" in argv else BAND
-    print_board(build(d, n=n, band=band))
+    t0 = time.monotonic()
+    payload = build(d, n=n, band=band)
+    payload["elapsed"] = time.monotonic() - t0
+    print_board(payload)
 
 
 if __name__ == "__main__":
