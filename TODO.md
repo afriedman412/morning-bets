@@ -433,6 +433,62 @@ independent of who is running and who is batting. That independence is WHY
 the runner-event reorder washed out — the pairing carries no information.
 Same table and same code as per-runner speed (item 6); screen them together.
 
+**19. MONEYLINES — THE EASY VERSION. Persist the draws, count, score, stop.**
+Raised by the operator 2026-09-09. 15 is the opener item, so this is 19.
+
+**THE NUMBER IS NOT MISSING, THE ARRAY IS.** `game.simulate_game` already
+returns each draw's away and home runs, so P(home wins) is a COUNTER, not a
+model. Nothing computes it because nothing persists the per-draw `(away,
+home)` pairs — the board stores only marginals (game total, team totals,
+F5), and a win probability needs the JOINT. Store one array per matchup and
+the moneyline, the run line, the F5 winner and any margin question all fall
+out of it without touching the engine. `scratchpad/sims/` and
+`starts_*.json` are the existing precedent for persisting draws; follow it.
+
+**THEN SCORE IT, BECAUSE IT HAS NEVER BEEN SCORED.** BETTING.md keeps ML
+and run line OFF the board for exactly this reason. Replay paired
+historical games (`calibrate.replay`, `cal.paired_cases` builds a season's
+list in ~9 seconds, four seasons cached), emit P(home wins), and run a
+Brier decomposition against who actually won plus a calibration table by
+bucket. That is the whole item. DO NOT start repairing the margin if it
+scores badly — stop and write the null.
+
+**THE PRIOR SHOULD BE WORSE THAN TOTALS, and the reason is specific.** A
+win probability depends on the MARGIN, and the margin is where the hook,
+the sampled bullpen and the still-unexplained late-innings lean all land
+(+1.2 points against Kalshi across 11 games on 2026-09-09, uncorrelated
+with how we price either pen, r = -0.16). Totals average two starters;
+a margin does not.
+
+**THIS ITEM ADOPTS THE ORPHANED ONE-RUN-GAME FINDING, and they are the
+same question.** Item 1 retired with one survivor: one-run games at 0.247
+against a real 0.266, 1.9 sigma light, explicitly recorded as "not its own
+item". A model that under-produces one-run games has a margin distribution
+that is too WIDE, which makes win probabilities too CONFIDENT and misprices
+the run line first. Check that cell in the same pass — if the calibration
+table shows us over-confident at the extremes, that is the mechanism and it
+was already measured.
+
+**THE YARDSTICK EXISTS AND IS UNUSED.** `KXMLBSPREAD` (run line) and
+`KXMLBF5` (first-five winner) are live Kalshi series found 2026-09-09 and
+priced by nothing. Both parse the same way the game-level totals did —
+`floor_strike` plus the ticker's club code — so wiring them is the same
+half-hour that wired KXMLBTOTAL.
+
+**TEST F5 WINNER FIRST, not the full-game moneyline.** F5 is the only
+market here that has ever beaten a settled price, and `KXMLBF5` is an
+ML-shaped contract on exactly that window — before the bullpen and the
+late-innings lean are involved. If any win probability works it is that
+one, and if it fails the full-game version is not worth running.
+
+RELATED: team totals are also never separately scored and are CHEAPER to
+check than this, because they are marginals and need no joint. On
+2026-09-09 our mean absolute disagreement with Kalshi was 3.03 points on
+the game total against 3.65 on the team totals (1.20x, larger on the split
+in 8 of 14 games), and CIN/LAD agreed on the sum to 0.5 while disagreeing
+4.8 on the split. Score the split in the same replay pass; it is the same
+loop and the market is one an operator is actually offered.
+
 ---
 
 ## Parked — measured, decided against. Re-open only if the APPROACH or the DATA changes, and say which.
