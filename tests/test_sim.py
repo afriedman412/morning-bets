@@ -296,6 +296,25 @@ def check_the_boundary_knee_is_wired_and_ships_inert():
     bucket rate is 0.749 and the linear form gives 0.641.
     """
     assert sim.Hook().per_pitch_over == 0.0, "the knee ships inert"
+    # SCOPED TO THE PARAMETRIC BACKBONE, 2026-09-09. Every claim below is
+    # about `removal_p`'s parametric branch, and shipping
+    # `USE_PITCH_HAZARD_BND` replaces that branch wholesale — the knee, the
+    # centre, the scale and `high_pitch_bnd` all stop being read. With the
+    # table on, `lin` and `knee` and the shipped hook return the SAME
+    # number and the comparisons below would pass while testing nothing.
+    # Turning the flag off here keeps this check pointed at the thing it
+    # describes; that the table makes those four parameters inert is a
+    # separate claim, pinned by
+    # `check_the_counted_boundary_table_replaces_the_parametric_backbone`.
+    orig = sim.USE_PITCH_HAZARD_BND
+    try:
+        sim.USE_PITCH_HAZARD_BND = False
+        _knee_body()
+    finally:
+        sim.USE_PITCH_HAZARD_BND = orig
+
+
+def _knee_body():
     h = sim.Hook()
     lin = sim.Hook(**sim.LINEAR_BOUNDARY)
     for n in (15, 55, 80, 105):
@@ -588,12 +607,21 @@ def check_longer_leash_raises_strikeout_totals():
     strikeouts through some path that should not exist.
     """
     def stats(off):
-        rng = random.Random(27)
+        # PAIRED DRAWS, one rng per start. A single stream decorrelates the
+        # two arms after the first divergent hook decision, and the marginal
+        # ratio's seed-to-seed sd was 0.011-0.020 — the band floor sat 0.3
+        # se from the seed-27 value, so the check was passing on seed luck
+        # (seed 505 failed it on the SHIPPED engine). Per-start seeding
+        # keeps the arms on identical streams until the hook itself
+        # diverges: sd 0.004-0.005, same runtime, same claim.
         h = sim.Hook(team_offset=off)
-        r = [fx.one_side(_pitcher(), _lineup(), LG, h, rng)
-             for _ in range(2000)]
-        n = len(r)
-        return sum(x.k for x in r) / n, sum(x.batters for x in r) / n
+        k = bf = 0
+        for i in range(2000):
+            rng = random.Random(27 + i * 100003)
+            r = fx.one_side(_pitcher(), _lineup(), LG, h, rng)
+            k += r.k
+            bf += r.batters
+        return k / 2000, bf / 2000
 
     k_long, bf_long = stats(-1.0)
     k_short, bf_short = stats(1.0)

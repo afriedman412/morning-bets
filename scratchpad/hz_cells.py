@@ -58,6 +58,13 @@ def bucket(p):
 
 
 def _wrap():
+    # ONCE PER PROCESS. This used to re-wrap on every game, stacking the
+    # logger N deep: a worker's Nth game logged every decision N times, so
+    # later games carried N times the weight in every cell mean. Found
+    # 2026-09-09 building `hz_iter.py`; the 0.0265 / 0.0314 boundary cell
+    # errors recorded in TODO 7a were measured with the biased instrument.
+    if getattr(sim.Hook.removal_p, "_is_wrapped", False):
+        return
     bnd, mid = sim.Hook.removal_p, sim.Hook.mid_removal_p
 
     def rp(self, pitches, *a, **k):
@@ -70,6 +77,7 @@ def _wrap():
         _LOG.setdefault("mid", []).append((bucket(pitches), p))
         return p
 
+    rp._is_wrapped = True
     sim.Hook.removal_p, sim.Hook.mid_removal_p = rp, mp_
 
 
@@ -80,7 +88,8 @@ def _one(args):
     v = _CASES[gid]
     home = next(x for x in v if x[0]["is_home"])
     away = next(x for x in v if not x[0]["is_home"])
-    an, hn = cal.adjust_lineup(away[2], False), cal.adjust_lineup(home[2], True)
+    an = cal.adjust_lineup(away[2], False)
+    hn = cal.adjust_lineup(home[2], True)
     for draw in range(_SIMS):
         rng = random.Random(7 + i * 100003 + draw)
         za, zh = rng.gauss(0, 1), rng.gauss(0, 1)
@@ -108,6 +117,7 @@ def main(argv):
     pos = [a for a in argv if not a.startswith("-")]
     _SIMS = int(pos[0]) if pos else 10
     sim.USE_PITCH_HAZARD = "--hz" in argv
+    sim.USE_PITCH_HAZARD_BND = "--bnd" in argv
     pairs = cal.paired_cases(rates_before=HOLDOUT, since=HOLDOUT)
     gids = sorted(pairs)
     _CASES = {g: pairs[g] for g in gids}
@@ -136,7 +146,8 @@ def main(argv):
             agg[bucket(r["pitches"])][1] += 1
         real[key] = agg
 
-    print(f"  PITCH HAZARD {'ON' if sim.USE_PITCH_HAZARD else 'OFF'}   "
+    print(f"  PITCH HAZARD {'ON' if sim.USE_PITCH_HAZARD else 'OFF'}"
+          f"  BND {'ON' if sim.USE_PITCH_HAZARD_BND else 'OFF'}   "
           f"{len(gids)} holdout games x {_SIMS} sims\n")
     for key, lab in (("bnd", "BOUNDARY"), ("mid", "MID-INNING")):
         print(f"  {lab}")

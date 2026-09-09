@@ -2586,10 +2586,40 @@ def sharpen(p: "PitcherRates", rng: random.Random,
 PITCH_HAZARD_BND_ANCHOR = -5.1370
 PITCH_HAZARD_MID_ANCHOR = -5.0
 
+#: RE-SOLVED AGAINST THE MODEL'S OWN STATES, 2026-09-09 (`scratchpad/
+#: hz_iter.py`, TODO 7a). The counted values were solved conditional on
+#: REAL game states and applied to OURS, which are calmer, so the table
+#: missed its own buckets when it actually ran. Each value is now the one
+#: that makes OUR SIMULATED GAMES produce the REAL removal rate: iterate,
+#: measure the realised hazard, move each bucket by the logit gap, repeat.
+#: Converged in two passes, every bucket inside max(se, 0.004). Still
+#: measured entirely against real baseball — the answer is just checked
+#: where it gets used rather than where it was counted, which is why this
+#: is not the re-centring the item explicitly rejected.
+#:
+#: THE CORRECTION IS ENTIRELY IN THE TOP FIVE BUCKETS AND IS ONE-WAY: 78
+#: through 100 move up by +0.12 to +0.26 and everything below 78 keeps the
+#: counted value unchanged, because the model already hit those rates
+#: within noise. The model's states are calmer, so at a high pitch count
+#: its runs/traffic terms contribute less and the bucket intercept has to
+#: carry more.
+#:
+#: FITTED ON MAY-SEPTEMBER, AND THE WINDOW IS THE FINDING. The boundary
+#: hazard has a strong seasonal shape the model cannot see — pooled over
+#: the 50-78 buckets, Mar 0.2205, Apr-Jun 0.0663-0.0715, Jul-Aug ~0.0755,
+#: Sep 0.1041. A first pass fitted on May-June alone sat in the TROUGH and
+#: built a 24% under-pull into the table; it under-pulled at 60/70/78 on
+#: the holdout and overshot o18.5/o20.5 in two folds. April is excluded
+#: for a DATA reason, not a modelling one: at an April rate freeze almost
+#: no arm has cleared `MIN_PEN_APPS` (2026-04-01 gives 17 pen clubs and 30
+#: arms), and a near-empty pen is the bullpen-free engine of TODO 20.
+#: Residual seasonal gap, measured and left in: the fitted population
+#: pools to 0.0775 against the scored window's 0.0853. A calendar term in
+#: the hook is a separate item.
 PITCH_HAZARD_BND = ((0, -5.3504), (25, -5.3196), (40, -5.7343),
                     (50, -5.2571), (60, -4.6492), (70, -3.8836),
-                    (78, -3.1352), (85, -2.2086), (90, -1.2026),
-                    (95, 0.2150), (100, 1.3943))
+                    (78, -3.0107), (85, -2.0859), (90, -0.9999),
+                    (95, 0.3884), (100, 1.6528))
 PITCH_HAZARD_MID = ((0, -8.0073), (25, -7.0291), (40, -6.7298),
                     (50, -6.4396), (60, -5.5773), (70, -4.7341),
                     (78, -3.9651), (85, -3.2537), (90, -2.6494),
@@ -2650,7 +2680,7 @@ USE_PITCH_HAZARD = True
 #: and lost everywhere else — it nearly doubled the long-line error and
 #: turned a 0.2-out shortfall into a 0.18-out overshoot in every season.
 #: Half the change beat all of it.
-USE_PITCH_HAZARD_BND = False
+USE_PITCH_HAZARD_BND = True
 
 
 

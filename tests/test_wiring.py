@@ -1059,20 +1059,24 @@ def check_the_slate_simulation_tracks_the_first_five():
     assert "track=track" in src, "track must reach simulate_game"
 
 
-def check_the_mid_curve_reads_the_counted_hazard_and_the_boundary_does_not():
-    """The 2026-08-31 ship: counted MID backbone, parametric BOUNDARY.
+def check_both_hook_curves_read_the_counted_pitch_hazard():
+    """Both backbones are the counted table.
 
-    BOTH HALVES ARE THE DECISION. Taking the mid table alone beat taking
-    both on every axis that was not a dead heat — four-fold cross-validated,
-    the outs band improved by a consistent -0.016 to -0.018 in all four
-    seasons, the long lines were left alone, and the mean-outs error halved
-    instead of flipping to a +0.18 overshoot. The boundary table missed its
-    own buckets against real holdout rates (cell error 0.0265 -> 0.0314),
-    which is why it stays off.
+    RENAMED AND REVERSED ON 2026-09-09, from
+    `check_the_mid_curve_reads_the_counted_hazard_and_the_boundary_does_not`.
+    That check pinned the 2026-08-31 ship — counted MID, parametric
+    BOUNDARY — and the boundary half of it was pinning a defect rather
+    than a decision. The boundary table was solved conditional on REAL
+    game states and applied to OURS, which are calmer, so it missed its
+    own buckets when it ran. Re-solved against the model's own states
+    (TODO 7a, `scratchpad/hz_iter.py`) it is the best of the four
+    configurations on holdout cell error: parametric 0.0303, counted
+    as-solved 0.0282, re-solved 0.0176.
 
-    Mutation-verified: turning the hazard OFF fails this, and turning the
-    BOUNDARY table on fails `check_the_boundary_knee_is_wired_and_ships_inert`.
-    Before this existed, switching the whole mechanism off broke nothing.
+    Mutation-verified, and it takes BOTH assertions to do it: turning
+    `USE_PITCH_HAZARD` off fails the mid half, and turning
+    `USE_PITCH_HAZARD_BND` off fails the boundary half. Neither
+    assertion covers the other's flag.
     """
     h = sim.Hook()
     # A pitch count where the counted table and the parametric curve
@@ -1084,13 +1088,43 @@ def check_the_mid_curve_reads_the_counted_hazard_and_the_boundary_does_not():
         + sim.pitch_hazard(78, sim.PITCH_HAZARD_MID))
     assert abs(mid - expected) < 1e-9, (mid, expected)
 
-    # And the boundary curve must still be the PARAMETRIC one.
     bnd = h.removal_p(78, 0, 5)
     table_bnd = sim._sigmoid(
         h.intercept - sim.PITCH_HAZARD_BND_ANCHOR
         + sim.pitch_hazard(78, sim.PITCH_HAZARD_BND)
         + h.per_inning * 5)
-    assert abs(bnd - table_bnd) > 1e-6, (bnd, table_bnd)
+    assert abs(bnd - table_bnd) < 1e-9, (bnd, table_bnd)
+
+
+def check_the_counted_boundary_table_replaces_the_parametric_backbone():
+    """With the table on, four boundary parameters stop being read.
+
+    `pitch_center`, `pitch_scale`, `per_pitch_over` and `high_pitch_bnd`
+    are the parametric backbone, and `removal_p` swaps the whole
+    expression for the counted table rather than adding to it. So they are
+    INERT while `USE_PITCH_HAZARD_BND` ships True — which is a fact that
+    needs pinning, because a dead parameter and a live one look identical
+    from the outside and this project has a recorded case of someone
+    tuning one that could not move (`early_innings`, day seven).
+
+    The companion claim — that they are LIVE on the parametric branch —
+    is `check_the_boundary_knee_is_wired_and_ships_inert`, which scopes
+    itself to that branch for exactly this reason.
+
+    Mutation-verified: make `removal_p` ADD the table to the parametric
+    expression instead of replacing it and this check fails.
+    """
+    base = sim.Hook().removal_p(88, 1, 5, 3)
+    for field, value in (("pitch_center", 20.0), ("pitch_scale", 40.0),
+                         ("per_pitch_over", 0.5), ("high_pitch_bnd", 3.0)):
+        moved = sim.Hook(**{field: value}).removal_p(88, 1, 5, 3)
+        assert abs(moved - base) < 1e-12, (field, moved, base)
+    # The terms that DO still ride on top of the counted backbone, so the
+    # assertion above is about the backbone and not about a dead curve.
+    for field, value in (("per_run", 0.9), ("per_baserunner", 0.9),
+                         ("per_inning", 0.9), ("team_offset", 1.5)):
+        moved = sim.Hook(**{field: value}).removal_p(88, 1, 5, 3)
+        assert abs(moved - base) > 1e-6, (field, moved, base)
 
 
 def check_every_simulate_game_call_passes_a_park():
