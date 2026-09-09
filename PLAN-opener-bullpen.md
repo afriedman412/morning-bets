@@ -163,29 +163,74 @@ So: extend `relief.py`'s conditioning to (entry_outs, entry_inning,
 entry_margin_bucket) and recount. Check the cells for sample size first;
 if the three-way split is too thin, collapse margin.
 
-## STEP FOUR — CLOSERS, AND A WARNING BEFORE ANYONE BUILDS ONE
+## STEP FOUR — CLOSERS. THE LEVEL IS COVERED; THE SLOT IS NOT.
 
-The operator's case: usually one inning, feast or famine, and can mitigate
-an entire half-inning. Sized on 2026: 956 save-credited outings of <=3 outs
-by 210 arms; 798 long relief outings of >=7 outs by 288 arms.
+REVISED 2026-09-09 after the operator pushed back and I read `PEN_PICK`
+properly instead of asserting from memory. Half my original objection was
+wrong and the correction is the whole item.
 
-**SCREEN WITH `leverage.py` BEFORE BUILDING.** `USE_PEN_ROLES` and
-`PEN_PICK` already route better arms into close games by margin bucket, so
-the question is not "do closers differ" — they do — but "how much run
-separation is left AFTER role-based deployment already fires." Reliability
-without sensitivity is how park died three times in this repo.
+**WHAT IS ALREADY THERE, and it is more than I credited.** `PEN_PICK` is
+counted on 24,181 real relief entries from inning 7 on: the chosen arm's
+QUALITY PERCENTILE among the arms still unused that night, in fifths, by
+the pitching side's margin at entry. Protecting a lead managers take the
+top fifth 44.15% of the time; in a blowout they lean to the BOTTOM
+(bin5 0.236) — good arms are SAVED, not merely deployed.
 
-**AND THE FEAST-OR-FAMINE HALF IS PROBABLY DEAD ON ARRIVAL AS A
-PER-PITCHER TERM.** Per-pitcher and per-club dispersion have already been
-measured here and do not repeat: split-half reliability 0.07 over 107 arms,
-powered to see 0.32. A per-CLOSER variance term is that same dead thing.
+**AND BETWEEN-CLUB CLOSER QUALITY ALREADY FLOWS THROUGH.** The pool is the
+club's OWN arms carrying their OWN rates, so an elite closer is in there as
+himself; the percentile is only the SELECTION mechanism. "Some clubs have a
+much better closer than others" is represented today as a level effect. Do
+not rebuild it.
 
-What has NOT been tested is a ROLE-LEVEL dispersion difference — closers as
-a CLASS against middle relief as a CLASS. That is a different claim with a
-much smaller parameter count and it is legitimately open. Pre-register it
-as such, and positive-control the screen by injecting a known dispersion
-gap at the claimed size, because a mis-specified dispersion test and an
-absent effect look identical (CLAUDE.md).
+**READ THIS MODULE'S OWN HISTORY BEFORE TRUSTING THE INTUITION.** The
+original plan's deterministic rule — close game, therefore best available
+arm — was REFUTED BY ITS OWN COUNT: real P(best remaining | close) is
+0.18-0.23 against a draw order's natural 0.157. Managers are far less
+deterministic than "bring in the closer" feels. Whatever gets counted here,
+expect the profile to be a distribution and not a rule.
+
+**THE ACTUAL GAP, and it is narrow and specific: THE PROFILE IS KEYED ON
+MARGIN ALONE.** `PEN_PICK_LATE = 7`, and one set of five "lead" weights
+covers innings 7, 8 and 9 identically. A real closer appears almost only in
+the ninth. Ours can be drawn in the seventh of a one-run game, be spent,
+and leave a lesser arm holding the save situation. The operator's framing
+is the right one — a closer's defining feature is that he reliably removes
+a half-inning IN A PARTICULAR SLOT — and the slot is the one thing the
+model does not have.
+
+**THE CHEAP FIRST TEST.** Count P(the club's actual closer gets the ball |
+inning 9, lead of 1-3) exactly the way `scratchpad/pen_pick.py` counted
+everything else, and compare it against the "lead" bucket's 44.15% top
+fifth. If the ninth is materially more concentrated than innings 7-8, the
+missing thing is an INNING DIMENSION ON AN EXISTING COUNT — and
+`game.next_arm` ALREADY RECEIVES `inning`, so the plumbing is threaded and
+only the count is absent. That is one more conditioning column, the same
+answer STEP THREE gives for intent, and not a new model.
+
+FALSIFIER: if the ninth-inning lead profile is inside noise of the pooled
+7-9 lead profile, the slot is not real and STEP FOUR closes. Report the
+between-season correlation of the five weights the way `PEN_PICK` already
+does — the lead/tied/mid shapes hold at +0.98, so there is a standard to
+meet and a precedent for calling a flat shape flat.
+
+**WHAT STAYS DEAD: A PER-CLOSER VARIANCE TERM.** "Feast or famine" as a
+PER-PITCHER property is already measured and does not repeat — split-half
+reliability 0.07 over 107 arms, powered to see 0.32. Do not fit a
+dispersion parameter per closer; it is that same dead thing wearing a save.
+
+**WHAT IS LEGITIMATELY OPEN IS THE ROLE-LEVEL VERSION**, which is a
+different claim with a far smaller parameter count: is the SHAPE of a
+one-inning outcome distribution different for closers AS A CLASS than for
+setup arms AS A CLASS, at the same entry state? That is the sharp reading
+of "reliably takes out a half-inning and occasionally blows up" — it is
+about bimodality conditional on ROLE, not about pitcher-to-pitcher spread,
+and the 0.07 measurement does not touch it. Positive-control the screen by
+injecting a known shape difference at the claimed size, because a
+mis-specified dispersion test and an absent effect look identical.
+
+ORDER WITHIN THIS STEP: count the ninth-inning slot first. It is the one
+with a mechanism already built to receive it. The role-level shape question
+is second and only worth running if the slot count survives.
 
 ## ORDER, AND WHAT SHIPS
 
@@ -195,7 +240,15 @@ absent effect look identical (CLAUDE.md).
      step zero still leaves a usable result on the board.
   3. STEP ONE, only if zero survives.
   4. STEP THREE as a recount inside `relief.py`, not a new module.
-  5. STEP FOUR last, and only through `leverage.py`.
+  5. STEP FOUR — the ninth-inning slot count. It is INDEPENDENT of
+     everything above and touches a different module (`pen_pick.py` /
+     `PEN_PICK`), so it can run in parallel with the opener work rather
+     than queue behind it. Listed last by priority, not by dependency.
+     The original instruction here said "only through `leverage.py`";
+     that was written when I believed `PEN_PICK` already covered the
+     slot. It does not, so the count comes first and the leverage screen
+     belongs on the ROLE-LEVEL SHAPE question at the end of step four,
+     where reliability without sensitivity is still the risk.
 
 SCORING, for all of it: the run distribution in AFFECTED GAMES against what
 actually happened — the prefix ladder restricted to that population. Not
