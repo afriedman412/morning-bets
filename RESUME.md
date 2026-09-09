@@ -216,8 +216,10 @@ hook's), stamped with `sim.hook_hash()`, and BOTH the loader and a
 check refuse a stale file — any future Hook change turns the suite red
 until `leash --build` reruns. Also: slate.py fetches the day's crew at
 price time (crews publish game-day, not the night before — 0/11
-measured). Full log in the notes. `.cron-config` still lists three
-deleted modules; recorded, not touched.
+measured). Full log in the notes. `.cron-config` listed three deleted
+modules — RESOLVED 2026-09-09: it was never installed (`crontab -l` was
+empty) and has been removed along with all four launchd jobs. Nothing is
+scheduled now; `/backfill-data` is the path. See CLAUDE.md.
 
 **ITEM 8b SHIPPED THE PLATE UMPIRE (`sim.USE_UMP_KBB`), the third
 shared-night condition.** Counted with the staffs-he-drew confound

@@ -526,7 +526,29 @@ not a dependency. The `lint` target still references tooling that isn't there.
 
 Runtime deps assume `ANTHROPIC_API_KEY` in `.env`. Optional: `WEBSHARE_USERNAME` + `WEBSHARE_PASSWORD` for a residential proxy on `youtube_transcript_api` (helps when YouTube rate-limits).
 
-The cron schedule lives in `.cron-config` (hourly run 8am-5pm, grading at 9am).
+**NOTHING IS SCHEDULED. THE DATA IS ONLY AS CURRENT AS THE LAST
+`/backfill-data`** (added 2026-09-09). The four `com.morningbets.*` launchd
+jobs were unloaded and deleted, and `.cron-config` with them: three of the
+four ran `src.main` or `src.context.snapshot`, both removed with the betting
+layer, and had been exiting 1 daily into a log nobody read while every
+session assumed the data was fresh. `grade` worked and was retired with them
+by decision — the board runs the backfill instead.
+
+Run `venv/bin/python -m scratchpad.data_status` before any measurement. It
+reports each source's lag against the newest FINISHED GAME (not the wall
+clock, so it reads correctly out of season) and the play-by-play gap. When
+it was first run it found five derived tables 2-5 days stale and 37 of 111
+finished September games missing from the cache, none of which had surfaced
+anywhere.
+
+**AND A FINGERPRINT COMPARISON IS ONLY VALID ACROSS CONSTANT DATA.**
+Measured the same day: identical code, one backfill, and
+`fingerprint 400 6` moved 2fa14f8df0c6 -> 00925f199684 — not new games
+entering (661 paired games before and after) but the CONTENT of existing
+ones, since the backfill set venues on 26 games, lineups on 88 and pitch
+counts on 2, all of which feed the replay. Never backfill between recording
+a fingerprint and re-measuring it; the same caveat applies to a saved
+battery JSON and `--diff`.
 
 
 ---
@@ -632,8 +654,13 @@ and the known under-dispersion defect.
 **Snapshots are the durable record.** Savant serves season-to-date only and
 cannot be asked what it said in June, so a backtest that rebuilds context
 today is not a backtest. `snapshots/<date>/v<ver>_<utc>_<hash>.json.gz`,
-immutable, ~600 KB raw / ~90 KB gzipped, deduped by content hash. Written by
-the `com.morningbets.context` launchd job hourly 6:40–13:40.
+immutable, ~600 KB raw / ~90 KB gzipped, deduped by content hash. Was
+written by the `com.morningbets.context` launchd job hourly 6:40–13:40;
+**THAT JOB IS GONE AND SO IS THE MODULE IT RAN** — `src.context.snapshot`
+went with the betting layer, so it had been exiting 1 rather than writing
+anything, and the job was deleted 2026-09-09. No new snapshots are being
+taken. The existing ones stay valid as the historical record, which is the
+whole reason they exist.
 
 **Why the window ends at 13:40.** ESPN drops a game's market at first pitch,
 and `market` is required by all 11 contracts, so a brief assembled after the

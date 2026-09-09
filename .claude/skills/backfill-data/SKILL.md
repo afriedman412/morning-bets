@@ -5,12 +5,18 @@ description: Bring every data source current — results, play-by-play, derived 
 
 # Backfill the data
 
-**Nothing keeps this current on its own. Run it before you measure.** As of
-2026-09-09 three of the four launchd jobs point at code deleted with the
-betting layer (`src.main`, `src.context.snapshot`) and exit 1 daily;
-`.cron-config` is not installed at all — `crontab -l` is empty. Only
-`com.morningbets.grade` still works, which is why results stay current while
-everything derived from them drifts.
+**NOTHING KEEPS THIS CURRENT. THIS SKILL IS THE ONLY THING THAT DOES.** Run
+it before you measure, and before the board.
+
+That is a decision, not a gap: on 2026-09-09 all four `com.morningbets.*`
+launchd jobs were unloaded and deleted along with `.cron-config` (which was
+never installed — `crontab -l` was empty). Three of them ran `src.main` or
+`src.context.snapshot`, both removed with the betting layer, and had been
+exiting 1 daily into a log nobody read — results looked current while
+everything derived from them drifted for days. `grade` worked and was
+retired with them.
+
+So the data is exactly as fresh as the last time somebody ran this.
 
 ## First, see what is actually behind
 
@@ -20,8 +26,12 @@ venv/bin/python -m scratchpad.data_status
 
 One screen: every source, its newest row, its lag against the newest
 FINISHED GAME (not the wall clock — in February everything trails the clock
-by months and nothing is stale), the play-by-play gap, and whether the
-scheduled jobs are alive.
+by months and nothing is stale), and the play-by-play gap.
+
+It also flags any `com.morningbets.*` launchd job that has come BACK. None
+should exist; one that does is pulling data on its own schedule while every
+session assumes nothing is, which is the silent drift this whole skill
+exists to prevent.
 
 **Run it before and after.** The report is the only thing that will tell you
 a step silently did nothing.

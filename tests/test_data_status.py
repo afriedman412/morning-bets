@@ -46,23 +46,27 @@ def check_the_budget_is_one_day_and_it_binds():
     assert ds.assess("2026-09-06", "2026-09-08", budget=2)[0] == "ok"
 
 
-def check_every_scheduled_job_is_named_in_the_report():
-    """`JOBS` must list every launchd job, including the dead ones.
+def check_a_returning_scheduled_job_would_be_noticed():
+    """All four jobs were deleted on 2026-09-09; the names must survive.
 
-    Dropping a job from this tuple once it starts failing is how the
-    report would come to say ALL CURRENT while nothing was running —
-    exactly the silence it exists to break. `com.morningbets.discover` and
-    `com.morningbets.context` point at `src.main` and
-    `src.context.snapshot`, both deleted with the betting layer, and they
-    stay listed until they are repointed or unloaded.
+    THE POINT IS INVERTED FROM WHAT IT WAS. There is no scheduler now, so
+    absence is correct and `job_health` reports only what is actually
+    loaded. Keeping the names is what lets the report notice one coming
+    BACK — a plist reinstalled by hand would otherwise pull data on its
+    own schedule while every session assumed nothing did, which is the
+    silent drift this module exists to break.
+
+    Emptying `JOBS` would make that undetectable and is what this guards.
     """
-    assert "com.morningbets.discover" in ds.JOBS
-    assert "com.morningbets.context" in ds.JOBS
-    assert "com.morningbets.grade" in ds.JOBS
-    # job_health never raises, even where launchctl does not exist — the
-    # report has to work on a machine that is not this one.
+    for j in ("com.morningbets.grade", "com.morningbets.process",
+              "com.morningbets.discover", "com.morningbets.context"):
+        assert j in ds.JOBS, j
+    # Only loaded jobs come back, and never a fabricated "not loaded" row —
+    # that distinction is what makes a returning job visible.
     out = ds.job_health()
     assert isinstance(out, list)
     for name, state in out:
         assert name in ds.JOBS, name
         assert isinstance(state, str) and state, (name, state)
+        assert state != "not loaded", \
+            "job_health must report only what is loaded"

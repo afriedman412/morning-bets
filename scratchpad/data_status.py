@@ -36,9 +36,17 @@ HOOK_ROWS = "/tmp/hook_rows.json"
 #: and a game finishing near midnight UTC can legitimately land a day late.
 BUDGET = 1
 
-#: The jobs that are supposed to keep this current, and what they run.
-#: Checked because the whole reason this module exists is that they were
-#: failing silently — a dead scheduler and a quiet night look identical.
+#: THERE IS NO SCHEDULER, BY DECISION (2026-09-09). All four launchd jobs
+#: were unloaded and deleted: three pointed at code removed with the betting
+#: layer (`src.main`, `src.context.snapshot`) and had been exiting 1 daily,
+#: and the fourth (`grade`) was retired with them — `/backfill-data` is the
+#: path now, run before the board.
+#:
+#: THE LIST STAYS, and it is not vestigial. It is the only thing that can
+#: notice a job coming BACK: a stray plist reinstalled by hand would
+#: otherwise pull data on its own schedule while every session assumed
+#: nothing did. Absent is the expected state and is reported as ok; present
+#: is what gets flagged.
 JOBS = ("com.morningbets.grade", "com.morningbets.process",
         "com.morningbets.discover", "com.morningbets.context")
 
@@ -87,20 +95,26 @@ def pbp_gap(c, since: str) -> tuple[int, int]:
 
 
 def job_health() -> list[tuple[str, str]]:
-    """(job, state) per scheduled job. Empty off macOS or with no launchd."""
+    """(job, state) for any job that is loaded — ONLY the ones present.
+
+    Returns empty off macOS, with no launchd, and in the normal case where
+    none of them exist. The report inverts the old sense deliberately: a
+    loaded job is now the exception worth printing, because nothing is
+    supposed to be running. See `JOBS`.
+    """
     try:
         out = subprocess.run(["launchctl", "list"], capture_output=True,
                              text=True, timeout=10).stdout
     except Exception:
         return []
-    seen = {}
+    seen = []
     for line in out.splitlines():
         parts = line.split("\t")
         if len(parts) >= 3 and parts[2] in JOBS:
             pid, code = parts[0], parts[1]
-            seen[parts[2]] = ("running" if pid.isdigit()
-                              else f"last exit {code}")
-    return [(j, seen.get(j, "not loaded")) for j in JOBS]
+            seen.append((parts[2], "running" if pid.isdigit()
+                         else f"last exit {code}"))
+    return seen
 
 
 def collect() -> dict:
@@ -153,11 +167,14 @@ def main():
 
     jobs = job_health()
     if jobs:
-        print("\n  SCHEDULED JOBS")
+        print("\n  UNEXPECTED SCHEDULED JOBS — these were deleted "
+              "2026-09-09 and something put one back:")
         for j, state in jobs:
-            flag = "" if state in ("running",) or state.endswith("0") else \
-                "   <- not keeping anything current"
-            print(f"    {j:<28}{state}{flag}")
+            print(f"    {j:<28}{state}")
+        print("    A job pulling on its own schedule while sessions assume "
+              "nothing does is\n    how the data drifts silently. Remove it "
+              "or account for it.")
+        stale += 1
 
     print(f"\n  {'ALL CURRENT' if not stale else f'{stale} SOURCE(S) BEHIND'}"
           f" — `/backfill-data` refreshes everything in dependency order.\n")
