@@ -2628,24 +2628,25 @@ PITCH_HAZARD_MID = ((0, -8.0073), (25, -7.0291), (40, -6.7298),
 #: Off restores the parametric backbone AND the `high_pitch_*` branch
 #: exactly, so the two are separately scoreable. They must never both apply
 #: — the branch is a correction TO the curve the table replaces.
-#: OFF PENDING TWO CHECKS, and it stays off until they are answered rather
-#: than shipping green-by-loosening. Turning it on fails exactly two:
+#: SHIPPED ON 2026-08-31, MID CURVE ONLY; the BOUNDARY curve followed on
+#: 2026-09-09. See `USE_PITCH_HAZARD_BND`.
 #:
-#:  1. `check_the_boundary_curve_is_the_fitted_one` pins removal_p(105) into
-#:     (0.55, 0.95). The counted table gives 0.957 and the REAL 100-110 rate
-#:     is 0.972 — so that band never contained the truth; it was drawn round
-#:     the old curve. The check needs re-pinning against the counted hazard,
-#:     which is what its own comment says it is for.
-#:  2. `check_the_first_inning_is_immune_to_a_bullpen_flag` fails, and this
-#:     one is NOT obviously the test's fault. The table raises the boundary
-#:     hazard under 25 pitches from ~0.0005 to ~0.006, so first-inning pulls
-#:     now actually happen — and the moment one does, toggling
-#:     `USE_MEASURED_RELIEF_HOOK` moves F1 even with an EMPTY pen. The check
-#:     was passing VACUOUSLY because the old curve never exercised that path.
-#:     Whether the engine or the check is wrong is unresolved; it is exactly
-#:     the attribution bug that check exists to catch, so it gets answered
-#:     before this ships.
-#: SHIPPED ON 2026-08-31, MID CURVE ONLY. See `USE_PITCH_HAZARD_BND`.
+#: THE TWO CHECKS THAT ONCE BLOCKED THE BOUNDARY HALF, both since answered
+#: and both recorded because each was a real question rather than a test
+#: being in the way:
+#:
+#:  1. `check_the_boundary_curve_is_the_fitted_one` pinned removal_p(105)
+#:     into (0.55, 0.95). The counted table gives 0.957 and the REAL
+#:     100-110 rate is 0.972 — so that band never contained the truth; it
+#:     was drawn round the old curve. RE-PINNED 2026-08-30 against the
+#:     counted hazard, which is what the check says it is for.
+#:  2. `check_the_first_inning_is_immune_to_a_bullpen_flag` was passing
+#:     VACUOUSLY: the old curve almost never pulled inside the first, so
+#:     the relief branch it polices was never reached. The table raises the
+#:     under-25 boundary hazard from ~0.0005 to ~0.006 and it began failing
+#:     at once. FIXED 2026-08-30 by forcing the pull — `mid_removal_p` is
+#:     pinned to 1.0 in the check — so the branch is exercised on every
+#:     batter and the immunity claim is tested rather than assumed.
 #:
 #: WHAT IT BOUGHT, four-fold cross-validated on the outs ladder
 #: (`scratchpad/hz_cv_mid.py`): the 12.5-17.5 band improves in ALL FOUR
@@ -2668,18 +2669,38 @@ USE_PITCH_HAZARD = True
 #:
 #:    MID   cell error 0.0203 -> 0.0144. Eight buckets essentially exact
 #:          through 85 pitches; misses LOW only at 90+ (-0.051, -0.058).
-#:    BND   cell error 0.0265 -> 0.0314, WORSE than the curve it replaces,
-#:          and under-pulling across the whole range from 60 up
-#:          (-0.018, -0.020, -0.088, -0.057, -0.084).
+#:    BND   cell error 0.0265 -> 0.0314, WORSE than the curve it replaces.
 #:
-#: The boundary table under-pulling everywhere is why starters run long:
-#: mean outs overshoots by +0.18 in all four seasons with both on.
+#: **THOSE BND NUMBERS ARE RETRACTED (2026-09-09) AND THE CONCLUSION DREW
+#: FROM THEM DID NOT SURVIVE.** `hz_cells.py` re-wrapped `removal_p` once
+#: per GAME inside each worker, so a worker's Nth game logged every decision
+#: N times and later games carried N times the weight in every cell mean.
+#: Re-measured with a one-shot wrapper, same holdout and same seeds:
+#: parametric 0.0303, counted-as-solved 0.0282. The counted table was never
+#: worse than the curve it replaces — it was 7% better, and "taking both
+#: curves loses" rested on the biased instrument.
 #:
-#: FALSE IS THE SHIPPED STATE: counted MID backbone, parametric BOUNDARY.
-#: Taking both was a dead heat on all-line error (0.0215 against 0.0223)
-#: and lost everywhere else — it nearly doubled the long-line error and
-#: turned a 0.2-out shortfall into a 0.18-out overshoot in every season.
-#: Half the change beat all of it.
+#: TRUE IS THE SHIPPED STATE SINCE 2026-09-09: both backbones counted. What
+#: was really wrong with the boundary table is that it was solved on REAL
+#: game states and applied to OURS, which are calmer. Re-solved against the
+#: model's own states (TODO 7a, `scratchpad/hz_iter.py`) it is the best of
+#: the four configurations measured:
+#:
+#:    parametric            0.0303        iterated May-June   0.0183
+#:    counted, as solved    0.0282        ITERATED May-Sept   0.0176
+#:
+#: Four-fold on the outs ladder (`scratchpad/hz_cv_bnd.py`): the middle band
+#: improves in ALL FOUR folds (-0.032, -0.025, -0.007, -0.026) and mean outs
+#: moves toward real in all four without crossing. All-line error on the
+#: 2026 holdout ladder 0.0363 -> 0.0201.
+#:
+#: WHAT IT COST, and it was pre-registered as a bar and FAILED: the long
+#: lines were required not to double and they did in two folds (2025 0.0075
+#: -> 0.0282, 2026 0.0140 -> 0.0321). Same cause as the `outs_sd` overshoot
+#: (+0.33 against real) and the `spike_15` slip — too many starters run
+#: deep, because the table is fitted on a May-September population pulling
+#: 0.0775 while the scored window pulls 0.0853. That is the seasonal gap in
+#: the `PITCH_HAZARD_BND` comment above, and it is TODO 7e.
 USE_PITCH_HAZARD_BND = True
 
 

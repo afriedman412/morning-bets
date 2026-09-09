@@ -10412,3 +10412,157 @@ AND A SEPARATE FIND, worth its own line because it was a red tree: the
 working copy had `sim.USE_PITCH_HAZARD = False` left over from an A/B run
 (`sim.py.bak` and two failing checks both identify it as a leftover, not a
 decision). Restored to True; 480 checks green.
+
+## 2026-09-09 (fourth entry) — TODO 7a: the boundary backbone, re-solved against our own states. The window was the whole defect.
+
+**THE INSTRUMENT FIRST, because it retracts the numbers that defined the
+item.** `hz_cells.py` re-wrapped `sim.Hook.removal_p` ONCE PER GAME inside
+each worker, so a worker's Nth game logged every decision N times and later
+games carried N times the weight in every cell mean. The boundary cell
+errors TODO 7a was written around — 0.0265 for the parametric curve against
+0.0314 for the counted table — were measured with that logger and are
+RETRACTED. Re-measured with a one-shot wrapper, on the same holdout and the
+same seeds: parametric **0.0303**, counted-as-solved **0.0282**. The counted
+table was never worse than the curve it replaces; it was 7% better, and the
+item's premise ("WORSE than the parametric curve") was an artifact. The
+direction of the item was still right — the table did miss its own buckets —
+but it was being blamed for more than it did.
+
+**QUESTION.** What value does each bucket need so that OUR simulated games
+produce the REAL removal rate, given our states are calmer than the ones the
+table was solved on?
+
+**TEST.** `scratchpad/hz_iter.py`, new. Simulate, measure the realised
+hazard per bucket (the mean p the curve returns, since `game.py` fires on
+`rng.random() < p`), move each bucket by the logit gap to the real rate,
+repeat. Fixed seeds across iterations, so convergence is not chasing
+simulation noise. Converged in TWO passes both times it was run.
+
+**THE FIRST RUN WAS WRONG AND THE REASON IS THE FINDING OF THE DAY.**
+
+    THE BOUNDARY HAZARD HAS A STRONG SEASONAL SHAPE AND THE MODEL HAS NO
+    CALENDAR. Pooled over the 50-78 pitch buckets, train rows:
+
+        Mar 0.2205   Apr 0.0684   May 0.0663   Jun 0.0715
+        Jul 0.0754   Aug 0.0757   Sep 0.1041   Oct 0.1027
+
+Starters are not stretched out in March and are managed hardest in
+September. I fitted the first pass on MAY-JUNE — the TROUGH, 0.0688 — and
+every scoring run in this project is JULY-ONWARD, 0.0853. That builds a 24%
+under-pull into the table by construction, and it showed up exactly where
+predicted: it under-pulled at 60/70/78 on the 2026 holdout and pushed
+o18.5/o20.5 out in two folds. **I had checked for this drift and dismissed
+it** — each bucket's first-half/second-half difference was under 2.3 sigma
+on its own, and I read that as "no drift" instead of noticing the SIGN was
+consistent across every middle bucket. Per-cell significance is the wrong
+test for a shared shift.
+
+**AND THE WINDOW COULD NOT SIMPLY BE WIDENED TO APRIL, for a reason that is
+a second instance of TODO 20.** Rates are frozen at each window's start, and
+at an APRIL 1 freeze almost no arm has cleared `MIN_PEN_APPS`: 2026-04-01
+resolves to **17 pen clubs and 30 arms**, median 2 a club; 2023-04-01 to 103
+arms. `build_side` draws 8, `Side.current` CLAMPS to the last arm when the
+pen runs out and returns THE STARTER when it is empty — so an April-frozen
+replay degrades toward the bullpen-free engine TODO 20 was about, even with
+`rates._where` fixed. The root fix makes a past-season `before` mean that
+season; it cannot manufacture arms that have not pitched yet. May 1 gives
+9-10 arms a club and July 1 gives 12-13, both of which support the draw.
+`hz_iter.load_windows` now ASSERTS >= 28 clubs and >= 200 arms per window
+and prints both, because every layer below it is silent about an empty pen.
+
+**SO THE FITTED POPULATION IS MAY-SEPTEMBER**, pooling to 0.0775 against the
+scored window's 0.0853 — a residual ~9% under-pull that is MEASURED and left
+in rather than hidden, because closing it needs a calendar term in the hook
+and that is a different item.
+
+**THE RESULT, and its shape is the argument for it.** Starting from
+`pitch_hazard.py`'s original values, buckets 0 through 70 already hit their
+real rates within noise on this population and were left UNCHANGED. The
+whole correction is the top five buckets and it is one-way: 78/85/90/95/100
+move up by +0.12 to +0.26. Calmer states mean the runs and traffic terms
+contribute less at a high pitch count, so the bucket intercept carries more.
+The May-June table by contrast had moved 50/60/70 DOWN by -0.35/-0.23/-0.09,
+which was the trough talking.
+
+**HOLDOUT CELL ERROR, the item's own bar — eleven buckets, eleven real
+rates** (`hz_cells.py`, 661 games x 10 sims, fixed instrument):
+
+    parametric (was shipped)   0.0303
+    counted, as solved        0.0282
+    iterated on May-June      0.0183
+    ITERATED ON MAY-SEPT      0.0176   <- shipped
+
+One bucket still flagged (78) against two before. The MID curve also
+improved without being touched, 0.0196 -> 0.0154, purely because the states
+it sees changed.
+
+**FOUR FOLDS ON THE OUTS LADDER** (`scratchpad/hz_cv_bnd.py`, new, the
+`hz_cv` harness with the boundary flag as the toggle and the counted MID
+backbone on in both arms). Middle band o12.5-o17.5, shipped -> BND:
+
+    2023  0.0709 -> 0.0390     2025  0.0267 -> 0.0200
+    2024  0.0420 -> 0.0174     2026  0.0409 -> 0.0151
+
+IMPROVES IN ALL FOUR. Mean outs moves toward real in all four without
+crossing it (2026: 15.48 -> 15.65 against a real 15.75).
+
+**THE PRE-REGISTERED BAR FAILED ON ITS THIRD CLAUSE AND IT IS WRITTEN HERE
+AS A FAILURE.** Before running I wrote three conditions into
+`hz_cv_bnd.py`'s docstring: the band must not worsen in more than one fold
+(PASS, 4/4 improve), mean outs must move toward real without flipping past
+(PASS, 4/4), and **the long lines must not double (FAIL** — 2025 0.0075 ->
+0.0282, 3.8x; 2026 0.0140 -> 0.0321, 2.3x). Both failing folds start from a
+near-exact base, and the cause is the measured seasonal residual above: too
+permissive in the scored window, so too many starters run deep. Shipped
+anyway on the balance below, with the failure recorded rather than argued
+away.
+
+**WHY IT SHIPS DESPITE THAT.** All-line error on the 2026 holdout ladder,
+seven lines: **0.0363 -> 0.0201**, a 45% cut. Mean-outs error 0.31 -> 0.14.
+The item's own metric improves by 42%. The degradation is two lines in two
+folds against five lines in four folds, and it has a named, measured cause
+with a named fix.
+
+**BATTERY DIFF (640abdb42799 -> de6a06819306), rule 15.** 112 rows moved and
+EVERY ONE is a hook cell or a starter-outs shape row — **no run-side row
+moved by more than one se**: not the prefix ladder, per-inning runs,
+per-venue residuals, traffic, platoon, DP/sac/XBH or late-inning runs. The
+change stayed inside the mechanism it targets. The adverse rows are all one
+thing seen four ways: `outs_sd` overshoots further in all four folds (2026
++0.201 -> +0.358), o18.5/o20.5 go out, `spike_15_share` and
+`boundary_share_by_decision` slip. Too many long starts, which is the
+seasonal residual.
+
+**`outs_adjust.py` RE-MEASURED THE SAME SITTING, as the item required.** The
+band did what the item predicted and then some: mean |correction| across
+12.5-17.5 **0.033 -> 0.013**, with o15.5 now exact to a thousandth. Across
+three hook changes that band has gone 0.045 -> 0.031 -> 0.013 — the
+correction shrinking toward nothing, which is the direction this project
+wants. **The two long rows inverted from noise to signal**: +0.034 and
++0.027 at se 0.010/0.009, so 3.4 and 3.0 sigma, where the same rows were 1.6
+and 1.1 sigma on 2026-09-05 and were explicitly recorded as noise. The
+docstring's operational "read the sign" paragraph is marked superseded,
+because the flattered side is now the long OVER rather than the band UNDER.
+Three stale references to a 15.71 holdout mean (against a constant reading
+15.59) were reconciled to the measured 15.68.
+
+**WIRING.** `check_the_mid_curve_reads_the_counted_hazard_and_the_boundary_does_not`
+was pinning a DEFECT rather than a decision; renamed and reversed to
+`check_both_hook_curves_read_the_counted_pitch_hazard`. New:
+`check_the_counted_boundary_table_replaces_the_parametric_backbone`, because
+shipping the table makes `pitch_center`, `pitch_scale`, `per_pitch_over` and
+`high_pitch_bnd` INERT on the boundary curve, and a dead parameter looks
+exactly like a live one from outside. `check_the_boundary_knee_is_wired_and_
+ships_inert` now scopes itself to the parametric branch — with the table on
+it was comparing the table against itself and would have passed while
+testing nothing. Four mutations, each killing exactly its own check: either
+flag off, the table ADDED instead of replacing, and `per_pitch_over` deleted
+(the scoped knee check drops to 0.032 against its 0.70 floor). Suite 479 ->
+480. Fingerprint 2fb70d574067 -> 2fa14f8df0c6.
+
+**NEXT, and it is the one thing this opened:** a CALENDAR TERM in the hook.
+The seasonal shape is 3x from trough to March and 1.5x from June to
+September, it is the named cause of every adverse row above, and the model
+cannot see the date at all. Recorded as TODO 7e. Do NOT close it by
+re-fitting the table on July-onward rows — that is fitting to the evaluation
+window, and the 2026 half of it is the holdout.

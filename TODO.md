@@ -123,34 +123,43 @@ count alone. A burner and a backup catcher are the identical baserunner.
 Reliability is settled, SENSITIVITY is not. Run `leverage.py` first —
 reliability without sensitivity is how park died three times.
 
-**7a. RE-SOLVE THE BOUNDARY BACKBONE AGAINST THE MODEL'S OWN STATES — the
-top modelling item.**
-`PITCH_HAZARD_BND` misses its own buckets: cell error 0.0265 -> 0.0314,
-WORSE than the parametric curve it would replace, under-pulling from 60
-pitches up (-0.018, -0.020, -0.088, -0.057, -0.084 against real holdout
-rates). The cells were solved conditional on REAL game states and are being
-applied to OURS, which are calmer.
+**7a. SHIPPED 2026-09-09 — the boundary backbone is re-solved and both
+curves now read the counted table.** `USE_PITCH_HAZARD_BND = True`.
+Holdout cell error 0.0303 (parametric) -> 0.0176; the four-fold middle band
+improves in ALL FOUR folds; all-line error on the 2026 ladder 0.0363 ->
+0.0201. `scratchpad/hz_iter.py` is the solver, `hz_cv_bnd.py` the four-fold
+score. Result and the retracted premise are in the notes, 2026-09-09 fourth
+entry. NOTE the item's founding numbers (0.0265 -> 0.0314) were RETRACTED —
+they came from a double-wrapped logger in `hz_cells.py`, fixed the same day.
 
-THE FIX IS TO ITERATE THE SOLVE, NOT TO RE-CENTRE IT. Ask what value each
-bucket needs so that OUR SIMULATED GAMES produce the REAL rate, run, adjust,
-repeat. That is still measured entirely against real baseball — it just
-checks the answer where it gets used rather than where it was counted.
-Re-centring on our own occupancy was proposed and REJECTED: it makes the
-aggregate land while leaving every individual situation wrong and buries a
-measurement of how far our states sit from real ones. `scratchpad/
-hz_cells.py` is the harness and the bar is fifteen buckets, fifteen real
-rates.
+**7e. A CALENDAR TERM IN THE HOOK — opened 2026-09-09 by 7a, and it is the
+named cause of every adverse row that shipped with it.**
+The boundary hazard has a strong seasonal shape and the model cannot see the
+date. Pooled over the 50-78 pitch buckets, train rows:
 
-WHAT IT IS WORTH, measured after item 7 shipped (`scratchpad/outs_split.py`):
-the biggest single cell error left is the CLEAN SIX-INNING START — real
-0.230 of starts, ours 0.198, and the missing mass sits on four-inning
-walk-offs (+0.023) and starters yanked with two down in the fifth (+0.018).
-And at every round number we under-produce the man who came back out and was
-chased without an out (15 outs: real 14.5% of that spike, ours 9.5%).
+    Mar 0.2205   Apr 0.0684   May 0.0663   Jun 0.0715
+    Jul 0.0754   Aug 0.0757   Sep 0.1041   Oct 0.1027
 
-**AND RE-MEASURE `scratchpad/outs_adjust.py` THE SAME SITTING.** Twelve
-seconds. Shipping the mid hazard already took a third of the correction's
-job (band |correction| 0.045 -> 0.031); the boundary one will move it again.
+Starters are not stretched out in March and are managed hardest in
+September — 3x trough to March, 1.5x June to September. `PITCH_HAZARD_BND`
+is fitted on May-September (pooling 0.0775) and every scoring run here is
+July-onward (0.0853), so the hook is ~9% too permissive exactly where the
+holdout lives. That is the measured cause of the shipped state's long-line
+overshoot (o18.5 +0.034, o20.5 +0.027, both ~3 sigma), the `outs_sd`
+overshoot (+0.33 against real) and the `spike_15`/`boundary_share` slips.
+
+ESTABLISHED: the seasonal shape, on 31,235 boundary decisions. NOT
+ESTABLISHED: that a date term is the right SHAPE for it — "days since
+opening day" and "is it September" are different mechanisms, and the March
+spike is probably a stretched-out/pitch-limit effect rather than a calendar
+one, so a workload-to-date term may beat a date term.
+
+**DO NOT CLOSE THIS BY REFITTING THE TABLE ON JULY-ONWARD ROWS.** That is
+fitting to the evaluation window, and the 2026 half of it is the holdout.
+FALSIFIER, pre-registered: a calendar term must cut the o18.5/o20.5 gap in
+the 2026 fold without giving back the middle band, in all four folds.
+WATCH THE PEN when picking fit windows — an April rate freeze gives 17 pen
+clubs and 30 arms (see TODO 20 and `hz_iter.load_windows`'s assertion).
 
 **8. Role-based bullpen deployment, and fatigue.**
 `build_side` samples 8 arms weighted by appearances and `next_arm` walks that
@@ -467,8 +476,8 @@ real in every fold without crossing. Runs unmoved across the prefix ladder.
 It closes the fourth-inning over-pull, because 60-85 pitches IS the fourth
 inning and those were one defect, not two. TAKING BOTH CURVES WAS SCORED AND
 LOST (nearly doubled the long-line error, 0.2-out shortfall -> 0.18-out
-overshoot in every season) — half the change beat all of it. The open
-remainder is 7a.
+overshoot in every season) — half the change beat all of it. The
+remainder was 7a, which SHIPPED on 2026-09-09.
 
 **7b. CLOSED — the K tail work is done, do not re-run.** Dominance shipped
 (`late_mid_per_k_rate`), the per-start strikeout draw counted and shipped
