@@ -56,12 +56,23 @@ def short_starters(cut):
 
 
 def crps(draws, actual):
+    """Kernel form: E|X-actual| - HALF of E|X-X'|.
+
+    THE HALF WAS MISSING UNTIL 2026-09-09 (later session) and every number
+    this file ever printed before that is on a broken scale — true CRPS
+    minus half the predictive spread, so a state that widens its run
+    distribution collected a phantom bonus. Found when the same identity,
+    copied into `opener_class.py`, produced NEGATIVE values, which a
+    proper CRPS cannot. Every other scorer in the repo uses the CDF form
+    and never had the bug; verified equal to `score_outs.crps` on shared
+    inputs to 1e-12.
+    """
     n = len(draws)
     t1 = sum(abs(d - actual) for d in draws) / n
     s = sorted(draws)
     # E|X-X'| via the sorted identity, O(n log n).
     t2 = 2 * sum((2 * i - n + 1) * v for i, v in enumerate(s)) / (n * n)
-    return t1 - t2
+    return t1 - t2 / 2
 
 
 def main():

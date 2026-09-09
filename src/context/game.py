@@ -40,6 +40,7 @@ over intact.
 """
 from __future__ import annotations
 
+import bisect
 import random
 from dataclasses import dataclass, field, replace
 
@@ -95,8 +96,50 @@ USE_OPENER_EXIT = True
 OPENER_AVG_OUTS = 11.0
 #: Starts on record before the bootstrap is trusted at all. Below this the
 #: arm keeps the generic hook — a one-start record is a coin, not a
-#: distribution.
+#: distribution — unless his RELIEF USAGE identifies him (below).
 OPENER_MIN_STARTS = 2
+
+#: The no-record fallback (operator's insight, 2026-09-09: nothing says
+#: "bullpen" like almost never pitching in the 3rd). An arm with fewer
+#: than `OPENER_MIN_STARTS` starts whose CURRENT role is late-inning
+#: relief is a first-time opener, and the shipped gate cannot see him —
+#: 333 such starts over four seasons averaged 6.16 outs while the hook
+#: handed them ~15. He gets the exit distribution below, counted on
+#: exactly that population (rule 9). Where a record and the role
+#: CONTRADICT (a demoted starter opening), the record wins and no
+#: fallback fires: measured, those arms really go 12.8 outs against
+#: their record's 13.4, and own-record beats the opener pool by 6 sigma
+#: (`scratchpad/opener_class.py`).
+#:
+#: Role is read off the arm's last `OPENER_ROLE_WINDOW` appearances in
+#: `mlb_stints`: at least `OPENER_ROLE_MIN_RELIEF` relief entries, a
+#: relief share of `OPENER_ROLE_RELIEF_SHARE` or more, and no more than
+#: `OPENER_ROLE_EARLY_SHARE` of those entries beginning by the 3rd —
+#: early entries are a LONG MAN, a different animal (mean 11.99 outs).
+#: A missing stints table or an unknown arm classifies as nothing and
+#: the engine behaves exactly as before — the missing-group rule.
+OPENER_ROLE_WINDOW = 30
+OPENER_ROLE_MIN_RELIEF = 10
+OPENER_ROLE_RELIEF_SHARE = 0.8
+OPENER_ROLE_EARLY_SHARE = 0.15
+
+#: The no-record fallback's own switch, so it scores separately from the
+#: own-record bootstrap above (both under `USE_OPENER_EXIT`). Off, a
+#: usage-identified first-time opener keeps the full hook. The draw is
+#: consumed either way — see `build_side` — so the A/B streams stay
+#: paired across this flag exactly as they do across `USE_OPENER_EXIT`.
+USE_OPENER_POOL = True
+
+#: {outs: count} over the 333 no-record opener-class starts, 2023-2026.
+#: Counted by `scratchpad/opener_class.py --table`, no loss function —
+#: recount after a backfill the way `relief.tally` recounts its tables.
+#: The shape is the operator's "exactly 3 or 6 outs" measured: modal 3
+#: (planned one inning), a spike at 6, a thin bulk tail.
+OPENER_POOL_DIST: dict[int, int] = {
+    1: 4, 2: 19, 3: 122, 4: 24, 5: 13, 6: 49, 7: 7, 8: 11, 9: 24,
+    10: 8, 11: 5, 12: 5, 13: 4, 14: 6, 15: 23, 16: 2, 17: 1, 18: 5,
+    20: 1,
+}
 
 #: OFF. The learned removal model — a per-decision logistic on 63,531 real
 #: hooks, AUC 0.912 against `sim.Hook`'s 0.876 — replaces BOTH of the hook's
@@ -1113,15 +1156,17 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
     fx = _draw_early_exit(h, rng)
     rec = opener_record(starter.name, date)
     if rec is not None:
-        # THE ROLL IS DRAWN WHETHER OR NOT THE FLAG USES IT — the same rule
+        # THE ROLL IS DRAWN WHETHER OR NOT THE FLAGS USE IT — the same rule
         # as the mid-inning relief hook: a switch that consumes a different
         # number of random numbers is not an A/B. The bootstrap from his own
         # starts IS the exit distribution — disasters, quick hooks and the
         # odd long day all at their own frequency — and `_forced_out` /
         # `_hook_may_pull` already keep the hook off a start that carries a
-        # drawn exit.
-        own = rec[rng.randrange(len(rec))]
-        if USE_OPENER_EXIT:
+        # drawn exit. The pooled no-record curve gates on its OWN flag so
+        # the two mechanisms score separately.
+        dist, pooled = rec
+        own = dist[rng.randrange(len(dist))]
+        if USE_OPENER_EXIT and (USE_OPENER_POOL or not pooled):
             fx = own
     return Side(starter=starter, pen=arms, lineup=lineup,
                 hook=h,
@@ -1165,31 +1210,95 @@ def _opener_starts(conn=None) -> dict:
 
 
 def reload_opener_starts() -> None:
-    """Drop the cached start index so a backfill is picked up in-process."""
-    global _OPENER_STARTS
+    """Drop the cached indexes so a backfill is picked up in-process."""
+    global _OPENER_STARTS, _OPENER_ROLES
     _OPENER_STARTS = None
+    _OPENER_ROLES = None
 
 
-def opener_record(name: str | None, date: str | None) -> list[int] | None:
-    """His own outs per start before `date` — for a short-yardage arm only.
+_OPENER_ROLES: dict | None = None
+_OPENER_POOL: list | None = None
 
-    None for an ordinary starter, an unknown name, or a missing date, and
-    None switches the mechanism off entirely — the same missing-group rule
-    as `pen_state`, `leash` and `layoff_gap`. The evidence is bounded by
-    the GAME's date, which is what the live path knows the morning of and
-    contains nothing from the game being simulated.
+
+def _opener_roles() -> dict:
+    """{pitcher_name: (sorted dates, [(is_start, entry_inning)])} from
+    `mlb_stints` — the appearance log the role is read off.
+
+    An unreachable context.db or an absent table yields an EMPTY index,
+    never an error: role classification then finds nobody and the engine
+    is bit-for-bit the pre-fallback engine. The stints table is derived
+    from the play-by-play cache and a fresh checkout may not have built
+    it; a silently weaker gate is the correct degradation, a crash in
+    `build_side` is not.
+    """
+    global _OPENER_ROLES
+    if _OPENER_ROLES is not None:
+        return _OPENER_ROLES
+    out: dict = {}
+    try:
+        from src.context import store
+        with store.connect() as c:
+            rows = c.execute(
+                "select player_name nm, date d, appearance_order ao,"
+                " entry_inning ei from mlb_stints order by date").fetchall()
+        for r in rows:
+            ds, apps = out.setdefault(r["nm"], ([], []))
+            ds.append(r["d"])
+            apps.append((r["ao"] == 0, r["ei"] or 9))
+    except Exception:
+        out = {}
+    _OPENER_ROLES = out
+    return out
+
+
+def _role_is_opener(name: str, date: str) -> bool:
+    """Is this arm's CURRENT role late-inning relief? See the constants."""
+    rec = _opener_roles().get(name)
+    if not rec:
+        return False
+    ds, apps = rec
+    hi = bisect.bisect_left(ds, date)
+    w = apps[max(0, hi - OPENER_ROLE_WINDOW):hi]
+    rel = [ei for st, ei in w if not st]
+    if len(rel) < OPENER_ROLE_MIN_RELIEF or not w:
+        return False
+    if len(rel) / len(w) < OPENER_ROLE_RELIEF_SHARE:
+        return False
+    early = sum(1 for e in rel if e <= 3) / len(rel)
+    return early <= OPENER_ROLE_EARLY_SHARE
+
+
+def opener_record(name: str | None,
+                  date: str | None) -> tuple[list[int], bool] | None:
+    """(outs to bootstrap from, is_pooled) — or None for an ordinary arm.
+
+    The list is his own starts before `date` when the short-record gate
+    fires, or the pooled no-record curve when only his relief usage
+    identifies him; `is_pooled` says which, so `build_side` can gate the
+    two applications on their own flags while consuming the same draw.
+    None switches the mechanism off entirely — the same missing-group
+    rule as `pen_state`, `leash` and `layoff_gap`. The evidence is
+    bounded by the GAME's date, which is what the live path knows the
+    morning of and contains nothing from the game being simulated.
     """
     if not name or not date:
         return None
     rows = _opener_starts().get(name)
-    if not rows:
-        return None
-    outs = [o for d, o in rows if d < date]
+    outs = [o for d, o in rows if d < date] if rows else []
     if len(outs) < OPENER_MIN_STARTS:
+        # No usable start record — his RELIEF USAGE can still identify a
+        # first-time opener, and gets him the pooled curve counted on
+        # exactly this population. See `OPENER_POOL_DIST`.
+        if _role_is_opener(name, date):
+            global _OPENER_POOL
+            if _OPENER_POOL is None:
+                _OPENER_POOL = [o for o, n in sorted(OPENER_POOL_DIST.items())
+                                for _ in range(n)]
+            return (_OPENER_POOL, True) if _OPENER_POOL else None
         return None
     if sum(outs) / len(outs) >= OPENER_AVG_OUTS:
         return None
-    return outs
+    return outs, False
 
 
 def _draw_early_exit(h: sim.Hook, rng: random.Random) -> int | None:

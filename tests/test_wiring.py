@@ -665,9 +665,9 @@ def check_a_flagged_opener_exits_on_his_own_record():
     was = game._OPENER_STARTS
     try:
         # An opener's log: 3s and 4s, average 3.5, well inside the gate.
+        log = [3, 4, 3, 4, 3, 4, 3, 4]
         game._OPENER_STARTS = {"p": [(f"2026-0{m}-01", o)
-                                     for m, o in zip(range(1, 9),
-                                                     [3, 4, 3, 4, 3, 4, 3, 4])]}
+                                     for m, o in zip(range(1, 9), log)]}
         outs = []
         for seed in range(12):
             rng = random.Random(seed)
@@ -715,6 +715,54 @@ def check_a_flagged_opener_exits_on_his_own_record():
         game._OPENER_STARTS = was
 
 
+def check_a_first_time_opener_is_identified_by_his_relief_usage():
+    """The no-record fallback: a career late-inning reliever making his
+    first start gets the POOLED opener exit curve, not the full hook.
+
+    333 such starts over four seasons averaged 6.16 outs while the engine
+    handed them ~15 — the shipped gate needs two prior starts and cannot
+    see them. And the CONTRADICTED-record case must stay untouched: a
+    demoted starter opening tonight really goes ~12.8 outs against his
+    record's 13.4, so his record wins and no fallback fires.
+    """
+    was_starts, was_roles = game._OPENER_STARTS, game._OPENER_ROLES
+    try:
+        # 30 late relief entries, no starts on record: a closer, opening.
+        game._OPENER_STARTS = {}
+        game._OPENER_ROLES = {"p": (
+            [f"2026-{m:02d}-{d:02d}" for m in range(1, 7) for d in
+             (3, 9, 15, 21, 27)],
+            [(False, 8)] * 30)}
+        rng = random.Random(0)
+        side = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                               apply_leash=False, date="2026-09-01")
+        assert side.forced_exit_outs in game.OPENER_POOL_DIST, \
+            side.forced_exit_outs
+
+        # Same usage but a real start record averaging over the gate: the
+        # record wins, no fallback, no forced exit.
+        game._OPENER_STARTS = {"p": [("2026-01-01", 13), ("2026-02-01", 14)]}
+        rng = random.Random(0)
+        side = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                               apply_leash=False, date="2026-09-01")
+        assert side.forced_exit_outs is None, side.forced_exit_outs
+
+        # An arm whose relief entries come EARLY is a long man, not an
+        # opener — mean 11.99 outs, a different animal. No fallback.
+        game._OPENER_STARTS = {}
+        game._OPENER_ROLES = {"p": (
+            [f"2026-{m:02d}-{d:02d}" for m in range(1, 7) for d in
+             (3, 9, 15, 21, 27)],
+            [(False, 2)] * 30)}
+        rng = random.Random(0)
+        side = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                               apply_leash=False, date="2026-09-01")
+        assert side.forced_exit_outs is None, side.forced_exit_outs
+    finally:
+        game._OPENER_STARTS = was_starts
+        game._OPENER_ROLES = was_roles
+
+
 def check_the_opener_draw_keeps_the_ab_streams_paired():
     """`USE_OPENER_EXIT` on and off must consume the SAME random stream.
 
@@ -725,7 +773,9 @@ def check_the_opener_draw_keeps_the_ab_streams_paired():
     it, and this fails if anyone moves it inside the flag.
     """
     was = game._OPENER_STARTS
+    was_roles = game._OPENER_ROLES
     prev = game.USE_OPENER_EXIT
+    prev_pool = game.USE_OPENER_POOL
     try:
         game._OPENER_STARTS = {"p": [("2026-01-01", 3), ("2026-02-01", 4)]}
         after = {}
@@ -736,9 +786,24 @@ def check_the_opener_draw_keeps_the_ab_streams_paired():
                             apply_leash=False, date="2026-09-01")
             after[state] = rng.random()
         assert after[True] == after[False], after
+
+        # And across the POOL flag, on a usage-identified no-record arm.
+        game.USE_OPENER_EXIT = True
+        game._OPENER_STARTS = {}
+        game._OPENER_ROLES = {"p": ([f"2026-01-{d:02d}" for d in
+                                     range(1, 31)], [(False, 8)] * 30)}
+        for state in (True, False):
+            game.USE_OPENER_POOL = state
+            rng = random.Random(7)
+            game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                            apply_leash=False, date="2026-09-01")
+            after[state] = rng.random()
+        assert after[True] == after[False], after
     finally:
         game.USE_OPENER_EXIT = prev
+        game.USE_OPENER_POOL = prev_pool
         game._OPENER_STARTS = was
+        game._OPENER_ROLES = was_roles
 
 
 def check_the_bullpen_gets_the_same_shrink_target_as_the_rotation():

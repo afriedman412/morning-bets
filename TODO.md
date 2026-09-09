@@ -412,7 +412,11 @@ AND THE SLATE ACCOMMODATES ANNOUNCED COMBOS: the opener and his follower
 are usually public before lineups, but `mlb_schedule_with_probables`
 carries one arm per side — add a manual override on the slate ("bulk arm:
 X") before building any scraper. The step-zero null killed PREDICTING the
-follower from history; an announced name is input, not prediction.
+follower from history; an announced name is input, not prediction. The
+same override should accept "stretching out: X" — a relief-to-rotation
+conversion is announced too, and it is the one population the no-record
+fallback (`USE_OPENER_POOL`, notes 2026-09-09 third entry) mis-prices:
+the pooled curve reads ~6 outs on an arm the club intends to run 10+.
 
 FALSIFIER for the remaining build, unchanged: the run distribution in
 opener games against what actually happened. Note `opener_score.py`'s

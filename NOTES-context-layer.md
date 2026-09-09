@@ -9956,3 +9956,79 @@ exactly their own check. The A/B stream-pairing rule is enforced by a
 check for the first time rather than by comment. Suite 476 -> 478.
 Fingerprint 589af9ce -> 2fb70d57, explained: flagged arms consume the
 bootstrap draw and take their own exits.
+
+## 2026-09-09 (third entry) — The falsifier's CRPS was broken; two retractions and the no-record opener fallback
+
+**THE INSTRUMENT FIRST, because it rewrites two recorded results.**
+`opener_score.py`'s kernel-form CRPS subtracted the FULL E|X-X'| instead
+of half — every score it ever printed was true CRPS minus half the
+predictive spread, a phantom bonus for width. Found when the same
+identity, copied into `opener_class.py`, produced NEGATIVE values, which
+a proper CRPS cannot; fixed and positive-controlled against
+`score_outs.crps` (CDF form, equal to 1e-12 on 200 random cases). Every
+OTHER scorer in the repo uses the CDF form and never had the bug — the
+blast radius is that one file, but that file was the opener falsifier.
+
+RETRACTION ONE: **the recorded intent failure never happened.** The
+morning entry's "+0.0152 CRPS, se 0.0090, 4/4 folds adverse" rerun on
+the fixed scorer with the same seeds and the ORIGINAL engine (exit off):
+**-0.0058 (se 0.0073, 0.8 sigma, folds mixed)** — mildly favourable.
+Intent-ON narrows the run spread in opener games by ~0.04 and the broken
+scale punished exactly that narrowing. The "why it ships anyway"
+paragraph in the morning entry defended a mechanism that needed no
+defence, and the second entry's "the failure dissolves with truthful
+exits" dissolved something that was never there.
+
+RETRACTION TWO, same day, same bug: the first `opener_class.py` run
+printed "pooled curve beats own record, 15.4 sigma" — the wide pool
+collecting its spread bonus. On the fixed scorer OWN RECORD WINS (train
+-1.080, 10.3 sigma; holdout +0.257 at 0.8 sigma is underpowered, n 70),
+and the blend sweep runs monotonically toward pure own-record. The
+shipped bootstrap keeps its estimator.
+
+RESTATED on the fixed scorer, second entry's A/Bs (means never used CRPS
+and stand as written): exit A/B full-game +0.0063 (0.5 sigma), F5
++0.0106 (1.0 sigma) — unresolvable either way, as stated before running;
+intent A/B with truthful exits +0.0001 (0.0 sigma), exactly neutral.
+
+**THE OPERATOR'S CLASSIFIER, counted** (`opener_class.py`): nothing says
+"bullpen" like almost never pitching in the 3rd. Role read off the last
+30 appearances in `mlb_stints` — >= 10 relief entries, >= 80% relief,
+<= 15% of entries by the 3rd inning. The class populations, all four
+seasons: OPENER 962 starts, mean 8.20 outs, 65% at <= 9; LONG MAN (same
+but early entries) 79 starts, mean 11.99 — a different animal, excluded.
+CAREER usage classifies wrongly (first cut put 12.99 mean outs on the
+class because a rotation regular who relieved as a rookie stayed
+"opener" forever); CURRENT role is the signal.
+
+**Where a record and the role contradict, the record wins, measured:**
+310 starts by demoted starters (record >= 11 outs, current role pure
+pen) really went 12.8 against their record's 13.4, and own-record beats
+the opener pool by 6.0 sigma there. No re-modelling; the gate correctly
+lets the hook keep them.
+
+**THE COVERAGE HOLE SHIPPED AS `USE_OPENER_POOL`:** 333 no-record
+opener-class starts over four seasons averaged 6.16 outs while the
+engine handed them ~15 — the shipped gate needs two prior starts and
+structurally cannot see a first-time opener. They now draw from
+`OPENER_POOL_DIST`, counted on exactly that population (rule 9): modal
+3 outs (122), spike at 6 (49) — the operator's "exactly 3 or 6" measured
+— thin bulk tail. Own flag so it scores separately from the own-record
+bootstrap; the draw is consumed regardless of either flag and the
+stream-pairing check now covers both. Role lookup degrades to nothing
+without `mlb_stints` (missing-group rule). Suite 476 -> 479, all three
+new checks mutation-verified.
+
+**THE REPLAY HARNESS CANNOT SCORE THIS CELL, and the reason is worth
+keeping:** only 27 of the 333 survive into `paired_cases`, and they
+averaged 10.19 real outs — because `ROTATION_MIN_GS = 5` is SEASON-
+scoped (deliberately, see its comment), so the paired subset is selected
+on the FUTURE: relief-to-rotation conversions who went on to start five
+times. Hindsight picks the long ones; no morning-of gate could know. On
+that biased subset flag-on is 4 sigma short and flag-off 4.3 sigma long
+— symmetric misses on a cell the fallback was never counted for, in
+games the battery confirms are slate-invisible (one row moved, toward
+zero; fingerprint unmoved because fold 2026 holds zero such games).
+LIVE CAVEAT that follows: a conversion is often ANNOUNCED ("stretching
+out"), which is morning-of information the model lacks — same family as
+the "bulk arm: X" slate override in TODO 15, noted there.

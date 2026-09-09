@@ -12,7 +12,14 @@ OUTS are what the mechanism actually changes (a ~12-out error per flagged
 start), settle real markets (outs and K lines), and are directly observed.
 High-n ratio over low-n aggregate, per CLAUDE.md.
 
-    venv/bin/python -m scratchpad.opener_outs [n_sims_per_state]
+    venv/bin/python -m scratchpad.opener_outs [n_sims_per_state] [pop]
+
+`pop` — which flagged population to score. `record` (default): arms the
+shipped gate flags off their own short start record, A/B on
+`USE_OPENER_EXIT`. `norecord`: arms with under `game.OPENER_MIN_STARTS`
+prior starts whose RELIEF USAGE classifies them as openers — the pooled-
+fallback population. The off state is the same flag; with it off these
+arms get the full hook, which is what shipped before the fallback.
 """
 import random
 import sys
@@ -25,6 +32,7 @@ from src.context.sources import rates as rate_src
 FOLDS = [(2023, "2023-07-01"), (2024, "2024-07-01"),
          (2025, "2025-07-01"), (2026, "2026-07-01")]
 N = int(sys.argv[1]) if len(sys.argv) > 1 else 100
+POP = sys.argv[2] if len(sys.argv) > 2 else "record"
 SHORT_AVG = 11.0
 
 
@@ -38,6 +46,15 @@ def short_starters(cut):
     """
     with db.connect() as c:
         return {r["nm"] for r in c.execute(q, (cut,)) if r["ao"] < SHORT_AVG}
+
+
+def is_norecord_opener(nm, date):
+    """The fallback population, using the ENGINE'S OWN classifier so the
+    scored cell is exactly the cell that fires."""
+    rows = game._opener_starts().get(nm)
+    n_prior = len([o for d, o in rows if d < date]) if rows else 0
+    return (n_prior < game.OPENER_MIN_STARTS
+            and game._role_is_opener(nm, date))
 
 
 def main():
@@ -54,15 +71,20 @@ def main():
             act = {r["game_id"]: dict(r) for r in c.execute(
                 "select game_id, away_score, home_score from games"
                 " where sport='mlb'")}
+        def _in_pop(c_):
+            nm = c_[0].get("player_name")
+            if POP == "record":
+                return nm in short
+            return is_norecord_opener(nm, c_[0].get("date") or cut)
+
         hit = [(g, p) for g, p in sorted(pairs.items())
-               if p[0][0].get("player_name") in short
-               or p[1][0].get("player_name") in short]
+               if _in_pop(p[0]) or _in_pop(p[1])]
         for gi, (gid, pair) in enumerate(hit):
             a = act.get(gid) or {}
             if a.get("away_score") is None:
                 continue
             flagged = [s for s, c_ in (("away", pair[0]), ("home", pair[1]))
-                       if c_[0].get("player_name") in short]
+                       if _in_pop(c_)]
             for s, c_ in (("away", pair[0]), ("home", pair[1])):
                 if s in flagged:
                     real_outs.append(c_[0]["o"])
