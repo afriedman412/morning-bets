@@ -881,9 +881,43 @@ USE_RAW_PRIOR = False
 #: and stable across four current-sample cuts. Those ship.
 PRIOR_EFFECTIVE_PA = {"k_pct": 250, "bb_pct": 250}
 
-#: OFF until scored on F5 CRPS. The measurement above is a fact about
-#: predicting rates; whether it reaches what settles is a separate question
-#: and `scratchpad/priorsample_ab.py` is where it gets asked.
+#: SCORED 2026-09-09 AND IT STAYS OFF. Not because it lost on the score —
+#: it is dead flat there, -0.00004 +/- 0.00457 paired F5 CRPS over 25 sims
+#: x 4 salts, an instrument that cannot resolve anything under ~0.009 — but
+#: because of WHERE the rates move. It fires on 183 of 197 holdout starters
+#: (mean |shift| 0.0096 on a k_pct level of 0.2185, 4.4%), so the flat
+#: score is a real reading and not dilution, and `hr_pct`/`babip` move on
+#: ZERO of them, which is `_reshrink_uncounted` doing its job.
+#:
+#: THE COST IS SPREAD, AND IT IS THE SPREAD THE SIMULATION IS SHORT OF.
+#: Between-pitcher sd of `k_pct` falls 8.2% (0.03627 -> 0.03329) while
+#: `bb_pct` widens 22.2%. On the battery that lands as `k_sd` and
+#: `k_9_plus_share` moving AWAY from actual in every fold that can move,
+#: ~0.62 se apiece and near-identical in size:
+#:
+#:     fold    k_sd            k_9_plus_share      (actual in brackets)
+#:     2023    inert           inert               no 2022 prior on disk
+#:     2024    2.4572->2.4324  0.0704->0.0679      [2.4806] [0.0861]
+#:     2025    2.4443->2.4197  0.0719->0.0696      [2.4728] [0.0840]
+#:     2026    2.4696->2.4380  0.0762->0.0732      [2.4931] [0.0915]
+#:
+#: The 9+ tail is already z -2.3 and is the defect CLAUDE.md holds up as
+#: the case that settles rule 2. No row moved by more than one se, so this
+#: passes the formal battery gate — it is the FOUR-FOLD SIGN that condemns
+#: it, and the direction was PREDICTED from the spread diagnostic before
+#: the battery was run.
+#:
+#: WHY, and it is the opposite of the obvious reading: raising the prior's
+#: weight 173 -> 250 also raises the pooled DENOMINATOR, which takes weight
+#: off his CURRENT season — the least-regressed, most extreme signal. So
+#: the counted `m` trades current-season signal for prior signal. That is
+#: better at predicting the rest of his own season, which is what
+#: `priorsample.py` optimised, and worse at telling two pitchers apart,
+#: which is what the simulation needs. A quantity can be correctly measured
+#: against the wrong target.
+#:
+#: `PRIOR_EFFECTIVE_PA` above is NOT retracted — it stands as a fact about
+#: predicting rates. What is refuted is wiring it to the shrink.
 USE_MEASURED_PRIOR_PA = False
 
 

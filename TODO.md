@@ -63,9 +63,6 @@ result in `NOTES-context-layer.md`.
 Not a ranking of the whole list — the four that are actually READY, in the
 sense that nothing has to be decided before starting:
 
-  * **8c, the double-shrunk prior.** Already fitted, never scored, and it
-    was explicitly waiting on hook work that has now landed. A scoring run,
-    not a build — the cheapest thing here. Do NOT re-run `USE_RAW_PRIOR`.
   * **19.1, name the coupling.** Fully specified and mechanical. Its one
     precondition ("regenerate on a DECIDED engine, do not span an
     uncommitted `USE_PITCH_HAZARD_BND`") is now satisfied, and it speaks to
@@ -77,12 +74,23 @@ sense that nothing has to be decided before starting:
     ENTRY rate rather than the hook depth.
   * **13, per-pitcher HBP/WP.** Reliability settled; the same four-season
     scan grouped by pitcher. Small (~0.055 runs combined) so it is a
-    low-priority ship, but nothing about it is unresolved.
+    low-priority ship, but nothing about it is unresolved. NOTE the WP half
+    has no per-arm slot at all — `WP_PB_RATE` is a module global and lumps
+    in passed balls, which belong to the catcher — so that half is a build,
+    not a table swap. The HBP half is cheap: `PitcherRates.hbp_rate` exists
+    and `game.build_side._role` already yields to a rate set upstream.
 
-NEEDS A DECISION BEFORE IT IS AN ITEM: **7e** (the seasonal shape is
-established, the SHAPE of the fix is not — date term versus workload-to-date)
-and **6/18** (reliability settled, sensitivity not — run `leverage.py`
-first).
+**OPERATOR RULING 2026-09-09, AFTER 8c CLOSED FLAT: STOP CLEARING THE
+SUB-FLOOR SHELF.** 8c and 13 are both under the 0.05-run floor, and the
+observation that ended the session's first item is that EASY AND SMALL ARE
+THE SAME SHELF here. Rule 3 admits small-and-measured, but rule 14 orders
+level errors and structural gaps FIRST, and the list currently has three
+2-5 sigma defects with named instruments (7e, 19.1, 22) sitting behind
+sub-floor cleanups. Take those first. 13 is not refuted, it is deprioritised.
+
+NEEDS A DECISION BEFORE IT IS AN ITEM: **6/18** (reliability settled,
+sensitivity not — run `leverage.py` first). **7e** WAS in this bucket and
+is now the active item.
 
 BLOCKED OR AN OPERATOR CALL: 9 (`fitf5.evaluate` cannot take a park), 14
 (needs stored boards graded, and nothing grades them), 10 (puts a price back
@@ -237,9 +245,7 @@ rates frozen at each cut before wiring.) Same mechanism as `PEN_PICK`, one
 more counted table, and it covers item 15's bulk arm for every early entry
 rather than only the announced ones.
 
-**8c. EVALUATE THE DOUBLE-SHRUNK PRIOR FIX.** Fitted already, never scored —
-it was waiting on the hook work. See item 12 for the defect and the Snell
-case. DO NOT re-run `USE_RAW_PRIOR`; it was measured and loses.
+**8c. CLOSED 2026-09-09 — scored and PARKED. See the CLOSED section.**
 
 **9. Ship and score the seasonal home-run term.**
 Measured on 2023-2025; applied out of sample it moves a team total from -3.9%
@@ -997,6 +1003,26 @@ constructions its prior is low. RELIABLE IS NOT PREDICTIVE.
 ---
 
 # CLOSED — what it was and when. Do not re-run; full write-ups in `NOTES-context-layer.md`.
+
+**8c. SCORED AND PARKED 2026-09-09. `USE_MEASURED_PRIOR_PA` stays OFF, and
+the reason is not the score.** Dead flat on paired F5 CRPS (-0.00004 +/-
+0.00457, an instrument that cannot resolve under ~0.009) and no battery row
+moved by more than one se — BOTH GATES PASS AND NEITHER IS EVIDENCE. What
+condemned it: it fires on 183 of 197 starters (4.4% per-pitcher `k_pct`
+move, so the flat score is a real reading and not dilution), it narrows
+between-pitcher K spread 8.2%, and `k_sd`/`k_9_plus_share` move AWAY from
+actual in ALL THREE informative folds at ~0.62 se — against a 9+ tail
+already at z -2.3. The direction was predicted from the spread diagnostic
+BEFORE the battery ran. CAUSE: raising the prior's weight 173 -> 250 raises
+the pooled denominator, taking weight off his CURRENT season, so the counted
+`m` trades current-season signal for prior signal — better at predicting the
+rest of his own season (what it was fitted on), worse at telling two
+pitchers apart (what the sim needs). **A QUANTITY CAN BE CORRECTLY MEASURED
+AGAINST THE WRONG TARGET.** `PRIOR_EFFECTIVE_PA` is NOT retracted; wiring it
+to the shrink is. AND NOTE THE SCOPE THIS ITEM NEVER HAD: item 12's ~0.044
+runs is home-runs-sized, and `hr_pct` (3.1x correction) and `babip` (19.5x)
+both fail the sample test and do not ship — 8c was the small half of item 12
+by construction. Do NOT re-run this, and do NOT re-run `USE_RAW_PRIOR`.
 
 **1. WITHDRAWN 2026-08-30 — the model reaches extras at about the right
 rate**, 0.078 against a real 0.083 (se 0.006). The "5.4% against 8.3%" that

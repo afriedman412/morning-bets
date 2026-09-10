@@ -11412,3 +11412,101 @@ an unrelated row moved, and the reason is nameable.
 TODO 15's "he is still 2.95 outs short" bullet is therefore an UPPER BOUND
 and probably a loose one; `bulk_score.py` needs re-running before that
 number is acted on.
+
+## 2026-09-09, fifth entry — TODO 8c: the counted prior sample is SCORED and PARKED
+
+QUESTION. `PRIOR_EFFECTIVE_PA` was counted on 2026-08-29 and never wired.
+Does it reach what settles? A scoring run, not a build — the wiring
+(`USE_MEASURED_PRIOR_PA`, `_reshrink_uncounted`, `pool_k`) all shipped
+inert.
+
+POWER, STATED FIRST. `priorsample_ab` at 25 sims x 4 salts over 1,487
+holdout side cases gives a paired se of 0.00457, so it resolves ~0.009 and
+up at two sigma. That is the size of the `USE_RAW_PRIOR` loss (+0.00944),
+so the run is powered for the pre-registered bar — "a clear loss" — and for
+nothing finer. Anything smaller was always going to read flat.
+
+TEST. Paired F5 CRPS, then the battery, then a rate-level diagnostic that
+turned out to be the only informative instrument of the three.
+
+EVALUATE.
+
+    paired CRPS difference    -0.00004 +/- 0.00457   z -0.0
+    noise floor                0.00852
+    battery 8ad95987df74 -> 9e3859e6e08b: no row moved by more than one se
+
+Both formal gates pass and NEITHER IS EVIDENCE. The CRPS is a null from an
+underpowered test and the battery's one-se rule is a per-row threshold. What
+decided the item is the rate diagnostic and the four-fold sign.
+
+**IT IS NOT DILUTION, WHICH IS WHAT MAKES THE FLAT SCORE READABLE.** The
+mechanism fires on 183 of 197 holdout starters, mean |shift| 0.0096 on a
+`k_pct` level of 0.2185 — a 4.4% per-pitcher move — with a near-zero mean
+shift (+0.0022). It is a REDISTRIBUTION between pitchers, not a level
+change. And `hr_pct`/`babip` move on ZERO of 197, which positively confirms
+`_reshrink_uncounted`: this is a genuine two-channel change and not
+`USE_RAW_PRIOR` wearing a different hat.
+
+**THE COST IS SPREAD, AND IT IS THE SPREAD THE MODEL IS SHORT OF.**
+
+    between-pitcher sd   shipped   counted m
+      k_pct              0.03627    0.03329    -8.2%
+      bb_pct             0.01717    0.02097   +22.2%
+
+PREDICTED FROM THAT BEFORE THE BATTERY WAS RUN, and the battery agreed:
+
+    fold    k_sd                 k_9_plus_share        [actual]
+    2023    inert                inert                 no 2022 prior on disk
+    2024    2.4572 -> 2.4324     0.0704 -> 0.0679      [2.4806] [0.0861]
+    2025    2.4443 -> 2.4197     0.0719 -> 0.0696      [2.4728] [0.0840]
+    2026    2.4696 -> 2.4380     0.0762 -> 0.0732      [2.4931] [0.0915]
+
+AWAY from actual in every fold that can move, ~0.62 se apiece and
+near-identical in size. The 9+ tail is already z -2.3 and is the defect
+CLAUDE.md holds up as the case that settles rule 2. The 2023 fold reading
+EXACTLY 0.0000 is a consistency check, not a hole: there is no 2022 season
+on disk, so there is no prior to reweight and the flag is genuinely inert.
+
+CONCLUSION. **ESTABLISHED:** the flag is neutral on F5 CRPS at this power;
+it fires on 93% of starts; it narrows between-pitcher K spread 8.2% and
+widens walk spread 22.2%; `k_sd` and `k_9_plus_share` move away from actual
+in all three informative folds. **INFERRED, and it is the useful half:**
+raising the prior's weight 173 -> 250 also raises the pooled DENOMINATOR,
+which takes weight off his CURRENT season — the least-regressed, most
+extreme signal. So the counted `m` trades current-season signal for prior
+signal. That is better at predicting the rest of a pitcher's own season,
+which is exactly what `priorsample.py` optimised, and worse at telling two
+pitchers apart, which is what the simulation needs.
+
+**A QUANTITY CAN BE CORRECTLY MEASURED AGAINST THE WRONG TARGET.** That is
+the transferable finding, and it is the "fit the quantity that settles, not
+the upstream proxy" rule showing up in MEASUREMENT rather than in fitting.
+`PRIOR_EFFECTIVE_PA` is NOT retracted — it stands as a fact about predicting
+rates. What is refuted is wiring it to the shrink.
+
+**AND THE STANDING RULE DOES NOT RESCUE IT.** "A measured quantity replacing
+an imported guess does not have to prove itself on the score" protects a
+change from being rejected for a FLAT result. It does not protect one with a
+consistent ADVERSE direction on a named defect. An adverse row is evidence;
+silence is not.
+
+WHAT THIS ITEM WAS NEVER GOING TO BUY, worth recording so the next session
+does not re-scope it upward. Item 12 prices the double-shrink defect at
+~0.044 runs and says it is home-runs-sized, K "only 2.6%". The channels
+carrying that are `hr_pct` (m_eff 127 against a counted 400, a 3.1x
+correction) and `babip` (41 against 800, 19.5x) — and both FAIL the sample
+test and do not ship. The two that do ship are the two smallest corrections
+on the table, 1.4x and 1.3x. **8c was the small half of item 12 by
+construction.**
+
+Engine unchanged: fingerprint d21ae22d9f96 before and after, reproduced
+exactly on a revert, so the tree is byte-identical to the baseline. Suite
+518 -> 518, no new checks — nothing shipped, so there is nothing to guard.
+
+A HOUSEKEEPING NOTE ON THE BASELINE. `battery_a0f456d3e479.json` (22:12)
+predates commit 057fd20 and is the PRE-item-23 engine; the valid baseline
+for anything today is 8ad95987df74. And `morning_bets.db` showed an mtime
+inside the baseline window, which under the "a fingerprint comparison is
+only valid across constant data" rule had to be resolved rather than
+assumed — re-running `fingerprint 400 6` reproduced d21ae22d9f96 exactly,
+so no content the replay reads had moved.
