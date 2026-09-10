@@ -11391,3 +11391,24 @@ file's length.
 Battery a0f456d3e479 -> 8ad95987df74. Fingerprint
 68e83b6f5e46 -> d21ae22d9f96 (a probability changed, not a draw count, so
 the streams stay paired and the move is expected).
+
+**AND ITEM 23 PAID FOR HALF OF ITEM 15 WITHOUT ANYTHING BEING BUILT.**
+Re-measured the arm behind an opener on the corrected hook
+(`scratchpad/bulk_shape.py`, same 174 real followers):
+
+    real                   mean 7.39 outs   <=6 55.2%   >=15  9.8%
+    sim (as diagnosed)     mean 5.00        <=6 77.2%   >=15  3.6%
+    sim, relief hook OFF   mean 7.03        <=6 61.6%   >=15 11.8%
+    sim, AFTER item 23     mean 6.17        <=6 65.8%   >=15  7.3%
+
+Mean gap 2.39 -> 1.22 outs, the >=15 share 6.2 -> 2.5 points. AND IT
+CONFIRMS THE DIAGNOSIS FROM A SECOND DIRECTION: the shipped engine now sits
+at 6.17 against the hook-OFF control's 7.03 where it used to sit at 5.00, so
+most of what the `--nohook` attribution was reading as "the hook is too
+aggressive for a long arm" was the stale key charging him the just-arrived
+rate one batter early. This is rule 15 working in the pleasant direction —
+an unrelated row moved, and the reason is nameable.
+
+TODO 15's "he is still 2.95 outs short" bullet is therefore an UPPER BOUND
+and probably a loose one; `bulk_score.py` needs re-running before that
+number is acted on.

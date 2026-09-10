@@ -58,6 +58,38 @@ result in `NOTES-context-layer.md`.
 
 ---
 
+## WHAT TO PICK UP (refreshed 2026-09-09, after item 23 shipped)
+
+Not a ranking of the whole list — the four that are actually READY, in the
+sense that nothing has to be decided before starting:
+
+  * **8c, the double-shrunk prior.** Already fitted, never scored, and it
+    was explicitly waiting on hook work that has now landed. A scoring run,
+    not a build — the cheapest thing here. Do NOT re-run `USE_RAW_PRIOR`.
+  * **19.1, name the coupling.** Fully specified and mechanical. Its one
+    precondition ("regenerate on a DECIDED engine, do not span an
+    uncommitted `USE_PITCH_HAZARD_BND`") is now satisfied, and it speaks to
+    11c as well. NOTE the cached draws in `scratchpad/sims/ml_*.json.gz`
+    predate both the closer role and item 23 — REGENERATE, do not mix.
+  * **23's own residual.** `relief_le2_share` +3.2 se and
+    `relief_mid_entry_share` +3.0, sign-stable across four folds, with a
+    battery row that will now see any change. The suspect is the mid-inning
+    ENTRY rate rather than the hook depth.
+  * **13, per-pitcher HBP/WP.** Reliability settled; the same four-season
+    scan grouped by pitcher. Small (~0.055 runs combined) so it is a
+    low-priority ship, but nothing about it is unresolved.
+
+NEEDS A DECISION BEFORE IT IS AN ITEM: **7e** (the seasonal shape is
+established, the SHAPE of the fix is not — date term versus workload-to-date)
+and **6/18** (reliability settled, sensitivity not — run `leverage.py`
+first).
+
+BLOCKED OR AN OPERATOR CALL: 9 (`fitf5.evaluate` cannot take a park), 14
+(needs stored boards graded, and nothing grades them), 10 (puts a price back
+in the room).
+
+---
+
 # OPEN
 
 ## THE LEASH, THE REMAINDER OF `PLAN-pitch-history.md`
@@ -383,10 +415,21 @@ BEFORE STARTING.** `scratchpad/bulk_shape.py` measures what the engine
 actually hands the arm behind a flagged opener, over four folds:
 
     real                   mean 7.39 outs   <=6 55.2%   >=15  9.8%
-    sim (shipped)          mean 5.00        <=6 77.2%   >=15  3.6%
+    sim (as diagnosed)     mean 5.00        <=6 77.2%   >=15  3.6%
     sim, relief hook OFF   mean 7.03        <=6 61.6%   >=15 11.8%
+    sim, AFTER item 23     mean 6.17        <=6 65.8%   >=15  7.3%
 
-The defect is real — the follower is 2.4 outs short with a third of the
+**HALF OF THIS ITEM WAS PAID FOR BY ITEM 23 AND NOTHING HERE WAS BUILT.**
+Re-measured 2026-09-09 on the corrected hook (same instrument, same 174 real
+followers): the mean gap 2.39 -> 1.22 outs and the >=15 share 6.2 -> 2.5
+points, roughly half and three-fifths. AND IT CONFIRMS THE DIAGNOSIS BELOW
+FROM A SECOND DIRECTION — the shipped engine now sits at 6.17 against the
+hook-OFF control's 7.03, where it used to sit at 5.00, so most of what the
+`--nohook` control was attributing to "the hook is too aggressive for a long
+arm" was in fact the STALE KEY charging him the just-arrived rate one batter
+early. What remains is smaller and is the genuinely bimodal part.
+
+The defect is real — the follower was 2.4 outs short with a third of the
 long outings. **BUT IT IS NOT THE CONTINUATION TABLE.** That count was
 done (the shipped intent bucket 0 under-continues a true bulk arm at every
 depth: 0.7821 vs 0.7569 clean-entry, 0.5000 vs 0.3788 by the fourth extra
@@ -397,6 +440,14 @@ binding constraint.** It was counted over 50,023 in-inning relief plate
 appearances, a population of one-inning arms, and applied to every arm at
 7-10% PER PLATE APPEARANCE — survivable facing four men, fatal facing
 twenty. Fourth instance of "measured on one role, applied to all of them".
+
+**THAT TABLE HAS SINCE BEEN RECOUNTED TWICE AND THE NUMBERS ABOVE ARE THE
+ORIGINAL DIAGNOSIS, NOT THE CURRENT ENGINE (item 20's rule).** First the
+intent split (part one below), then the STALE-KEY correction of item 23,
+which found the whole table shifted one plate appearance and cut the
+just-arrived cells from 1.5-8% to 0.0-0.3%. Both push the same way — arms
+stay out there longer — so anything in this item reasoning from "the
+follower is 2.4 outs short" needs re-deriving before it is acted on.
 
 SO THE ITEM WAS: condition the MID-REMOVAL hazard on intent, the same
 one-more-column move that fixed the continuation hazard.
@@ -445,11 +496,11 @@ MIND THE INSTRUMENT: `pen_shape` first read 4.23 arms a side because
 roll warms up a phantom reliever who never faces a batter. Filter on
 `batters > 0`.
 
-**THE RESIDUAL, and it is now the honest next question about relief length:
-29.1% of simulated outings are two outs or fewer against a real 22.3%,
-unmoved by this change.** Too many very short outings, which is the
-mid-inning hook or the mid-inning ENTRY rate, not the boundary. Level and
-tail are now right and the short end is not.
+**THE RESIDUAL BECAME ITEM 23 AND WAS LARGELY CLOSED THE SAME DAY** — it was
+the mid-inning hook, keyed one plate appearance stale. The `after 3.20 /
+29.1%` row above is THE STATE AT THIS COMMIT AND NOT THE CURRENT ENGINE:
+it now reads 3.35 outs and 23.0% at two or fewer. Kept as the record of what
+this change bought on its own.
 
 ONE CANDIDATE IS ALREADY REFUTED, do not re-check it: the engine does NOT
 roll the mid-inning hazard on inning-ending plate appearances
@@ -486,11 +537,15 @@ THIS AND MUST NOT BE QUOTED; the pre-registered falsifier said to score his
 own line and that is what `scratchpad/bulk_score.py` does.
 
 STILL OPEN INSIDE THE BULK ARM:
-  * **He is still 2.95 outs short of real.** Direction good, level not
-    closed. Check `leash.offset_for(-3.15)` = 1.9026 against
-    `OFFSET_CLAMP` = 2.0 — the conversion lands at 95% of the available
-    range, so the delta is very nearly being clipped and a slightly larger
-    one would be.
+  * **He was 2.95 outs short of real, and item 23 has since moved the whole
+    relief hook — RE-RUN `bulk_score.py` BEFORE ACTING ON THAT NUMBER.**
+    The general follower gained 1.17 outs from the stale-key fix (table
+    above) and the named starter-type follower is the same mechanism with a
+    leash on top, so 2.95 is an upper bound on what is left and probably a
+    loose one. If the remaining gap is real, check `leash.offset_for(-3.15)`
+    = 1.9026 against `OFFSET_CLAMP` = 2.0 — the conversion lands at 95% of
+    the available range, so the delta is very nearly being clipped and a
+    slightly larger one would be.
   * **The swingman is unbuilt and is 20.2% of followers.** Only the
     starter type is routed; a swingman falls through to the pen. The
     counted relief-minus-start diffs (K% +1.01, BB% -0.54, HR% -0.61,
@@ -880,6 +935,14 @@ the designated long man. It does not: pooled over 9,254 games it runs 8.5 /
 **AND THE WAY THIS ALMOST SHIPPED IS THE POINT: a 600-game smoke test showed
 the hazard falling to 3.0% and it was sampling noise.** Do not act on a
 partial play-by-play walk; the full one is six minutes and is cached.
+
+STILL CLOSED after item 23's recount, and worth saying because the recount
+touched every cell of this table: the finding is that the hazard does not
+FALL past the cap, and on the corrected key it rises harder, not less
+(`MID_INTENT_DEPTH` bucket 2 runs 0.0009 / 0.0864 / 0.1362 / 0.0955 and the
+early-entry bucket climbs to 0.1342 at the deepest cell). The cap is still
+not the defect. The 8.5 / 9.1 / 8.2 / 13.7 figures above are the STALE-KEY
+pooling and should not be quoted against the current table.
 
 **A BULK-ARM CELL ON THE RELIEF HOOK — redundant, not wrong.** Keyed on
 "first reliever behind a short start" the hazard reads 0.3 / 3.6 / 3.5 /
