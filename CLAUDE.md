@@ -96,15 +96,25 @@ a null. This causes as much drift as the CLV rule does.
 folds (July-onward of 2023-2026, rates frozen at each cut), every table read
 off the same games and draws: ladder, per-inning runs, per-venue residuals,
 traffic and run-mass shape, platoon, DP/sac/XBH, late-inning runs by margin,
-both hook curves cell by cell, the starter's outs/K shape, the current
-`outs_adjust` corrections. Header prints every `USE_*` flag; output is
+THE SAVE ROWS (a lead of 1-3 after eight: how often it is HELD and what the
+protecting side allows from the ninth on), both hook curves cell by cell,
+the starter's outs/K shape, the current `outs_adjust` corrections. Header prints every `USE_*` flag; output is
 `scratchpad/battery_<engine-fingerprint>.json`; `--diff <fingerprint>` prints
 every row that moved by more than one se against a saved run. `--maim` is the
 built-in positive control.
 
 THE RULE: every modelling item starts by running the battery and committing
 the JSON with the pre-fingerprint, runs it again at the end, and reports the
-DIFF — not just the row it was aiming at. A change that moves an unrelated
+DIFF — not just the row it was aiming at.
+
+**AND A FLAT BATTERY ON A SELECTION CHANGE IS ARITHMETIC, NOT EVIDENCE**
+(added 2026-09-09, after four bullpen mechanisms shipped in one day and
+every one of them moved nothing). A change to WHICH PITCHER IS ON THE MOUND
+does not move a rate, and relievers resemble each other, so the run rows
+cannot resolve it — one of the four fired on 0.32% of sides, where a
+7,000-game table divides the effect by three hundred. Score such a change on
+the quantity it targets and say so; the `save` rows exist because until they
+did there was nothing in the scorecard that could see any of it. A change that moves an unrelated
 row by more than one se is not done until the log says why. The battery is
 also what a session reads when deciding what to work on next: "make this row
 go green" is the item, not "build an instrument to see if it moved". THE

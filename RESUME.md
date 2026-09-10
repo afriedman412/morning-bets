@@ -14,30 +14,58 @@ it belongs in `NOTES-context-layer.md`.
     RESUME-ARCHIVE.md    Days six to sixteen, moved out of here. Not deleted,
                          but its figures predate several engine changes.
 
-## HANDOFF — 2026-09-09, the PITCHER-USE session.
+## HANDOFF — 2026-09-09 (late), the BULLPEN session.
 
-**STATUS LIVES IN `TODO.md`, NOT HERE.** This block is a pointer and is
-kept short on purpose: a second copy of the status is how one of them goes
-stale, which is the failure CLAUDE.md opens by warning about. Detail is in
-TODO items 15, 21 and 8; the log is at the END of `NOTES-context-layer.md`
-("DAY TWENTY").
+**STATUS LIVES IN `TODO.md`, NOT HERE.** Detail is in items 21, 22, 23 and
+15; the log is the last four entries of `NOTES-context-layer.md`.
 
-SHIPPED, both measured and both scored where they fire: `USE_OPENER_DECAY`
-(the opener gate weights recent starts) and `relief.MID_INTENT` (the
-per-plate-appearance relief hook reads intent). Suite 486 -> 487. Battery
-02e66b9970fc -> e050af9398ae -> cc4475863ce0, no row moving more than one se
-at either step — both are 2-3% populations a pooled battery cannot resolve,
-so that is the absence of collateral damage and NOT the result.
+FOUR MECHANISMS AND ONE INSTRUMENT SHIPPED, all counted, all offline.
 
-NEXT: **TODO 15 part two**, which is a finish rather than a start — the
-between-innings continuation hazard, counts already in hand. Then TODO 21,
-which has three measured hooks and needs no new data.
+  * `relief.CONTINUE_INTENT` / `EXTRA_INTENT` RE-COUNTED on the denominator
+    the engine actually asks (`relief.asked`). The old table charged
+    mid-inning removal twice and scored a game-ending outing as a refusal;
+    the late clean-entry cell went 0.0992 -> 0.1803. Relief outings 3.01 ->
+    3.20 outs (real 3.34), arms per side 3.726 -> 3.505 (real 3.383).
+  * `game.USE_BULK_STARTER` — the arm behind an opener is a STARTER and is
+    installed without tripping `starter_out`, which hands him back his own
+    hook, his leash minus the counted 3.15 outs, and TIMES THROUGH THE
+    ORDER, which he was getting none of. 6.03 -> 9.62 outs (real 12.57).
+  * `game.USE_PEN_INNING` — `PEN_PICK` split by inning. The engine was not
+    flat across innings but INVERTED, spending its best arm in the seventh.
+  * `game.USE_CLOSER_ROLE` + `CLOSER_STALE_DAYS` — the closer is a wired
+    ROLE, named from usage, keyed on the SAVE RULE recovered from the data
+    (flat through a three-run lead, cliff at four). 21 cells now track the
+    counted rates.
+  * `battery` grew a `save` group — lead of 1-3 after eight, how often it
+    is HELD, and what the protecting side allows from the ninth on.
 
-**DO NOT CONFUSE THE OPENER DECAY WITH THE CLOSED "RECENCY WEIGHTING" ITEM
-BELOW.** That one is `HALF_LIFE_DAYS` on PITCHER RATES, swept and closed
-2026-09-07, still None. This is a decay on the OPENER'S OUTS RECORD inside
-the classification gate. Different quantity, table and falsifier — the name
-collision is the only reason this paragraph exists.
+Suite 487 -> 514. Battery cc4475863ce0 -> 7a1ed8609895 -> 66768f2136fc ->
+847ed46ee069 -> a800884a4161 -> a0f456d3e479, NO ROW MOVING MORE THAN ONE SE
+AT ANY STEP.
+
+**AND THAT LAST SENTENCE IS THE LESSON OF THE DAY, NOT A REASSURANCE.**
+Every one of these changes moves WHICH PITCHER IS ON THE MOUND, not a rate,
+so the battery's run rows cannot resolve them — and until the `save` rows
+existed there was NOTHING in the standing scorecard that could. The operator
+made this point three times before it landed. Do not read a flat battery on
+a selection change as evidence of anything.
+
+**START HERE: items 23 and 22, and test them as ONE DEFECT first.** The
+model leaves 29.1% of relief outings at two outs or fewer against a real
+22.3% (23), and it blows late leads more often than the league does (22).
+Churning arms in a save situation is a mechanism for the second, so fix 23,
+re-run the battery, and watch the `save` rows. If they move it is one
+defect; if not, 22 is real and separate. This is the fourth-inning /
+60-85-pitch pattern CLAUDE.md warns about, and now there is an instrument
+for it.
+
+TWO CORRECTIONS MADE TODAY THAT WOULD OTHERWISE MISLEAD:
+  * The PROSPECTIVE opener gate is for PRICING; the RETROACTIVE rule (short
+    start, ended on an inning boundary, <= 2 runs) is for MEASURING. Using
+    the pricing gate to measure shrank a population from 75 sides to 23 and
+    produced a wrong "low priority" call.
+  * The stale gate is worth +0.57 points, NOT the +0.8 item 21 claimed.
+    Different measurement; prefer the smaller, scored number.
 
 ## PREVIOUS HANDOFF — written 2026-09-07 by the session that ran the
 ## direct-model comparison. Superseded in part by the section above; its

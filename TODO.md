@@ -595,6 +595,48 @@ Kalshi was 3.03 points on the game total against 3.65 on the team totals
 to 0.5 while disagreeing 4.8 on the split. Score the split in the same
 replay pass.
 
+**23. TOO MANY VERY SHORT RELIEF OUTINGS — and test it as ONE DEFECT with
+item 22 before treating them separately. THIS IS THE RECOMMENDED NEXT
+ITEM.**
+
+29.1% of simulated relief outings are two outs or fewer against a real
+22.3%, UNMOVED by the four bullpen mechanisms that shipped 2026-09-09. The
+level and the long tail are now right and the short end is not:
+
+    outs         mean    <=2      3     4-6    >=7    arms/side
+      real       3.34   22.3%  53.7%  19.5%   4.5%      3.383
+      before     3.01   29.3%  52.5%  15.2%   2.9%      3.726
+      after      3.20   29.1%  47.7%  18.7%   4.5%      3.505
+
+`scratchpad/pen_shape.py` is the instrument; MIND ITS DENOMINATOR TRAP,
+documented in the file — `_end_of_inning` fires after the last inning too,
+so a failed continuation roll warms up a phantom reliever who never faces a
+batter. Filter on `batters > 0`.
+
+NOT the boundary hazard — that was re-counted and shipped the same day. The
+suspects are `RELIEF_MID_REMOVAL` / `MID_INTENT` (the per-plate-appearance
+hook) and the mid-inning ENTRY rate.
+
+**THE HYPOTHESIS THAT MAKES THIS FIRST: 22 AND 23 MAY BE ONE DEFECT.** If
+the engine gives up on relievers too fast, a save situation churns through
+arms and every handover is a fresh pitcher entering cold, often with men
+on — a mechanism for losing leads that does NOT move mean runs, which is
+exactly the signature item 22 shows (lead_held down, allowed_2plus up,
+inning 9+ mean flat). This is the fourth-inning / 60-85-pitch pattern
+CLAUDE.md warns about: one defect seen through two single-purpose
+instruments.
+
+THE TEST, cheap and pre-registered: fix 23, re-run the battery, watch the
+`save` rows. If they move it is one defect and 22 closes with it. If they
+do not, 22 is real and separate and that was learned for the price of a
+battery run. This ordering is only possible because the `save` rows now
+exist — before 2026-09-09 there was nothing in the scorecard that could
+have scored either one.
+
+AND 23 HAS THE LEVERAGE INDEPENDENTLY: it touches EVERY game, where the
+closer work touched save situations and the opener work touched 2-3% of
+starts.
+
 **22. THE MODEL BLOWS LATE LEADS MORE OFTEN THAN REAL BULLPENS DO — opened
 2026-09-09 by the new `save` battery rows, and it is a SHAPE defect that no
 mean could see.**
