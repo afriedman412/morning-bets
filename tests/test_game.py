@@ -1717,3 +1717,155 @@ def check_the_inning_split_actually_changes_who_pitches_the_seventh():
 
     pooled, split = best_share(False), best_share(True)
     assert split < pooled - 0.03, (pooled, split)
+
+
+# --------------------------------------------------------------------------
+# THE CLOSER IS A ROLE, NOT A DRAW (TODO 21). A quality percentile can only
+# approximate a categorical decision: the closer is his club's top-fifth arm
+# just 73.3% of the time, so in the other 27% no reweighting of `PEN_PICK`
+# could ever reach him.
+# --------------------------------------------------------------------------
+
+def check_the_save_rule_is_one_cell_through_a_three_run_lead():
+    """Counted, not imported from the rulebook: P(closer) in the ninth runs
+    0.6724 / 0.6945 / 0.6894 at leads of one, two and three and then falls
+    off — 0.5343 at four. `_pick_bucket` splits at 2 and 4 and so lumps a
+    save in with a non-save, which is why the role needs its own key."""
+    assert game._closer_margin(1) == "save"
+    assert game._closer_margin(3) == "save"
+    assert game._closer_margin(4) == "+4"
+    assert game._closer_margin(0) == "tied"
+    assert game._closer_margin(-1) == "-1"
+    assert game._closer_margin(-5) == "trail"
+
+
+def check_the_closer_role_dwarfs_the_quality_profile():
+    """The whole item in one assertion. If the ninth ever stops towering
+    over the seventh, the role has been regressed to a draw — which would
+    still produce a plausible mean reliever quality."""
+    ninth = game.closer_p(9, 2, False)
+    seventh = game.closer_p(7, 2, False)
+    assert ninth > 0.7, ninth
+    assert seventh < 0.05, seventh
+    assert ninth > 10 * seventh, (ninth, seventh)
+
+
+def check_availability_lowers_the_closers_odds_everywhere():
+    """Fatigue as a SELECTION effect, which is the only form in which it is
+    alive — as a RATE it was measured dead over 56,793 outings and must stay
+    dead. Worth 12 points in the ninth."""
+    for inn in (7, 8, 9):
+        rested = game.closer_p(inn, 2, False)
+        worked = game.closer_p(inn, 2, True)
+        assert worked < rested, (inn, rested, worked)
+
+
+def check_an_unnamed_closer_falls_back_to_the_profile():
+    """A committee, or the first month of the record, has no closer. The
+    engine must then behave exactly as it did before — no name, no role."""
+    assert game.closer_p(9, 2, False) > 0
+    s = _side()
+    assert s.closer is None
+    rng = random.Random(3)
+    s.next_arm(0, rng, 9, 2)          # must not raise
+    assert s.current is not None
+
+
+def check_the_named_closer_takes_the_ninth_far_more_than_the_seventh():
+    """PLUMBING, and the assertion is on WHO ends up on the mound rather
+    than on the table: a constant that never reaches `next_arm` looks
+    exactly like a mechanism that did not help.
+
+    THE CLOSER HERE IS THE WORST ARM IN THE PEN, deliberately. That is the
+    27% of real clubs whose closer is not a top-fifth arm — the population
+    no reweighting of `PEN_PICK` can reach — so if he takes the ninth
+    anyway, the role is doing the thing a percentile cannot. It also keeps
+    the quality profile from picking him by accident, which is what made the
+    first version of this check read 0.18 against a table saying 0.045.
+    """
+    def share(inning):
+        hits = 0
+        for i in range(600):
+            rng = random.Random(i)
+            # Descending quality, so R5 is the worst arm on the staff.
+            pen = [sim.PitcherRates(name=f"R{j}", k_pct=0.30 - 0.03 * j,
+                                    bb_pct=0.05 + 0.01 * j,
+                                    hr_pct=LG["hr_pct"], babip=LG["babip"],
+                                    pa=200) for j in range(6)]
+            # HOLD THE OBJECT, NOT THE INDEX. `next_arm` swaps the chosen
+            # arm into `pen[slot]` and `Side` keeps the SAME list, so
+            # `pen[5]` after the call is whoever got displaced.
+            man = pen[5]
+            s = _side(pen=pen, closer=man, closer_worked=False)
+            s.next_arm(0, rng, inning, 2)
+            hits += s.current is man
+        return hits / 600
+
+    # AGAINST THE FLAG-OFF BASELINE, not against an absolute threshold. The
+    # quality profile puts its own weight on the bottom fifth (0.1505 in the
+    # seventh), so the raw share is not the mechanism and a bar set from it
+    # would be a number picked to pass. The DIFFERENCE is the role.
+    def delta(inning):
+        on = share(inning)
+        keep = game.USE_CLOSER_ROLE
+        game.USE_CLOSER_ROLE = False
+        try:
+            return on - share(inning)
+        finally:
+            game.USE_CLOSER_ROLE = keep
+
+    ninth, seventh = delta(9), delta(7)
+    assert ninth > 0.6, ninth
+    assert seventh < 0.08, seventh
+    assert ninth > 5 * seventh, (ninth, seventh)
+
+
+def check_the_closer_role_off_restores_the_profile():
+    """OFF must be the pre-item engine, and the draw count must not change
+    with it — a switch that consumes a different number of random numbers is
+    not an A/B."""
+    keep = game.USE_CLOSER_ROLE
+    try:
+        game.USE_CLOSER_ROLE = False
+        hits = 0
+        for i in range(400):
+            rng = random.Random(i)
+            pen = _pen(6)
+            man = pen[3]
+            s = _side(pen=pen, closer=man, closer_worked=False)
+            s.next_arm(0, rng, 9, 2)
+            hits += s.current is man
+        assert hits / 400 < 0.4, hits / 400
+    finally:
+        game.USE_CLOSER_ROLE = keep
+
+
+def check_the_profile_still_sees_a_full_uniform_behind_the_closer():
+    """The closer takes the BOTTOM `p` of the draw, so the quality profile
+    must be handed the remainder RESCALED to [0, 1).
+
+    Without the rescale the profile only ever sees u >= p — which in the
+    ninth is u >= 0.73 — and every arm it picks comes off the bottom of the
+    pen. The mean reliever quality would still look defensible and the
+    engine would be choosing its worst arm every time the closer was
+    unavailable.
+    """
+    best = other = 0
+    for i in range(1200):
+        rng = random.Random(i)
+        pen = [sim.PitcherRates(name=f"R{j}", k_pct=0.30 - 0.03 * j,
+                                bb_pct=0.05 + 0.01 * j, hr_pct=LG["hr_pct"],
+                                babip=LG["babip"], pa=200) for j in range(6)]
+        man, top = pen[5], (pen[0], pen[1])
+        s = _side(pen=pen, closer=man, closer_worked=False)
+        s.next_arm(0, rng, 9, 2)
+        if s.current is man:
+            continue                      # the role fired; not this test
+        other += 1
+        best += any(s.current is a for a in top)
+    assert other > 100, other
+    # The ninth-inning lead row puts 0.5750 on the best FIFTH, and a fifth
+    # of a six-man pen is the top two — asserting on the single best arm
+    # gets about half of that (0.296 measured) and is a threshold set from
+    # the wrong quantity, not from the mechanism.
+    assert best / other > 0.4, (best, other)

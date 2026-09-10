@@ -11095,3 +11095,96 @@ that adds structure to the pitching reduces what the model has to guess.
 Item 15's bulk arm was structure on LENGTH; this is structure on SELECTION.
 Neither moved a battery row, and neither should be read on one: both change
 WHICH pitcher is standing there, and the run rows cannot resolve that.
+
+## 2026-09-09 (same day) — TODO 21: the closer is a ROLE, and half-wiring it was worse than not wiring it
+
+**THE OPERATOR'S RULING, and it is the reason this was done before anything
+else in the bullpen:** the closer will not emerge from good modelling of
+something else. `PEN_PICK` selects on QUALITY PERCENTILE, and a percentile
+can only approximate a categorical decision — the closer is his club's
+top-fifth K%-BB% arm just 73.3% of the time, so in the other 27% no
+reweighting could ever reach him. It has to be encoded.
+
+**WHAT THE ENGINE NEEDED WAS NOT THE NAME.** `closer_slot.ranked` already
+named him from usage and that half was done in an earlier session. The
+missing quantity was the DECISION — standing at a relief entry, P(the arm
+coming in is the named closer), keyed on what the engine knows. Counted over
+17,596 pre-holdout club-games, `scratchpad/closer_usage.py`:
+
+                     7th            8th            9th+
+      save         4.5 / 1.9%    14.9 / 8.9%    73.3 / 61.4%
+      tied         4.2 / 2.3%    12.7 / 4.9%    55.8 / 40.7%
+      (rested / worked the club's previous game)
+
+Two denominator traps, both of which would have read plausibly: entries
+after he has already pitched must leave the denominator (he can only be used
+once), and club-games before he can be named must leave it too.
+
+**THE SAVE RULE FELL OUT OF THE DATA RATHER THAN BEING IMPORTED.** P(closer)
+in the ninth: 0.6724 / 0.6945 / 0.6894 at leads of one, two, three — then
+0.5343 at four, 0.2305 at five, 0.0843 beyond. Flat through a three-run lead
+and then a cliff. `_pick_bucket` splits at 2 and 4 and so puts a save and a
+non-save in one cell; it was built for the quality profile and is the wrong
+key for a role, hence `_closer_margin`.
+
+**AND HERE IS THE FINDING: HALF-WIRING IT IS WORSE THAN NOTHING.** With the
+role roll added but the closer still in the quality draw, the engine used
+him in the SEVENTH on 19.9% of entries against a real 3.3%. The role roll
+accounts for 4.5 of those points; the other 15 are `PEN_PICK` reaching for
+him because he is usually the best arm and the draw did not know he was
+spoken for. A role is as much about being WITHHELD as about being used.
+
+    P(entering arm is the closer)   before   after    real
+      7th, save                     0.1994  0.0400  0.0318
+      8th, save                     0.2958  0.1277  0.1185
+      9th, save                     0.7680  0.6796  0.6734
+
+Twenty-one cells now track the counted rate. This does NOT contradict "do
+not remove him from the pen": 30% of HIS APPEARANCES come before the ninth,
+which is a different denominator from his share OF seventh-inning entries.
+
+**ONE UNIFORM, TWO DECISIONS.** The first implementation drew a second
+`rng.random()` for the closer check, and
+`check_the_pen_roll_is_drawn_whether_or_not_the_flag_uses_it` failed
+immediately — a second draw shifts every event after it, so the flag's off
+position would have stopped being the pre-item engine. The closer now takes
+the bottom `p` of the existing uniform and the profile gets the remainder
+rescaled; with the role off, `p` is 0 and the stream is bit-identical.
+
+Battery 847ed46ee069 -> a800884a4161: no row moved by more than one se.
+Suite 503 -> 510.
+
+**FOUR MUTATIONS, AND THE FOURTH ONE FOUND A REAL HOLE.** Nothing guarded
+the uniform RESCALE, and without it the profile only ever sees u >= p —
+every non-closer pick in the ninth would come off the bottom of the pen
+while mean reliever quality still looked defensible. Two of the new checks
+also had to be rewritten before they guarded anything: one held `pen[3]` as
+an INDEX when `next_arm` swaps in place (read 0.0 while the engine was
+picking him 73% of the time), and one set its bar from the raw share when
+the quality profile contributes its own bottom-fifth weight — the honest
+version measures the role's contribution against the flag-off baseline.
+
+**THE NAMING VALIDATES AGAINST AN INDEPENDENT SOURCE.** On 2026-08-15 the
+offline rolling window returns Chapman (BOS), Hader (HOU) and Cade Smith
+(CLE) — exactly the three FanGraphs RosterResource's closer depth chart
+named when it was fetched the same day. That agreement is why the news-feed
+ceiling measured only 1.1 points, and it is the strongest evidence yet that
+the offline naming is sound.
+
+## 2026-09-09 (same day) — TODO 15 parked, and the measurement rule that came out of it
+
+The operator parked the opener. What survives and must not be lost: **the
+retroactive rule for finding opener starts** — a short start that ended on
+an inning boundary and was not a shelling (<= 6 outs, outs % 3 == 0, <= 2
+runs). Over the four July-onward folds it finds 277 real opener starts
+against the prospective gate's 444 flags, of which only 184 overlap: the
+gate MISSES 93 real openers.
+
+THE GENERAL RULE, and it cost a wrong conclusion today: **the prospective
+gate is for PRICING and the retroactive rule is for MEASURING.** I used the
+pricing gate to do a measurement job and reported the bulk arm as scoreable
+on 23 sides when 75 were available — then drew a "low priority" conclusion
+from a population I had needlessly shrunk by two thirds. When counting
+history you already know how the start went; there is no reason to pretend
+otherwise. This is the same `rates_before` / `since` split the codebase
+already makes everywhere else.

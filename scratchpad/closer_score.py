@@ -30,19 +30,32 @@ FOLDS = [(2023, "2023-07-01"), (2024, "2024-07-01"),
 N = int(sys.argv[1]) if len(sys.argv) > 1 else 10
 
 
-def real_profile() -> dict:
-    """{inning key: [share in each fifth]} from `pen_pick_inning`'s count."""
+BUCKETS = ("lead", "tied", "trail", "mid", "blowout")
+
+
+def real_profile() -> tuple[dict, dict]:
+    """Real bin1 share, POOLED over margin and PER margin bucket.
+
+    BOTH, because the pooled comparison is confounded and the first version
+    of this script only had that one. Selection is keyed on margin, so if the
+    engine arrives at the ninth in different margin states than reality does,
+    the pooled share moves without the selection rule being wrong at all —
+    trailing in the ninth the real best-arm share is 0.2568 and protecting a
+    lead it is 0.5750, so the MIX alone can swing it by thirty points.
+    """
     from scratchpad import pen_pick_inning as ppi
     pctl, _ = ppi.count()
-    out: dict = {}
+    pooled: dict = {}
+    cell: dict = {}
     for i_ in ("7", "8", "9+"):
-        n = sum(pctl[(b, i_)]["n"] for b in
-                ("lead", "tied", "trail", "mid", "blowout"))
+        n = sum(pctl[(b, i_)]["n"] for b in BUCKETS)
         if n:
-            out[i_] = [sum(pctl[(b, i_)][k] for b in
-                           ("lead", "tied", "trail", "mid", "blowout")) / n
-                       for k in range(5)]
-    return out
+            pooled[i_] = (sum(pctl[(b, i_)][0] for b in BUCKETS) / n, n)
+        for b in BUCKETS:
+            m = pctl[(b, i_)]["n"]
+            if m:
+                cell[(b, i_)] = (pctl[(b, i_)][0] / m, m)
+    return pooled, cell
 
 
 def main() -> None:

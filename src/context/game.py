@@ -421,6 +421,92 @@ def _pick_inning(inning: int) -> str:
     return "7" if inning <= 7 else ("8" if inning == 8 else "9+")
 
 
+# ---------------------------------------------------------------------------
+# THE CLOSER IS A ROLE, NOT A DRAW (TODO 21, the operator's ruling).
+#
+# `PEN_PICK` picks by QUALITY PERCENTILE, and a percentile can only ever
+# approximate a categorical decision. `closer_slot.py` measured the size of
+# the miss: the closer is his club's top-fifth K%-BB% arm just 73.3% of the
+# time, so in the other 27% NO reweighting of the profile can reach him. It
+# has to be encoded, and it will not emerge from better modelling of
+# anything else.
+#
+# The counted decision, `scratchpad/closer_usage.py`, 17,596 club-games with
+# a named closer before the holdout — P(the arm entering IS the named
+# closer), by inning, margin and whether he worked the club's previous game:
+#
+#                   7th            8th            9th+
+#     save        4.5 / 1.9%    14.9 / 8.9%    73.3 / 61.4%
+#     tied        4.2 / 2.3%    12.7 / 4.9%    55.8 / 40.7%
+#
+# A TWENTYFOLD SWING from the seventh to the ninth. Availability is worth
+# 12 points in the ninth on its own, which is TODO 8's "fatigue" bullet
+# arriving as a SELECTION effect — as a RATE it is dead and must stay dead.
+#
+# AND THE MARGIN KEY IS THE SAVE RULE, recovered from the data rather than
+# imported from the rulebook: P(closer) in the ninth runs 0.6724 / 0.6945 /
+# 0.6894 at leads of one, two and three, then falls off a cliff — 0.5343 at
+# four, 0.2305 at five, 0.0843 beyond. `_pick_bucket` splits at 2 and 4 and
+# so lumps a three-run lead (a save) in with a four-run one (not); it was
+# built for the quality profile and is the wrong key for a role.
+CLOSER_USE = {
+    ("7", "save", False): 0.0447, ("7", "save", True): 0.0190,
+    ("7", "tied", False): 0.0418, ("7", "tied", True): 0.0228,
+    ("7", "+4", False): 0.0441, ("7", "+4", True): 0.0234,
+    ("7", "+5", False): 0.0396, ("7", "+5", True): 0.0170,
+    ("7", "+6", False): 0.0236, ("7", "+6", True): 0.0158,
+    ("7", "-1", False): 0.0300, ("7", "-1", True): 0.0080,
+    ("7", "trail", False): 0.0273, ("7", "trail", True): 0.0059,
+    ("8", "save", False): 0.1485, ("8", "save", True): 0.0885,
+    ("8", "tied", False): 0.1267, ("8", "tied", True): 0.0489,
+    ("8", "+4", False): 0.0984, ("8", "+4", True): 0.0292,
+    ("8", "+5", False): 0.0517, ("8", "+5", True): 0.0165,
+    ("8", "+6", False): 0.0358, ("8", "+6", True): 0.0111,
+    ("8", "-1", False): 0.0910, ("8", "-1", True): 0.0203,
+    ("8", "trail", False): 0.0768, ("8", "trail", True): 0.0127,
+    ("9+", "save", False): 0.7332, ("9+", "save", True): 0.6137,
+    ("9+", "tied", False): 0.5580, ("9+", "tied", True): 0.4070,
+    ("9+", "+4", False): 0.6271, ("9+", "+4", True): 0.3914,
+    ("9+", "+5", False): 0.3008, ("9+", "+5", True): 0.1264,
+    ("9+", "+6", False): 0.1221, ("9+", "+6", True): 0.0241,
+    ("9+", "-1", False): 0.2520, ("9+", "-1", True): 0.0605,
+    ("9+", "trail", False): 0.1206, ("9+", "trail", True): 0.0204,
+}
+
+#: Off, the closer is an ordinary member of the sampled pen and the
+#: percentile profile decides — the pre-item engine. The roll is drawn
+#: either way (see `next_arm`), so the streams stay paired.
+USE_CLOSER_ROLE = True
+
+
+def _closer_margin(margin: int) -> str:
+    """The SAVE RULE, keyed off the counted cliff rather than the rulebook.
+
+    `margin` is the pitching side's lead, the `mlb_stints.entry_margin`
+    convention. A lead of one, two or three is one cell because the data
+    says so — 0.6724 / 0.6945 / 0.6894 — and four is its own because it
+    breaks (0.5343).
+    """
+    if margin >= 6:
+        return "+6"
+    if margin == 5:
+        return "+5"
+    if margin == 4:
+        return "+4"
+    if margin >= 1:
+        return "save"
+    if margin == 0:
+        return "tied"
+    return "-1" if margin == -1 else "trail"
+
+
+def closer_p(inning: int, margin: int, worked_yesterday: bool) -> float:
+    """P(this relief entry is the club's named closer). 0 when unkeyed."""
+    return CLOSER_USE.get(
+        (_pick_inning(inning), _closer_margin(margin),
+         bool(worked_yesterday)), 0.0)
+
+
 def _pick_bucket(margin: int) -> str:
     """Signed where the behaviour is signed — margin is the PITCHING
     side's lead, the same convention `mlb_stints.entry_margin` counts."""
@@ -525,6 +611,13 @@ class Side:
     bulk: sim.PitcherRates | None = None
     bulk_hook: sim.Hook | None = None
     bulk_in: bool = False
+    #: THE NAMED CLOSER, and whether he worked the club's previous game.
+    #: He is an ordinary member of `pen` — deliberately, because almost 30%
+    #: of a closer's work comes before the ninth (8th 18%, 7th 6%, 6th 4%)
+    #: and removing him from the pool would trade one wrong answer for
+    #: another. What the role does is give him the SLOT, not exclusivity.
+    closer: sim.PitcherRates | None = None
+    closer_worked: bool = False
     #: The starter's own line, so props and F5 still read off one pitcher.
     #: IT STAYS THE OPENER'S when the bulk arm comes in — he is who the
     #: board named and whose line a start prop settles on.
@@ -665,7 +758,50 @@ class Side:
         if (rng is not None and margin is not None
                 and inning >= PEN_PICK_LATE and len(pool) > 1):
             u = rng.random()
-            if USE_PEN_ROLES:
+            # ONE UNIFORM, TWO DECISIONS, AND IT HAS TO BE ONE DRAW. A
+            # second `rng.random()` here shifts every event after it, so the
+            # flag's off position would stop being the pre-item engine and
+            # no A/B across it would be paired —
+            # `check_the_pen_roll_is_drawn_whether_or_not_the_flag_uses_it`
+            # catches exactly that and caught it here.
+            #
+            # So the closer takes the BOTTOM `p` of the uniform and the
+            # quality profile gets the rest, rescaled. With the role off, or
+            # with nobody named, `p` is 0 and `v is u` — bit-for-bit the
+            # engine that shipped this morning.
+            p = 0.0
+            if (USE_CLOSER_ROLE and self.closer is not None
+                    and any(a is self.closer for a in pool)):
+                p = closer_p(inning, margin, self.closer_worked)
+            if u < p:
+                # A ROLE, NOT A DRAW — he is named, so he is chosen, and the
+                # quality profile never runs. This is the whole point of the
+                # item: in the 27% of clubs whose closer is not a top-fifth
+                # arm, no percentile could have reached him.
+                j = next(i for i in range(slot, len(self.pen))
+                         if self.pen[i] is self.closer)
+                self.pen[slot], self.pen[j] = self.pen[j], self.pen[slot]
+            elif USE_PEN_ROLES:
+                u = (u - p) / (1.0 - p) if p else u
+                # HE IS RESERVED, so he leaves the quality draw entirely.
+                # THIS IS THE OTHER HALF OF THE ROLE AND WITHOUT IT THE
+                # MECHANISM IS WORSE THAN NOTHING: the closer is usually his
+                # club's best K%-BB% arm, so the profile kept reaching for
+                # him in the seventh and the engine used him there on 19.9%
+                # of entries against a real 3.3%. The role roll above only
+                # accounts for 4.5 of those points; the rest was the draw
+                # not knowing he was spoken for.
+                #
+                # This does NOT reserve him for the ninth — the table
+                # already lets him work the seventh at the counted rate, and
+                # his own record says almost 30% of his appearances come
+                # before the ninth. It stops him being picked as though he
+                # were an ordinary arm.
+                cand = pool
+                if p:
+                    rest = [a for a in pool if a is not self.closer]
+                    if len(rest) > 1:
+                        cand = rest
                 b = _pick_bucket(margin)
                 # THE INNING IS THE SLOT. Pooled over 7-9 the weight is
                 # wrong at both ends, so this is not a refinement of the
@@ -683,8 +819,8 @@ class Side:
                 frac = min(max((u - c) / wk, 0.0), 1.0) if wk else 0.5
                 pct = min((k + frac) / 5, 1.0)
                 # Best fifth first: rank 0 is the highest K%-BB% left.
-                ranked = sorted(pool, key=lambda a: a.bb_pct - a.k_pct)
-                choice = ranked[round(pct * (len(pool) - 1))]
+                ranked = sorted(cand, key=lambda a: a.bb_pct - a.k_pct)
+                choice = ranked[round(pct * (len(cand) - 1))]
                 j = next(i for i in range(slot, len(self.pen))
                          if self.pen[i] is choice)
                 self.pen[slot], self.pen[j] = self.pen[j], self.pen[slot]
@@ -1388,12 +1524,120 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
         off = _leash.offset_for(BULK_OUTS_DELTA)
         bh = sim.Hook(**{**bh.__dict__,
                          "team_offset": bh.team_offset + off})
+    # THE NAMED CLOSER, and he has to actually BE in the drawn pen or the
+    # role cannot fire. The pen is sampled by appearances, which usually
+    # catches a 60-appearance closer and does not always — and "usually" is
+    # not a role. If the draw missed him he replaces the LAST arm, which is
+    # the one the sampler was least confident about anyway.
+    #
+    # He stays an ordinary member of the pool: the role gives him the ninth,
+    # it does not reserve him from the seventh, and his own record says
+    # almost 30% of his work comes earlier.
+    cl = None
+    cl_worked = False
+    got = closer_for(date, team)
+    if got:
+        nm, cl_worked = got
+        cl = next((a for a in arms if a.name == nm), None)
+        if cl is None:
+            src = next((a for a in pen_pool if (a.get("name") or "") == nm),
+                       None)
+            if src is not None:
+                cl = _arm(src)
+                if d:
+                    cl = replace(cl, babip=max(cl.babip - d, 0.0))
+                if USE_ROLE_HBP:
+                    cl = _role(cl, sim.HBP_RATE_RP, sim.SAC_RATE_RP)
+                if arms:
+                    arms[-1] = cl
+                else:
+                    arms = [cl]
     return Side(starter=starter, pen=arms, lineup=lineup,
                 hook=h,
                 pen_state=sim.pen_state(team, date),
                 layoff_gap=sim.layoff_gap(starter.name, date),
                 forced_exit_outs=fx,
-                bulk=bulk, bulk_hook=bh)
+                bulk=bulk, bulk_hook=bh,
+                closer=cl, closer_worked=cl_worked)
+
+
+#: Club-games of history behind naming the closer, matching
+#: `scratchpad/closer_slot.py`: about a month, long enough to out-vote one
+#: fill-in save and short enough to notice a change before it costs.
+CLOSER_WINDOW = 25
+
+_CLOSER_INDEX: tuple | None = None
+
+
+def _closer_index(conn=None) -> tuple:
+    """({(date, TEAM): (name, worked the previous game)}, ...).
+
+    Named PROSPECTIVELY — the arm with the most ninth-inning-with-a-lead
+    entries over the club's previous `CLOSER_WINDOW` games, counted strictly
+    BEFORE this date, so there is no leakage. Same rule `closer_slot.ranked`
+    scored, which is where the 62.7% naming accuracy comes from.
+    """
+    global _CLOSER_INDEX
+    if _CLOSER_INDEX is not None:
+        return _CLOSER_INDEX
+    out: dict = {}
+    try:
+        from src.context import store
+        with store.connect() as c:
+            rows = [dict(r) for r in c.execute(
+                "select game_id, date, team, player_name nm,"
+                " appearance_order ao, entry_inning ei, entry_margin em"
+                " from mlb_stints order by date, game_id, appearance_order")]
+        by_side: dict = {}
+        for r in rows:
+            if r["team"]:
+                by_side.setdefault(
+                    (r["game_id"], r["team"].upper()), []).append(r)
+        appeared: dict = {}
+        for r in rows:
+            if r["ao"] > 0:
+                appeared.setdefault(r["nm"], set()).add(r["date"])
+        games: dict = {}
+        for (gid, team), side in by_side.items():
+            games.setdefault(team, []).append((side[0]["date"], gid, side))
+        for team, gs in games.items():
+            gs.sort()
+            for i, (date, _gid, _side) in enumerate(gs):
+                if i < CLOSER_WINDOW:
+                    continue
+                tally: dict = {}
+                for _d, _g, ps in gs[i - CLOSER_WINDOW:i]:
+                    for r in ps:
+                        if (r["ao"] > 0 and r["ei"] == 9
+                                and (r["em"] or 0) > 0):
+                            tally[r["nm"]] = tally.get(r["nm"], 0) + 1
+                if not tally:
+                    continue
+                nm = max(tally.items(), key=lambda kv: kv[1])[0]
+                prev = gs[i - 1][0]
+                out[(date, team)] = (nm, prev in appeared.get(nm, ()))
+    except Exception:
+        out = {}
+    _CLOSER_INDEX = (out,)
+    return _CLOSER_INDEX
+
+
+def closer_for(date: str | None, team: str | None):
+    """(name, worked the club's previous game), or None if he cannot be named.
+
+    None covers the first `CLOSER_WINDOW` games of the record and any club
+    with no ninth-inning-with-a-lead entries in the window — a committee, in
+    other words. The engine then falls back to the percentile profile, which
+    is the right degradation: no name, no role.
+    """
+    if not date or not team:
+        return None
+    return _closer_index()[0].get((date, (team or "").upper()))
+
+
+def reload_closer_index() -> None:
+    global _CLOSER_INDEX
+    _CLOSER_INDEX = None
 
 
 #: THE BULK ARM'S TYPE, read the way `scratchpad/bulk_type.py` counted it —

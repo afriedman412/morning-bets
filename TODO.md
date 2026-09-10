@@ -313,9 +313,17 @@ carrying the mids as they were at print time; `bets/2026_09_08_board.json`
 and `bets/2026_09_09_board.json` are the first two and nothing grades them
 yet.
 
-**15. THE OPENER — the exit, the RECENCY WEIGHT and both halves of the
-relief hazard have shipped. What remains is the LEASH DELTA and the slate
-override, and the operator has ruled the typed bulk arm out of scope.**
+**15. THE OPENER — PARKED 2026-09-09 BY OPERATOR DECISION.** The exit, the
+recency weight, both halves of the relief hazard and the bulk-arm leash have
+all shipped; what is left is the live slate override and the swingman, and
+neither is worth a session on a population that is 2-3% of starts. THE
+RETROACTIVE RULE IS THE ONE THING TO CARRY FORWARD: a real opener start is a
+SHORT START THAT ENDED ON AN INNING BOUNDARY AND WAS NOT A SHELLING (<= 6
+outs, outs % 3 == 0, <= 2 runs), which finds 277 in the four July-onward
+folds against the prospective gate's 444 flags — 93 real openers the gate
+MISSES and a much cleaner measurement population. Use the prospective gate
+for PRICING and the retroactive rule for MEASURING; collapsing them is why
+the bulk arm was scored on 23 sides when 75 were available.
 
 What shipped: `USE_RELIEF_INTENT` and `USE_OPENER_EXIT` (a flagged
 short-yardage starter exits on a bootstrap from his own outs record), plus
@@ -587,8 +595,70 @@ Kalshi was 3.03 points on the game total against 3.65 on the team totals
 to 0.5 while disagreeing 4.8 on the split. Score the split in the same
 replay pass.
 
-**21. THE INNING KEY SHIPPED 2026-09-09 as `USE_PEN_INNING`. AVAILABILITY
-AND THE STALE GATE ARE WHAT REMAIN.**
+**21. THE CLOSER IS NOW A WIRED ROLE (`USE_CLOSER_ROLE`, 2026-09-09), ON
+TOP OF THE INNING KEY (`USE_PEN_INNING`). THE STALE GATE IS WHAT REMAINS.**
+
+THE OPERATOR'S RULING, and it is architectural rather than a refinement:
+the closer will not emerge from good modelling of anything else, so wire the
+role before building anything further on the bullpen. He is his club's
+top-fifth K%-BB% arm only 73.3% of the time, so in the other 27% NO
+reweighting of `PEN_PICK` can reach him.
+
+Counted on 17,596 pre-holdout club-games with a named closer
+(`scratchpad/closer_usage.py`) — P(the entering arm IS the named closer):
+
+                     7th            8th            9th+
+      save         4.5 / 1.9%    14.9 / 8.9%    73.3 / 61.4%
+      tied         4.2 / 2.3%    12.7 / 4.9%    55.8 / 40.7%
+      (rested / worked the club's previous game)
+
+A TWENTYFOLD SWING from the seventh to the ninth, and availability is worth
+12 points in the ninth on its own — TODO 8's "fatigue" bullet arriving as a
+SELECTION effect. As a RATE it stays dead.
+
+**THE MARGIN KEY IS THE SAVE RULE, RECOVERED FROM THE DATA.** P(closer) in
+the ninth runs 0.6724 / 0.6945 / 0.6894 at leads of one, two and three, then
+falls off a cliff — 0.5343 at four, 0.2305 at five, 0.0843 beyond.
+`_pick_bucket` splits at 2 and 4 and therefore lumps a save in with a
+non-save; it was built for the quality profile and is the wrong key for a
+role. `_closer_margin` is its own function for that reason.
+
+**HALF-WIRING IT IS WORSE THAN NOTHING, AND THIS IS THE FINDING.** Adding
+the role roll while leaving him in the quality draw put the closer in the
+SEVENTH on 19.9% of entries against a real 3.3%: he is usually the best
+K%-BB% arm, so `PEN_PICK` kept reaching for him. The role roll accounts for
+4.5 of those points and the draw for the other 15. He must be RESERVED —
+withheld from the profile and entering only through the table.
+
+    P(entering arm is the closer)   before   after    real
+      7th, save                     0.1994  0.0400  0.0318
+      8th, save                     0.2958  0.1277  0.1185
+      9th, save                     0.7680  0.6796  0.6734
+
+That is 21 cells tracking the counted rate where the engine previously had
+no notion of the role at all. Battery `847ed46ee069`: no row moved by more
+than one se. Suite 503 -> 510, four mutations.
+
+NOT a contradiction of "do not remove him from the pen": his own record has
+30% of HIS APPEARANCES before the ninth, which is a different denominator
+from his share OF seventh-inning entries. The table lets him work the
+seventh at the counted 4.5%.
+
+STILL OPEN: **THE STALE GATE** — when the named man has not appeared in ten
+days he takes the slot 3.7% of the time (4.8% of slots), and stepping down
+to the next arm on the same count is worth +0.8 points, within 0.3 of a
+perfect-forward-knowledge oracle. `game.closer_for` returns the name and the
+availability flag but does NOT yet check idleness.
+
+AND THE NAMING VALIDATES AGAINST AN INDEPENDENT SOURCE: on 2026-08-15 the
+offline rolling-window naming returns Chapman (BOS), Hader (HOU) and Cade
+Smith (CLE), which is exactly who FanGraphs RosterResource's closer depth
+chart named when it was fetched the same day. That is why the news-feed
+ceiling measured only 1.1 points.
+
+--- superseded, kept for the counts behind it ---
+
+**THE INNING KEY SHIPPED 2026-09-09 as `USE_PEN_INNING`.**
 
 The operator was right and the engine was worse than the item claimed — not
 flat across innings but INVERTED. Simulated share taking the best remaining
