@@ -1566,6 +1566,51 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
 #: fill-in save and short enough to notice a change before it costs.
 CLOSER_WINDOW = 25
 
+#: Days idle after which the named man is treated as GONE — hurt, demoted
+#: or traded. Not fitted: it is where the cliff is. Counted on the naming
+#: the engine actually uses, 6,990 pre-holdout save slots —
+#:
+#:     idle 0-3 days   73.5% of slots   he takes the slot 45.0%
+#:     idle 4-9 days   21.9% of slots                     55.6%
+#:     idle 10+ days    4.5% of slots                      2.8%
+#:
+#: Rare and total. Stepping down to the next arm on the same usage count
+#: recovers +0.8 points of naming accuracy and lands within 0.3 of a
+#: perfect-forward-knowledge ORACLE (`scratchpad/closer_slot.py`), which is
+#: to say it is very nearly the whole of what a news feed could buy — and
+#: it needs no feed. Note 4-9 days reads HIGHER than 0-3: that is rest, not
+#: staleness, and it is already carried by the availability dimension of
+#: `CLOSER_USE`.
+CLOSER_STALE_DAYS = 10
+
+def _days_between(a: str, b: str) -> int:
+    """Whole days from `b` to `a`, both ISO. Dates only — no clock."""
+    return (datetime.date(*(int(x) for x in a.split("-")))
+            - datetime.date(*(int(x) for x in b.split("-")))).days
+
+
+def name_closer(tally: dict, appeared: dict, date: str) -> str | None:
+    """Top of the usage count who is not STALE, or None.
+
+    Split out from the index so THE RULE can be checked without a database,
+    the way `leash.intended_from_starts` is — the rule is the part that is
+    easy to get subtly wrong, and the query is not.
+
+    `tally` is {name: ninth-inning-with-a-lead entries in the window},
+    `appeared` is {name: set of dates he pitched}. Walking the count in
+    order and taking the first man who has pitched inside
+    `CLOSER_STALE_DAYS` is the whole gate. None means everyone on the count
+    is stale — no name, no role, and the percentile profile answers, which
+    is the right degradation: better no closer than a wrong one.
+    """
+    for cand, _ in sorted(tally.items(), key=lambda kv: (-kv[1], kv[0])):
+        ds = appeared.get(cand)
+        last = max((d for d in ds if d < date), default=None) if ds else None
+        if last is not None and _days_between(date, last) < CLOSER_STALE_DAYS:
+            return cand
+    return None
+
+
 _CLOSER_INDEX: tuple | None = None
 
 
@@ -1613,8 +1658,19 @@ def _closer_index(conn=None) -> tuple:
                             tally[r["nm"]] = tally.get(r["nm"], 0) + 1
                 if not tally:
                     continue
-                nm = max(tally.items(), key=lambda kv: kv[1])[0]
                 prev = gs[i - 1][0]
+                # THE STALE GATE. Walk the usage count in order and take the
+                # first man who has actually pitched lately; ten days idle
+                # means hurt, demoted or traded, and the record agrees
+                # totally — he takes the slot 2.8% of the time. Without this
+                # the engine keeps handing the ninth to a man who is not on
+                # the team any more.
+                nm = name_closer(tally, appeared, date)
+                if nm is None:
+                    # Everyone on the count is stale: no name, no role, and
+                    # the percentile profile answers. That is the right
+                    # degradation — better no closer than a wrong one.
+                    continue
                 out[(date, team)] = (nm, prev in appeared.get(nm, ()))
     except Exception:
         out = {}

@@ -1869,3 +1869,41 @@ def check_the_profile_still_sees_a_full_uniform_behind_the_closer():
     # gets about half of that (0.296 measured) and is a threshold set from
     # the wrong quantity, not from the mechanism.
     assert best / other > 0.4, (best, other)
+
+
+def check_the_stale_closer_steps_down_to_the_next_arm():
+    """Ten days idle means hurt, demoted or traded, and the record is
+    total about it: the named man takes the save slot 2.8% of the time
+    against 45-56% when he has pitched lately. Without the gate the engine
+    keeps handing the ninth to someone who may not be on the team.
+
+    Counted on 6,990 pre-holdout save slots, stepping down to the next arm
+    on the same usage count is worth +0.57 points of naming accuracy.
+    """
+    tally = {"gone": 30, "next": 8, "third": 2}
+    appeared = {"gone": {"2026-05-01"}, "next": {"2026-05-19"},
+                "third": {"2026-05-20"}}
+    # He led the count by a mile and has not pitched in nineteen days.
+    assert game.name_closer(tally, appeared, "2026-05-20") == "next"
+    # Pitched two days ago: he keeps the job however long the gap was before.
+    appeared["gone"] = {"2026-05-18"}
+    assert game.name_closer(tally, appeared, "2026-05-20") == "gone"
+
+
+def check_everyone_stale_means_no_closer_at_all():
+    """No name, no role — the percentile profile answers. Falling through to
+    a man nobody has seen in three weeks would be worse than having no
+    mechanism, which is the whole lesson of the half-wired role."""
+    tally = {"a": 5, "b": 3}
+    appeared = {"a": {"2026-04-01"}, "b": {"2026-04-02"}}
+    assert game.name_closer(tally, appeared, "2026-05-20") is None
+
+
+def check_the_stale_gate_needs_a_prior_appearance():
+    """An arm on the count with no recorded appearance BEFORE this date
+    cannot be verified as active, so he must not be named. `max(default=None)`
+    over an empty set is the trap — it does not raise, it returns None and a
+    naive comparison would treat him as fresh."""
+    tally = {"unseen": 9, "real": 4}
+    appeared = {"unseen": {"2026-06-01"}, "real": {"2026-05-19"}}
+    assert game.name_closer(tally, appeared, "2026-05-20") == "real"

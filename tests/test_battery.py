@@ -75,3 +75,31 @@ def check_battery_wrappers_do_not_change_the_game():
         battery._HOOK_LOG.clear()
     assert bare == wrapped, "the battery's wrappers changed simulation " \
         "outcomes — they must be observationally inert"
+
+
+def check_the_save_row_counts_a_held_lead_on_both_sides():
+    """The save rows exist because every bullpen instrument shipped on
+    2026-09-09 was a PROXY — outing length, selection percentile, closer
+    usage rate — and none said whether the model wins the games a real
+    bullpen wins.
+
+    Both sides of the battery must agree on what a save situation IS, or the
+    row compares two different populations and reads as a permanent defect.
+    They share `battery.save_cell`, and this exercises THAT rather than a
+    copy of its arithmetic — the first version of this check carried its own
+    copy and would have passed through any change to the real thing.
+    """
+    # A one-run lead after eight, protected: away 4-3 after 8, final 4-3.
+    assert battery.save_cell(4, 3, 4, 3) == {
+        "n": 1, "held": 1, "r0": 1, "r2": 0}
+    # Same lead, blown by two in the bottom of the ninth.
+    assert battery.save_cell(4, 3, 4, 5) == {
+        "n": 1, "held": 0, "r0": 0, "r2": 1}
+    # The HOME club leading is the mirror, and getting this crossed is the
+    # single likeliest way to build the row backwards.
+    assert battery.save_cell(3, 4, 3, 4) == {
+        "n": 1, "held": 1, "r0": 1, "r2": 0}
+    # A four-run lead is not a save situation and must not be counted.
+    assert battery.save_cell(7, 3, 7, 3)["n"] == 0
+    # Tied after eight is not one either.
+    assert battery.save_cell(3, 3, 4, 3)["n"] == 0

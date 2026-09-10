@@ -11188,3 +11188,62 @@ from a population I had needlessly shrunk by two thirds. When counting
 history you already know how the start went; there is no reason to pretend
 otherwise. This is the same `rates_before` / `since` split the codebase
 already makes everywhere else.
+
+## 2026-09-09 (same day) — the save rows, and what they found immediately
+
+**WHY.** Four bullpen changes shipped today and every one was scored on a
+PROXY: outing length, selection percentile, closer usage rate. All four say
+"the bullpen behaves like a real bullpen"; none says the model wins the
+games a real bullpen wins. The operator made the point three times — runs
+lag, and aggregate papers over shape — and was right each time. The `late`
+group is all MEANS, which is exactly the blind spot rule 2 exists for: a
+better closer removes the crooked number without moving the average.
+
+**WHAT SHIPPED.** Three battery rows in a new `save` group — a lead of 1-3
+after eight innings, how often it is HELD, and what the protecting side
+allows from the ninth on (0, 2+). Both sides call ONE function,
+`battery.save_cell`, because a row whose two sides carry their own copy of
+the definition compares two populations that are not the same thing and
+reads as a permanent defect. The first version of the test carried a THIRD
+copy of the arithmetic and would have passed through any change to the real
+code; it was rewritten to exercise `save_cell` and then killed by three
+mutations.
+
+**AND IT FOUND SOMETHING ON THE FIRST FULL RUN.** Pooled over 1,789 save
+situations across four folds:
+
+    key                model   actual      gap      se      z
+    lead_held         0.9091   0.9212  -0.0121  0.0064   -1.9
+    allowed_0         0.7432   0.7703  -0.0271  0.0099   -2.7
+    allowed_2plus     0.1447   0.1274  +0.0172  0.0079   +2.2
+
+The model blows late leads more often than the league does. Direction is
+identical in all four folds (-0.2 / -1.6 / -1.0 / -1.1), which is what rule
+12b asks for, and the `inning 9+` MEAN row sat flat through all of it —
+the instrument was built precisely because that row cannot see this. Filed
+as item 22 and to be treated as a DIRECTION: 2-3 sigma on quantities nobody
+pre-registered, read the same day the instrument was built.
+
+**THE STALE GATE, the last piece of item 21.** Re-counted on the naming the
+engine actually uses: idle 0-3 days he takes the save slot 45.0%, 4-9 days
+55.6%, 10+ days 2.8%. Ten days idle means hurt, demoted or traded and the
+record is total about it. `game.name_closer` walks the usage count and takes
+the first man who has pitched inside `CLOSER_STALE_DAYS`; everyone stale
+returns None, which means no name, no role, and the percentile profile
+answers — better no closer than a wrong one.
+
+Worth **+0.57 points** of naming accuracy scored against who actually took
+the slot. **THAT IS BELOW THE +0.8 THE ITEM CLAIMED** and the two are not
+the same measurement — rule 11. Prefer the +0.57. Note 4-9 days reads HIGHER
+than 0-3: that is REST, not staleness, and it is already carried by the
+availability dimension of `CLOSER_USE`.
+
+The rule is split out from the database query for the same reason
+`leash.intended_from_starts` is — the rule is the part that is easy to get
+subtly wrong. Three mutations, and one of my first attempts was a NO-OP
+(`_days_between(date, last or "1900-01-01")` still exceeds the threshold, so
+it behaves identically); a mutation that does not change behaviour proves
+nothing about the test.
+
+Battery a800884a4161 -> a0f456d3e479, no row moved by more than one se.
+Suite 510 -> 514.

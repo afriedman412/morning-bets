@@ -595,6 +595,31 @@ Kalshi was 3.03 points on the game total against 3.65 on the team totals
 to 0.5 while disagreeing 4.8 on the split. Score the split in the same
 replay pass.
 
+**22. THE MODEL BLOWS LATE LEADS MORE OFTEN THAN REAL BULLPENS DO — opened
+2026-09-09 by the new `save` battery rows, and it is a SHAPE defect that no
+mean could see.**
+
+The save rows exist because every bullpen instrument before them was a
+proxy — outing length, selection percentile, closer usage rate — and none
+said whether the model wins the games a real bullpen wins. Pooled over 1,789
+save situations, four folds:
+
+    key                model   actual      gap      se      z
+    lead_held         0.9091   0.9212  -0.0121  0.0064   -1.9
+    allowed_0         0.7432   0.7703  -0.0271  0.0099   -2.7
+    allowed_2plus     0.1447   0.1274  +0.0172  0.0079   +2.2
+
+The model protects a late lead less often, throws a scoreless ninth less
+often, and gives up two or more more often. **THE DIRECTION IS THE SAME IN
+ALL FOUR FOLDS** (z -0.2 / -1.6 / -1.0 / -1.1), which is what rule 12b asks
+for, and the `inning 9+` MEAN row was flat all day while this was true.
+
+TREAT AS A DIRECTION, NOT A FINDING: 2-3 sigma on quantities nobody
+pre-registered, measured the same day the instrument was built. What it is
+NOT is the closer's identity — that shipped and is now tracking the counted
+rates cell by cell. First suspects are the ninth-inning run DISTRIBUTION
+(the clustering item) and relief rates against a lineup's best hitters.
+
 **21. THE CLOSER IS NOW A WIRED ROLE (`USE_CLOSER_ROLE`, 2026-09-09), ON
 TOP OF THE INNING KEY (`USE_PEN_INNING`). THE STALE GATE IS WHAT REMAINS.**
 
@@ -644,11 +669,22 @@ NOT a contradiction of "do not remove him from the pen": his own record has
 from his share OF seventh-inning entries. The table lets him work the
 seventh at the counted 4.5%.
 
-STILL OPEN: **THE STALE GATE** — when the named man has not appeared in ten
-days he takes the slot 3.7% of the time (4.8% of slots), and stepping down
-to the next arm on the same count is worth +0.8 points, within 0.3 of a
-perfect-forward-knowledge oracle. `game.closer_for` returns the name and the
-availability flag but does NOT yet check idleness.
+**THE STALE GATE SHIPPED 2026-09-09** as `CLOSER_STALE_DAYS = 10` inside
+`game.name_closer`, split out from the index so the RULE is checkable
+without a database. Re-counted on the naming the engine actually uses,
+6,990 pre-holdout save slots:
+
+    idle 0-3 days   73.5% of slots   he takes the slot 45.0%
+    idle 4-9 days   21.9% of slots                     55.6%
+    idle 10+ days    4.5% of slots                      2.8%
+
+Rare and total. Worth **+0.57 points** of naming accuracy — NOTE that is
+below the +0.8 this item previously claimed, and the two are not the same
+measurement (different slot definition); prefer the +0.57, which is scored
+against who actually took the slot on the shipped naming. 4-9 days reads
+HIGHER than 0-3 because that is REST, not staleness, and rest is already
+carried by the availability dimension of `CLOSER_USE`. All-stale returns
+None — no name, no role, the profile answers.
 
 AND THE NAMING VALIDATES AGAINST AN INDEPENDENT SOURCE: on 2026-08-15 the
 offline rolling-window naming returns Chapman (BOS), Hader (HOU) and Cade

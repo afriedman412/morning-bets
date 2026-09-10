@@ -36,6 +36,10 @@ THE ROWS, all model vs real with gap, se, z and the Monte-Carlo floor:
                 item 4a plumbs `gb_pct` (printed empty, not omitted)
     weather     HR/BIP by temperature bucket — EMPTY until item 5
     late        innings 7-9: runs per inning by |margin| when it started
+    save        a lead of 1-3 after eight: how often it is HELD, and what
+                the protecting side allows from the ninth on (0, 2+). The
+                OUTCOME the bullpen items aim at — every other bullpen row
+                here is a proxy, and `late` is all means
     hook        both curves, model hazard vs real rate on the
                 `pitch_hazard` bucket edges (holdout rows of the fold)
     shape       starter outs/K mean+sd, K 9+ share, outs over-lines,
@@ -211,6 +215,29 @@ def engine_fingerprint(pairs, lg, pens, n_games=200, n_sims=2) -> str:
     return h.hexdigest()
 
 
+def save_cell(a8: int, h8: int, away: int, home: int) -> dict:
+    """The save situation, defined ONCE for both sides of the battery.
+
+    A lead of 1-3 after EIGHT innings. `held` is whether the club that led
+    went on to WIN; `r0`/`r2` are what the club PROTECTING the lead gave up
+    from the ninth on.
+
+    Both sides call this. They used to carry their own copy of the
+    arithmetic, which is how a row ends up comparing two populations that
+    are not the same thing and reading as a permanent defect — and a test
+    written against a third copy would have passed through all of it.
+    """
+    sv = {"n": 0, "held": 0, "r0": 0, "r2": 0}
+    if 1 <= abs(a8 - h8) <= 3:
+        lead_away = a8 > h8
+        gave = (home - h8) if lead_away else (away - a8)
+        sv["n"] = 1
+        sv["held"] = int((away > home) if lead_away else (home > away))
+        sv["r0"] = int(gave == 0)
+        sv["r2"] = int(gave >= 2)
+    return sv
+
+
 # ── the one pass: model side ────────────────────────────────────────────
 
 def _model_one(gid: str) -> dict:
@@ -224,6 +251,12 @@ def _model_one(gid: str) -> dict:
          "inn": {i: 0.0 for i in list(range(1, 9)) + [9]},
          "one": 0.0, "ext": 0.0, "a": 0.0, "h": 0.0, "af": 0.0, "hf": 0.0,
          "late": {b: [0.0, 0] for b in range(MARGIN_CAP + 1)},
+         # THE SAVE SITUATION — a lead of 1-3 after eight. `n` is how many
+         # draws reached one, `held` how many the leading club went on to
+         # win, and the two mass cells are what the protecting side allowed
+         # from the ninth on. A RATE and a SHAPE, because the mean of
+         # ninth-inning runs is exactly what a better closer does not move.
+         "save": {"n": 0, "held": 0, "r0": 0, "r2": 0},
          "hook": {"bnd": defaultdict(lambda: [0.0, 0]),
                   "mid": defaultdict(lambda: [0.0, 0])},
          "sp": {s: {"outs": Counter(), "k": Counter(), "spike_mid": Counter(),
@@ -269,6 +302,9 @@ def _model_one(gid: str) -> dict:
             b = min(abs(a0 - h0), MARGIN_CAP)
             m["late"][b][0] += (a1 - a0) + (h1 - h0)
             m["late"][b][1] += 1
+        a8, h8 = ps.get(8, (0, 0))
+        for k, v in save_cell(a8, h8, r.away, r.home).items():
+            m["save"][k] += v
         for curve, b, p in _HOOK_LOG:
             m["hook"][curve][b][0] += p
             m["hook"][curve][b][1] += 1
@@ -352,6 +388,7 @@ def _model_one(gid: str) -> dict:
 def _actual_one(gid: str, data: dict) -> dict:
     a = {"inn": defaultdict(int), "one": 0.0, "ext": 0.0,
          "late": {b: [0.0, 0] for b in range(MARGIN_CAP + 1)},
+         "save": {"n": 0, "held": 0, "r0": 0, "r2": 0},
          "pa": Counter(), "plat": Counter(), "kind": {},
          # Starter-restricted DP counts per pitching half, and per-batter
          # singles/XBH — the real side of the GB-quintile rows.
@@ -434,6 +471,8 @@ def _actual_one(gid: str, data: dict) -> dict:
             b = min(abs(at_start[i][0] - at_start[i][1]), MARGIN_CAP)
             a["late"][b][0] += runs
             a["late"][b][1] += 1
+    if 9 in at_start:
+        a["save"] = save_cell(*at_start[9], ca, ch)
     a["lad"] = {}
     run = 0
     for i in range(1, 8):
@@ -764,6 +803,25 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
         # se of a mean of per-inning run counts; sd~1.1 run per inning.
         fold.add("late", f"inn7_9_margin_{'4+' if b == MARGIN_CAP else b}",
                  ms / mn, aa, 1.1 / an ** 0.5, int(an))
+
+    # THE SAVE SITUATION. The rate a late lead is HELD is the outcome the
+    # bullpen work of 2026-09-09 was aiming at and could not be scored on —
+    # every instrument that day was a proxy (outing length, selection
+    # percentile, closer usage rate). The two mass rows are there because a
+    # better closer removes the crooked number without moving the mean, and
+    # the `late` group above is all means.
+    msv = {k: 0 for k in ("n", "held", "r0", "r2")}
+    asv = {k: 0 for k in ("n", "held", "r0", "r2")}
+    for g in gids:
+        for src, dst in ((got[g][0]["save"], msv), (got[g][1]["save"], asv)):
+            for k in dst:
+                dst[k] += src[k]
+    if asv["n"] and msv["n"]:
+        for key, num in (("lead_held", "held"), ("allowed_0", "r0"),
+                         ("allowed_2plus", "r2")):
+            ar = asv[num] / asv["n"]
+            fold.add("save", key, msv[num] / msv["n"], ar,
+                     _rate_se(ar, asv["n"]), asv["n"])
 
     # Hook cells.
     for curve in ("bnd", "mid"):
