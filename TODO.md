@@ -63,6 +63,17 @@ result in `NOTES-context-layer.md`.
 Not a ranking of the whole list — the four that are actually READY, in the
 sense that nothing has to be decided before starting:
 
+  * **7f, THE WIDTH OF THE OUTS DISTRIBUTION — opened 2026-09-10 by 7e's
+    failure, and it is the better-posed version of what 7e was chasing.**
+    `outs_sd` overshoots real by +0.36 to +0.44 in every fold while
+    `outs_mean` is SHORT by 0.09 to 0.48 — the model produces too many
+    short starts AND too many long ones at once. That is why 7e's level
+    term could only trade the long tail against the mean, and why the
+    long-line rows (o18.5 +3.3, o20.5 +2.9) never had a level fix. NOTE
+    THE PARALLEL: this is the same shape as the RUN distribution's
+    clustering defect, but pointing the OTHER way — runs are too NARROW,
+    outs too WIDE. Do not assume one mechanism. Instrument exists
+    (`shape` rows in the battery, all four folds).
   * **19.1, name the coupling.** Fully specified and mechanical. Its one
     precondition ("regenerate on a DECIDED engine, do not span an
     uncommitted `USE_PITCH_HAZARD_BND`") is now satisfied, and it speaks to
@@ -171,6 +182,50 @@ improves in ALL FOUR folds; all-line error on the 2026 ladder 0.0363 ->
 score. Result and the retracted premise are in the notes, 2026-09-09 fourth
 entry. NOTE the item's founding numbers (0.0265 -> 0.0314) were RETRACTED —
 they came from a double-wrapped logger in `hz_cells.py`, fixed the same day.
+
+**7e. BUILT, SCORED AND PARKED 2026-09-10. `sim.USE_HOOK_MONTH = False`.
+THE FALSIFIER FAILED ON BOTH CLAUSES AND THE ITEM'S PREMISE BELOW IS
+REFUTED — read this before anything under it.**
+
+The term exists, counted and switchable: `sim.BND_MONTH_OFFSET` +
+`bnd_month_offset()`, `game.Side.bnd_month_offset`, both branches of
+`removal_p`. Suite 518 -> 522, four mutation-verified checks.
+
+WHAT FAILED. Clause 1 (cut o18.5/o20.5 in ALL FOUR folds) fails on 2023,
+whose gap was already NEGATIVE — too FEW long starts, so pulling harder
+widened it. Clause 2 (without giving back the middle band) fails: five of
+five middle rows worse in 2023, four of five in 2026. And `outs_mean` went
+adverse in all four folds. It bought `spike_15_share` and
+`boundary_share_by_decision`, better in all four.
+
+**THE PREMISE IS THE CASUALTY: closing the seasonal gap does NOT close the
+long-line overshoot.** THE OUTS DEFECT IS WIDTH, NOT LEVEL — `outs_sd`
+overshoots +0.36 while `outs_mean` is SHORT -0.15, so there are too many
+short starts AND too many long ones at once. A level term can only trade one
+tail against the mean. **Anything below reasoning "9% too permissive, so
+pull harder" is refuted.** The replacement item is the WIDTH of the outs
+distribution, and it is a better-posed target than this ever was.
+
+STILL ESTABLISHED, and worth keeping: the seasonal shape in the DECISIONS is
+real (Sep+Oct/Jul+Aug ratio 1.376, z +5.2, sign-stable 3/3 train seasons,
+12,897 rows), and **THE MID-INNING CURVE CARRIES THE SAME SHAPE** (OR 1.314,
+z +3.9, 3/3) and is deliberately unwired — two mechanisms behind one flag
+cannot be told apart.
+
+TWO TRAPS THIS COST, both now guarded. (1) "The 50-78 pitch buckets" are
+bucket LABELS spanning pitches 50-84; reading them as a 50-78 RANGE drops
+the highest-hazard cells and deflates every month by a third — a positive
+control caught it. (2) **THE FALSIFIER NAMED THE WRONG FOLD.** 2026 is
+13.1% Sep+Oct against 34-37% in the other three (the season is still in
+progress), so every 2026 movement was ~0.1 se by construction. Check a
+pre-registered bar for POWER when you write it, not just direction.
+
+WORKLOAD-TO-DATE IS UNTESTABLE, NOT REFUTED: MLB workload-to-date does not
+mean "stretched out" (a man making his second big-league start in June has
+been throwing in the minors all season) and no minor-league workload is on
+disk. Do not re-run it expecting an answer.
+
+--- the original item, kept for the counts behind it ---
 
 **7e. A CALENDAR TERM IN THE HOOK — opened 2026-09-09 by 7a, and it is the
 named cause of every adverse row that shipped with it.**

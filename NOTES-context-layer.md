@@ -11510,3 +11510,104 @@ inside the baseline window, which under the "a fingerprint comparison is
 only valid across constant data" rule had to be resolved rather than
 assumed — re-running `fingerprint 400 6` reproduced d21ae22d9f96 exactly,
 so no content the replay reads had moved.
+
+## 2026-09-10 — TODO 7e: the calendar term is BUILT, SCORED and PARKED, and it refutes the item's own premise
+
+QUESTION. 7e said the boundary hook cannot see the date, that the seasonal
+shape is "the measured cause" of the shipped long-line overshoot, and left
+the SHAPE of the fix undecided — date term versus workload-to-date.
+
+**THE DECISION RESOLVES, BUT NOT AS A CONTEST.** Workload-to-date is not a
+rival hypothesis that lost; it is NOT MEASURABLE HERE. MLB workload-to-date
+does not mean "stretched out" — a man making his second big-league start in
+June has been throwing in the minors all season — and no minor-league
+workload is on disk. Recorded as untestable rather than refuted, so nobody
+re-runs it expecting an answer. (Raised by the operator, and it killed the
+identifying population the first design depended on.)
+
+**A POSITIVE CONTROL FAILED FIRST, AND THE DENOMINATOR WAS MINE.** The
+item's monthly table would not reproduce: every month came out at 0.59-0.80x
+the published value, uniformly — which is rule 10's signature for a
+denominator, not a set of bugs. Cause: "pooled over the 50-78 pitch buckets"
+means bucket LABELS 50/60/70/78, which span pitches 50-84. Reading it as a
+50-78 pitch RANGE drops the 79-84 rows, the highest-hazard cells in the
+band. On the correct population all eight months reproduce EXACTLY and n is
+31,235, matching the item. The published table was right; the reader was
+wrong. Worth the line because the item's founding numbers HAD been retracted
+once before, so "the item is wrong" was the tempting read.
+
+WHAT THE SHAPE IS. May-August is flat inside 0.014 in logit (0.0663 to
+0.0757) and September steps up 0.33. So it is a STEP ON ONE MONTH, not a
+ramp — "days since opening day" would smear that step across four flat
+months. September against July+August:
+
+    season   Jul+Aug   Sep+Oct   ratio     z
+      2023    0.0737    0.0950   1.289   +2.4
+      2024    0.0697    0.1041   1.493   +3.7
+      2025    0.0829    0.1134   1.367   +3.1
+      pooled  0.0756    0.1039   1.376   +5.2      12,897 train rows
+
+The lift falls with pitch count on the RISK scale (1.775/1.606/1.413/1.310)
+and flattens on the ODDS scale — the signature of an additive logit offset
+on a rising base. Hence a logit term, not a multiplier.
+
+THE CONSTRUCTION, and it is deliberately not a solve-for-a-level. Offsets
+are counted per month against the fit window's own pooled 0.0771, so the
+term changes NO level on the population `PITCH_HAZARD_BND` was fitted on.
+It corrects the scored window by COMPOSITION: the fit window is 16.7%
+September and the scored window 34.3%, and applying the counted month rates
+to the scored mix gives 0.0852 against the 0.0853 it actually pulls.
+
+MARCH IS OUT, and that is forced. It is outside the fit window AND outside
+all four scored folds (every one starts July 1), so no instrument here could
+ever say whether a March term helped. March and April resolve to 0.0 and a
+mutation-verified check fails if anyone extrapolates them.
+
+**EVALUATE — THE PRE-REGISTERED FALSIFIER FAILS ON BOTH CLAUSES.**
+Battery 8ad95987df74 -> ea48f8f12dbe.
+
+  clause 1, cut o18.5/o20.5 IN ALL FOUR FOLDS: fails on 2023, whose gap was
+  already NEGATIVE (-0.0047 -> -0.0126). That fold has too FEW long starts,
+  so pulling harder widened it. 2024/2025/2026 improve.
+
+  clause 2, without giving back the middle band: fails. All five middle rows
+  worse in 2023, four of five in 2026.
+
+  and unrequested, adverse in ALL FOUR: `outs_mean` -0.4833 -> -0.5739,
+  -0.2483 -> -0.3322, -0.0909 -> -0.1657, -0.1453 -> -0.1604.
+
+  what it did buy, better in all four: `spike_15_share` and
+  `boundary_share_by_decision`.
+
+CONCLUSION. **ESTABLISHED:** the seasonal shape in the DECISIONS is real,
+z +5.2 and sign-stable in all three train seasons; the mid-inning curve
+carries the SAME shape (0.0211 -> 0.0275, OR 1.314, z +3.9, 3/3 seasons) and
+is deliberately unwired, because two mechanisms behind one flag cannot be
+told apart. **REFUTED — and it is the item's own premise:** closing the
+seasonal gap does NOT close the long-line overshoot. It is A cause, not the
+operative one.
+
+**BECAUSE THE OUTS DEFECT IS WIDTH, NOT LEVEL.** `outs_sd` overshoots by
++0.36 while `outs_mean` is SHORT by -0.15 — too many short starts AND too
+many long ones at once. A LEVEL term applied to a WIDTH defect can only
+trade one tail against the mean, which is exactly the row pattern above.
+Anything reasoning "the hook is 9% too permissive, so pull harder" needs
+re-deriving against this.
+
+**AND THE FALSIFIER ITSELF HAD A DEFECT WORTH MORE THAN THE RESULT.** It
+named the 2026 fold, which is the WEAKEST available test of a September
+term: 2026 is still in progress and its scored window is 13.1% Sep+Oct
+against 34-37% in the other three, so every 2026 movement was ~0.1 se by
+construction. The verdict does not rest on it — 2023 and the middle band
+fail independently — but a pre-registered bar should be checked for POWER
+at the moment it is written, not only for direction. New rule of thumb:
+name the fold with the most exposure to the mechanism, not the most recent.
+
+SHIPPED STATE: `USE_HOOK_MONTH = False`, table and wiring kept switchable
+because what they refute is worth more than what they buy. Fingerprint
+d21ae22d9f96 before and after, reproduced exactly on the revert. Suite
+518 -> 522: four checks, each mutation-verified to fail when its own guard
+is removed (the term reaching the curve, the September step, the flag gate,
+and the March/April zero). The `build_side` -> `Side` link is NOT guarded
+offline — it needs a DB — and is verified instead by the fingerprint moving
+to e19d514c18f8 when the flag is on.

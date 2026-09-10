@@ -2165,7 +2165,8 @@ class Hook:
                   baserunners: int = 0, margin: int = 0,
                   inning_runs: int = 0,
                   pen: tuple[float, float] | None = None,
-                  layoff_gap: int | None = None) -> float:
+                  layoff_gap: int | None = None,
+                  month_offset: float = 0.0) -> float:
         """P(pulled) evaluated at the end of a completed inning.
 
         `pen` is (arms unavailable, days of club rest) from
@@ -2174,6 +2175,10 @@ class Hook:
 
         `layoff_gap` is days since this starter's previous START, or None
         for unknown / across a season break. See `per_layoff`.
+
+        `month_offset` is the calendar term, from `sim.bnd_month_offset`.
+        It defaults to 0.0 so every existing caller and every test that
+        builds a `Hook` by hand is unaffected — TODO 7e.
         """
         if self.early_innings and innings <= self.early_innings:
             return _sigmoid(self.intercept + self.early_bnd_offset
@@ -2188,7 +2193,10 @@ class Hook:
                             # and leaving the term out would put a silent
                             # hole in the mechanism the day it is enabled.
                             + self._layoff(layoff_gap, self.per_layoff,
-                                           self.per_layoff_day))
+                                           self.per_layoff_day)
+                            # Carried into the inert branch for the same
+                            # reason `per_layoff` is, three lines up.
+                            + month_offset)
         base = (self.intercept - PITCH_HAZARD_BND_ANCHOR
                 + pitch_hazard(pitches, PITCH_HAZARD_BND)
                 if (USE_PITCH_HAZARD and USE_PITCH_HAZARD_BND) else
@@ -2207,6 +2215,7 @@ class Hook:
                                     self.per_pen_rest)
                         + self._layoff(layoff_gap, self.per_layoff,
                                        self.per_layoff_day)
+                        + month_offset
                         )
 
     @staticmethod
@@ -2703,6 +2712,116 @@ USE_PITCH_HAZARD = True
 #: the `PITCH_HAZARD_BND` comment above, and it is TODO 7e.
 USE_PITCH_HAZARD_BND = True
 
+
+#: THE CALENDAR TERM ON THE BOUNDARY HOOK — TODO 7e. An additive LOGIT
+#: offset by month, because the model has no date and managers plainly do.
+#:
+#: COUNTED on 24,097 pre-holdout boundary decisions inside `hz_iter`'s own
+#: fit windows, buckets 50/60/70/78 (which span pitches 50-84 — the "50-78
+#: buckets" are bucket LABELS, and reading them as a 50-78 pitch RANGE
+#: drops the 79-84 rows and deflates every month by a third):
+#:
+#:     mon      n     rate    logit offset    odds ratio
+#:     05    6,004   0.0663      -0.1622        0.850
+#:     06    5,605   0.0715      -0.0803        0.923
+#:     07    3,964   0.0754      -0.0232        0.977
+#:     08    4,507   0.0757      -0.0199        0.980
+#:     09    4,017   0.1041      +0.3300        1.391
+#:
+#: Offsets are relative to the fit window's own pooled 0.0771, so the term
+#: is LEVEL-NEUTRAL ON THE POPULATION THE TABLE WAS FITTED ON and cannot be
+#: accused of solving for a level — nothing here was scaled to hit a target.
+#:
+#: **THE CORRECTION IS COMPOSITIONAL, WHICH IS THE WHOLE POINT.** The fit
+#: window is 16.7% September and the SCORED window (July-onward) is 34.3%.
+#: Applying these counted month rates to the scored window's mix gives
+#: 0.307*0.0754 + 0.349*0.0757 + 0.311*0.1041 + 0.032*0.1027 = 0.0852,
+#: against the 0.0853 the scored window actually pulls. So a term that
+#: changes NO level on the fit population closes the ~9% under-pull on the
+#: scored one purely by re-weighting the months. That is why this is the
+#: right shape and a re-fit on July-onward rows would have been fitting to
+#: the evaluation window.
+#:
+#: WHY MONTHS AND NOT "DAYS SINCE OPENING DAY": the shape is not a ramp.
+#: May through August is flat inside 0.014 in logit (0.0663 to 0.0757) and
+#: September steps up 0.33. A linear date term would smear that step across
+#: the flat months. And WHY NOT WORKLOAD-TO-DATE, the other candidate 7e
+#: named: it is not measurable here. MLB workload-to-date is not "stretched
+#: out" — a man making his second big-league start in June has been
+#: throwing in the minors all season — and no minor-league workload is on
+#: disk. The alternative is untestable rather than refuted.
+#:
+#: MARCH AND APRIL ARE DELIBERATELY ABSENT AND RESOLVE TO 0.0. March is
+#: outside the fit window AND outside every scored fold (all four start
+#: July 1), so a March term could never be validated by any instrument this
+#: project has; April is excluded from the fit window because an April rate
+#: freeze yields 17 pen clubs and 30 arms. Both are a data limit, not a
+#: claim that the calendar stops mattering — March really does pull at
+#: 0.2205, and a live board in March is priced without this term.
+BND_MONTH_OFFSET = {5: -0.1622, 6: -0.0803, 7: -0.0232, 8: -0.0199,
+                    9: +0.3300, 10: +0.3300}
+
+#: SCORED 2026-09-10 AND IT STAYS OFF — THE PRE-REGISTERED FALSIFIER FAILED
+#: ON BOTH CLAUSES. `game.Side.bnd_month_offset` carries it; the mechanism
+#: and the counted table are kept because what they REFUTE is worth more
+#: than what they buy.
+#:
+#: Battery 8ad95987df74 -> ea48f8f12dbe, all four folds:
+#:
+#:   clause 1, "cut o18.5/o20.5 ... in all four folds" — FAILS on 2023,
+#:   where the gap was already NEGATIVE (-0.0047) because that fold has too
+#:   FEW long starts, so more pulling widened it to -0.0126. Improves in
+#:   2024/2025/2026 only.
+#:
+#:   clause 2, "without giving back the middle band" — FAILS. All five
+#:   middle rows worse in 2023, four of five in 2026.
+#:
+#: AND AN UNREQUESTED ROW MOVED AGAINST US IN ALL FOUR: `outs_mean`
+#: -0.4833 -> -0.5739 (2023), -0.2483 -> -0.3322, -0.0909 -> -0.1657,
+#: -0.1453 -> -0.1604. What it bought instead was `spike_15_share` and
+#: `boundary_share_by_decision`, better in all four.
+#:
+#: **THE ITEM'S OWN PREMISE IS REFUTED AND THAT IS THE FINDING.** 7e called
+#: the seasonal gap "the measured cause" of the long-line overshoot. It is
+#: A cause, but closing it does NOT close the symptom, because the outs
+#: defect is WIDTH, not LEVEL: `outs_sd` overshoots by +0.36 while
+#: `outs_mean` is SHORT by -0.15, i.e. too many short starts AND too many
+#: long ones at once. A level term applied to a width defect can only trade
+#: one tail against the mean, which is exactly what these rows show.
+#: Anything that reasons from "the hook is 9% too permissive, so pull
+#: harder" needs re-deriving against that.
+#:
+#: MIND THE FALSIFIER'S OWN DEFECT, because it would mislead a re-run: it
+#: named the 2026 fold, which is the WEAKEST possible test of a September
+#: term. 2026 is still in progress and its scored window is 13.1% Sep+Oct
+#: against 34-37% in the other three folds, so every 2026 movement here is
+#: ~0.1 se by construction. The verdict does not rest on it — 2023 and the
+#: middle band fail on their own — but a future September item should score
+#: on 2023-2025 and treat 2026 as underpowered until the season completes.
+#:
+#: THE MID-INNING CURVE HAS THE SAME SHAPE AND IS DELIBERATELY NOT WIRED
+#: HERE. Counted on the same rows, `Jul+Aug -> Sep+Oct` runs 0.0211 ->
+#: 0.0275, odds ratio 1.314 against this curve's 1.419, z +3.9, sign-stable
+#: in all three train seasons. So September is a general manage-him-harder
+#: effect and this flag fixes half of it. It is unbundled because two
+#: mechanisms behind one flag cannot be told apart — the rule item 15's
+#: bootstrap-decay bullet already records.
+USE_HOOK_MONTH = False
+
+
+def bnd_month_offset(date: str | None) -> float:
+    """The boundary hook's calendar offset for a game date, or 0.0.
+
+    Unknown, unparseable and out-of-table months all resolve to 0.0 — the
+    same convention as `pen_state` and `layoff_gap`, where absent evidence
+    contributes exactly zero rather than guessing a neighbour's value.
+    """
+    if not USE_HOOK_MONTH or not date:
+        return 0.0
+    try:
+        return BND_MONTH_OFFSET.get(int(str(date)[5:7]), 0.0)
+    except (ValueError, IndexError):
+        return 0.0
 
 
 #: PITCH COUNT x INNING. Seventy pitches in the third is not the decision

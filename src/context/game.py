@@ -560,6 +560,14 @@ class Side:
     #: are already guarded by `not side.starter_out` — the term was counted
     #: on starter decisions only, and a reliever must never receive it.
     layoff_gap: int | None = None
+    #: THE CALENDAR TERM on the boundary hook, from `sim.bnd_month_offset`
+    #: — TODO 7e. 0.0 when `sim.USE_HOOK_MONTH` is off or the date is
+    #: unknown, so it is inert by default.
+    #:
+    #: On the SIDE for the same reason `layoff_gap` is: it is a property of
+    #: the DATE, shared by every arm, and both hook call sites are already
+    #: guarded so only the starter can receive it.
+    bnd_month_offset: float = 0.0
     #: RESOLVED MATCHUPS, nine of them, rebuilt when the arm changes.
     #:
     #: The point of `sim.resolve` is that a plate appearance's inputs get
@@ -1158,7 +1166,8 @@ def _end_of_inning(side: Side, rng: random.Random, inning: int,
                     ln.pitches, ln.runs, inning, ln.h + ln.bb, margin,
                     inning_runs=side.last_inning_runs,
                     pen=side.pen_state,
-                    layoff_gap=side.layoff_gap))
+                    layoff_gap=side.layoff_gap,
+                    month_offset=side.bnd_month_offset))
             or ln.pitches >= side.hook.hard_pitch_cap):
         if not ln.covered_f5:
             ln.runs_f5, ln.outs_f5 = ln.runs, ln.outs
@@ -1556,6 +1565,7 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
                 hook=h,
                 pen_state=sim.pen_state(team, date),
                 layoff_gap=sim.layoff_gap(starter.name, date),
+                bnd_month_offset=sim.bnd_month_offset(date),
                 forced_exit_outs=fx,
                 bulk=bulk, bulk_hook=bh,
                 closer=cl, closer_worked=cl_worked)

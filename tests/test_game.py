@@ -1946,3 +1946,78 @@ def check_the_relief_hook_reads_the_plate_appearance_he_just_watched():
     finally:
         relief.mid_removal = keep
         game.USE_MEASURED_RELIEF_HOOK = hook_orig
+
+
+def check_the_calendar_term_is_inert_unless_switched_on():
+    """`USE_HOOK_MONTH` off means EXACTLY zero, whatever the date.
+
+    Asserted against the shipped flag rather than by forcing it off, so
+    this check also states what the shipped state IS. TODO 7e ships the
+    table counted and the flag OFF, pending the four-fold score.
+    """
+    assert sim.USE_HOOK_MONTH is False, "7e shipped switched on"
+    for d in ("2026-09-15", "2026-07-04", "2026-03-30", None, ""):
+        assert sim.bnd_month_offset(d) == 0.0
+
+
+def check_the_calendar_term_reads_the_counted_month():
+    """September is the step; May-August is the flat part below it.
+
+    THE LITERALS ARE ASSERTED, not recomputed from the table, for the
+    reason `check_the_layoff_is_centred_on_both_curves` records: deriving
+    the expectation from the same dict moves both sides together and a
+    zeroed table would pass.
+    """
+    real = sim.USE_HOOK_MONTH
+    try:
+        sim.USE_HOOK_MONTH = True
+        assert abs(sim.bnd_month_offset("2026-09-15") - 0.3300) < 1e-9
+        assert abs(sim.bnd_month_offset("2026-07-04") + 0.0232) < 1e-9
+        assert abs(sim.bnd_month_offset("2026-05-02") + 0.1622) < 1e-9
+        # September must be the STEP: a build that smeared the calendar
+        # into a ramp would put June and July either side of it.
+        sep = sim.bnd_month_offset("2026-09-15")
+        for d in ("2026-05-02", "2026-06-02", "2026-07-04", "2026-08-04"):
+            assert sep - sim.bnd_month_offset(d) > 0.3, "September is flat"
+        # MARCH AND APRIL RESOLVE TO ZERO ON PURPOSE — outside the fit
+        # window and outside every scored fold, so they are unvalidatable.
+        # A build that "helpfully" extrapolated them would fail here.
+        assert sim.bnd_month_offset("2026-03-30") == 0.0
+        assert sim.bnd_month_offset("2026-04-15") == 0.0
+        # A date that is not a date must be silent-neutral, not an error.
+        assert sim.bnd_month_offset("not-a-date") == 0.0
+    finally:
+        sim.USE_HOOK_MONTH = real
+
+
+def check_the_calendar_term_reaches_the_boundary_hook():
+    """A September start is pulled sooner than the same July start.
+
+    THE WIRING IS THE CLAIM, not the table. `bnd_month_offset` returning
+    the right number buys nothing if `removal_p` never adds it, and those
+    two failures look identical from outside — so this drives the hook.
+    """
+    h = sim.Hook()
+    base = h.removal_p(90, 3, 6, 4, 0)
+    sep = h.removal_p(90, 3, 6, 4, 0, month_offset=0.3300)
+    jul = h.removal_p(90, 3, 6, 4, 0, month_offset=-0.0232)
+    assert sep > base > jul, "the calendar term does not reach the curve"
+    # It must be an ODDS shift, not a probability one: the same offset on a
+    # calmer state has to move the probability LESS in absolute terms.
+    calm = h.removal_p(60, 0, 4, 0, 0)
+    calm_sep = h.removal_p(60, 0, 4, 0, 0, month_offset=0.3300)
+    assert (sep - base) > (calm_sep - calm) > 0
+
+
+def check_the_side_carries_the_calendar_term_to_the_starter_only():
+    """It rides on the SIDE, and the default is inert.
+
+    Guards the plumbing `build_side` fills in: a `Side` built without a
+    date must contribute exactly nothing, so every hand-built `Side` in
+    this suite and in `slate.py` stays unaffected.
+    """
+    s = game.Side(starter=_pitcher(), pen=[], lineup=_lineup())
+    assert s.bnd_month_offset == 0.0
+    h = sim.Hook()
+    assert (h.removal_p(90, 3, 6, 4, 0, month_offset=s.bnd_month_offset)
+            == h.removal_p(90, 3, 6, 4, 0))
