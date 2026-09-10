@@ -11247,3 +11247,147 @@ nothing about the test.
 
 Battery a800884a4161 -> a0f456d3e479, no row moved by more than one se.
 Suite 510 -> 514.
+
+---
+
+## 2026-09-09, later — TODO 23: the mid-inning relief hook was keyed one plate appearance stale
+
+**QUESTION.** 29.2% of simulated relief outings were two outs or fewer
+against a real 22.3%, unmoved by the four bullpen mechanisms that shipped
+earlier the same day. The level and the long tail were right and the short
+end was not.
+
+**THE DECOMPOSITION FIRST, because the pooled share cannot tell two causes
+apart** (`scratchpad/pen_short.py`, four folds). An arm who enters with two
+out and does not come back records exactly ONE out with no hook involved, so
+a wrong ENTRY MIX makes short outings for a reason that has nothing to do
+with how long anyone is left out there:
+
+    entry mix, mid-inning      real 26.23%   sim 30.40%
+    <=2 share on the real mix  27.65%        (as it stood 29.18%)
+
+So the mix was a fifth of it and the hook was the rest. WITHIN an entry
+state the excess is unambiguous, because an arm not pulled mid-inning
+records exactly the outs his inning owed:
+
+    entered 0 out, <=2 outs   real 12.3%   sim 17.4%    +41%
+    entered 1 out, <=1 out    real  5.9%   sim  8.3%    +41%
+    entered 2 out,   0 outs   real  1.1%   sim  2.2%   +100%
+
+**A uniform relative excess across three independent populations is a rate
+that is too high, not three defects** (rule 10).
+
+**THE CAUSE, and it is an offset rather than a wrong number.**
+`relief.removal_hazard` advanced the pitcher's accumulators AFTER emitting
+the row, so the cell labelled "three batters faced" held the decision taken
+after his FOURTH, and the cell labelled "one run allowed" held a decision
+taken after the play that scored the second. `game._half_inning` calls
+`relief.mid_removal(rl.runs, rl.batters)` once `sim.apply_pa` has already
+incremented both. The engine was reading every cell ONE PLATE APPEARANCE
+EARLY, and the hazard has a cliff in it (0.1% -> 7.9%), so a just-arrived
+reliever was charged the settled rate.
+
+**THE ENGINE WAS THE CORRECT SIDE.** The starter's own rows are counted the
+other way and `boundary.decisions` says so in its own words — the state the
+manager weighed is the running total before this play, "except the outcome
+of this play itself, which he obviously saw. Hence the update straddles the
+append." The relief count was the lone outlier. Fourth instance in this
+project of one quantity measured on one footing and applied on another.
+
+**THE RECOUNT IS A RELABELLING, NOT A LEVEL MOVE**
+(`scratchpad/mid_decision.py`, 9,254 games before `HOLDOUT`, both
+conventions in ONE walk over the same rows with the same `changed`). The
+pooled hazard is IDENTICAL either way at 0.0489 over 227,800 in-inning
+relief plate appearances. No mean could have found this; only the shape says
+which labelling is right.
+
+POSITIVE CONTROL, and it is what makes the second column readable: the STALE
+column reproduces the shipped `MID_INTENT` **57/57 cells**, so the walk is
+the walk that produced the old table and the difference is the offset and
+nothing else.
+
+The depth-0 cells fall from 1.5-8.1% to 0.0-0.3% — a manager does not take
+the ball after one or two batters — and the runs axis came out monotone for
+the first time (0.079 / 0.093 / 0.107 / 0.123 at the peak depth against a
+stale 0.099 / 0.130 / 0.141 / 0.109 that turned over at the end). The flat
+table is now train rows only too, which the old one was not.
+
+**SCORED.** `pen_short.py` on four folds, 23,844 real outings:
+
+    outs         mean    <=2      3     >=4     mid-inning entry
+      real       3.34   22.3%  53.7%  24.0%        26.2%
+      before     3.19   29.2%  47.9%  23.0%        30.4%
+      after      3.35   23.0%  52.9%  24.1%        27.0%
+
+89% of the <=2 gap and 81% of the entry-mix gap. The entry mix was NOT
+targeted and came with it, which is the prediction this was registered on:
+every mid-inning pull manufactures a mid-inning entry, so one mechanism owns
+both halves. Conditional on a clean entry the <=2 share lands exactly
+(12.3% against 12.3%).
+
+**AND THE BATTERY COULD NOT SEE ANY OF IT — max 0.26 se over 662 rows.**
+Not dilution (this touches every game) and not mean-versus-shape: THERE WAS
+NO ROW. Every row in the file reads runs, outs or a hook cell. So the row
+was built, the same obligation that produced the `save` rows: a `pen` group
+carrying relief outing mean, the <=2 and >=7 shares, mid-inning entry share
+and ARMS PER SIDE — the one a total feels, since each handover is a fresh
+pitcher facing the top of the order. Both engine states were then run
+through the full battery at 40 sims a game:
+
+    key                       before z      after z      real
+      relief_outs_mean         -11.2         +1.1       3.3335
+      relief_le2_share         +24.7         +3.2       0.2247
+      relief_mid_entry_share   +14.0         +3.0       0.2627
+      arms_per_side            +15.0         +4.3       3.2800
+      relief_ge7_share          +0.5         +2.6       0.0438
+
+**REPORT THE ROW THAT WENT THE WRONG WAY: `relief_ge7_share` was exactly
+right before and is now +2.6 se heavy** (4.73% against 4.38%). Small in
+absolute terms and the opposite end of the same distribution, but it moved
+adversely and is not to be quietly dropped.
+
+**THE RESIDUAL IS REAL AND SMALLER.** `relief_le2_share` is still +3.2 se
+with the sign identical in all four folds (+2.0 / +0.7 / +1.0 / +3.0), and
+`arms_per_side` +4.3. So item 23 survives its own fix at about a seventh of
+its former size. The remaining suspect is the mid-inning ENTRY rate rather
+than the hook's depth shape, since the entry-mix row moved in step. Note
+`arms_per_side` reads +5.5 in 2023 against +0.6 / +0.4 / +1.9 — treat that
+fold as noise until it repeats.
+
+Also still open and unrelated to the hook: the innings 1-3 bucket puts 10.3%
+of outings at exactly one out against a real 2.3% (mean 7.21 against 7.67).
+That is the bulk arm, TODO 15, not this.
+
+**TODO 22'S PRE-REGISTERED TEST RESOLVES, AGAINST THE HYPOTHESIS.** "Fix 23,
+re-run the battery, watch the `save` rows. If they move it is one defect."
+They did not move:
+
+    key                 before gap    after gap      se
+      lead_held           -0.0121      -0.0118    0.0064
+      allowed_0           -0.0271      -0.0276    0.0099
+      allowed_2plus       +0.0172      +0.0175    0.0079
+
+**22 AND 23 ARE NOT ONE DEFECT.** The model still blows late leads more
+often than real bullpens do, and it is not because it churns through arms —
+relief length is now right and `lead_held` did not budge. That is the whole
+value of pre-registering it: the answer cost one battery run and the
+alternative was a session of plausible reasoning. Item 22's own first
+suspects stand: the ninth-inning run DISTRIBUTION (the clustering defect)
+and relief rates against a lineup's best hitters.
+
+Suite 514 -> 518. Four checks, every one mutation-verified: the engine-side
+keying (`tests.test_game`), the depth-0 cells and the runs monotonicity
+(`tests.test_relief`), and the `pen` collector's two traps —
+the phantom arm and the per-side starter drop (`tests.test_battery`).
+
+**A TOOLING TRAP WORTH THE LINE, because it nearly produced a false
+mutation result.** A mutation test that edits a constant, runs, and restores
+within the same second can be served STALE BYTECODE: CPython invalidates a
+`.pyc` on source mtime (one-second granularity) plus SIZE, and `0.191` and
+`0.116` are the same length. The restored file tested as though still
+mutated. Clear `__pycache__` between swaps, or make the mutation change the
+file's length.
+
+Battery a0f456d3e479 -> 8ad95987df74. Fingerprint
+68e83b6f5e46 -> d21ae22d9f96 (a probability changed, not a draw count, so
+the streams stay paired and the move is expected).

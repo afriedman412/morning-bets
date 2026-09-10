@@ -1907,3 +1907,42 @@ def check_the_stale_gate_needs_a_prior_appearance():
     tally = {"unseen": 9, "real": 4}
     appeared = {"unseen": {"2026-06-01"}, "real": {"2026-05-19"}}
     assert game.name_closer(tally, appeared, "2026-05-20") == "real"
+
+
+def check_the_relief_hook_reads_the_plate_appearance_he_just_watched():
+    """The manager decides having SEEN the batter, so `mid_removal` must be
+    asked with the line INCLUDING the plate appearance just resolved.
+
+    THE BUG THIS GUARDS (TODO 23, 2026-09-09) was not in this call site — it
+    was in the table, which was counted one plate appearance stale while the
+    engine asked it fresh. Either side can drift back, so both are pinned:
+    here that the engine's first question about a fresh reliever is "he has
+    faced ONE batter", and in `tests.test_relief` that the table's own
+    recount folds the play in before emitting the row.
+
+    A reliever who has just faced one man cannot have faced zero, and
+    `min(batters // 3, ...)` makes the two land in the same bucket — so an
+    off-by-one here is invisible on the first batter and only shows on the
+    third. The assertion is on the raw argument, not on the bucket.
+    """
+    from src.context import relief
+    seen = []
+    keep = relief.mid_removal
+    relief.mid_removal = lambda runs, batters, **kw: (
+        seen.append((runs, batters)), 0.0)[1]
+    hook_orig = game.USE_MEASURED_RELIEF_HOOK
+    game.USE_MEASURED_RELIEF_HOOK = True
+    try:
+        # A staff that cannot get anyone out, so the starter is pulled early
+        # and the reliever behind him faces plenty of men.
+        bp = dict(k_pct=0.01, bb_pct=0.30, hr_pct=0.10, babip=0.40)
+        away = _side(starter=_pitcher(**bp), pen=_pen(**bp))
+        game.simulate_game(away, _side(), dict(LG), random.Random(11))
+        assert seen, "the relief hook was never rolled"
+        assert seen[0][1] == 1, (
+            f"first question about a fresh reliever was batters={seen[0][1]},"
+            " so the engine is asking the table one plate appearance early")
+        assert min(b for _, b in seen) >= 1, min(b for _, b in seen)
+    finally:
+        relief.mid_removal = keep
+        game.USE_MEASURED_RELIEF_HOOK = hook_orig

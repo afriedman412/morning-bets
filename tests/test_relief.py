@@ -116,7 +116,7 @@ def check_mid_inning_entry_counts_runners_as_well_as_outs():
 
 def check_a_just_arrived_reliever_is_nearly_immune():
     """The "not pulled in the same breath he arrived" rule is MEASURED, not
-    hard-coded — 1.5% over his first two batters against a 14.1% peak once
+    hard-coded — 0.1% over his first two batters against a 19.1% peak once
     he has faced the men he came in for.
 
     `game.py` used to encode that protection as a flat rule and could then
@@ -125,6 +125,42 @@ def check_a_just_arrived_reliever_is_nearly_immune():
     fresh = relief.mid_removal(0, 0)
     settled = relief.mid_removal(2, 4)
     assert fresh < settled / 4, (fresh, settled)
+
+
+def check_nobody_is_pulled_after_one_batter():
+    """TODO 23, 2026-09-09. Every depth-0 cell of the intent table is under
+    a point, because the decision it holds is "he has faced one or two men"
+    and a manager essentially never takes the ball there.
+
+    THE TABLE USED TO SAY 1.5% TO 8.1% IN THOSE CELLS and that was the
+    single largest defect in relief-outing shape: keyed one plate
+    appearance stale, the cell was really holding his THIRD batter's
+    decision. The engine spends more rolls in depth 0 than in any other
+    cell, so the offset manufactured one-batter relief outings — 29.2% of
+    simulated outings ended at two outs or fewer against a real 22.3%, and
+    correcting the key alone took that to 23.0%.
+
+    Guarding the cells rather than the mean because a mean cannot see it:
+    the pooled hazard over the same rows is 0.0489 either way. This is a
+    relabelling, and only the shape says which labelling is right.
+    """
+    bad = {k: v for k, v in relief.MID_INTENT.items() if k[2] == 0 and v > 0.01}
+    assert not bad, bad
+    assert all(v <= 0.002 for k, v in relief.RELIEF_MID_REMOVAL.items()
+               for kk, v in v.items() if kk == 0), relief.RELIEF_MID_REMOVAL
+
+
+def check_the_relief_hook_rises_with_runs_allowed_at_the_peak():
+    """More damage, shorter leash — at the depth where the hazard peaks the
+    runs axis must be monotone.
+
+    It was NOT under the stale key (0.073 / 0.097 / 0.122 / 0.116, turning
+    over at 3+ runs), and that turnover was the offset mixing two adjacent
+    decisions into one cell rather than anything about managers. A
+    non-monotone runs axis here is the signature of the key drifting back.
+    """
+    col = [relief.RELIEF_MID_REMOVAL[r][2] for r in (0, 1, 2, 3)]
+    assert col == sorted(col) and col[3] > col[0], col
 
 
 def check_the_removal_hazard_is_not_monotone_in_batters_faced():

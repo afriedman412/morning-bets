@@ -103,3 +103,70 @@ def check_the_save_row_counts_a_held_lead_on_both_sides():
     assert battery.save_cell(7, 3, 7, 3)["n"] == 0
     # Tied after eight is not one either.
     assert battery.save_cell(3, 3, 4, 3)["n"] == 0
+
+
+def check_the_pen_row_drops_the_starter_and_the_phantom_arm():
+    """The relief-length rows (TODO 23) exist because four bullpen
+    mechanisms shipped on 2026-09-09 and not one moved a row in this file —
+    there was no row here that COULD have moved.
+
+    TWO WAYS TO BUILD THE MODEL SIDE WRONG, and both were made before:
+
+      THE PHANTOM ARM. `game._end_of_inning` fires after the LAST inning
+      too, so a failed continuation roll warms up a reliever who never
+      faces a batter. `mlb_stints` has no row for him, so counting him
+      reads 4.23 arms a side against a real 3.38 and puts 41% of outings
+      at two outs or fewer — a wrong instrument reading as a wrong engine.
+
+      THE STARTER. He is the first entry each side logs and he is not a
+      relief outing. Dropping him GLOBALLY rather than per side eats the
+      away club's first reliever.
+    """
+    from scratchpad import battery as B
+
+    class _Line:
+        def __init__(self, outs, batters):
+            self.outs, self.batters = outs, batters
+
+    class _Side:
+        def __init__(self, entry_outs, outs, batters):
+            self.cur_entry_outs = entry_outs
+            self.cur_line = _Line(outs, batters)
+
+    away, home = _Side(0, 0, 0), _Side(2, 1, 4)
+    keep_log, keep_sides = list(B._ARM_LOG), list(B._SIDES)
+    B._ARM_LOG.clear()
+    try:
+        # away: starter 18 outs, then two relievers of 3 and 4 outs, then
+        # the phantom (0 outs, 0 batters) still on the mound at the end.
+        B._ARM_LOG.append((id(away), 0, 18, 24))
+        B._ARM_LOG.append((id(away), 0, 3, 4))
+        B._ARM_LOG.append((id(away), 1, 4, 5))
+        # home: starter 15 outs, then one reliever of 6, and the arm who
+        # ended the game entered mid-inning and got 1 out.
+        B._ARM_LOG.append((id(home), 0, 15, 21))
+        B._ARM_LOG.append((id(home), 0, 6, 8))
+        B._SIDES[0], B._SIDES[1] = away, home
+        acc = {k: 0 for k in ("n", "outs", "outs2", "le2", "ge7", "mid",
+                              "sides", "arms2")}
+        B._collect_pen(acc)
+    finally:
+        B._ARM_LOG.clear()
+        B._ARM_LOG.extend(keep_log)
+        B._SIDES[0], B._SIDES[1] = keep_sides[0], keep_sides[1]
+
+    # Four relief outings: 3, 4 (away) and 6, 1 (home). The away phantom is
+    # not one of them and neither starter is.
+    assert acc["n"] == 4, acc
+    assert acc["outs"] == 14, acc
+    assert acc["outs2"] == 9 + 16 + 36 + 1, acc
+    assert acc["sides"] == 2, acc
+    # <=2 outs is the home closer's single out, and nothing else.
+    assert acc["le2"] == 1, acc
+    assert acc["ge7"] == 0, acc
+    # Mid-inning entries: the away 4-out arm (entered with 1 down) and the
+    # home arm who finished (entered with 2 down).
+    assert acc["mid"] == 2, acc
+    # Two arms each side, so 4 + 4 — NOT (2+2)^2, which is what pooling the
+    # sides would give and is how a per-side variance goes wrong.
+    assert acc["arms2"] == 8, acc

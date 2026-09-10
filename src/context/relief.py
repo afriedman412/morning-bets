@@ -369,6 +369,22 @@ if __name__ == "__main__":
 # The hazard below is per PLATE APPEARANCE and conditions only on what had
 # already happened when the decision was taken, which is the same footing as
 # `sim.Hook.mid_removal_p` for a starter.
+#
+# AND "WHEN THE DECISION WAS TAKEN" INCLUDES THE PLATE APPEARANCE HE JUST
+# WATCHED (corrected 2026-09-09, TODO 23). This block used to advance the
+# pitcher's accumulators AFTER emitting the row, so the cell labelled "three
+# batters faced" actually held the decision taken after his FOURTH, and the
+# cell labelled "one run allowed" held a decision taken after the play that
+# scored the second. `game._half_inning` calls `mid_removal(rl.runs,
+# rl.batters)` once `sim.apply_pa` has already incremented both, so the
+# engine was reading every cell one plate appearance early — and the hazard
+# has a cliff in it, so that charged a just-arrived arm the settled rate.
+#
+# The convention here is now `boundary.decisions`', stated in its own words:
+# the state the manager weighed is the running total BEFORE this play,
+# "except the outcome of this play itself, which he obviously saw. Hence the
+# update straddles the append." Both hooks are counted the same way and the
+# engine asks both of them the same question.
 # ---------------------------------------------------------------------------
 
 def removal_hazard(limit: int | None = None, verbose: bool = True) -> dict:
@@ -406,7 +422,7 @@ def removal_hazard(limit: int | None = None, verbose: bool = True) -> dict:
             if st_ is None or st_[0] != pid:
                 order[side] += 1
                 cur[side] = st_ = [pid, 0, 0, order[side] > 1]
-            runs_before, batters_before, is_rel = st_[1], st_[2], st_[3]
+            is_rel = st_[3]
 
             # Does a change happen before the next play of this half-inning?
             nxt = seq[i + 1] if i + 1 < len(seq) else None
@@ -420,20 +436,24 @@ def removal_hazard(limit: int | None = None, verbose: bool = True) -> dict:
                         or {}).get("id")
                 changed = bool(npid and npid != pid)
 
-            if is_rel and same_half:
-                key = (min(runs_before, 3), min(batters_before // 3, 3))
-                cells[key][1] += 1
-                cells[key][0] += 1 if changed else 0
-                cells[(min(runs_before, 3), None)][1] += 1
-                cells[(min(runs_before, 3), None)][0] += 1 if changed else 0
-                cells[(None, None)][1] += 1
-                cells[(None, None)][0] += 1 if changed else 0
-
-            # Advance this pitcher's own accumulators past the play.
+            # THE UPDATE STRADDLES THE APPEND — he saw this plate appearance
+            # before deciding, so it is folded in FIRST and the row carries
+            # the state at the decision. See the block comment above; doing
+            # this afterwards is what put the engine one batter early.
             res = play.get("result") or {}
             st_[1] += (res.get("awayScore", 0) + res.get("homeScore", 0)) - (
                 away + home)
             st_[2] += 1
+            runs_now, batters_now = st_[1], st_[2]
+
+            if is_rel and same_half:
+                key = (min(runs_now, 3), min(batters_now // 3, 3))
+                cells[key][1] += 1
+                cells[key][0] += 1 if changed else 0
+                cells[(min(runs_now, 3), None)][1] += 1
+                cells[(min(runs_now, 3), None)][0] += 1 if changed else 0
+                cells[(None, None)][1] += 1
+                cells[(None, None)][0] += 1 if changed else 0
         if verbose and games % 500 == 0:
             print(f"  {games} games, {cells[(None, None)][1]:,} relief PAs",
                   flush=True)
@@ -457,19 +477,36 @@ def removal_report(h: dict | None = None) -> None:
 
 
 #: P(this reliever is replaced before the next batter), counted per PLATE
-#: APPEARANCE over 50,023 in-inning relief PAs, indexed
-#: [min(runs so far, 3)][min(batters faced so far // 3, 3)].
+#: APPEARANCE over 227,800 in-inning relief PAs in 9,254 games before
+#: `HOLDOUT`, indexed [min(runs so far, 3)][min(batters faced so far // 3,
+#: 3)] where "so far" INCLUDES the plate appearance just resolved — the
+#: state the engine passes.
 #:
 #: Both dimensions earn their place and the batter one is not monotone. The
 #: first two batters are nearly immune — he has just been brought in for
 #: this exact situation — then the hazard peaks once he has faced the men he
 #: came in for, then falls away as the arms still out there are the ones
 #: handling it. A single scalar reproduces none of that shape.
+#:
+#: RECOUNTED ON THE DECISION CONVENTION 2026-09-09 (TODO 23,
+#: `scratchpad/mid_decision.py`). The published version was keyed one plate
+#: appearance stale, which mattered because of the cliff: it charged an arm
+#: 1.5-6% for a decision reality takes at 0.1%, and the engine spends more
+#: decisions in that first cell than anywhere else. The pooled rate over the
+#: same rows is UNCHANGED at 0.0489 — this is a relabelling, not a level
+#: move — but a just-arrived reliever now survives his first two batters the
+#: way a real one does. The runs axis also came out monotone for the first
+#: time (0.079 / 0.093 / 0.107 / 0.123 at the peak depth); under the stale
+#: key it ran 0.099 / 0.130 / 0.141 / 0.109 and turned over at the end,
+#: which was the offset mixing two adjacent decisions into one cell.
+#:
+#: The old table was also counted over EVERY game, holdout included. This
+#: one is train rows only (rule 6), so the two differ by population as well.
 RELIEF_MID_REMOVAL = {
-    0: {0: 0.015, 1: 0.099, 2: 0.073, 3: 0.070},
-    1: {0: 0.045, 1: 0.130, 2: 0.097, 3: 0.060},
-    2: {0: 0.033, 1: 0.141, 2: 0.122, 3: 0.087},
-    3: {0: 0.061, 1: 0.109, 2: 0.116, 3: 0.080},
+    0: {0: 0.001, 1: 0.079, 2: 0.089, 3: 0.070},
+    1: {0: 0.001, 1: 0.093, 2: 0.114, 3: 0.087},
+    2: {0: 0.001, 1: 0.107, 2: 0.148, 3: 0.095},
+    3: {0: 0.001, 1: 0.123, 2: 0.191, 3: 0.104},
 }
 
 
@@ -487,10 +524,15 @@ RELIEF_MID_REMOVAL = {
 #: where a bulk arm lives:
 #:
 #:     batters faced      1-3    4-6    7-9  10-12  13-15  16-18    19+
-#:       entered 1-3     0.5%   3.6%   4.0%   5.6%   8.7%   7.4%  15.0%
-#:       entered 4-6     2.1%  11.7%  11.3%  10.0%   9.5%   9.5%  10.0%
-#:       entered 7+      1.6%  11.5%  12.7%   8.9%      -      -      -
-#:       flat (shipped)  1.5%   9.9%   7.3%  ------ 7.0% flat ------
+#:       entered 1-3     0.3%   2.5%   3.5%   4.0%   6.0%  10.4%      -
+#:       entered 4-6     0.2%   9.2%  11.3%   8.1%   8.1%      -      -
+#:       entered 7+      0.1%   7.6%   7.9%   5.4%      -      -      -
+#:       flat            0.1%   7.9%   8.9%  ------ 7.0% flat ------
+#:
+#: (Those rows are the DECISION convention, 2026-09-09. Under the stale key
+#: the same rows read 0.5 / 3.4 / 3.5 / 4.4 / 10.1 / 6.5 for the early
+#: entry and 1.4 / 10.2 / 8.6 / 6.6 for the late one — the shape of the
+#: intent finding is unchanged, every row simply shifted one batter.)
 #:
 #: TWO THINGS THIS IS NOT. It is not a depth fix — the guess that the real
 #: hazard falls past the shipped 9-batter cap is REFUTED (pooled it runs
@@ -500,31 +542,53 @@ RELIEF_MID_REMOVAL = {
 #: own. One dimension, no special case.
 #:
 #: Keyed (intent bucket, min(runs, 3), min(batters // 3, 6)). Counted on
-#: rows before `HOLDOUT`, unlike the flat table above, which was not.
+#: rows before `HOLDOUT`, as the flat table above now is too.
+#:
+#: RECOUNTED ON THE DECISION CONVENTION 2026-09-09, same rows, same walk,
+#: same `changed` — only which state labels the decision moved. See
+#: `RELIEF_MID_REMOVAL` above and `scratchpad/mid_decision.py`, whose
+#: positive control reproduces the previous literals cell for cell (57/57)
+#: under the old key, which is what makes this column readable as the
+#: offset and nothing else.
+#:
+#: THE CLIFF MOVED ONE BATTER LATE, AND THAT IS THE WHOLE CORRECTION. The
+#: depth-0 cells fall from 1.5-8% to 0.0-0.3%: a manager does not pull a
+#: reliever after one or two batters, and the old cell was picking up the
+#: THIRD batter's decision, which is a different thing. The engine spends
+#: more rolls in depth 0 than in any other cell, so it was manufacturing
+#: one-batter relief outings.
+#:
+#: (1, 3, 0) and (0, 1, 0) come out at exactly 0.0 on 373 and 456 rows. That
+#: is the counted value and it ships as counted; the neighbouring cells run
+#: 0.0007-0.0025 and the 95% upper bound is under a point, so it is a thin
+#: cell agreeing with its neighbours, not a hole.
 MID_INTENT = {
-    (0, 0, 0): 0.0046, (0, 0, 1): 0.0344, (0, 0, 2): 0.0349,
-    (0, 0, 3): 0.0442, (0, 0, 4): 0.1007, (0, 0, 5): 0.0648,
-    (0, 1, 0): 0.0157, (0, 1, 1): 0.0239, (0, 1, 2): 0.0440,
-    (0, 1, 3): 0.0445, (0, 1, 4): 0.0778, (0, 1, 5): 0.0905,
-    (0, 2, 1): 0.0722, (0, 2, 2): 0.0508, (0, 2, 3): 0.0694,
-    (0, 2, 4): 0.1064,
-    (0, 3, 2): 0.0460, (0, 3, 3): 0.0909, (0, 3, 4): 0.0637,
-    (0, 3, 5): 0.0557, (0, 3, 6): 0.1171,
-    (1, 0, 0): 0.0191, (1, 0, 1): 0.1163, (1, 0, 2): 0.1083,
-    (1, 0, 3): 0.0913, (1, 0, 4): 0.1009,
-    (1, 1, 0): 0.0493, (1, 1, 1): 0.1126, (1, 1, 2): 0.1204,
-    (1, 1, 3): 0.1008, (1, 1, 4): 0.1098,
-    (1, 2, 0): 0.0361, (1, 2, 1): 0.1389, (1, 2, 2): 0.1097,
-    (1, 2, 3): 0.1093, (1, 2, 4): 0.0875,
-    (1, 3, 0): 0.0549, (1, 3, 1): 0.1091, (1, 3, 2): 0.1178,
-    (1, 3, 3): 0.1043, (1, 3, 4): 0.0815, (1, 3, 5): 0.1094,
-    (2, 0, 0): 0.0145, (2, 0, 1): 0.1018, (2, 0, 2): 0.0865,
-    (2, 0, 3): 0.0661,
-    (2, 1, 0): 0.0421, (2, 1, 1): 0.1300, (2, 1, 2): 0.1133,
-    (2, 1, 3): 0.0784,
-    (2, 2, 0): 0.0667, (2, 2, 1): 0.1522, (2, 2, 2): 0.1738,
-    (2, 3, 0): 0.0810, (2, 3, 1): 0.1622, (2, 3, 2): 0.1978,
-    (2, 3, 3): 0.0974,
+    (0, 0, 0): 0.0029, (0, 0, 1): 0.0245, (0, 0, 2): 0.0347,
+    (0, 0, 3): 0.0400, (0, 0, 4): 0.0603, (0, 0, 5): 0.1037,
+    (0, 1, 0): 0.0000, (0, 1, 1): 0.0219, (0, 1, 2): 0.0419,
+    (0, 1, 3): 0.0395, (0, 1, 4): 0.0759, (0, 1, 5): 0.0902,
+    (0, 1, 6): 0.1435,
+    (0, 2, 1): 0.0352, (0, 2, 2): 0.0511, (0, 2, 3): 0.0523,
+    (0, 2, 4): 0.0798,
+    (0, 3, 1): 0.0385, (0, 3, 2): 0.0617, (0, 3, 3): 0.0552,
+    (0, 3, 4): 0.0902, (0, 3, 5): 0.0612, (0, 3, 6): 0.1207,
+    (1, 0, 0): 0.0020, (1, 0, 1): 0.0923, (1, 0, 2): 0.1126,
+    (1, 0, 3): 0.0807, (1, 0, 4): 0.0815,
+    (1, 1, 0): 0.0007, (1, 1, 1): 0.0985, (1, 1, 2): 0.1258,
+    (1, 1, 3): 0.0974, (1, 1, 4): 0.0977,
+    (1, 2, 0): 0.0011, (1, 2, 1): 0.1037, (1, 2, 2): 0.1433,
+    (1, 2, 3): 0.1033, (1, 2, 4): 0.0936,
+    (1, 3, 0): 0.0000, (1, 3, 1): 0.0985, (1, 3, 2): 0.1557,
+    (1, 3, 3): 0.1281, (1, 3, 4): 0.0904, (1, 3, 5): 0.0920,
+    (1, 3, 6): 0.0884,
+    (2, 0, 0): 0.0008, (2, 0, 1): 0.0756, (2, 0, 2): 0.0792,
+    (2, 0, 3): 0.0537,
+    (2, 1, 0): 0.0019, (2, 1, 1): 0.0939, (2, 1, 2): 0.1189,
+    (2, 1, 3): 0.0611,
+    (2, 2, 0): 0.0008, (2, 2, 1): 0.1144, (2, 2, 2): 0.1718,
+    (2, 2, 3): 0.0983,
+    (2, 3, 0): 0.0025, (2, 3, 1): 0.1494, (2, 3, 2): 0.2376,
+    (2, 3, 3): 0.1438,
 }
 
 #: The (intent, depth) MARGINAL, and it is load-bearing rather than
@@ -535,11 +599,12 @@ MID_INTENT = {
 #: falls through to the flat table, so the degradation is monotone and
 #: every level is something that was actually counted.
 MID_INTENT_DEPTH = {
-    (0, 0): 0.0051, (0, 1): 0.0363, (0, 2): 0.0401, (0, 3): 0.0563,
-    (0, 4): 0.0871, (0, 5): 0.0740, (0, 6): 0.1498,
-    (1, 0): 0.0215, (1, 1): 0.1171, (1, 2): 0.1127, (1, 3): 0.0998,
-    (1, 4): 0.0946, (1, 5): 0.0947, (1, 6): 0.1000,
-    (2, 0): 0.0162, (2, 1): 0.1151, (2, 2): 0.1269, (2, 3): 0.0892,
+    (0, 0): 0.0024, (0, 1): 0.0260, (0, 2): 0.0418, (0, 3): 0.0446,
+    (0, 4): 0.0752, (0, 5): 0.0857, (0, 6): 0.1342,
+    (1, 0): 0.0018, (1, 1): 0.0950, (1, 2): 0.1263, (1, 3): 0.0996,
+    (1, 4): 0.0907, (1, 5): 0.0906, (1, 6): 0.1019,
+    (2, 0): 0.0009, (2, 1): 0.0864, (2, 2): 0.1362, (2, 3): 0.0955,
+    (2, 4): 0.0909,
 }
 
 #: Off restores the flat table exactly, so OFF is bit-for-bit the

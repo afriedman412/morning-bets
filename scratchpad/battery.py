@@ -40,6 +40,13 @@ THE ROWS, all model vs real with gap, se, z and the Monte-Carlo floor:
                 the protecting side allows from the ninth on (0, 2+). The
                 OUTCOME the bullpen items aim at — every other bullpen row
                 here is a proxy, and `late` is all means
+    pen         relief outing length: mean outs, the <=2 and >=7 shares, the
+                mid-inning ENTRY share and ARMS PER SIDE. Added 2026-09-09
+                because four bullpen mechanisms shipped that day and none
+                moved a row here — and no row here COULD have moved, which
+                is the obligation the "nothing moved" rule imposes. Arms per
+                side is the one a total feels: every handover is a fresh
+                pitcher facing the top of the order
     hook        both curves, model hazard vs real rate on the
                 `pitch_hazard` bucket edges (holdout rows of the fold)
     shape       starter outs/K mean+sd, K 9+ share, outs over-lines,
@@ -116,6 +123,15 @@ _PIDS: dict = {}        # starter name -> mlb player id
 #: Per-draw logs the wrappers write into. Cleared by the worker per draw.
 _PA_LOG: list = []
 _HOOK_LOG: list = []
+#: (side id, entry_outs, outs, batters) for each arm as he LEAVES. `Side`
+#: keeps only the STARTER's line and folds every relief line away at
+#: handover, so the outgoing arm has to be recorded at the handover or he is
+#: gone. The last arm on each side never hands over and is appended by the
+#: worker from `cur_line`.
+_ARM_LOG: list = []
+#: The two `Side` objects of the draw in flight, so the worker can reach the
+#: arm still on the mound when the game ended.
+_SIDES: list = [None, None]
 _WRAPPED = [False]
 
 #: Real-side event sets, mirroring the model's outcome alphabet.
@@ -193,6 +209,30 @@ def _install():
 
     sim.Hook.removal_p, sim.Hook.mid_removal_p = removal_p, mid_removal_p
 
+    # RELIEF OUTING LENGTH — the row the bullpen items had no scorecard for.
+    # Four mechanisms shipped on 2026-09-09 aimed at how long an arm stays
+    # out there and not one of them could be scored here, because every
+    # other row in this file reads runs, outs or a hook cell. `pen_shape.py`
+    # measured it off to one side, which is exactly the one-defect-one-
+    # scratchpad habit the battery exists to end.
+    orig_next = game.Side.next_arm
+
+    def next_arm(self, entry_outs=0, rng=None, inning=0, margin=None):
+        _ARM_LOG.append((id(self), self.cur_entry_outs,
+                         self.cur_line.outs, self.cur_line.batters))
+        return orig_next(self, entry_outs, rng, inning, margin)
+
+    game.Side.next_arm = next_arm
+
+    orig_game = game.simulate_game
+
+    def simulate_game(A, H, *a, **k):
+        _SIDES[0], _SIDES[1] = A, H
+        return orig_game(A, H, *a, **k)
+
+    game.simulate_game = simulate_game
+    cal.game.simulate_game = simulate_game
+
 
 def _bucket(p):
     for lo, hi in zip(EDGES, EDGES[1:]):
@@ -240,6 +280,44 @@ def save_cell(a8: int, h8: int, away: int, home: int) -> dict:
 
 # ── the one pass: model side ────────────────────────────────────────────
 
+def _collect_pen(acc: dict) -> None:
+    """Fold the draw's relief outings into `acc`, one entry per arm.
+
+    THE PHANTOM ARM, and it is 80% of sides. `game._end_of_inning` fires
+    after the LAST inning too, so a failed continuation roll warms up a
+    reliever who never faces a batter. He is not a relief outing and
+    `mlb_stints` has no row for him — counting him reads 4.23 arms a side
+    against a real 3.38 and puts 41% of outings at two outs or fewer, a
+    wrong instrument rather than a wrong engine. Filter on `batters > 0`.
+
+    THE STARTER IS DROPPED per side, not globally: the first entry a side
+    logs is its starter handing over, and a side whose starter went the
+    distance logs exactly one entry, which is that same starter.
+    """
+    by_side: dict = defaultdict(list)
+    for sid, entry_outs, outs, batters in _ARM_LOG:
+        by_side[sid].append((entry_outs, outs, batters))
+    for side in _SIDES:
+        if side is None:
+            continue
+        by_side[id(side)].append((side.cur_entry_outs, side.cur_line.outs,
+                                  side.cur_line.batters))
+    for sid, arms in by_side.items():
+        acc["sides"] += 1
+        used = 0
+        for entry_outs, outs, batters in arms[1:]:
+            if batters <= 0:
+                continue
+            used += 1
+            acc["n"] += 1
+            acc["outs"] += outs
+            acc["outs2"] += outs * outs
+            acc["le2"] += outs <= 2
+            acc["ge7"] += outs >= 7
+            acc["mid"] += entry_outs > 0
+        acc["arms2"] += used * used
+
+
 def _model_one(gid: str) -> dict:
     """Simulate one game `_SIMS` times, every view read off the same draws."""
     pair = _CASES[gid]
@@ -257,6 +335,12 @@ def _model_one(gid: str) -> dict:
          # from the ninth on. A RATE and a SHAPE, because the mean of
          # ninth-inning runs is exactly what a better closer does not move.
          "save": {"n": 0, "held": 0, "r0": 0, "r2": 0},
+         # RELIEF OUTING LENGTH. `n` outings, `outs` their total, and the
+         # two tail shares — a one-inning arm and a two-inning arm are the
+         # same mean and a different bullpen, so the mean alone is not the
+         # row. `sides` counts club-games so `arms` can be a per-side rate.
+         "pen": {"n": 0, "outs": 0, "outs2": 0, "le2": 0, "ge7": 0,
+                 "mid": 0, "sides": 0, "arms2": 0},
          "hook": {"bnd": defaultdict(lambda: [0.0, 0]),
                   "mid": defaultdict(lambda: [0.0, 0])},
          "sp": {s: {"outs": Counter(), "k": Counter(), "spike_mid": Counter(),
@@ -274,7 +358,9 @@ def _model_one(gid: str) -> dict:
                             + draw)
         _PA_LOG.clear()
         _HOOK_LOG.clear()
+        _ARM_LOG.clear()
         r = cal.replay(pair, _LG, _PENS, rng, track=TRACK)
+        _collect_pen(m["pen"])
         ps = r.prefix_side
         for p in LADDER:
             m["lad"][p] += r.prefix.get(p, r.away + r.home)
@@ -389,6 +475,12 @@ def _actual_one(gid: str, data: dict) -> dict:
     a = {"inn": defaultdict(int), "one": 0.0, "ext": 0.0,
          "late": {b: [0.0, 0] for b in range(MARGIN_CAP + 1)},
          "save": {"n": 0, "held": 0, "r0": 0, "r2": 0},
+         # The real relief outings, off `pbp.stints` rather than re-derived
+         # here: it is the same extractor `mlb_stints` is built from, so the
+         # model and real sides of this row cannot drift apart through two
+         # different definitions of "an outing" (rule 10).
+         "pen": {"n": 0, "outs": 0, "outs2": 0, "le2": 0, "ge7": 0,
+                 "mid": 0, "sides": 2, "arms2": 0},
          "pa": Counter(), "plat": Counter(), "kind": {},
          # Starter-restricted DP counts per pitching half, and per-batter
          # singles/XBH — the real side of the GB-quintile rows.
@@ -473,6 +565,20 @@ def _actual_one(gid: str, data: dict) -> dict:
             a["late"][b][1] += 1
     if 9 in at_start:
         a["save"] = save_cell(*at_start[9], ca, ch)
+    per_side: dict = defaultdict(int)
+    for s in pbp.stints(gid, data):
+        if s.order <= 0:                       # the starter is not relief
+            continue
+        per_side[s.side] += 1
+        a["pen"]["n"] += 1
+        a["pen"]["outs"] += s.outs_recorded
+        a["pen"]["outs2"] += s.outs_recorded ** 2
+        a["pen"]["le2"] += s.outs_recorded <= 2
+        a["pen"]["ge7"] += s.outs_recorded >= 7
+        a["pen"]["mid"] += s.outs > 0          # `outs` is the ENTRY state
+    # Both sides always count, so a club whose starter finished contributes
+    # a real ZERO rather than dropping out of the denominator.
+    a["pen"]["arms2"] = sum(per_side.get(s, 0) ** 2 for s in ("away", "home"))
     a["lad"] = {}
     run = 0
     for i in range(1, 8):
@@ -822,6 +928,38 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
             ar = asv[num] / asv["n"]
             fold.add("save", key, msv[num] / msv["n"], ar,
                      _rate_se(ar, asv["n"]), asv["n"])
+
+    # HOW LONG THE PEN'S ARMS STAY OUT THERE. Built 2026-09-09 (TODO 23)
+    # because the four bullpen mechanisms that shipped that day moved no row
+    # in this file and there was no row here that COULD have moved — the
+    # obligation the "nothing moved" rule imposes. `arms_per_side` is the
+    # one a total feels: each handover is a fresh pitcher facing the top of
+    # the order, so burning an arm too many per game puts a worse pitcher on
+    # the mound in the eighth of every game the model prices.
+    keys = ("n", "outs", "outs2", "le2", "ge7", "mid", "sides", "arms2")
+    mpn = {k: 0 for k in keys}
+    apn = {k: 0 for k in keys}
+    for g in gids:
+        for src, dst in ((got[g][0]["pen"], mpn), (got[g][1]["pen"], apn)):
+            for k in dst:
+                dst[k] += src[k]
+    if apn["n"] and mpn["n"]:
+        for key, num, den, sq in (
+                ("relief_outs_mean", "outs", "n", "outs2"),
+                ("relief_le2_share", "le2", "n", None),
+                ("relief_ge7_share", "ge7", "n", None),
+                ("relief_mid_entry_share", "mid", "n", None),
+                ("arms_per_side", "n", "sides", "arms2")):
+            ar = apn[num] / apn[den]
+            if sq is None:
+                se = _rate_se(ar, apn[den])
+            else:
+                # NOT A RATE — a mean outing is 3.3 outs and a side uses 3.4
+                # arms, so the binomial formula would take the root of a
+                # negative. The se comes off the real spread.
+                var = max(apn[sq] / apn[den] - ar * ar, 0.0)
+                se = (var / apn[den]) ** 0.5
+            fold.add("pen", key, mpn[num] / mpn[den], ar, se, apn[den])
 
     # Hook cells.
     for curve in ("bnd", "mid"):
