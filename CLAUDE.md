@@ -378,6 +378,7 @@ src/context/
                    flags. NOT a driver
   game.py          THE ENGINE. Whole game, both sides, bullpen, extras
   slate.py         a DATE -> two game.Side objects (the live path)
+  probables.py     operator-designated probables, for when the feed is behind
   calibrate.py     replays real starts; reliability + Brier; paired_cases
   fitf5.py         fit to F5 runs, discrete CRPS over the full support
   ladder.py        score by inning prefix — where the model is wrong
@@ -391,6 +392,8 @@ src/context/
   inherit.py       what inherited runners do, by base and out count
   deploy.py        how bullpens are actually used
   leash.py         the per-pitcher removal offset, fitted as a residual
+  armhook.py       the per-arm hook offset, fitted on the DECISION
+  efficiency.py    per-pitcher pitch efficiency — how many pitches HE needs
   order.py         the REAL batting order, counted from play-by-play
   tto.py           times through the order, measured
   stabilise.py     how fast each rate becomes trustworthy, measured
