@@ -48,10 +48,26 @@ FOLDS = [(2023, "2023-07-01"), (2024, "2024-07-01"),
          (2025, "2025-07-01"), (2026, "2026-07-01")]
 N = int(sys.argv[1]) if len(sys.argv) > 1 else 200
 OUT_DIR = os.path.join("scratchpad", "sims")
+#: Bumped whenever the persisted per-draw tuple changes shape. 1 was
+#: (away, home, away_f5, home_f5); 2 appends the regulation-nine split.
+SCHEMA = 2
 
 
 def simulate_fold(yr, cut):
-    """Replay the fold and persist every draw's four numbers per game."""
+    """Replay the fold and persist every draw's six numbers per game.
+
+    THE LAST TWO ARE THE REGULATION-NINE SPLIT (item 19.1), and they are
+    what makes the extras question answerable without re-simulating again.
+    `track=(9,)` fills `prefix_side[9]`, which is each club's score THROUGH
+    THE NINTH; the first two numbers are the FINAL score. A game reaches
+    extras exactly when it is tied after nine, so `away_9 == home_9` is the
+    extras flag and `(away - away_9, home - home_9)` is what extras added.
+    Recording the split rather than a last-inning integer is deliberate:
+    conditioning on "no extras" is conditioning on `away_9 != home_9`,
+    which is a SELECTION on the very quantity whose correlation is being
+    read, so the unselected regulation-nine correlation has to be available
+    beside it.
+    """
     pairs = cal.paired_cases(season=yr, rates_before=cut, since=cut)
     lg = sim.league(season=yr, before=cut)
     pens = rate_src.bullpens(lg, season=yr, before=cut)
@@ -60,25 +76,34 @@ def simulate_fold(yr, cut):
         d = []
         for i in range(N):
             rng = random.Random(yr * 7000003 + gi * 1013 + i)
-            r = cal.replay(pair, lg, pens, rng, track=(5,))
-            d.append((r.away, r.home, r.away_f5, r.home_f5))
+            r = cal.replay(pair, lg, pens, rng, track=(5, 9))
+            a9, h9 = r.prefix_side.get(9, (r.away, r.home))
+            d.append((r.away, r.home, r.away_f5, r.home_f5, a9, h9))
         rows[gid] = d
         if (gi + 1) % 200 == 0:
             print(f"  fold {yr}: {gi + 1}/{len(pairs)}", flush=True)
     os.makedirs(OUT_DIR, exist_ok=True)
     path = os.path.join(OUT_DIR, f"ml_{yr}.json.gz")
     with gzip.open(path, "wt") as f:
-        json.dump({"n_sims": N, "cut": cut, "games": rows}, f)
+        json.dump({"n_sims": N, "cut": cut, "schema": SCHEMA, "games": rows},
+                  f)
     print(f"  saved {path} ({len(rows)} games x {N} draws)", flush=True)
     return rows
 
 
 def load_or_simulate(yr, cut):
+    """A cache written under an OLDER SCHEMA is re-simulated, not read.
+
+    The four-number files written on 2026-09-09 unpack fine into the first
+    four slots and would silently answer every question here with no
+    regulation-nine columns at all, which is the failure mode the schema
+    key exists to prevent.
+    """
     path = os.path.join(OUT_DIR, f"ml_{yr}.json.gz")
     if os.path.exists(path):
         with gzip.open(path, "rt") as f:
             blob = json.load(f)
-        if blob.get("n_sims") == N:
+        if blob.get("n_sims") == N and blob.get("schema") == SCHEMA:
             print(f"  fold {yr}: loaded {path}", flush=True)
             return blob["games"]
     return simulate_fold(yr, cut)
@@ -135,14 +160,14 @@ def main():
             if a.get("away_score") is None:
                 continue
             n = len(draws)
-            ph = sum(1 for aw, hm, _, _ in draws if hm > aw) / n
+            ph = sum(1 for aw, hm, *_ in draws if hm > aw) / n
             ml.append((ph, 1 if a["home_score"] > a["away_score"] else 0))
-            margins_sim.extend(abs(hm - aw) for aw, hm, _, _ in draws[:20])
+            margins_sim.extend(abs(hm - aw) for aw, hm, *_ in draws[:20])
             margins_real.append(abs(a["home_score"] - a["away_score"]))
             if a.get("away_score_f5") is None:
                 continue
-            hw = sum(1 for _, _, af, hf in draws if hf > af)
-            aw_ = sum(1 for _, _, af, hf in draws if af > hf)
+            hw = sum(1 for _, _, af, hf, *_ in draws if hf > af)
+            aw_ = sum(1 for _, _, af, hf, *_ in draws if af > hf)
             tie = n - hw - aw_
             f5_tie.append((tie / n,
                            1 if a["home_score_f5"] == a["away_score_f5"]

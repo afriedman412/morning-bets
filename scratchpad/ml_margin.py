@@ -95,7 +95,7 @@ def one_run_rows(folds, ndraws=None):
         pairs = []
         for draws, a in folds[yr]:
             d = draws[:ndraws] if ndraws else draws
-            m = sum(abs(aw - hm) == 1 for aw, hm, _, _ in d) / len(d)
+            m = sum(abs(aw - hm) == 1 for aw, hm, *_ in d) / len(d)
             pairs.append((m, float(abs(a["away_score"] - a["home_score"])
                                    == 1)))
         pooled.extend(pairs)
@@ -110,7 +110,7 @@ def margin_rows(folds, ndraws=None):
         pairs = []
         for draws, a in folds[yr]:
             d = draws[:ndraws] if ndraws else draws
-            m = sum(abs(aw - hm) for aw, hm, _, _ in d) / len(d)
+            m = sum(abs(aw - hm) for aw, hm, *_ in d) / len(d)
             pairs.append((m, float(abs(a["away_score"] - a["home_score"]))))
         pooled.extend(pairs)
         row(str(yr), paired(pairs))
@@ -128,7 +128,7 @@ def margin_shape(folds):
             for draws, a in folds[yr]:
                 hit = (lambda x: x >= 8) if cell == "8+" else \
                       (lambda x, c=cell: x == c)
-                m = sum(hit(abs(aw - hm)) for aw, hm, _, _ in draws) \
+                m = sum(hit(abs(aw - hm)) for aw, hm, *_ in draws) \
                     / len(draws)
                 pairs.append((m, float(hit(abs(a["away_score"]
                                               - a["home_score"])))))
@@ -250,13 +250,13 @@ def main():
     for yr in FOLDS:
         for draws, a in folds[yr]:
             n = len(draws)
-            ml.append((sum(1 for aw, hm, _, _ in draws if hm > aw) / n,
+            ml.append((sum(1 for aw, hm, *_ in draws if hm > aw) / n,
                        1 if a["home_score"] > a["away_score"] else 0))
             if a.get("away_score_f5") is None \
                     or a["home_score_f5"] == a["away_score_f5"]:
                 continue
-            hw = sum(1 for _, _, af, hf in draws if hf > af)
-            aw_ = sum(1 for _, _, af, hf in draws if af > hf)
+            hw = sum(1 for _, _, af, hf, *_ in draws if hf > af)
+            aw_ = sum(1 for _, _, af, hf, *_ in draws if af > hf)
             if hw + aw_ == 0:
                 continue
             f5.append((hw / (hw + aw_),

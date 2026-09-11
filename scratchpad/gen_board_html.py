@@ -71,6 +71,19 @@ def cross(pairs):
     return None
 
 
+def fmt_cross(x):
+    """Display a crossing that may not exist.
+
+    `cross` returns None whenever every rung on the board sits on ONE side
+    of even money, and the ±170 band makes that ordinary rather than rare:
+    the rung that would have bracketed the crossing is exactly the one the
+    band drops. COL @ NYY on 2026-09-10 printed F5 4.5 and 5.5 only — both
+    under 50% — because F5 3.5 priced outside the band, and the page died
+    formatting the None.
+    """
+    return f"{x:.2f}" if x is not None else "&mdash;"
+
+
 def line_of(r):
     return float(r["bet"].split()[-1])
 
@@ -230,7 +243,9 @@ def build(d):
     fls = [x for x in (cross([(line_of(r), r["p_over"])
                               for r in g["rows"] if r["cls"] == "total"])
                        for g in games) if x]
-    slate_line = sum(fls) / len(fls)
+    # Same None as `fmt_cross` guards, one aggregation up: a slate on which
+    # no game brackets even money would divide by zero here.
+    slate_line = sum(fls) / len(fls) if fls else 0.0
 
     if posted < sched:
         standfirst = (
@@ -264,7 +279,7 @@ def build(d):
             f'<a class="f5-card" href="#g-{g["away"]}-{g["home"]}">'
             f'<div class="f5-top"><span class="f5-mt">'
             f'{g["away"]} @ {g["home"]}</span>'
-            f'<span class="f5-mean">{fl:.2f}</span></div>'
+            f'<span class="f5-mean">{fmt_cross(fl)}</span></div>'
             f'<div class="f5-arms">{html.escape(g["ap"])} '
             f'<span class="v">v</span> {html.escape(g["hp"])}</div>'
             f'<div class="f5-lines">{lines}</div></a>')
@@ -282,7 +297,7 @@ def build(d):
 {html.escape(g['hp'])}</p>
     <p class="g-meta"><span class="g-line" title="Where our over/under \
 crosses even money — the number comparable to a posted total.">fair total \
-{fl:.2f}</span><span class="g-mean" title="The simulated average. Right \
+{fmt_cross(fl)}</span><span class="g-mean" title="The simulated average. Right \
 skew puts it about half a run above the line; the league's own gap is \
 +0.50.">mean {g['mean']:.1f}</span><span class="g-proj">projected \
 lineups</span><span class="g-count"><b class="n-keep">{n_keep}</b>\
