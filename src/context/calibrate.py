@@ -710,8 +710,12 @@ def build_cases(season=None, before=None, max_starts=None, since=None,
         from src.context.sources import battedball
         gb_bat = battedball.gb_pct_map("bat", rs, rb)
         gb_pit = battedball.gb_pct_map("pit", rs, rb)
+        # AIR-BALL SHARE, on the same cut for the same reason — and it
+        # matters more here than for gb_pct, because `AIR_HR_PIT` was
+        # counted on a covariate frozen strictly before the rows it bins.
+        air_pit = battedball.air_pct_map("pit", rs, rb)
     except Exception:
-        gb_bat, gb_pit = {}, {}
+        gb_bat, gb_pit, air_pit = {}, {}, {}
     _hand_memo: dict = {}
 
     def _throws(nm):
@@ -796,12 +800,14 @@ def build_cases(season=None, before=None, max_starts=None, since=None,
                     name=bp["name"], k_pct=bp["k_pct"], bb_pct=bp["bb_pct"],
                     hr_pct=bp["hr_pct"], babip=bp["babip"], pa=bp["pa"],
                     hand=_throws(bp["name"]),
-                    gb_pct=gb_pit.get(bp["name"]))
+                    gb_pct=gb_pit.get(bp["name"]),
+                    air_pct=air_pit.get(bp["name"]))
         cases.append((s, sim.PitcherRates(
             name=p["name"], k_pct=p["k_pct"], bb_pct=p["bb_pct"],
             hr_pct=p["hr_pct"], babip=p["babip"], pa=p["pa"],
             hand=_throws(p["name"]),
-            gb_pct=gb_pit.get(p["name"])), lineup))
+            gb_pct=gb_pit.get(p["name"]),
+            air_pct=air_pit.get(p["name"])), lineup))
     _CASES[key] = cases
     return cases
 

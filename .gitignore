@@ -161,3 +161,19 @@ scratchpad/temp_hr_rows.json
 scratchpad/damage_state.json
 scratchpad/inning_feedback_pas.json.gz
 scratchpad/ump_kbb_rows.json.gz
+
+# Per-plate-appearance and per-batter-game rows for the home run work,
+# both rebuilt from the play-by-play cache by the script that shares their
+# name. `hr_clf_rows.json` alone is 111 MB — over GitHub's file limit — and
+# `hr_pa_rows.json.gz` is 770k plate appearances at 6.6 MB.
+scratchpad/hr_clf_rows.json
+scratchpad/hr_pa_rows.json.gz
+scratchpad/hr_clf_pred.npy
+scratchpad/hr_clf_test_keys.json
+# Pitcher and batter handedness counted off the whole pbp cache in ~2
+# minutes by `hr_clf._hands()`. Derived, not authored.
+scratchpad/hands.json
+# The engine's per-batter-game home run probabilities, dumped by
+# `battery.py` under HRBAT_DUMP so the classifier can be scored against
+# the simulation on identical rows. 1.5 MB a fold, one engine run each.
+scratchpad/simpred.*.json

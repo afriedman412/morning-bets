@@ -34,6 +34,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -76,15 +77,43 @@ def parse_wind(s: str | None) -> tuple[int, str | None, int]:
     return mph, d, carry
 
 
+#: How long a TEMPERATURE-LESS cache file is trusted. See `fetch_date`.
+EMPTY_TTL_SECONDS = 1800
+
+
 def fetch_date(date_str: str, force: bool = False) -> list[dict]:
-    """Every game's weather for one date. Cached; a final game cannot change."""
+    """Every game's weather for one date.
+
+    CACHED, BUT A TEMPERATURE-LESS SLATE IS NOT A FINAL ANSWER. The old
+    docstring said "a final game cannot change" and cached on that basis,
+    which was true of the GAME and false of the FILE: the live path asks
+    for a date PREGAME, statsapi does not populate `weather.temp` until
+    near first pitch, and the empty answer was then frozen forever. It
+    cost 2026-09-07, -08 and -09 their weather entirely — 41 games — and
+    nothing complained, because `TEMP_HR_MULT` and `WIND_HR_MULT` are
+    silent-neutral by design and a missing reading contributes exactly
+    1.0. Two shipped mechanisms sat inert for four days and the only
+    reason it surfaced is that a new board printed the air column.
+
+    So: a cache carrying at least one temperature is FINAL and returned.
+    One carrying none is a pregame read, and is re-fetched once it is
+    `EMPTY_TTL_SECONDS` old — which lets today's forecast arrive as first
+    pitch approaches and lets a past date fill in on the next ask,
+    without hammering the feed inside a single slate run.
+    """
     CACHE.mkdir(parents=True, exist_ok=True)
     p = CACHE / f"{date_str}.json"
     if p.exists() and not force:
         try:
-            return json.loads(p.read_text())
+            cached = json.loads(p.read_text())
         except ValueError:
-            pass
+            cached = None
+        if cached is not None:
+            if any(r.get("temp_f") is not None for r in cached):
+                return cached
+            age = time.time() - p.stat().st_mtime
+            if age < EMPTY_TTL_SECONDS:
+                return cached
     url = (f"{BASE}/schedule?sportId=1&date={date_str}"
            f"&hydrate=venue,weather")
     req = urllib.request.Request(url, headers={"User-Agent": UA})
@@ -126,8 +155,13 @@ def backfill(verbose: bool = True) -> int:
         dates = [r["date"] for r in c.execute(
             f"select distinct date from {store.BETS}.games "
             "where sport='mlb' and status='Final' order by date")]
+        # A DATE WITH ROWS BUT NO TEMPERATURE IS NOT "HAVE". Plain
+        # `distinct date` is the second half of the bug above: once the
+        # empty pregame rows were written, the backfill skipped those
+        # dates forever and they could never heal.
         have = {r["date"] for r in c.execute(
-            "select distinct date from mlb_weather")}
+            "select date from mlb_weather group by date "
+            "having sum(temp_f is not null) > 0")}
         known = {r["game_id"] for r in c.execute(
             f"select game_id from {store.BETS}.games where sport='mlb'")}
     todo = [d for d in dates if d not in have]

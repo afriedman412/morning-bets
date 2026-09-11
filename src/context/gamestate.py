@@ -95,6 +95,25 @@ def is_pregame(matchup: str | None, date_str: str | None = None) -> bool:
             or rec.get("status") == "Preview")
 
 
+def pregame_game_ids(date_str: str | None = None) -> set[str]:
+    """Every game id on a date that has not started — IDs, NOT NAMES.
+
+    `pregame_matchups` keys on "Away Name @ Home Name", which is only
+    usable by a caller that already holds full club names. Everything in
+    the slate path holds an ABBREVIATION and a `game_id`, so matching
+    there means rebuilding a name string and hoping it agrees — the
+    'Arizona Diamondbacks' against 'D-backs' failure this project has
+    already paid for once. Same TTL cache, same unknown-is-not-pregame
+    rule: a game absent from the feed is simply not in the set.
+    """
+    return {
+        r["game_id"] for r in _states(
+            date_str or date.today().isoformat()).values()
+        if r.get("game_id") and (r.get("detailed") in PREGAME_STATES
+                                 or r.get("status") == "Preview")
+    }
+
+
 def pregame_matchups(date_str: str | None = None) -> set[str]:
     """Every matchup on a date that has not started."""
     return {

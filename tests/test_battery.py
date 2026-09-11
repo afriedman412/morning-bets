@@ -170,3 +170,70 @@ def check_the_pen_row_drops_the_starter_and_the_phantom_arm():
     # Two arms each side, so 4 + 4 — NOT (2+2)^2, which is what pooling the
     # sides would give and is how a per-side variance goes wrong.
     assert acc["arms2"] == 8, acc
+
+
+def check_the_home_run_probability_matches_what_the_engine_draws():
+    """`battery._hr_prob` must equal the rate `sim.pa_from` actually
+    draws, or the `hrbat` rows score a number the engine never used.
+
+    THE TRAP THIS GUARDS. `pa_from` divides its home run probability by
+    `cond` — the probability that neither the sacrifice nor the
+    hit-by-pitch fired off the top — because the draw at that point is
+    already conditional on both having missed. The UNCONDITIONAL
+    probability, which is what "does he go deep tonight" asks for, is the
+    undivided one. Getting it backwards inflates every prediction, and it
+    would read as a calibration defect in the engine rather than as a bug
+    in the instrument.
+
+    THE FIRST VERSION OF THIS CHECK GUARDED NOTHING and was caught by
+    mutation, which is the only reason it is written this way. It sampled
+    a league-average matchup at 200,000 draws and allowed 5 se. Real
+    `cond` is 0.980, so the mutation it exists to catch moved a 0.03
+    probability by 0.0006 against a 5 se band of 0.0019 — invisible. The
+    fixture below drives `cond` to 0.70 so the same mutation moves the
+    answer by 43%, and the two multiplier assertions are exact rather
+    than sampled.
+    """
+    import dataclasses
+    import random
+    from scratchpad import battery
+    from src.context import sim
+    b = sim.BatterRates(name="bat", hr_pct=0.055)
+    p = sim.PitcherRates(name="arm", hr_pct=0.040, air_pct=0.55)
+    lg = sim.league(before="2026-07-01")
+    base = sim.resolve(b, p, lg)
+    # cond FAR from 1.0, so a stray division by it cannot hide inside the
+    # sampling error the way it did at the real 0.980.
+    mu = dataclasses.replace(base, sac=0.15, hbp=0.15, cond=0.70)
+    assert abs(mu.cond - 0.70) < 1e-9
+    want = battery._hr_prob(mu, None, None)
+    rng = random.Random(11)
+    n = 200_000
+    got = sum(sim.pa_from(mu, rng) == sim.HR for _ in range(n)) / n
+    se = (want * (1 - want) / n) ** 0.5
+    assert abs(got - want) < 4 * se, \
+        f"analytic {want:.5f} against drawn {got:.5f} (4 se {4 * se:.5f})"
+
+    # THE TWO INPUT MULTIPLIERS, asserted EXACTLY rather than sampled —
+    # each is a few percent, which no affordable number of draws can
+    # resolve, and dropping either was a mutation the sampled check
+    # waved through. `odds_mult` is not linear in its multiplier, so the
+    # assertion is against a recomputation through the same primitive
+    # and not against a scaled probability.
+    for tto in (2, 3):
+        m = sim.tto_mult(tto)
+        exp = sim.odds_mult(
+            sim.log5(mu.b_hr, mu.p_hr * m["hr_pct"], mu.lg_hr),
+            mu.m_hr, mu.lg_hr)
+        assert abs(battery._hr_prob(mu, tto, None) - exp) < 1e-12, \
+            f"tto {tto} does not reach the home run probability"
+        assert abs(battery._hr_prob(mu, tto, None) - want) > 1e-5, \
+            f"tto {tto} multiplier is not moving anything"
+    for state in ((1, 1), (3, 2)):
+        st = sim.state_mult(state)
+        exp = sim.odds_mult(sim.log5(mu.b_hr, mu.p_hr, mu.lg_hr),
+                            mu.m_hr * st.get("hr_pct", 1.0), mu.lg_hr)
+        assert abs(battery._hr_prob(mu, None, state) - exp) < 1e-12, \
+            f"state {state} does not reach the home run probability"
+        assert abs(battery._hr_prob(mu, None, state) - want) > 1e-6, \
+            f"state {state} multiplier is not moving anything"

@@ -321,6 +321,10 @@ def check_the_measured_mechanisms_are_switched_on_by_default():
     assert game.USE_ROLE_HBP is True
     assert sim.USE_GB_DP is True
     assert sim.USE_GB_HITMIX is True
+    # shipped 2026-09-10: the pitcher's air-ball share into the home run
+    # channel, counted as observed-over-expected because unlike the two
+    # GB tables above this channel already carries a per-player rate.
+    assert sim.USE_AIR_HR is True
     assert sim.USE_TEMP_HR is True
     assert sim.USE_WIND_HR is True
     assert sim.USE_UMP_KBB is True
@@ -1436,6 +1440,55 @@ def check_relief_intent_reaches_the_game():
             game.USE_RELIEF_INTENT = prev
     on, off = _pen_arms(True), _pen_arms(False)
     assert on < off - 0.5, (on, off)
+
+
+def check_pregame_ids_and_matchups_name_the_same_games():
+    """`pregame_game_ids` must select exactly what `pregame_matchups`
+    does, differing only in the key it returns.
+
+    WHY BOTH EXIST. The name-keyed version is unusable from the slate
+    path, which holds abbreviations and a `game_id` — rebuilding
+    "Away Name @ Home Name" to match on is the 'Arizona Diamondbacks'
+    against 'D-backs' failure that cost a club four fields. The risk of
+    a second selector is that the two drift apart and one of them starts
+    quietly pricing live games, so they are pinned to each other here
+    rather than each tested alone.
+
+    Offline: a stub feed, injected through the module's TTL cache, so no
+    network is touched and the states are the ones being asserted about.
+    """
+    import time
+    from src.context import gamestate as gs
+    feed = {
+        "Away A @ Home A": {"game_id": "mlb-1", "status": "Preview",
+                            "detailed": "Scheduled"},
+        "Away B @ Home B": {"game_id": "mlb-2", "status": "Live",
+                            "detailed": "In Progress"},
+        "Away C @ Home C": {"game_id": "mlb-3", "status": "Final",
+                            "detailed": "Final"},
+        "Away D @ Home D": {"game_id": None, "status": "Preview",
+                            "detailed": "Scheduled"},
+    }
+    key = "2099-01-01"
+    saved = gs._cache.get(key)
+    gs._cache[key] = (time.time(), feed)
+    try:
+        ids = gs.pregame_game_ids(key)
+        names = gs.pregame_matchups(key)
+        assert ids == {"mlb-1"}, ids
+        # Same games, both directions — the pinning that stops a drift.
+        want = {feed[m]["game_id"] for m in names if feed[m]["game_id"]}
+        assert ids == want, (ids, want)
+        assert "mlb-2" not in ids and "mlb-3" not in ids, \
+            "a live or final game reached the pregame set"
+        # A game with no id is dropped rather than admitted as None,
+        # which would compare equal to a slate row's missing game_id.
+        assert None not in ids
+    finally:
+        if saved is None:
+            gs._cache.pop(key, None)
+        else:
+            gs._cache[key] = saved
 
 
 def check_a_manual_probable_fills_a_missing_starter_but_never_beats_the_feed():

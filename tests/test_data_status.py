@@ -70,3 +70,34 @@ def check_a_returning_scheduled_job_would_be_noticed():
         assert isinstance(state, str) and state, (name, state)
         assert state != "not loaded", \
             "job_health must report only what is loaded"
+
+
+def check_a_row_without_a_reading_is_not_reported_as_current():
+    """The weather bug's detector: `_last_useful_date` must ignore rows
+    whose content column is NULL.
+
+    WHAT IT WOULD HAVE CAUGHT. `mlb_weather` held rows for 2026-09-07,
+    -08 and -09 with `temp_f` NULL on all 41 — written pregame, before
+    statsapi populates the forecast — and every freshness check keyed on
+    MAX(date), so the table reported a 0-day lag for four days while
+    `TEMP_HR_MULT` and `WIND_HR_MULT` contributed exactly 1.0 to every
+    game. A ROW IS NOT A READING, and this is the only check in the
+    project that knows the difference.
+    """
+    import sqlite3
+    from scratchpad import data_status as ds
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    c.execute("create table w (date text, temp_f integer)")
+    c.executemany("insert into w values (?,?)",
+                  [("2026-09-05", 77), ("2026-09-06", 81),
+                   ("2026-09-07", None), ("2026-09-08", None),
+                   ("2026-09-09", None)])
+    assert ds._max_date(c, "w") == "2026-09-09"
+    got = ds._last_useful_date(c, "w", "temp_f")
+    assert got == "2026-09-06", \
+        f"content date should ignore the null rows, got {got!r}"
+    # And the two together are what the report shows: the table looks
+    # current on rows and is three days behind on readings.
+    assert ds.assess(ds._max_date(c, "w"), "2026-09-09")[0] == "ok"
+    assert ds.assess(got, "2026-09-09")[0] == "STALE"

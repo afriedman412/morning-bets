@@ -2625,3 +2625,96 @@ def check_an_unknown_gb_leaves_the_league_mix():
         assert sim.resolve(b_gb, p_gb, LG).hit_mix is LG["hit_mix"]
     finally:
         sim.USE_GB_HITMIX = orig
+
+
+def check_the_air_share_odds_reach_the_home_run_channel():
+    """The pitcher's counted air-ball quintile must multiply `m_hr`.
+
+    Asserted against the table AND as absolute pins, for the reason the
+    DP check states: a table silently reset to ones agrees with itself.
+    """
+    assert sim.USE_AIR_HR, "the mechanism ships ON; every check below " \
+        "sets the flag itself and would pass with it mutated off"
+    b = sim.BatterRates(name="bat")
+    lo = sim.PitcherRates(name="worm", air_pct=0.40)     # under every edge
+    hi = sim.PitcherRates(name="loft", air_pct=0.60)     # over every edge
+    orig = sim.USE_AIR_HR
+    sim.USE_AIR_HR = True
+    try:
+        assert abs(sim.resolve(b, lo, LG).m_hr
+                   - sim.AIR_HR_PIT[1][0]) < 1e-9
+        assert abs(sim.resolve(b, hi, LG).m_hr
+                   - sim.AIR_HR_PIT[1][4]) < 1e-9
+        # Every edge lands in the cell above it, which is what pins the
+        # `>=` in the bucket arithmetic — an off-by-one there is a silent
+        # one-cell shift of the whole table.
+        for i, e in enumerate(sim.AIR_HR_PIT[0]):
+            p = sim.PitcherRates(name="edge", air_pct=e)
+            assert abs(sim.resolve(b, p, LG).m_hr
+                       - sim.AIR_HR_PIT[1][i + 1]) < 1e-9
+    finally:
+        sim.USE_AIR_HR = orig
+    # The counted spread is the reason the mechanism exists: the
+    # fly-ball-heaviest fifth of arms allow ~11% more home runs than the
+    # rates alone predict and the ground-ball-heaviest ~14% fewer.
+    assert sim.AIR_HR_PIT[1][4] > 1.05 and sim.AIR_HR_PIT[1][0] < 0.90
+    # Monotone as counted, and the edges sorted — the ordering IS the
+    # finding, so a shuffled table is a failure and not a style point.
+    assert list(sim.AIR_HR_PIT[1]) == sorted(sim.AIR_HR_PIT[1])
+    assert list(sim.AIR_HR_PIT[0]) == sorted(sim.AIR_HR_PIT[0])
+    assert len(sim.AIR_HR_PIT[1]) == len(sim.AIR_HR_PIT[0]) + 1
+
+
+def check_an_unknown_air_share_is_neutral_and_the_batter_has_none():
+    """Silent-neutral on an uncounted arm, and off when the flag is off.
+
+    THE BATTER CLAUSE IS THE POINT OF THE SECOND HALF: his side of this
+    table was counted and came back a null (era gate +0.136, three of six
+    season pairs negative), so `BatterRates` carries no `air_pct` at all.
+    A later session adding the field would be re-opening a measured dead
+    end, and this check is what makes that visible.
+    """
+    b = sim.BatterRates(name="bat")
+    p_no = sim.PitcherRates(name="arm")
+    p_air = sim.PitcherRates(name="loft", air_pct=0.60)
+    orig = sim.USE_AIR_HR
+    sim.USE_AIR_HR = True
+    try:
+        assert sim.resolve(b, p_no, LG).m_hr == 1.0
+    finally:
+        sim.USE_AIR_HR = orig
+    sim.USE_AIR_HR = False
+    try:
+        assert sim.resolve(b, p_air, LG).m_hr == 1.0
+    finally:
+        sim.USE_AIR_HR = orig
+    assert not hasattr(sim.BatterRates(), "air_pct"), \
+        "the batter side of AIR_HR_PIT is a counted null and must stay " \
+        "unplumbed — see the table's negative-control note"
+
+
+def check_the_air_table_is_the_counted_shape_and_one_scalar():
+    """The shipped table must be the COUNTED table divided by exactly one
+    number — the applied-mean divisor and nothing else.
+
+    WHY THIS SHAPE OF CHECK AND NOT "the mean is 1.0". The first version
+    asserted a plain mean of 1.0 and would now fail correctly: the
+    quintiles are equal fifths in the COUNTING sample, and the engine's
+    population is not that shape (starters are more fly-ball than the
+    pooled sample of every arm), so the table is centred on where it
+    FIRES rather than on where it was counted. What must be pinned is
+    that the recentring moved the LEVEL and left the SHAPE alone — a
+    per-cell adjustment dressed up as a centring would be a fit, and this
+    is what tells the two apart.
+    """
+    ratios = [c / s for c, s in zip(sim.AIR_HR_PIT_COUNTED,
+                                    sim.AIR_HR_PIT[1])]
+    assert max(ratios) - min(ratios) < 1e-3, \
+        f"AIR_HR_PIT is not a uniform rescale of the count: {ratios}"
+    assert abs(ratios[0] - sim.AIR_HR_APPLIED_MEAN) < 2e-3, \
+        f"the divisor is not the measured applied mean: {ratios[0]:.4f} " \
+        f"against {sim.AIR_HR_APPLIED_MEAN}"
+    # The counted table is monotone and spread; the shipped one inherits
+    # both, so the assertions on the count are assertions on the ship.
+    assert list(sim.AIR_HR_PIT_COUNTED) == sorted(sim.AIR_HR_PIT_COUNTED)
+    assert sim.AIR_HR_PIT_COUNTED[4] / sim.AIR_HR_PIT_COUNTED[0] > 1.2

@@ -304,12 +304,14 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
         try:
             from src.context.sources import battedball
             gb_p = battedball.gb_pct_map("pit").get(name)
+            air_p = battedball.air_pct_map("pit").get(name)
         except Exception:
-            gb_p = None
+            gb_p = air_p = None
         specs[side] = (sim.PitcherRates(
             name=name, k_pct=p["k_pct"], bb_pct=p["bb_pct"],
             hr_pct=p["hr_pct"], babip=p["babip"], pa=p["pa"],
-            hand=roster.throws(name) or "", gb_pct=gb_p), faces,
+            hand=roster.throws(name) or "", gb_pct=gb_p,
+            air_pct=air_p), faces,
             s["abbr"], hook)
 
     park = (calibrate.park_for(g["venue_id"])

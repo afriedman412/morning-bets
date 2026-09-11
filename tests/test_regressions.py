@@ -766,3 +766,110 @@ def check_fit_hooks_rebuild_flag_is_not_parsed_as_a_limit():
     assert limit_arg(["500"]) == 500
     assert limit_arg(["500", "--rebuild"]) == 500
     assert limit_arg(["--rebuild", "500"]) == 500
+
+
+def check_board_html_survives_a_ladder_that_never_crosses_even_money():
+    """The HTML board died formatting a None crossing.
+
+    `gen_board_html.cross` interpolates the line where P(over) passes 0.5
+    and returns None when every printed rung sits on ONE side of it. The
+    page then did `f"{fl:.2f}"` on it and raised TypeError, so no HTML was
+    written at all.
+
+    The ±170 shopping band makes that ordinary rather than rare: the rung
+    that WOULD have bracketed the crossing is exactly the one priced far
+    enough from even money for the band to drop. On the 2026-09-10 board
+    COL @ NYY printed F5 4.5 (+102) and 5.5 (+160) — both under 50% —
+    because F5 3.5 landed outside the band. One game out of five killed
+    the whole page.
+
+    Guarded at `fmt_cross`, not at the f-string, because the same None
+    reaches two render sites and the slate-average aggregation.
+    """
+    from scratchpad.gen_board_html import cross, fmt_cross
+
+    # Brackets even money: interpolate.
+    assert cross([(4.5, 0.55), (5.5, 0.45)]) == 5.0
+    assert fmt_cross(cross([(4.5, 0.55), (5.5, 0.45)])) == "5.00"
+
+    # The 2026-09-10 COL @ NYY shape — every rung under 50%, no crossing.
+    assert cross([(4.5, 0.495), (5.5, 0.385)]) is None
+    assert fmt_cross(cross([(4.5, 0.495), (5.5, 0.385)])) == "&mdash;"
+
+    # And the mirror: every rung over 50%.
+    assert cross([(4.5, 0.62), (5.5, 0.58)]) is None
+    assert fmt_cross(None) == "&mdash;"
+
+
+def check_a_temperatureless_weather_cache_is_not_treated_as_final():
+    """SHIPPED BUG, 2026-09-07 to -09: three dates and 41 games lost their
+    weather entirely, and nothing complained for four days.
+
+    `fetch_date` cached on the reasoning that "a final game cannot
+    change" — true of the GAME, false of the FILE. The live board asks
+    for a date PREGAME; statsapi does not populate `weather.temp` until
+    near first pitch; the empty answer was written to the cache and
+    frozen. `backfill` then keyed its skip-list on `distinct date`, so
+    once the empty rows existed the date could never heal. Two shipped
+    mechanisms (`TEMP_HR_MULT`, `WIND_HR_MULT`) sat inert on live data
+    and BOTH ARE SILENT-NEUTRAL BY DESIGN, so a missing reading
+    contributes exactly 1.0 and looks identical to calm, average air.
+
+    The two halves are guarded separately because either alone would
+    have been survivable.
+    """
+    import json
+    import os
+    import time
+    from src.context.sources import weather as w
+
+    day = "2099-07-04"
+    p = w.CACHE / f"{day}.json"
+    w.CACHE.mkdir(parents=True, exist_ok=True)
+    saved = p.read_text() if p.exists() else None
+    empty = [{"game_id": "mlb-9", "date": day, "venue_id": 1,
+              "temp_f": None, "condition": None, "wind_mph": 0,
+              "wind_dir": None, "carry": 0, "roof_closed": 0}]
+    warm = [{**empty[0], "temp_f": 81}]
+    try:
+        # A cache WITH a temperature is final and is returned as-is, with
+        # no network call — mtime is irrelevant to it.
+        p.write_text(json.dumps(warm))
+        old = time.time() - 10 * w.EMPTY_TTL_SECONDS
+        os.utime(p, (old, old))
+        assert w.fetch_date(day)[0]["temp_f"] == 81
+
+        # A cache with NO temperature is trusted only while it is fresh.
+        p.write_text(json.dumps(empty))
+        assert w.fetch_date(day) == empty, \
+            "a just-written pregame read should not be re-fetched"
+
+        # Once stale it must NOT be returned from disk. Offline, the
+        # re-fetch fails and returns [] — the point is that the stale
+        # empty payload is not handed back as though it were settled.
+        os.utime(p, (old, old))
+        got = w.fetch_date(day)
+        assert got != empty or got == [], \
+            "a stale temperature-less cache was treated as final"
+    finally:
+        if saved is None:
+            p.unlink(missing_ok=True)
+        else:
+            p.write_text(saved)
+
+
+def check_the_weather_backfill_revisits_a_date_with_no_temperature():
+    """The second half: `backfill`'s skip-list must key on a date having
+    a TEMPERATURE, not merely having rows.
+
+    Asserted against the SQL itself rather than by running a backfill,
+    which would need the network. The literal is what the bug was.
+    """
+    import inspect
+    from src.context.sources import weather as w
+    src = inspect.getsource(w.backfill)
+    assert "sum(temp_f is not null) > 0" in src, \
+        "backfill's have-set no longer requires a temperature — a date " \
+        "written empty by the live path can never heal"
+    assert "select distinct date from mlb_weather" not in src, \
+        "backfill is back on the plain distinct-date skip list"

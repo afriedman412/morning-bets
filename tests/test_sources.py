@@ -193,3 +193,115 @@ def check_the_cases_carry_gb_for_both_sides_of_the_ball():
     arms = [a["gb_pct"] for team in list(pens.values())[:10] for a in team]
     assert sum(v is not None for v in arms) / len(arms) > 0.8, \
         "pen arms missing gb_pct"
+
+
+def check_air_share_is_counted_scoped_and_shrunk():
+    """The `AIR_HR_PIT` covariate's contract, and it is the same one
+    `gb_pct` has for the reason `battedball`'s header gives: counted from
+    the pbp cache, never fetched season-to-date, so a 2023 fold is not
+    handed a share that knows the future.
+
+    The date cut is load-bearing here in a way it is not for `gb_pct` —
+    the table this feeds was counted on a covariate frozen STRICTLY
+    before the rows it bins, and scoring it against a share built on the
+    whole scan would be the leakage `DP_GB_*` had to be re-counted for.
+    """
+    from src.context.sources import battedball as bb
+    full = bb.air_pct_map("pit")
+    assert len(full) > 800, len(full)
+    vals = list(full.values())
+    lg = sum(vals) / len(vals)
+    # Air is fly balls plus line drives, so the league sits just above a
+    # half — the complement of the ground-ball share plus popups.
+    assert 0.45 < lg < 0.58, lg
+    assert all(0.20 < v < 0.85 for v in vals)
+    cut = bb.air_pct_map("pit", 2026, "2026-05-01")
+    assert cut and cut != full
+    # Thin samples sit near the league — the measured k, not a guess.
+    counts = bb.air_counts("pit")
+    thin = [nm for nm, (_a, n) in counts.items() if 0 < n <= 5]
+    for nm in thin[:20]:
+        assert abs(full[nm] - lg) < 0.08, (nm, full[nm])
+    # AND THE QUINTILE EDGES MUST CUT THIS POPULATION, not some other
+    # one. A table whose edges sit outside the covariate's range would
+    # put every arm in one cell and read as a null rather than an error.
+    from src.context import sim
+    cells = [sum(v >= e for e in sim.AIR_HR_PIT[0]) for v in vals]
+    assert len(set(cells)) == 5, \
+        f"AIR_HR_PIT edges do not span the shrunk air shares: {set(cells)}"
+
+
+def check_the_cases_carry_air_for_every_arm():
+    """Starters out of `build_cases`, relievers out of `bullpens`.
+
+    RELIEVERS ARE CHECKED AND NOT ASSUMED: they throw about a third of
+    the innings, and a level or shape measured on every arm but wired to
+    starters only is the wild-pitch mistake this project has already
+    made once (rule 14).
+    """
+    from src.context import calibrate as cal, sim
+    from src.context.sources import rates as rate_src
+    pairs = cal.paired_cases(rates_before="2026-07-01", since="2026-07-01")
+    gids = sorted(pairs)[:40]
+    sp = [pairs[g][i][1].air_pct for g in gids for i in (0, 1)]
+    assert sum(v is not None for v in sp) / len(sp) > 0.9, \
+        "starters missing air_pct — the build_cases wire is dead"
+    lg = sim.league(before="2026-07-01")
+    pens = rate_src.bullpens(lg, before="2026-07-01")
+    arms = [a["air_pct"] for team in list(pens.values())[:10] for a in team]
+    assert sum(v is not None for v in arms) / len(arms) > 0.8, \
+        "pen arms missing air_pct"
+    # The batter carries none, by measurement — see the null recorded on
+    # `sim.AIR_HR_PIT`.
+    bats = [b for g in gids for c in pairs[g] for b in c[2]]
+    assert bats and not any(hasattr(b, "air_pct") for b in bats)
+
+
+def check_the_two_batted_ball_tables_count_the_same_balls():
+    """`mlb_traj` and `mlb_batted` are two independent walks of the same
+    cache, so their shared columns must agree exactly.
+
+    THIS IS THE ONLY CORRECTNESS CHECK AVAILABLE for either extractor —
+    nothing else in the project counts a trajectory, so `fb`, `ld` and
+    `pu` can only be checked against each other's totals. It has already
+    earned its place once: the first build of `mlb_traj` dropped
+    `bunt_line_drive` on the floor, 75 balls in four seasons, and this
+    comparison is what found it. A silent one-in-4,000 undercount of
+    `bip` is exactly the kind of thing that never surfaces anywhere else.
+    """
+    from src.context import store
+    with store.connect(attach=False) as c:
+        row = c.execute(
+            "select count(*) n, "
+            "sum(t.gb != b.gb) dg, sum(t.bip != b.bip) dn "
+            "from mlb_traj t join mlb_batted b "
+            "using (game_id, name, role)").fetchone()
+    assert row["n"] > 200000, f"only {row['n']} rows joined"
+    assert (row["dg"], row["dn"]) == (0, 0), \
+        f"{row['dg']} gb and {row['dn']} bip disagreements over " \
+        f"{row['n']:,} rows"
+    # And the split must exhaust the total, per player-game — a
+    # trajectory landing in no column would leave `bip` short of its
+    # own parts and read as a thinner sample rather than a lost ball.
+    with store.connect(attach=False) as c:
+        bad = c.execute(
+            "select count(*) n from mlb_traj "
+            "where gb + fb + ld + pu != bip").fetchone()["n"]
+    assert bad == 0, f"{bad} rows where the trajectory split misses bip"
+    # Home runs are a subset of the air balls they leave on — with one
+    # genuine exception per four seasons, and it is not a bug. The
+    # INSIDE-THE-PARK home run is a ground ball: mlb-825099, 2026-04-21,
+    # Sam Antonacci off Ryan Thompson, launch angle 1 degree and 57 feet
+    # of total distance, down the left-field line. This assertion
+    # originally read `== 0` and that row is what corrected it. Pinned
+    # loosely rather than exactly, because the right bound is "a handful
+    # in the modern game", not the one that happens to be cached today.
+    with store.connect(attach=False) as c:
+        n_hr = c.execute("select sum(hr) n from mlb_traj "
+                         "where role = 'pit'").fetchone()["n"]
+        bad = c.execute(
+            "select count(*) n from mlb_traj where hr > fb + ld"
+            " and role = 'pit'").fetchone()["n"]
+    assert bad <= 5, f"{bad} rows with more home runs than air balls"
+    assert bad / n_hr < 1e-3, "inside-the-park home runs are supposed " \
+        "to be a rounding error; this is a trajectory bug"

@@ -607,6 +607,120 @@ XBH_GB_PIT = ((0.4, 0.4245, 0.4435, 0.4679),
               (1.0913, 1.0511, 1.0048, 0.9355, 0.9226))
 USE_GB_HITMIX = True
 
+#: THE HOME RUN CHANNEL READS THE PITCHER'S CONTACT TYPE.
+#:
+#: WHY THIS IS NOT THE SAME CLAIM AS `DP_GB_*` OR `XBH_GB_*`. Those two
+#: read contact type because the engine had NO per-player rate on their
+#: channels — the double-play rate and the hit mix were league constants,
+#: so ground-ball share was the only signal available. Home runs it does
+#: have: `hr_pct` travels for both sides and goes through log5. So the
+#: only thing worth counting here is what contact type adds ON TOP of
+#: that, and every cell below is observed over EXPECTED — never observed
+#: over league.
+#:
+#: WHY ANYTHING IS LEFT, and it is a shrinkage argument, not a baseball
+#: one (`hr_traj.py --stabilise`, and see `battedball.AIR_SHRINK`):
+#:
+#:     pitcher hr_per_bip   r_full 0.416   k = 944 balls in play
+#:     pitcher air_share    r_full 0.793   k = 176
+#:
+#: A starter's home run OUTCOME shrinks with k = 944, so a full season is
+#: pulled most of the way to the league and nearly all of his personal
+#: home run signal is discarded — CORRECTLY, because most of it is noise.
+#: His air-ball share survives shrinkage at five times the reliability
+#: per ball in play. The part of his home run rate that contact type
+#: explains is therefore real, repeatable, and unreachable by a channel
+#: that reads only the outcome. This table hands it back.
+#:
+#: Counted on 263,227 pre-July balls in play over four seasons, 11,463
+#: home runs (`scratchpad/hr_traj.py --airtable`), at the pair level —
+#: one row per (game, batter, pitcher), because log5 needs both sides and
+#: the league on the same population and the nine a starter actually
+#: faced are not the nine in the other dugout once a lineup turns over.
+#: The covariate is the SHRUNK air share frozen STRICTLY BEFORE the row's
+#: month, and so is the expectation it is scored against — the same
+#: leakage discipline `DP_GB_*` had to be given after an overlapping
+#: window inflated its slope ~1.5x, and the self-correlation here is
+#: worse than the one that caused it: every home run IS an air ball.
+#:
+#:     q      bip     obs      exp   obs/exp   centred
+#:     1   52,618   1,846   2,247.1  0.8215    0.8587
+#:     2   52,664   2,162   2,311.4  0.9353    0.9826
+#:     3   52,611   2,302   2,424.5  0.9495    0.9980
+#:     4   52,683   2,470   2,468.1  1.0008    1.0545
+#:     5   52,651   2,683   2,562.2  1.0472    1.1060
+#:
+#: A 29% spread, monotone, cell se ~0.020. Centred over real ball-in-play
+#: weights so it redistributes home runs between pitchers and never adds
+#: any — the LEVEL stays with the rates, as it does for `TTO_MULT`,
+#: `STATE_MULT` and both GB tables.
+#:
+#: THREE CONTROLS, and the first two are the ones this project's history
+#: says to run:
+#:   * WITHIN VENUE — 0.8654 / 0.9884 / 0.9950 / 1.0541 / 1.0970 against
+#:     the pooled table's 0.8587 / 0.9826 / 0.9980 / 1.0545 / 1.1060.
+#:     Unmoved, so a fly-ball staff's home park is NOT what is being
+#:     counted. Item 5 needed this correction; this table did not.
+#:   * ERA GATE — between-season correlation of the odds ratios +0.816,
+#:     all six pairs positive (+0.92 +0.93 +0.52 +0.97 +0.78 +0.77),
+#:     against `DP_GB_*`'s 0.754 and `XBH_GB_*`'s 0.647. Q1 is the
+#:     lowest cell and Q5 the highest in ALL FOUR seasons; 2023 and 2026
+#:     each invert one middle pair, which is the same "ends ordered every
+#:     year" reading the wind table records.
+#:   * THE BATTER SIDE IS THE NEGATIVE CONTROL AND IT CAME BACK NULL —
+#:     0.9794 / 1.0078 / 0.9783 / 1.0368 / 0.9976, era gate +0.136 with
+#:     three of six pairs NEGATIVE. It is not shipped. That is exactly
+#:     what the reliability table predicted before the count was run: a
+#:     batter's HR/BIP is the most reliable of his five rates, so his own
+#:     rate already carries his power and there is nothing left over. One
+#:     measurement predicting both an 8-sigma effect and a null on the
+#:     same instrument is the positive control rule 7 asks for, for free.
+#:
+#: THE REGISTERED FALSIFIER, stated before the battery ran. The expected
+#: value these cells are scored against is a scratchpad log5 over shrunk
+#: HR/BIP; the ENGINE's `hr_pct` is better than that — recency-weighted,
+#: park-neutralised, prior-decayed, pool-primed for relievers. If the
+#: engine's rate already knows part of what this table hands back, the
+#: table OVERSHOOTS and `hrshape.hr_var_over_mean` and `hr_3plus` go past
+#: real rather than toward it. `contact.hr_per_bip` must not move at all
+#: — the table is centred, so a level move is a wiring bug and not a
+#: finding.
+#: AND THE FALSIFIER FIRED ON THE LEVEL, WHICH IS WHY THE NUMBERS BELOW
+#: ARE NOT THE COUNTED ONES. First battery run: every cell moved the
+#: right way, and `hrshape.hr_per_club_game` rose +0.014 to +0.020 in ALL
+#: FOUR folds — a level move out of a table that only redistributes.
+#: Diagnosed, not patched: the counted table is centred over the counting
+#: sample, where the five cells are equal fifths BY CONSTRUCTION, and the
+#: engine's population is not that shape. Fixed edges against real
+#: batters faced put 15.8%/16.9%/22.8%/18.1%/26.3% of a fold in the five
+#: cells (2023) — starters are more fly-ball than the pooled sample of
+#: every arm — so the APPLIED mean was 1.0111, not 1.0. Measured directly
+#: over every arm each fold uses, starters and bullpens, weighted by
+#: batters faced (`scratchpad/air_centre.py`): 1.0119 / 1.0098 / 1.0125 /
+#: 1.0095 by fold, +1.11% pooled, which is the level move the battery saw
+#: to the digit.
+#:
+#: SO THE TABLE IS DIVIDED BY 1.0111 AND NOTHING ELSE CHANGES. The SHAPE
+#: — every ratio between cells — is the counted one untouched; one scalar
+#: enforces the invariant the table was designed to have. This is the
+#: centring convention `TEMP_HR_MULT` follows when it climate-centres on
+#: the distribution it fires in, and it is NOT rule 5's forbidden move:
+#: no loss function was consulted and no cell was free to move.
+AIR_HR_PIT = ((0.4729, 0.4917, 0.5052, 0.5217),
+              (0.8493, 0.9719, 0.9871, 1.0430, 1.0939))
+#: The counted table BEFORE that divisor, kept as a constant rather than
+#: as prose so the "one scalar and nothing else" claim is checkable — the
+#: test divides the two and asserts a single ratio.
+AIR_HR_PIT_COUNTED = (0.8587, 0.9826, 0.9980, 1.0545, 1.1060)
+#: THE APPLIED MEAN the divisor came from, and THE MAINTENANCE RULE it
+#: inherits: this is a property of the POPULATION, so anything that
+#: changes which arms the engine runs — a bullpen-usage item, a different
+#: fold set, a re-shrunk air map — invalidates it. Re-run
+#: `scratchpad/air_centre.py` and confirm it still reads 1.000 before
+#: trusting a home run level row.
+AIR_HR_APPLIED_MEAN = 1.0111
+USE_AIR_HR = True
+
 #: TEMPERATURE INTO THE HOME-RUN CHANNEL — plan item 5. Warm air is less
 #: dense and the ball carries; nothing in the engine read the weather the
 #: source module was already fetching, and the month-keyed seasonal HR
@@ -975,6 +1089,15 @@ class PitcherRates:
     #: item 4 so the battery's quintile rows can measure the gap before
     #: any mechanism consumes it.
     gb_pct: float | None = None
+    #: HIS AIR-BALL SHARE — fly balls plus line drives over balls in play,
+    #: counted from the same scan and shrunk by its own measured constant
+    #: (`battedball.air_pct_map`). Read by `AIR_HR_PIT` in `resolve`. None
+    #: means uncounted and contributes exactly nothing, the same
+    #: silent-neutral rule `gb_pct` follows. THE BATTER HAS NO SUCH FIELD
+    #: ON PURPOSE: his side of the table was counted and came back null,
+    #: so plumbing it would be an unread input inviting a later session to
+    #: wire the dead half.
+    air_pct: float | None = None
 
 
 @dataclass
@@ -1425,6 +1548,12 @@ def resolve(b: BatterRates, p: PitcherRates, lg: dict,
     m_bb = pk.get("bb", 1.0) * bb_game
     m_hr = hr_park * pk["hr"] * b.arsenal_mult
     m_bip = pk["bip"] * b.arsenal_mult
+    # THE PITCHER'S CONTACT TYPE, on the home run channel — see
+    # AIR_HR_PIT. Rides the same rail park and the air ride, because it
+    # is the same kind of thing: an odds multiplier on a rate log5 has
+    # already settled. Silent-neutral on an uncounted arm.
+    if USE_AIR_HR and p.air_pct is not None:
+        m_hr *= AIR_HR_PIT[1][sum(p.air_pct >= e for e in AIR_HR_PIT[0])]
     # THE PLATOON CELL fires only when BOTH sides of the pairing are
     # known — an unknown hand or side contributes exactly nothing, the
     # same silent-neutral rule as every other lookup here, and coverage
@@ -1769,6 +1898,26 @@ class Hook:
     #: length against what the model already predicts and attributes only
     #: what is left over.
     team_offset: float = 0.0
+
+    #: THE PER-ARM OFFSET, ONE PER CURVE — TODO 32, `src/context/armhook.py`.
+    #:
+    #: WHY THESE ARE NOT `team_offset`, which would have been one line. That
+    #: field is applied to BOTH decisions, because the club patience it was
+    #: built for was fitted that way and `sim.leash` inherited the road. The
+    #: boundary and mid-inning pulls are DIFFERENT DECISIONS (rule 9), an
+    #: arm's per-curve residuals repeat at reliabilities differing by a
+    #: factor of 1.4 (+0.538 against +0.373 year over year), and a single
+    #: field cannot carry two numbers. Pooling them would fit a manager who
+    #: makes one decision.
+    #:
+    #: They ADD to `team_offset` rather than replacing it: the leash was
+    #: fitted FIRST and these are fitted against what it leaves behind, so
+    #: the two compose in the order they were measured — the same "club
+    #: first, pitcher against the remainder" rule `for_start` records.
+    #:
+    #: Both default to 0.0 and are EXCLUDED FROM `hook_hash` — see there.
+    arm_bnd_offset: float = 0.0
+    arm_mid_offset: float = 0.0
 
     #: Log-odds per run of LEAD his own team holds. A manager treats a
     #: starter at 1-0 and the same starter at 8-0 completely differently, and
@@ -2183,6 +2332,11 @@ class Hook:
         if self.early_innings and innings <= self.early_innings:
             return _sigmoid(self.intercept + self.early_bnd_offset
                             + self.team_offset
+                            # Carried into the inert branch for the reason
+                            # `per_layoff` is, below: a term left out of a
+                            # branch that ships off is a silent hole the
+                            # day `early_innings` moves.
+                            + self.arm_bnd_offset
                             + self.early_bnd_per_pitch * pitches
                             + self.early_bnd_per_run_offset
                             * inning_run_offset(inning_runs)
@@ -2206,6 +2360,7 @@ class Hook:
                  + (self.high_pitch_bnd
                     if pitches >= self.high_pitch_threshold else 0.0)))
         return _sigmoid(base + self.team_offset
+                        + self.arm_bnd_offset
                         + pxi(pitches, innings, PXI_BND)
                         + self.per_run * runs
                         + self.per_baserunner * baserunners
@@ -2281,6 +2436,9 @@ class Hook:
             # or `mid_per_damage` on top would count the same traffic twice.
             return _sigmoid(self.mid_intercept + self.early_offset
                             + self.team_offset
+                            # Inert today, a silent hole tomorrow — see the
+                            # boundary branch.
+                            + self.arm_mid_offset
                             + self.early_per_pitch * pitches
                             + self.early_per_run_offset
                             * inning_run_offset(inning_runs)
@@ -2299,6 +2457,7 @@ class Hook:
                      if pitches >= self.high_pitch_threshold else 0.0)))
         return _sigmoid(mbase
                         + self.team_offset
+                        + self.arm_mid_offset
                         + pxi(pitches, inning, PXI_MID)
                         + self.late_mid_per_inning_br * inning_br
                         + self.late_mid_per_run * runs
@@ -2942,6 +3101,26 @@ def _load(path: str) -> dict:
         return {}
 
 
+#: Fields EXCLUDED from `hook_hash`, and the rule for adding one.
+#:
+#: A per-arm offset is not a coefficient of the league curve — it is a slot
+#: a caller fills per start, and its DEFAULT is what the hash can see. A new
+#: slot that defaults to zero changes no curve and no residual, so letting
+#: it change the digest would refuse every offset table on disk and force a
+#: full rebuild to measure exactly the same hook.
+#:
+#: THE RULE, enforced below rather than trusted: a name may only appear here
+#: if its default is 0.0. A non-zero default is a league-level change
+#: wearing a per-start slot's clothes, and it RAISES instead of being
+#: silently waved through.
+#:
+#: `team_offset` is deliberately NOT here even though it qualifies. It was
+#: inside the digest when every table on disk was stamped, so excluding it
+#: would change the digest — the precise outcome this exclusion exists to
+#: avoid — and it buys nothing: the field has never moved off 0.0.
+_HASH_EXCLUDE = ("arm_bnd_offset", "arm_mid_offset")
+
+
 def hook_hash() -> str:
     """A fingerprint of the shipped hook's coefficients.
 
@@ -2949,13 +3128,21 @@ def hook_hash() -> str:
     built under one set of coefficients is measuring a model that stops
     existing the moment any of them moves — it went stale five times
     before this existed. `leash.build` stamps this into the file's meta
-    and the loader below refuses a mismatch.
+    and the loader below refuses a mismatch. `armhook.build` stamps the
+    same digest for the same reason.
     """
     import dataclasses
     import hashlib
     h = Hook()
+    for name in _HASH_EXCLUDE:
+        if getattr(h, name) != 0.0:
+            raise ValueError(
+                f"{name} is excluded from hook_hash but defaults to "
+                f"{getattr(h, name)!r}; a non-zero default is a change to "
+                f"the league curve and must be hashed (see _HASH_EXCLUDE)")
     fields = sorted((f.name, getattr(h, f.name))
-                    for f in dataclasses.fields(Hook))
+                    for f in dataclasses.fields(Hook)
+                    if f.name not in _HASH_EXCLUDE)
     return hashlib.md5(repr(fields).encode()).hexdigest()[:12]
 
 
@@ -3149,10 +3336,92 @@ def leash(pitcher_name: str | None) -> float:
     return float(_LEASH.get(pitcher_name or "", 0.0))
 
 
+#: THE PER-ARM DECISION OFFSET — TODO 32, built by `src/context/armhook.py`.
+#:
+#: OFF until it is scored. The term is MEASURED (one MLE per arm per curve,
+#: cluster-robust variance, empirical-Bayes shrinkage, season drift fitted
+#: out and discarded) and the decision-level case for it is strong — the
+#: residual it corrects repeats year over year at r +0.538 / +0.373 and is
+#: only -0.399 correlated with what `sim.leash` already knows. But 7e is the
+#: standing precedent for a real decision-level gap that died on the outs
+#: falsifier in all four folds, so it ships off until `shape.outs_corr` says
+#: otherwise.
+USE_ARM_HOOK = False
+
+_ARM_PATH = _HERE + "/hook_arm.json"
+_ARM: dict | None = None
+
+
+def arm_offsets(pitcher_name: str | None) -> tuple[float, float]:
+    """(boundary, mid-inning) log-odds offsets for one starter.
+
+    (0.0, 0.0) when unknown, which is the missing-group rule the whole
+    codebase follows — and here it has a MEASURED price worth stating:
+    arms with no entry are under-pulled by +0.0291 on the holdout (z +4.4),
+    because a call-up gets the league curve and is managed on a much
+    shorter leash than it. That is a real coverage gap rather than a
+    neutral input, and it is an argument for a no-record PRIOR rather than
+    for guessing an individual number.
+    """
+    if not USE_ARM_HOOK:
+        return 0.0, 0.0
+    global _ARM
+    if _ARM is None:
+        _ARM = _load(_ARM_PATH)
+        # Refused on a hook mismatch for the reason `leash` is: these are
+        # residuals against a curve, and a residual correcting errors the
+        # curve no longer makes pushes the wrong way.
+        if (_ARM.get("_meta") or {}).get("hook_hash") != hook_hash():
+            print("  hook_arm.json was built against a different hook "
+                  "— refusing it (rebuild with src.context.armhook --build)")
+            _ARM = {}
+    nm = pitcher_name or ""
+    return (float((_ARM.get("bnd") or {}).get(nm, 0.0)),
+            float((_ARM.get("mid") or {}).get(nm, 0.0)))
+
+
+#: PER-PITCHER PITCH EFFICIENCY — TODO 34, `src/context/efficiency.py`.
+#:
+#: OFF until scored. `PITCH_COST` is keyed on the OUTCOME alone, so the engine
+#: bills every starter in baseball 4.85 pitches for a strikeout and has no way
+#: to know one arm needs 4.30 a batter and another 3.26. The hook integrates
+#: over pitch count, so a mis-billed arm reaches every removal decision at the
+#: wrong moment — his rates right, his length wrong.
+#:
+#: Counted observed-over-EXPECTED (his own outcome mix), so it carries what his
+#: strikeout rate does not already say; shrunk on a MEASURED year-over-year
+#: carry of +0.424; and CENTRED on batters faced so the league's calibrated
+#: 86.8 pitches a start does not move. Shipped table: 384 arms, sd 0.0194.
+USE_PITCH_EFF = False
+
+_EFF_PATH = _HERE + "/pitch_eff.json"
+_EFF: dict | None = None
+
+
+def pitch_eff(pitcher_name: str | None) -> float:
+    """His `PITCH_COST` multiplier. 1.0 when unknown — the old behaviour.
+
+    No hook-hash guard here, unlike `leash` and `arm_offsets`, and the
+    difference is real rather than an oversight: those two are RESIDUALS
+    against the hook's own behaviour and go stale the moment a coefficient
+    moves. This is a COUNTED property of the pitcher — how many pitches he
+    needs to get through a batter — and no hook coefficient can make it
+    wrong. What WOULD invalidate it is `PITCH_COST` itself changing, since
+    the multiplier is measured against that table; `check_the_efficiency_
+    table_is_measured_against_the_shipped_pitch_cost` pins that.
+    """
+    if not USE_PITCH_EFF:
+        return 1.0
+    global _EFF
+    if _EFF is None:
+        _EFF = (_load(_EFF_PATH) or {}).get("mult") or {}
+    return float(_EFF.get(pitcher_name or "", 1.0))
+
+
 def reload_offsets() -> None:
     """Drop the cached files so a rebuild is picked up in-process."""
-    global _PATIENCE, _LEASH
-    _PATIENCE = _LEASH = None
+    global _PATIENCE, _LEASH, _ARM, _EFF
+    _PATIENCE = _LEASH = _ARM = _EFF = None
 
 
 def for_start(base: Hook, team: str | None,
@@ -3169,8 +3438,15 @@ def for_start(base: Hook, team: str | None,
     silently losing whichever was applied first.
     """
     off = patience(team) + leash(pitcher_name)
-    return base if not off else Hook(
-        **{**base.__dict__, "team_offset": base.team_offset + off})
+    a_bnd, a_mid = arm_offsets(pitcher_name)
+    if not (off or a_bnd or a_mid):
+        return base
+    return Hook(**{**base.__dict__,
+                   "team_offset": base.team_offset + off,
+                   # ADDED, like `team_offset` above, so a caller that has
+                   # already set one composes instead of losing it.
+                   "arm_bnd_offset": base.arm_bnd_offset + a_bnd,
+                   "arm_mid_offset": base.arm_mid_offset + a_mid})
 
 
 def for_team(base: Hook, team: str | None) -> Hook:
@@ -3715,6 +3991,17 @@ class StartResult:
     #: The table itself was never wrong. It predicts 86.9 pitches a start
     #: against a real 86.82; the rounding is what threw the calibration away.
     pitches: float = 0.0
+    #: HIS OWN PITCH EFFICIENCY, as a multiplier on `PITCH_COST` — TODO 34,
+    #: built by `src/context/efficiency.py`. 1.0 is league and is what every
+    #: arm got before this existed.
+    #:
+    #: IT LIVES ON THE LINE, NOT ON THE SIDE, and that is the whole reason
+    #: this was safe to add. A `StartResult` is per PITCHER: `game.Side`
+    #: replaces `cur_line` every time the ball changes hands, so the
+    #: multiplier changes with the arm for free and cannot be charged to a
+    #: reliever. Hanging it on the side would have re-created item 23's
+    #: stale-key defect, where the relief hook read the previous arm's cell.
+    pitch_mult: float = 1.0
     batters: int = 0
     #: Weighted trouble accumulated over the WHOLE START. `Frame.damage`
     #: resets every inning, which makes a starter squared up for three
@@ -3854,7 +4141,10 @@ def apply_pa(o: str, r: StartResult, fr: Frame, rng: random.Random,
     # baserunner from -2.6% to -3.6%.
     outs_before = fr.outs
     r.batters += 1
-    r.pitches += PITCH_COST[o]
+    # HIS OWN EFFICIENCY, on the line so it follows the arm — see
+    # `StartResult.pitch_mult`. 1.0 for every arm with no record, which is
+    # the missing-group rule and is exactly the old behaviour.
+    r.pitches += PITCH_COST[o] * r.pitch_mult
     fr.damage += DAMAGE[o]
     r.damage += DAMAGE[o]
     if o in (BB, HBP, B1, B2, B3, HR, ROE):

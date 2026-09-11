@@ -89,6 +89,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import multiprocessing as mp
 import random
 import statistics as st
@@ -168,6 +169,47 @@ def flags() -> dict:
     return out
 
 
+#: THE HOME RUN PROBABILITY OF THE PLATE APPEARANCE `pa_from` IS ABOUT TO
+#: DRAW, stashed by the `pa_from` wrapper and read by the `apply_pa`
+#: wrapper one line later — `game._half_inning` calls them back to back
+#: for the same batter, and a forked child plays one game at a time, so
+#: the pairing cannot slip.
+#:
+#: WHY AN ANALYTIC PROBABILITY AND NOT THE SHARE OF DRAWS HE WENT DEEP IN,
+#: which is what the first version of the `hrbat` rows used. Rule 10's
+#: second half: a Monte Carlo mean carries its own noise. At 40 draws the
+#: standard error of that share is ~0.05 at a base rate of 0.12, which is
+#: the SAME SIZE as the real spread between hitters — so ranking batters
+#: by it ranks them mostly by simulation noise, the top decile is selected
+#: on that noise and reports an inflated model probability, and the real
+#: rate in it is attenuated toward the mean. The 8-draw smoke run showed
+#: exactly that: a claimed spread of 0.356 against a real 0.006, and BOTH
+#: numbers were artefacts. This estimator's only remaining variance is
+#: which arms he actually faced, which is a real feature of the night.
+_PHR = [0.0]
+
+
+def _hr_prob(mu, tto, state) -> float:
+    """P(home run) for one plate appearance, unconditional, from `mu`.
+
+    The same three lines `pa_from` uses, with the `/ cond` left off —
+    `cond` is exactly the probability that neither the sacrifice nor the
+    hit-by-pitch fired off the top, and dividing by it is what makes the
+    drawn value CONDITIONAL on that. The unconditional probability is the
+    raw one, and that is what "does he homer tonight" is asking for.
+    """
+    p_hr = mu.p_hr
+    m = sim.tto_mult(tto)
+    if m is not None:
+        p_hr *= m["hr_pct"]
+    s_hr = 1.0
+    st_ = sim.state_mult(state)
+    if st_ is not None:
+        s_hr = st_.get("hr_pct", 1.0)
+    return sim.odds_mult(sim.log5(mu.b_hr, p_hr, mu.lg_hr),
+                         mu.m_hr * s_hr, mu.lg_hr)
+
+
 def _install():
     """Wrap `sim.apply_pa` and both hook curves to log, changing nothing.
 
@@ -191,9 +233,18 @@ def _install():
         pre_outs = fr.outs
         orig(o, r, fr, rng, batter, mu)
         _PA_LOG.append((id(r), o, batter, pre_first, pre_outs,
-                        fr.outs - pre_outs))
+                        fr.outs - pre_outs, _PHR[0]))
 
     sim.apply_pa = apply_pa
+
+    orig_pa_from = sim.pa_from
+
+    def pa_from(mu, rng, tto=None, state=None):
+        _PHR[0] = _hr_prob(mu, tto, state)
+        return orig_pa_from(mu, rng, tto, state)
+
+    sim.pa_from = pa_from
+    game.sim.pa_from = pa_from
 
     bnd, mid = sim.Hook.removal_p, sim.Hook.mid_removal_p
 
@@ -349,10 +400,37 @@ def _model_one(gid: str) -> dict:
          # Per-batter singles and extra-base hits, for the GB-quintile
          # rows — {name: [1b, xbh]} summed over draws.
          "bathits": defaultdict(lambda: [0, 0]),
+         # PER-BATTER HOME RUNS — {name: [draws he went deep in, home
+         # runs, plate appearances]}. The first entry over `_SIMS` IS the
+         # model's answer to "does this man homer tonight", which is the
+         # only form of the question anyone actually asks and the one no
+         # row in this file could see: every other home run row here is a
+         # CLUB total.
+         "bathr": defaultdict(lambda: [0, 0, 0]),
+         # Balls in play and home runs off each STARTER, for the
+         # air-share cells — [bip, hr] per side.
+         "sp_hr": {s_: [0, 0] for s_ in ("away", "home")},
          "pa": Counter(), "plat": Counter(),
          # Draw-level distributions per CLUB, so mass rows are read off the
          # actual draws rather than a normal approximation to their mean.
-         "dist_full": Counter(), "dist_f5": Counter()}
+         "dist_full": Counter(), "dist_f5": Counter(),
+         # HOME RUNS PER CLUB-GAME, as a DISTRIBUTION and not a mean. The
+         # `contact.hr_per_bip` row above is the mean and it has read
+         # healthy throughout; the mean is exactly what a clustering
+         # defect does not move (rule 2, and the strikeout tail is the
+         # standing example — an exact mean at 4.86 against 4.84 hiding a
+         # 3.9 sigma miss at nine or more). Two entries per draw, one per
+         # batting club.
+         "hrdist": Counter()}
+    # WHICH CLUB A BATTER HITS FOR, by name. `away[2]` is the nine the
+    # away PITCHER faces — the HOME club's batters — per the standing
+    # crossing this file already relies on for `advshare`. The lineup is a
+    # fixed nine in the engine, so every logged batter resolves; built
+    # once per game, because a module global would carry one game's names
+    # into the next one in the same pool worker.
+    club_of = {b.name: club
+               for club, nine in (("home", away[2]), ("away", home[2]))
+               for b in nine}
     for draw in range(_SIMS):
         rng = random.Random((zlib.crc32(gid.encode()) & 0xFFFFFF) * 100003
                             + draw)
@@ -404,8 +482,19 @@ def _model_one(gid: str) -> dict:
                 if sp.outs in SPIKES:
                     d["spike_mid"][sp.outs] += 1
         pa = m["pa"]
-        for rid, o, batter, pre_first, pre_outs, douts in _PA_LOG:
+        hr_club: Counter = Counter()
+        hr_bat: Counter = Counter()
+        pa_bat: Counter = Counter()
+        # P(no home run all night) for each batter, as a running product
+        # over the plate appearances he actually got in this draw.
+        miss_bat: dict = defaultdict(lambda: 1.0)
+        for rid, o, batter, pre_first, pre_outs, douts, p_hr in _PA_LOG:
             pa["pa"] += 1
+            if o == sim.HR:
+                hr_club[club_of.get(batter, "?")] += 1
+                hr_bat[batter] += 1
+            pa_bat[batter] += 1
+            miss_bat[batter] *= 1.0 - p_hr
             if o == sim.K:
                 pa["k"] += 1
             elif o in (sim.B1, sim.B2, sim.B3):
@@ -433,6 +522,10 @@ def _model_one(gid: str) -> dict:
                     m["sp"][sp_side]["dp_opp"] += 1
                     m["sp"][sp_side]["dp"] += douts == 2
             side = sp_ids.get(rid)
+            if side and o in (sim.B1, sim.B2, sim.B3, sim.HR, sim.OUT,
+                              sim.ROE, sim.SAC):
+                m["sp_hr"][side][0] += 1
+                m["sp_hr"][side][1] += o == sim.HR
             if side:
                 hand = sp_hand[side]
                 bs = bside.get(batter)
@@ -447,13 +540,31 @@ def _model_one(gid: str) -> dict:
                     pl[f"{adv}_k"] += 1
                 elif o == sim.HR:
                     pl[f"{adv}_hr"] += 1
+        for nm_ in pa_bat:
+            d = m["bathr"][nm_]
+            # THE MODEL'S PREDICTION IS THE ANALYTIC ONE — 1 minus the
+            # product of missing every trip — not the 0/1 of whether this
+            # particular draw happened to produce one. See `_PHR`.
+            d[0] += 1.0 - miss_bat[nm_]
+            d[1] += hr_bat[nm_]
+            d[2] += pa_bat[nm_]
+        for club in ("away", "home"):
+            m["hrdist"][hr_club[club]] += 1
+        # A batter the lineup map missed would silently land in the "?"
+        # club rather than in a real one, so it is carried as its own
+        # count and scored as a coverage row rather than assumed to be
+        # zero.
+        pa["hr_orphan"] += hr_club["?"]
     m["pa"]["runs"] = m["a"] + m["h"]        # numerator for runs/baserunner
     for key in ("lad", "inn"):
         m[key] = {k: v / _SIMS for k, v in m[key].items()}
     for key in ("one", "ext", "a", "h", "af", "hf"):
         m[key] /= _SIMS
+    m["sp_hr"] = {k: [v[0] / _SIMS, v[1] / _SIMS]
+                  for k, v in m["sp_hr"].items()}
     m["hook"] = {c: dict(v) for c, v in m["hook"].items()}
     m["bathits"] = dict(m["bathits"])
+    m["bathr"] = dict(m["bathr"])
     # Lineup platoon-advantage share per CLUB vs the opposing starter, for
     # the stacked-lineup decile. away[2] is the nine the away PITCHER
     # faces — the HOME club's batters — per the standing crossing.
@@ -485,7 +596,17 @@ def _actual_one(gid: str, data: dict) -> dict:
          # Starter-restricted DP counts per pitching half, and per-batter
          # singles/XBH — the real side of the GB-quintile rows.
          "sp_dp": {"away": [0, 0], "home": [0, 0]},
-         "bathits": defaultdict(lambda: [0, 0])}
+         "sp_hr": {"away": [0, 0], "home": [0, 0]},
+         "bathits": defaultdict(lambda: [0, 0]),
+         # HOME RUNS PER CLUB-GAME — the real side of `hrshape`. The
+         # batting club is the half-inning, which needs no lineup map at
+         # all on this side.
+         "hrdist": Counter(), "hrby": Counter(),
+         # {name: [home runs, plate appearances]} — the real side of the
+         # per-batter rows. Counting PA here as well as home runs is what
+         # separates "we had his rate wrong" from "we gave him four trips
+         # and the manager gave him two".
+         "bathr": defaultdict(lambda: [0, 0])}
     first = {}
     cum = defaultdict(lambda: [0, 0])   # inning -> [away runs, home runs]
     max_inn = 0
@@ -512,6 +633,7 @@ def _actual_one(gid: str, data: dict) -> dict:
             pa["xbh"] += 1
         elif ev == "home_run":
             pa["hr"] += 1
+            a["hrby"]["away" if top else "home"] += 1
         elif ev in EV_SAC:
             pa["sac"] += 1
         if ev in EV_REACH:
@@ -521,6 +643,8 @@ def _actual_one(gid: str, data: dict) -> dict:
             pa["bip"] += 1
         nm = (mu.get("batter") or {}).get("fullName")
         if nm:
+            a["bathr"][nm][0] += ev == "home_run"
+            a["bathr"][nm][1] += 1
             if ev == "single":
                 a["bathits"][nm][0] += 1
             elif ev in ("double", "triple"):
@@ -533,6 +657,10 @@ def _actual_one(gid: str, data: dict) -> dict:
                 a["sp_dp"][pit_side][0] += 1
                 a["sp_dp"][pit_side][1] += ev in EV_DP
         if pid and pid == first.get(pit_side):
+            if ev in EV_HIT or ev in EV_INPLAY_OUT or ev in EV_SAC \
+                    or ev == "field_error":
+                a["sp_hr"][pit_side][0] += 1
+                a["sp_hr"][pit_side][1] += ev == "home_run"
             pa["sp_pa"] += 1
             bs = ((mu.get("batSide") or {}).get("code"))
             hand = ((mu.get("pitchHand") or {}).get("code"))
@@ -585,9 +713,15 @@ def _actual_one(gid: str, data: dict) -> dict:
         run += a["inn"].get(i, 0)
         if i in LADDER:
             a["lad"][i] = run
+    for club in ("away", "home"):
+        a["hrdist"][a["hrby"][club]] += 1
     a["pa"]["runs"] = ca + ch
     a["inn"] = dict(a["inn"])
     a["bathits"] = dict(a["bathits"])
+    # A defaultdict over a lambda cannot cross the pool — `bathits` learned
+    # this first and the traceback is an unpicklable-local, not anything
+    # about the counts.
+    a["bathr"] = dict(a["bathr"])
     try:
         for e in boundary.exits(gid, data):
             a["kind"][e.get("pitcher")] = e.get("kind")
@@ -638,6 +772,56 @@ def _rate_se(p, n):
     """Binomial se of an observed rate. An observed 0 or 1 returns se 0,
     which the row constructor turns into z=None rather than infinity."""
     return (p * (1 - p) / n) ** 0.5 if n else 0.0
+
+
+def _corr(pairs_):
+    """Pearson r over (x, y) pairs. 0.0 when either side is constant."""
+    n = len(pairs_)
+    if n < 3:
+        return 0.0
+    mx = st.mean(x for x, _ in pairs_)
+    my = st.mean(y for _, y in pairs_)
+    num = sum((x - mx) * (y - my) for x, y in pairs_)
+    dx = sum((x - mx) ** 2 for x, _ in pairs_) ** 0.5
+    dy = sum((y - my) ** 2 for _, y in pairs_) ** 0.5
+    return num / (dx * dy) if dx and dy else 0.0
+
+
+def _corr_ceiling(by_unit):
+    """The highest correlation ANY per-pitcher predictor could reach here.
+
+    WHY THIS IS THE RIGHT TARGET for `shape.outs_corr` rather than 1.0. A
+    start's outs are a pitcher's own central tendency plus a night's noise,
+    and no predictor that knows only the pitcher can reach the noise. If
+    actual = arm mean + noise, the best such predictor IS the arm mean and
+    its correlation with the actual is sd_between / sd_total — so that is
+    what the model is scored against.
+
+    Sampling noise is removed by the (MSB - MSW) / n0 estimator, the same
+    one `leash.shrink_k` uses and for the same reason: with a dozen starts
+    an arm's observed mean carries a full out of noise, and the raw spread
+    of arm means would report most of it as real between-arm spread and
+    hand back a ceiling that is too high to ever be reached.
+
+    Returns None when it is not estimable (too few arms with repeats), so
+    the row reports the model's own number with no target rather than a
+    fabricated one.
+    """
+    by = {u: v for u, v in by_unit.items() if u and len(v) >= 2}
+    if len(by) < 3:
+        return None
+    n = sum(len(v) for v in by.values())
+    k = len(by)
+    grand = sum(sum(v) for v in by.values()) / n
+    ssb = sum(len(v) * (st.mean(v) - grand) ** 2 for v in by.values())
+    ssw = sum(sum((x - st.mean(v)) ** 2 for x in v) for v in by.values())
+    if n == k or k < 2:
+        return None
+    msb, msw = ssb / (k - 1), ssw / (n - k)
+    n0 = (n - sum(len(v) ** 2 for v in by.values()) / n) / (k - 1)
+    between = max((msb - msw) / n0, 0.0)
+    total = between + max(msw, 1e-9)
+    return (between / total) ** 0.5 if total > 0 else None
 
 
 class Fold:
@@ -759,6 +943,165 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
         arate = pa_a[num] / max(pa_a[den], 1)
         fold.add("contact", key, mrate, arate, _rate_se(arate, pa_a[den]),
                  pa_a[den])
+    # HOME RUN SHAPE — the distribution of home runs by one club in one
+    # game, model against real. `contact.hr_per_bip` is the LEVEL and has
+    # read healthy since it was added; this is the row that can see a
+    # clustering miss, which is the defect the level cannot show (rule 2).
+    # The model side is a share of DRAWS, the real side a share of
+    # club-games, and the standard error is the real side's.
+    hd_m = sum((got[g][0]["hrdist"] for g in gids), Counter())
+    hd_a = sum((got[g][1]["hrdist"] for g in gids), Counter())
+    nm_, na_ = sum(hd_m.values()), sum(hd_a.values())
+    if nm_ and na_:
+        for lab, lo, hi in (("hr_0", 0, 0), ("hr_1", 1, 1), ("hr_2", 2, 2),
+                            ("hr_3plus", 3, 99)):
+            mm = sum(v for k_, v in hd_m.items() if lo <= k_ <= hi) / nm_
+            aa = sum(v for k_, v in hd_a.items() if lo <= k_ <= hi) / na_
+            fold.add("hrshape", lab, mm, aa, _rate_se(aa, na_), na_)
+        def _mv(src, n_):
+            mean = sum(k_ * v for k_, v in src.items()) / n_
+            var = sum(k_ * k_ * v for k_, v in src.items()) / n_ - mean ** 2
+            return mean, var
+
+        mmean, mvar = _mv(hd_m, nm_)
+        amean, avar = _mv(hd_a, na_)
+        fold.add("hrshape", "hr_per_club_game", mmean, amean,
+                 (avar / na_) ** 0.5, na_)
+        # VARIANCE OVER MEAN: 1.0 is the Poisson that a run of independent
+        # plate appearances produces, and anything above it is clustering.
+        # se is the Poisson-null sqrt(2/n) — an approximation, and named
+        # as one so the row is not read tighter than it is.
+        fold.add("hrshape", "hr_var_over_mean",
+                 mvar / mmean if mmean else None,
+                 avar / amean if amean else None,
+                 (2.0 / na_) ** 0.5, na_,
+                 "1.0 is Poisson; above it is clustering (se is the "
+                 "Poisson-null approximation)")
+    # ── PER-BATTER: DOES THIS MAN GO DEEP TONIGHT ────────────────────
+    #
+    # Every other home run row in this file is a CLUB total, and a club
+    # total cannot say whether the model can pick the HITTER. One row is
+    # one batter in one game: the model's predicted P(at least one home
+    # run) is the share of its own draws he went deep in, and the real
+    # side is the 0/1 of whether he did.
+    #
+    # BUCKETED BY THE MODEL'S OWN PREDICTION, in deciles of it, which
+    # makes this a reliability curve — the same construction
+    # `calibrate.py` uses, applied to the question anyone actually asks
+    # about a home run. Two things it can catch and no existing row can:
+    # the level being off inside a bucket (calibration), and the real
+    # rate failing to RISE across the buckets (discrimination), which is
+    # the one that says whether the prediction is worth anything.
+    #
+    # THE POPULATION IS THE MODEL'S NINE, scored on what those same nine
+    # did in the real game. That deliberately keeps the pinch hitter in
+    # the comparison rather than defining him away: the engine never
+    # lifts anybody, so a lifted batter really did get fewer trips than
+    # he was given, and `hrbat_pa_top`/`_bot` are the rows that separate
+    # that from a wrong rate (rule 10 — name the denominator).
+    rel = []
+    for g in gids:
+        mb, ab = got[g][0].get("bathr") or {}, got[g][1].get("bathr") or {}
+        for nm_, d in mb.items():
+            real = ab.get(nm_)
+            if real is None or not d[2]:
+                continue
+            rel.append((d[0] / _SIMS, float(real[0] > 0),
+                        d[1] / _SIMS, real[0], d[2] / _SIMS, real[1],
+                        g, nm_))
+    # THE PER-ROW DUMP, for scoring anything else on IDENTICAL rows.
+    # `HRBAT_DUMP` names a file; without it this is inert. The deciles
+    # below are an aggregate and cannot be joined against another model's
+    # predictions, which is the only way a head-to-head is honest.
+    dump = os.environ.get("HRBAT_DUMP")
+    if dump:
+        with open(f"{dump}.{fold.year}.json", "w") as fh:
+            json.dump([{"game_id": r[6], "batter": r[7], "p": r[0],
+                        "y": r[1]} for r in rel], fh)
+    if len(rel) >= 500:
+        rel.sort(key=lambda r: r[0])
+        nb = 10
+        cut = [len(rel) * i // nb for i in range(nb + 1)]
+        bins = [rel[cut[i]:cut[i + 1]] for i in range(nb)]
+        for i, b in enumerate(bins, 1):
+            if not b:
+                continue
+            mp = sum(r[0] for r in b) / len(b)
+            ap = sum(r[1] for r in b) / len(b)
+            fold.add("hrbat", f"p_hr_decile_{i:02d}", mp, ap,
+                     _rate_se(ap, len(b)), len(b))
+        lo, hi = bins[0], bins[-1]
+        m_lo = sum(r[0] for r in lo) / len(lo)
+        m_hi = sum(r[0] for r in hi) / len(hi)
+        a_lo = sum(r[1] for r in lo) / len(lo)
+        a_hi = sum(r[1] for r in hi) / len(hi)
+        # THE ROW THAT ANSWERS THE QUESTION. If the model can pick the
+        # hitter at all, the real rate in its top decile must beat the
+        # real rate in its bottom one, and by about as much as it claims.
+        # A model with the level exactly right and no discrimination has
+        # every decile row healthy and this row at zero.
+        fold.add("hrbat", "spread_top_minus_bottom", m_hi - m_lo,
+                 a_hi - a_lo,
+                 (_rate_se(a_hi, len(hi)) ** 2
+                  + _rate_se(a_lo, len(lo)) ** 2) ** 0.5, len(hi) + len(lo),
+                 "real rate in the model's top decile minus its bottom")
+        n_all = len(rel)
+        am = sum(r[1] for r in rel) / n_all
+        fold.add("hrbat", "p_hr_level", sum(r[0] for r in rel) / n_all,
+                 am, _rate_se(am, n_all), n_all,
+                 "share of batter-games with at least one home run")
+        # PER PLATE APPEARANCE, top and bottom decile — the rate itself,
+        # with the number of trips divided out. A gap here that the
+        # `p_hr` rows do not show is a PA-count problem, not a rate one.
+        for lab, b in (("top", hi), ("bot", lo)):
+            mh, mp_ = sum(r[2] for r in b), sum(r[4] for r in b)
+            ah, ap_ = sum(r[3] for r in b), sum(r[5] for r in b)
+            if mp_ and ap_:
+                fold.add("hrbat", f"hr_per_pa_{lab}", mh / mp_, ah / ap_,
+                         _rate_se(ah / ap_, ap_), int(ap_))
+            fold.add("hrbat", f"pa_{lab}", mp_ / len(b), ap_ / len(b),
+                     0.0, len(b), "plate appearances per batter-game")
+    else:
+        fold.add("hrbat", "spread_top_minus_bottom", None, None, 0.0, 0,
+                 "EMPTY — fewer than 500 batter-games matched")
+
+    # HOME RUNS BY THE STARTER'S AIR-BALL SHARE, in the SHIPPED cells of
+    # `sim.AIR_HR_PIT` — the row that scores the wire and not just the
+    # table, the way the weather rows do. Both sides bucket on the same
+    # covariate, the model's own shrunk cutoff-scoped share, so a cell is
+    # the same population on both sides (rule 10). Starter-restricted
+    # because that is the arm the battery can name on the real side.
+    sp_air = {}
+    for g in gids:
+        for side, idx in (("away", 0), ("home", 1)):
+            v = _CASES[g][idx][1].air_pct
+            if v is not None:
+                sp_air[(g, side)] = v
+    if sp_air:
+        am = {q: [0, 0] for q in range(1, 6)}
+        aa = {q: [0, 0] for q in range(1, 6)}
+        for (g, side), v in sp_air.items():
+            q = sum(v >= e for e in sim.AIR_HR_PIT[0]) + 1
+            bip_m, hr_m = got[g][0]["sp_hr"][side]
+            am[q][0] += hr_m
+            am[q][1] += bip_m
+            bip_a, hr_a = got[g][1]["sp_hr"][side]
+            aa[q][0] += hr_a
+            aa[q][1] += bip_a
+        for q in range(1, 6):
+            if not (aa[q][1] and am[q][1]):
+                continue
+            ar = aa[q][0] / aa[q][1]
+            fold.add("hrshape", f"hr_per_bip_by_sp_air_q{q}",
+                     am[q][0] / am[q][1], ar, _rate_se(ar, aa[q][1]),
+                     aa[q][1])
+    else:
+        for q in range(1, 6):
+            fold.add("hrshape", f"hr_per_bip_by_sp_air_q{q}", None, None,
+                     0.0, 0, "EMPTY until air_pct is plumbed")
+    fold.add("hrshape", "orphan_hr_per_draw",
+             pa_m["hr_orphan"] / max(_SIMS * len(gids), 1), 0.0, 0.0,
+             len(gids), "model home runs by a batter off the lineup map")
     xm = pa_m["xbh"] / max(pa_m["xbh"] + pa_m["h1"], 1)
     xa = pa_a["xbh"] / max(pa_a["xbh"] + pa_a["h1"], 1)
     fold.add("contact", "xbh_share_nonhr_hits", xm, xa,
@@ -986,6 +1329,10 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
     mo, mk = Counter(), Counter()
     mid_draws = tot_draws = 0
     spike_mid = Counter()
+    # PER-START pairs for `outs_corr`, and the actual outs grouped by arm
+    # for its ceiling. Read off the same draws as every row above — no
+    # extra simulation, which is the whole point of one pass per fold.
+    o_pairs, o_by_arm = [], defaultdict(list)
     for g in gids:
         for side, case in (("away", 0), ("home", 1)):
             act = _CASES[g][case][0]
@@ -1002,6 +1349,11 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
             mid_draws += d["mid"]
             tot_draws += _SIMS
             spike_mid.update(d["spike_mid"])
+            dn = sum(d["outs"].values())
+            if act.get("o") is not None and dn:
+                o_pairs.append(
+                    (sum(v * c for v, c in d["outs"].items()) / dn, act["o"]))
+                o_by_arm[act.get("player_name") or ""].append(act["o"])
     mo_n, mk_n = sum(mo.values()), sum(mk.values())
     mo_mean = sum(v * c for v, c in mo.items()) / mo_n
     mk_mean = sum(v * c for v, c in mk.items()) / mk_n
@@ -1012,6 +1364,34 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
              st.pstdev(real_o) / n ** 0.5, n)
     fold.add("shape", "outs_sd", mo_sd, st.pstdev(real_o),
              st.pstdev(real_o) / (2 * n) ** 0.5, n)
+    # DOES THE MODEL TELL STARTS APART? Added 2026-09-11 for TODO 32, whose
+    # pre-registered falsifier names this number and `boundary_share_by_
+    # decision` — and says to BUILD the row if nothing here can see a
+    # per-arm term. Nothing could: every other `shape` row is a POOLED
+    # distribution over draws, and a term that moves one arm up and another
+    # down by construction leaves all of them unmoved. This row is the only
+    # one in the battery that scores DISCRIMINATION BETWEEN starts rather
+    # than the shape of an average one, which is what `leash.py` records a
+    # per-arm term as buying ("FLAT on outs CRPS and the run ladder BY
+    # DESIGN").
+    # READ THE CEILING AS LOOSE, AND DO NOT PRICE THE GAP (added 2026-09-11,
+    # with the number that bounds it). The ceiling is computed WITHIN the
+    # fold, so every scrap of in-season between-arm variation counts as
+    # signal — including the part that no prior-season evidence can know. The
+    # per-arm outs residual carries year over year at only r +0.225
+    # (`scratchpad/leash_carry.py`, 451 arm-pairs), so the STABLE between-arm
+    # signal is sd 0.551 outs, and a PERFECT per-arm term is worth about
+    # +0.023 of this correlation — roughly a sixth of the ~0.135 gap the row
+    # prints. The shipped `sim.leash` already measures +0.0130 of that
+    # (`scratchpad/arm_score.py --control-leash`). So a 4-sigma gap here is a
+    # real defect and MOSTLY NOT a per-arm one; treating the whole gap as
+    # reachable by a better leash is the mistake TODO 32 made.
+    if len(o_pairs) > 10:
+        fold.add("shape", "outs_corr", _corr(o_pairs),
+                 _corr_ceiling(o_by_arm), 1 / (len(o_pairs) - 3) ** 0.5,
+                 len(o_pairs),
+                 "actual vs model mean outs per start; real = the "
+                 "model-free per-arm ceiling (LOOSE — see the comment)")
     nk = len(real_k)
     fold.add("shape", "k_mean", mk_mean, st.mean(real_k),
              st.pstdev(real_k) / nk ** 0.5, nk)

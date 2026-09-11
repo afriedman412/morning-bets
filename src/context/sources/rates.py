@@ -1514,6 +1514,22 @@ def _gb_pen(season, before) -> dict:
         return {}
 
 
+def _air_pen(season, before) -> dict:
+    """Pitcher air-ball shares for the bullpen rows, failure-neutral.
+
+    RELIEVERS GET THIS TOO, and they are not an afterthought: they throw
+    roughly a third of the innings, `AIR_HR_PIT` was counted on every arm
+    in the pair table rather than on starters only, and applying a
+    starters-only version of it would be the wild-pitch mistake again
+    (a level measured on starters and applied to everyone, rule 14).
+    """
+    try:
+        from src.context.sources import battedball
+        return battedball.air_pct_map("pit", season, before)
+    except Exception:
+        return {}
+
+
 def bullpens(lg: dict, season: int | None = None, before: str | None = None,
              conn=None) -> dict[str, list[dict]]:
     """{team: [reliever rates, most-used first]}.
@@ -1556,6 +1572,7 @@ def bullpens(lg: dict, season: int | None = None, before: str | None = None,
             # an arm's gb_pct must obey the same cutoff his rates do.
             # Inert until item 4b/4c read it.
             "gb_pct": _gb_pen(season, before).get(r["name"]),
+            "air_pct": _air_pen(season, before).get(r["name"]),
             # `pool_k` reaches relievers too, for the reason `_t` does: a
             # reliever's median line is 106 batters faced against a
             # starter's 480, so the target carries 38% of his rate and 11%

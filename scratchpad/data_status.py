@@ -74,6 +74,30 @@ def _max_date(c, table, schema="", col="date"):
         return None
 
 
+def _last_useful_date(c, table, col, schema="", date_col="date"):
+    """The newest date on which `col` is actually POPULATED.
+
+    A ROW IS NOT A READING. `mlb_weather` carried rows for 2026-09-07,
+    -08 and -09 with `temp_f` NULL on all 41 of them — the live board had
+    fetched the dates pregame, before statsapi populates the forecast,
+    and the empty answer was cached as final. Every freshness check here
+    keyed on MAX(date), so the table reported a 0-day lag while two
+    shipped mechanisms (`TEMP_HR_MULT`, `WIND_HR_MULT`) sat inert for
+    four days. Both are silent-neutral by design, so nothing anywhere
+    raised: a missing reading contributes exactly 1.0 and is
+    indistinguishable from calm, average air.
+
+    So a source with a content column gets TWO dates, and the gap
+    between them is the thing worth seeing.
+    """
+    try:
+        q = (f"SELECT MAX({date_col}) FROM {schema}{table} "
+             f"WHERE {col} IS NOT NULL")
+        return c.execute(q).fetchone()[0]
+    except Exception:
+        return None
+
+
 def pbp_gap(c, since: str) -> tuple[int, int]:
     """(final games since `since`, how many are missing from the cache).
 
@@ -126,6 +150,11 @@ def collect() -> dict:
             ("mlb_lineups", _max_date(c, "mlb_lineups")),
             ("mlb_batted", _max_date(c, "mlb_batted")),
             ("mlb_weather", _max_date(c, "mlb_weather")),
+            # THE CONTENT ROW, not a duplicate of the one above it — see
+            # `_last_useful_date`. When these two disagree the table is
+            # being written but is not carrying readings.
+            ("mlb_weather (temp_f set)",
+             _last_useful_date(c, "mlb_weather", "temp_f")),
         ]
         month = (ref or "2000-01-01")[:8] + "01"
         total, miss = pbp_gap(c, month)

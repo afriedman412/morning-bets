@@ -11611,3 +11611,1241 @@ is removed (the term reaching the curve, the September step, the flag gate,
 and the March/April zero). The `build_side` -> `Side` link is NOT guarded
 offline — it needs a DB — and is verified instead by the fingerprint moving
 to e19d514c18f8 when the flag is on.
+
+---
+
+## 2026-09-10 (day twenty-seven) — ITEM 19.1, NAME THE COUPLING. The model
+## does not invent one; it is MISSING a real one, and the ninth is right.
+
+QUESTION. `ml_split.py` (2026-09-09) found the model putting a +0.059
+correlation between the two clubs' runs where reality has -0.022, most of it
+WITHIN a game. The item's branch: re-read it with extras excluded — if it
+collapses the defect is the extras handling (one mechanism, see 11c); if it
+survives it is shared state inside nine innings, bullpen first suspect.
+
+METHOD. `moneyline.py` now persists the REGULATION-NINE split per draw
+(`track=(5, 9)`, `prefix_side[9]`) behind a `SCHEMA` key, so the four folds
+were REGENERATED on the current engine — 3,548 games x 200 draws, ~30
+minutes — and every reading below is off those draws with no further
+simulation. `scratchpad/ml_extras.py` is the instrument, `ml_eight.py` the
+follow-up that adds a through-EIGHT track.
+
+**DO NOT RUN THE ITEM'S LITERAL TEST.** "Drop the extras draws and re-read"
+gives -0.0090 and says the coupling collapsed AND REVERSED. It is a
+selection: conditioning on `a9 != h9` deletes the diagonal of the joint,
+which drives a correlation negative mechanically. The unselected algebraic
+split — cov(a,h) = cov(a9,h9) + cross + cov(ax,hx) — says the opposite, and
+it is the one to trust. A rule-10 case: the definition, not the denominator.
+
+CONTROLS. POSITIVE: a synthetic league of INDEPENDENT clubs with an extras
+rule bolted on reads +0.0016 through nine (0.6 se) and books 94.9% of the
+invented final coupling to the two extras terms — so the decomposition can
+tell "extras" from "nine innings", which is the whole question. Its FIRST
+run failed at -3.2 se because the synthetic drew both clubs from one RNG
+stream and the extras loop phase-shifted the next draw; separate streams per
+club fixed it. NEGATIVE: shuffling the home club's draws within each game
+reads -0.0014 over five seeds (worst -0.0028), a floor of ~3% of the signal
+and of the wrong sign to manufacture the finding.
+
+ESTABLISHED, in the order the hypotheses died:
+
+  1. **EXTRAS ARE NOT IT.** They are 2.8% of the within-game covariance
+     (cross -0.1859 and cov(ax,hx) +0.1980 very nearly cancel), and the
+     extras machinery is healthy where it counts: runs scored in extras
+     2.785 model against 2.799 real, z -0.1. Rate mildly high, 9.86%
+     against 8.71%, z +2.4 — recorded as an adverse row, not chased.
+     **The item's 11c branch is refuted.**
+  2. **NOR IS THE SCORE.** Splitting the nine-inning covariance by prefix:
+     F5 x F5 +0.0028 (z +0.4), cross F5/6-9 +0.2373 (z +30.6), 6-9 x 6-9
+     +0.1770 (z +38.1). Sign and share stable in all four folds, F5 x F5
+     within 1 se of zero in every one. Stratifying the draws on the F5
+     margin and re-taking cov(a69,h69) removes **3%** of it, so "both
+     managers read the same scoreboard" is dead. The response level is flat
+     too: model 6-9 runs run 3.68-3.72 across every F5 margin where reality
+     rises to 3.995 at 4+ (z -2.7) — the engine leans on the score LESS
+     than reality, not more.
+  3. **IT IS THE UNPLAYED BOTTOM OF THE NINTH** — the one half-inning the
+     home club does not always bat. `ml_eight.py`, 600 games x 200 draws
+     with `track=(5,8,9)`: through five +0.0000, through eight **+0.0301
+     (z +1.1, corr +0.0035)**, through nine **+0.4274 (z +15.0, corr
+     +0.0475)**. Where both clubs always bat there is NO coupling at all.
+  4. **AND THAT IS CORRECT BEHAVIOUR, WHICH REVERSES THE ITEM.** Reality
+     has the same rule, so it gets the same two prefixes off the
+     play-by-play (score before the first play of the ninth / tenth): real
+     through eight **-0.0530**, through nine **-0.0087**. The unplayed
+     ninth moves REALITY by +0.0443 and moves the MODEL by +0.0440. They
+     agree to 0.0003.
+
+**THE FINDING. The model does not invent a coupling. It is MISSING a real
+NEGATIVE one, worth about -0.05, and it lives where both clubs always bat.**
+Model against real by prefix, one draw a game, se 0.0168 throughout:
+
+    window                     model     real      gap      z
+    F5 (both bat)             +0.0094  -0.0112  +0.0206   +1.2
+    through 8 (both bat)      ~+0.012  -0.0530  ~+0.065   ~+3.9
+    through 9 (home may skip) +0.0553  -0.0087  +0.0640   +3.8
+
+(the through-eight model figure is +0.0035 within-game from `ml_eight` plus
+the ~+0.008 between-game part measured at nine; it is the only estimated
+number here and the conclusion does not turn on its third digit.)
+
+**F5 IS CLEAN — z +1.2, unresolvable.** The stated modelling target is not
+contaminated by this, and the whole of the missing coupling builds between
+the sixth and the eighth: reality goes -0.0112 -> -0.0530 across innings
+6-8 while the model goes +0.0094 -> +0.0035. That is a 0.04 swing the
+engine has none of.
+
+**BOTH NUMBERS ARE TINY AND THE FIRST WRITE-UP OVER-READ THEM** (corrected
+the same day, on the operator's objection). -0.053 and +0.012 both mean
+"the two clubs' totals in a game are essentially independent". Nothing here
+says real games pull apart, and the 9-8 game is the standing counter-example:
+park, weather, two shelled starters and two tired pens push both totals UP
+TOGETHER, while the 11-2 pushes them apart, and in reality those two forces
+very nearly cancel. The model lands a hair on the other side of the cancel.
+That is the whole finding. It is 3.8 se and sign-stable in four folds, so it
+is real — it is just small, and it moves the MARGIN and game-total spread,
+not either club's expected runs. sd(sum) 4.437 against 4.463 is the same
+dead heat item 19 already recorded.
+
+AND THE REAL SIDE CANNOT BE SPLIT THE WAY THE MODEL SIDE WAS. Reality gives
+ONE realisation a game, so its -0.053 is an across-games number that mixes
+two different defects: the MATCHUPS being composed that way (a strong club
+facing a weak one, which is a rates/shrinkage item) and the game pulling
+apart AS PLAYED (which would be a bullpen item). The model's within/between
+split does not transfer. The first version of this entry asserted the second
+story on evidence that only covered the total.
+
+INFERRED, one candidate among at least two, and NOT established: innings 6-8
+are the leverage window, so a bullpen that does not suppress hard enough with
+a lead would show up exactly here and would also be item 22 (`lead_held`
+0.9091 against 0.9212, `allowed_0` 0.7432 against 0.7703). The "together"
+side is just as live — park, weather and umpire multipliers are applied to
+BOTH clubs of a game at once, which is a positive coupling the model
+manufactures by construction. THE TEST THAT SEPARATES THEM is written and
+unrun: `scratchpad/ml_resid.py` correlates each club's residual against the
+model's own per-game expectation, which subtracts the matchup structure the
+model already has. Left unrun deliberately — see the priority note in 19.2.
+
+NOT A SHIPPED CHANGE. Nothing in `src/` was touched and the fingerprint
+reproduces d21ae22d9f96 exactly; the suite was green at 522 before and is
+untouched. The battery was not re-run because there is no engine change for
+it to score — the diff is four scratchpad files and a regenerated cache.
+
+REPRODUCTION. `venv/bin/python -m scratchpad.ml_extras` (about two minutes,
+reads the cached draws and the play-by-play) and `... -m scratchpad.ml_eight`
+(about five, it re-simulates 600 games for the eight-inning track). The
+draw cache in `scratchpad/sims/ml_*.json.gz` is SCHEMA 2 and is gitignored;
+`ml_extras` refuses to read a schema-1 file rather than silently answering
+with no regulation-nine columns. Real prefixes are cached in
+`scratchpad/real_prefix.json`.
+
+## 2026-09-10 (day twenty-seven), second entry — ITEM 24: THE HOME RUN CHANNEL READS THE PITCHER'S CONTACT TYPE. Shipped, and it opened a bigger defect than it closed.
+
+QUESTION. Home runs, taken as a whole. The engine resolves them as a per-PA
+log5 over both sides' `hr_pct` with park, air, platoon, TTO, month and
+field-state multipliers on top, and nothing anywhere in the channel knows
+whether the pitcher puts the ball in the air.
+
+HYPOTHESIS, and it came from `battedball.py`'s own note rather than from
+baseball: contact TYPE is a stable per-player trait in a way contact OUTCOME
+is not. That is why the DP and hit-mix tables read ground-ball share. The
+home run is the largest contact OUTCOME the engine still reads only as an
+outcome.
+
+### STAGE 1 — the reliability table, and it predicted everything that followed
+
+`scratchpad/hr_traj.py --stabilise`, odd/even games, Spearman-Brown,
+k = n(1-r)/r on the mean half denominator, players with 100+ balls in play
+in each half. Built on a new `mlb_traj` table — the same pbp scan as
+`mlb_batted` split five ways by trajectory, 283,972 player-game rows.
+
+    role  rate           n     r_half   r_full   k (bip)
+    bat   hr_per_bip    573     0.749    0.856     140.7
+    bat   air_share     573     0.701    0.824     179.0
+    bat   hr_per_air    573     0.706    0.828      88.1
+    pit   hr_per_bip    689     0.263    0.416     943.7
+    pit   air_share     689     0.657    0.793     175.7
+    pit   hr_per_air    689     0.147    0.257     973.1
+
+**THE PITCHER ROW IS THE FINDING.** His home run outcome barely repeats and
+repeats even less once the fly ball is granted, while his contact type
+repeats at five times the reliability per ball in play. So the engine,
+correctly, shrinks his `hr_pct` with k = 934 and throws away nearly all of
+his personal home run signal — and the part of it that contact type explains
+survives shrinkage and was unreachable.
+
+The batter row is the exact opposite and PREDICTED A NULL: HR/BIP is the
+most reliable of his five rates, so his own rate already carries his power.
+
+### STAGE 2 — the count, and the null arrived on schedule
+
+`--airtable`, 263,227 pre-July balls in play over four seasons, 11,463 home
+runs, at the (game, batter, pitcher) PAIR level because log5 needs both
+sides and the league on the same population. Every cell is observed over
+EXPECTED, never over league — unlike DP and hit mix, this channel already
+has a per-player rate, so the only thing worth counting is the increment.
+Covariate and expectation both frozen STRICTLY before the row's month.
+
+    pitcher air share, centred:  0.8587  0.9826  0.9980  1.0545  1.1060
+    batter  air share, centred:  0.9794  1.0078  0.9783  1.0368  0.9976
+
+A 29% monotone spread on the pitcher, cell se ~0.020. **The batter side is
+flat, and it is the negative control the reliability table called in
+advance.** Era gate +0.816 on the pitcher (six of six season pairs positive,
+against `DP_GB_*`'s 0.754) and +0.136 on the batter with three of six pairs
+NEGATIVE. Q1 lowest and Q5 highest in all four seasons. Within-venue control
+0.8654/0.9884/0.9950/1.0541/1.0970 — unmoved, so a fly-ball staff's home
+park is not what is being counted, the correction item 5 needed and this did
+not. One instrument producing an 8-sigma effect and a null on its two halves,
+each predicted beforehand, is rule 7's positive control for free.
+
+Only the pitcher table ships. `BatterRates` deliberately has no `air_pct`
+field and a test asserts it stays that way.
+
+### STAGE 3 — a new battery section, because no existing row could see this
+
+`hrshape`: home runs by one club in one game as a DISTRIBUTION — the 0/1/2/3+
+shares, the mean, and variance over mean, where 1.0 is the Poisson that
+independent plate appearances produce. `contact.hr_per_bip` is the LEVEL and
+has read healthy throughout; the level is exactly what a clustering defect
+does not move.
+
+**AND THE ROW FOUND A DEFECT ON ITS FIRST RUN, BIGGER THAN THE ONE THE ITEM
+WAS ABOUT.** Model against real variance-over-mean, before any change:
+
+    2023  1.0699 vs 1.1456   z -2.4
+    2024  1.0624 vs 1.0961   z -1.0
+    2025  1.0780 vs 1.2001   z -3.7
+    2026  1.0571 vs 1.1212   z -1.7
+
+Four folds, same sign, inverse-variance pooled gap -0.0744 +/- 0.0167,
+**z -4.4**. The model's home run MEAN is right in every fold (mixed signs,
+-2.0 to +1.8) and its DISPERSION is short everywhere. Rule 2's signature
+exactly, on a channel nobody had looked at this way. 2023's `hr_3plus` is
+-3.0 on its own.
+
+### STAGE 4 — the pre-registered falsifier fired, and it was the level
+
+Registered before the run: the table is centred, so `hr_per_club_game` must
+not move; if it does it is a wiring bug and not a finding. It moved +0.014 to
++0.020 in ALL FOUR folds.
+
+DIAGNOSED, NOT PATCHED. The counted table is centred over the counting
+sample, where the five cells are equal fifths BY CONSTRUCTION. The engine's
+population is not that shape: fixed edges against real batters faced put
+15.8/16.9/22.8/18.1/26.3 percent of a fold in the five cells, because
+starters are more fly-ball than the pooled sample of every arm.
+`scratchpad/air_centre.py` measures the applied mean directly over every arm
+each fold uses — 1.0119 / 1.0098 / 1.0125 / 1.0095, **+1.11% pooled, which
+is the level move the battery saw to the digit.** The table is divided by
+that one number; every ratio between cells is the counted one untouched, and
+a test asserts the shipped table is the counted table times a single scalar,
+so a per-cell adjustment dressed as a centring cannot hide here. Rule 9's
+shape applied to the centring rather than the slope.
+
+Re-run centred: `hr_per_club_game` back to baseline in all four folds
+(-2.0/-1.0/+0.2/+1.8 against -2.0/-1.1/+0.0/+1.8).
+
+### RESULT — the rows built for the mechanism, flag off against flag on
+
+`hrshape.hr_per_bip_by_sp_air_q1..q5`: home runs per ball in play off the
+STARTER, bucketed by the shipped `AIR_HR_PIT` cells, both sides bucketing on
+the same covariate. These rows did not exist before this item, which is why
+the A/B is a `--off sim.USE_AIR_HR` run rather than a diff against the
+baseline JSON.
+
+    fold  cell    real     off      on    z off   z on
+    2023  q1    0.0470  0.0452  0.0383    -0.5   -2.6
+    2023  q4    0.0607  0.0524  0.0546    -2.7   -1.9
+    2023  q5    0.0580  0.0513  0.0564    -2.5   -0.6
+    2024  q1    0.0351  0.0423  0.0356    +2.6   +0.2
+    2024  q5    0.0568  0.0471  0.0511    -3.4   -2.0
+    2025  q1    0.0377  0.0456  0.0383    +2.8   +0.2
+    2025  q5    0.0541  0.0486  0.0534    -2.1   -0.3
+    2026  q1    0.0355  0.0442  0.0370    +2.7   +0.4
+    2026  q4    0.0536  0.0485  0.0507    -1.5   -0.9
+
+    MEAN |z| OVER ALL TWENTY CELLS:  1.48 flag off  ->  0.92 flag on
+
+**THE DEFECT WAS REAL, SIGN-STABLE AND MULTI-SIGMA, AND THE TABLE LANDS IT.**
+Flag off, the engine over-produced home runs for ground-ball starters by
++2.6/+2.8/+2.7 in 2024/2025/2026 and under-produced them for fly-ball
+starters by -3.4/-2.1 and -2.5 — the shape the count predicted, seen from
+the other side. Flag on, q1 reads +0.2/+0.2/+0.4 in those three folds.
+
+RECORDED AGAINST IT, not smoothed over: **2023 q1 overshoots**, -0.5 -> -2.6,
+the one cell that is worse than it was. 2023 is also the fold whose q1 was
+already correct before the change, so a table centred on four seasons pushes
+it past. One cell in twenty, and it does not have its own explanation yet.
+
+### THE POOLED SHAPE ROW MOVED MUCH LESS — stated as arithmetic, not as an excuse
+
+Variance over mean, model side, flag off -> flag on, against real:
+
+    2023  1.0699 -> 1.0763   (real 1.1456)   z -2.4 -> -2.2
+    2024  1.0624 -> 1.0653   (real 1.0961)   z -1.0 -> -1.0
+    2025  1.0780 -> 1.0791   (real 1.2001)   z -3.7 -> -3.7
+    2026  1.0571 -> 1.0692   (real 1.1212)   z -1.7 -> -1.4
+
+Right direction 4/4, mean move +0.0056 against a gap of 0.0744 — about 8%.
+The battery diff is otherwise clean: no row anywhere moved by more than one
+se, so nothing was broken to buy it.
+
+**THE SCORECARD IS NOT BLIND HERE AND THE CHANGE IS NOT DILUTED — IT IS JUST
+WORTH THIS MUCH, AND THE ARITHMETIC SAYS SO IN ADVANCE.** `air_pct` covers
+essentially every arm, so the dilution clause does not apply. The predicted
+contribution: the applied multiplier has variance 0.0074 across the
+population; a club-game's home runs come off roughly 2-3 arms with the
+starter carrying ~60% of the batters faced, so the game-level multiplier
+variance is ~0.003, and for N ~ Poisson(lambda*M) the variance-over-mean
+contribution is lambda*var(M) = 1.22 * 0.003 = **0.0037**. Observed +0.0056.
+The term did what its own size allows, and the honest conclusion is that
+**the remaining ~90% of the home run clustering gap is a different mechanism
+that has not been found.** That is item 25.
+
+### WHAT THIS IS, IN THE PROJECT'S OWN TERMS
+
+A DISCRIMINATION term, the leash's shape: it redistributes home runs between
+pitchers and leaves the league level exactly where it was by construction.
+The leash precedent held exactly — flat on every pooled row, and the thing
+it buys shows up only on rows that separate starts from each other. The
+difference from the leash is that this time the separating row was BUILT
+FIRST and the mechanism was scored on it: mean |z| 1.48 -> 0.92 over twenty
+cells. It ships on the count, the two controls, the era gate AND that A/B.
+
+AND ON THE OPERATOR'S QUESTION — leverage park, weather, arsenal, matchup.
+Park and weather were already on this rail (`hr_park`, `pk["hr"]`,
+`TEMP_HR_MULT`, `WIND_HR_MULT` all multiply `m_hr`) and are correctly
+placed: they act on the fly ball, and multiplying HR/PA odds is the same
+thing to first order because HR/PA = air share x HR per air. The within-venue
+control is the evidence that the new term is INDEPENDENT of them rather than
+a second helping. The one genuinely new thing here is arsenal-shaped: five
+imported pitch-mix constructions have measured zero in this project, and
+contact type is the observable CONSEQUENCE of an arsenal, counted on this
+league instead of classified from a pitch mix. That is the version that
+measures.
+
+REPRODUCTION. `venv/bin/python -m scratchpad.hr_traj --build --agree
+--stabilise --airtable --gate` (the build is ~5 minutes over 10,166 cached
+games; `--pairs` builds the 373,424-row pair table the count needs).
+`... -m scratchpad.air_centre` for the divisor. Battery baseline
+`battery_fd7e995e2777.json`; the shipped run and the `--off sim.USE_AIR_HR`
+A/B are alongside it.
+
+## 2026-09-10, third entry — CAN WE PICK THE HITTER? The `hrbat` rows, and the answer is yes in three folds and no in 2026
+
+QUESTION, from the operator, and it is the one nobody had asked the
+scorecard: every home run row in the battery is a CLUB total, and a club
+total cannot say whether the model can pick the HITTER.
+
+THE ROW. `hrbat`: one row is one batter in one game. The model's predicted
+P(at least one home run) is bucketed into deciles OF ITSELF and scored
+against whether he actually went deep — a reliability curve, `calibrate.py`'s
+construction, on the question anyone actually asks about a home run. Plus
+`spread_top_minus_bottom`, which is the discrimination number, and per-PA
+and PA-count rows in the top and bottom deciles so a rate miss can be told
+from a lineup-card miss.
+
+### THE ESTIMATOR HAD TO BE FIXED FIRST, AND THE FIRST VERSION WAS GARBAGE
+
+Version one bucketed by the SHARE OF DRAWS the batter went deep in. Rule
+10's second half: a Monte Carlo mean carries its own noise. At 40 draws the
+se of that share is ~0.05 against a base rate of 0.12 — the same size as the
+real spread between hitters. So the ranking ranked simulation noise, the top
+decile was SELECTED on that noise and reported an inflated model
+probability, and the real rate inside it was attenuated toward the mean. The
+8-draw smoke run read a claimed spread of 0.356 against a real 0.006 and
+BOTH numbers were artefacts of the instrument.
+
+Fixed by making the prediction ANALYTIC: `battery._hr_prob` recomputes the
+plate appearance's home run probability from the resolved matchup, and the
+draw contributes 1 - prod(1 - p_i) over the trips he got. The remaining
+variance is only which arms he actually faced, which is a real feature of
+the night. Engine fingerprint 8cfbe677e6f9 is unchanged by the wrapper, as
+it must be.
+
+### THE ANSWER, four folds, 62,681 batter-games
+
+    fold  decile 1 (model/real)  decile 10 (model/real)  spread model/real   z
+    2023      0.0667 / 0.0696        0.2155 / 0.2085       0.1488 / 0.1390  +0.9
+    2024      0.0652 / 0.0682        0.2066 / 0.2114       0.1415 / 0.1432  -0.2
+    2025      0.0657 / 0.0598        0.2220 / 0.2009       0.1564 / 0.1411  +1.3
+    2026      0.0667 / 0.0682        0.2146 / 0.1801       0.1479 / 0.1119  +2.7
+
+**YES, AND IT IS NOT MARGINAL.** A hitter in the model's top decile goes
+deep in about 21% of his games and one in the bottom decile in about 6.6% —
+a factor of three, and the model's own claimed spread lands within one se of
+the delivered one in 2023, 2024 and 2025. Every decile row in those three
+folds sits inside 1.5 se bar two.
+
+### AND THE FOLD BEING PRICED IS THE ONE THAT MISSES
+
+2026 alone: `p_hr_level` +3.9 (0.1276 against 0.1163), decile 8 +3.3, decile
+10 +3.1, `spread` +2.7, `hr_per_pa_top` +2.5. **The model runs about 10% hot
+on "does he homer tonight" in the live season, concentrated in the hitters
+it likes most.** No other fold does this.
+
+TWO CAUSES AND THE SPLIT IS ROUGHLY EVEN, established by arithmetic already
+on the board rather than by a new run. `hrshape.hr_per_club_game` in 2026 is
+1.2106 model against 1.1553 real, +4.8% — a genuine LEVEL miss, and the
+rates are built from prior seasons plus the current one, so a lower-home-run
+2026 is exactly what the model would lag. The P(at least one) excess is
++9.7%, about double that, and the other half is the CLUSTERING defect
+arriving through a third instrument: real home runs concentrate into fewer
+batter-games than the model's do, so at the same total the model spreads
+them over more hitters and over-predicts "at least one" for everybody. Item
+25 and this are the same defect seen from two sides.
+
+NOT ACTED ON, deliberately. Both halves are item 25's and a season-level
+home run adjustment is a LEVEL solved for, which is rule 5. The rows exist
+now and are four folds deep; that is the deliverable.
+
+WHAT THIS DOES NOT SAY. Nothing here is about a price or a market — the row
+scores the simulation against what happened, which is the objective. And the
+population is the model's nine scored on what those nine did, so a lifted
+batter really did get fewer trips than the engine gave him: `pa_top` runs
++0.10 to +0.21 over real in every fold, the engine never pinch-hits, and
+that is a small standing over-count of everybody's trips rather than
+anything about home runs.
+
+REPRODUCTION. `venv/bin/python -m scratchpad.battery` — the `hrbat` section,
+all four folds. `tests/test_battery.py` pins `_hr_prob` against what
+`pa_from` actually draws; the first version of that check passed all three
+of its own mutations (real `cond` is 0.980, so the bug it guards moved a
+0.03 probability by 0.0006 against a 5 se band of 0.0019) and is now written
+against a fixture with `cond` driven to 0.70 plus exact assertions on the
+two input multipliers.
+
+## 2026-09-10, fourth entry — ITEM 28: Savant's park-adjusted home runs. `xhr` is dead, the QUALITY TIERS are live on the batter, and item 24 gets validated by an instrument that never saw it
+
+QUESTION, operator's: can Savant's "would have been a home run in N parks"
+data improve the home run model? And, on the operator's push back against
+closing the item on its first null — everything the leaderboard has, not
+just the obvious column.
+
+ACCESS, and one trap worth the line it takes. `player_type=Pitcher`, CAPITAL
+P. `type=pitcher` and lowercase `player_type=pitcher` BOTH return batter rows
+with HTTP 200 and no complaint; that is a confident wrong table waiting to
+happen, so `hr_savant.fetch` raises on a `player_type` mismatch rather than
+caching it. Machine-readable through the same `var data = [...]` scrape
+`sources/park.py` uses. Four seasons cached, name match to `mlb_traj`
+99.6-100%, and `xhr` verified as exactly the mean of the thirty park columns
+(max |diff| 0.133 over 200 arms) rather than assumed to be.
+
+THE TEST. Leave-one-season-pair-out: fit on two season pairs, score on the
+third, target is NEXT season's real HR/BIP, every predictor on the same
+balls-in-play denominator. Nine predictor sets, three thresholds, and a
+PAIRED squared-error z on the held-out players — two models scored on the
+same player-seasons share most of their error, so the se of the difference is
+far smaller than the se of either correlation, and comparing two 0.66s
+against the se of a correlation is how a real effect gets called noise.
+
+### `xhr` IS DEAD, AND THE REASON IS STRUCTURAL
+
+Sign-unstable across thresholds on both sides (pitcher -0.006 / +0.015 /
+-0.035 at 100 / 150 / 250 bip; batter -0.002 / +0.010 / +0.009), and z +0.31
+once air share is in. **`xhr` collapses the thirty park counterfactuals to
+their MEAN, and the mean is precisely what `NEUTRALISE_PARK` already
+removes.** The information is in the SHAPE of that distribution, not its
+centre. The pre-registered kill condition was written about noise reduction
+and it fired — but it was narrower than it sounded, which the operator was
+right to push on: it tested `xhr` as a REPLACEMENT, and the blend beating
+both individual predictors in 8 of 8 threshold-by-role cells is what said to
+keep going.
+
+### THE TIER COLUMNS ARE LIVE, ON THE BATTER
+
+`no_doubters` (leaves all thirty parks) / `mostly_gone` / `doubters`, as
+rates per ball in play, added to his own actual rate:
+
+    z +2.84 paired; out-of-sample r +0.0084 / +0.0147 / +0.0159
+    at 100 / 150 / 250 balls in play
+
+Positive at every threshold and GROWING with sample quality. That is contact
+QUALITY, and a home run total cannot see it: ten no-doubters and ten
+wall-scrapers are the same `hr_total` and the same `xhr`.
+
+NINE SETS WERE TRIED, so the winner is optimistic by construction and the
+z is before any selection correction. The threshold stability is what makes
+it a lead worth building rather than a pick from nine. NOT WIRED.
+
+### THE FINDING THAT MATTERS MOST IS THE SPLIT
+
+    actual + air over actual            pit z +3.41     bat z +0.28
+    actual + tiers over actual          bat z +2.84     pit r -0.021
+    actual + air + xhr over actual+air  pit z +0.31
+
+**The pitcher's signal is contact TYPE. The batter's is contact QUALITY.**
+Item 24 counted the air-share table on the pitcher this morning and counted
+the BATTER side as a null on reliability grounds. This test never saw that
+work, uses a different target (next season rather than the same season), a
+different method (regression rather than observed-over-expected) and a
+different data source (Savant rather than the pbp cache) — and it reproduces
+the same split from the other direction. Two independent instruments
+agreeing on which side of the ball carries which kind of information is
+worth more than either number alone.
+
+AND IT VALIDATES ITEM 24 INDEPENDENTLY AT z +3.41. The term shipped this
+morning is worth +0.08 to +0.12 out-of-sample correlation on next-season
+home run rate at every threshold — a test it was never fitted to and which
+did not exist when it shipped. The battery could only see it as mean |z|
+1.48 -> 0.92 on its own cells, because a pooled row cannot see a
+discrimination term; this is the same mechanism measured where it lives.
+
+REPRODUCTION. `venv/bin/python -m scratchpad.hr_savant --fetch --match
+--predict --adversarial --sink --paired`. Leaderboards cached under
+`.cache/savant_hr/`; a COMPLETED season's rows never change, which is why
+this source escapes the season-to-date problem `park.py` has — but the
+CURRENT season's row is season-to-date and knows the future if pulled after
+a fold's cut, so `--predict` only ever uses a completed season as an input.
+
+## 2026-09-10, fifth entry — THE HITTER BOARD, and a live weather regression it found on its first run
+
+THE OPERATOR'S ACTUAL GOAL, stated plainly after a day of my optimising for
+the wrong thing: "here's a hitter, the pitcher(s) they are facing, the
+weather and stadium — what do you predict the likelihood they hit a HR?"
+
+THE ANSWER ALREADY EXISTED AND HAD NO DOOR ON IT. `GameResult.away_bats` /
+`home_bats` already carry `{batter: {"r","rbi","h","tb","hr"}}` folded over
+every arm that pitched, and `slate.simulate_slate_game` already turns a DATE
+into two real clubs with real lineups, the real bullpen, park, weather and
+plate umpire. `scratchpad/hr_odds.py` runs that and counts; it models
+nothing. Roughly eighty lines, no engine change, fingerprint untouched.
+
+    venv/bin/python -m scratchpad.hr_odds [DATE] [--team NYY] [--who judge]
+
+The ranking is NOT the hitters' own home run rates, which is the point:
+2026-09-11 put Cal Raleigh, Arozarena and Julio Rodríguez in the top six
+because they draw Jeffrey Springs, and Matt Olson first because he draws
+Aaron Nola — the two most home-run-prone arms in Savant's 2026 leaderboard
+(33 and 32 allowed). That is `AIR_HR_PIT` and the shrunk pitcher rate doing
+the work.
+
+WHAT IT IS WORTH is `hrbat` from the third entry, and the 2026 caveat is
+printed in the footer of every run rather than left in a notes file: the
+model is ~10% hot on this number in the season being priced.
+
+TWO PLUMBING BUGS FOUND WRITING IT, both mine, both in the first draft:
+`gamestate.is_pregame` takes a MATCHUP and I passed it a DATE, which makes
+it look up a matchup that cannot exist and return False for everything —
+the guard was decorative. And matching the slate against
+`pregame_matchups` means rebuilding "Away Name @ Home Name" from an
+abbreviation, which is the 'Arizona Diamondbacks' against 'D-backs' failure
+CLAUDE.md already records. Added `gamestate.pregame_game_ids`, IDs not
+names, pinned to `pregame_matchups` by a test so the two selectors cannot
+drift into one of them quietly pricing live games.
+
+### AND THEN THE AIR COLUMN READ 1.000 FOR EVERY GAME
+
+**`TEMP_HR_MULT` AND `WIND_HR_MULT` HAD BEEN INERT ON LIVE DATA SINCE
+2026-09-07. FOUR DAYS, 41 GAMES, AND NOTHING COMPLAINED.**
+
+    date          rows   with a temperature
+    2026-09-06      15   15
+    2026-09-07      11    0
+    2026-09-08      15    0
+    2026-09-09      15    0
+
+Confirmed against statsapi directly: the FEED HAS the temperature for
+2026-09-09, all fifteen games. Ours did not. So it was our bug, and it was
+two of them compounding:
+
+  * `weather.fetch_date` cached on the reasoning that "a final game cannot
+    change" — true of the GAME, false of the FILE. The live board asks for a
+    date PREGAME; statsapi does not populate `weather.temp` until near first
+    pitch; the empty answer was written to the cache and frozen. The
+    2026-09-07 cache file is timestamped Sep 6 23:08 — the night before.
+  * `weather.backfill` keyed its skip-list on `select distinct date`, so
+    once the empty rows existed the date could never heal.
+
+Either alone would have been survivable. Together they mean ANY DATE THE
+LIVE PATH TOUCHES FIRST IS PERMANENTLY POISONED, so the damage grows with
+every board run. Three dates of 831 today; it was going to be all of them.
+
+WHY IT WAS SILENT, and this is the part worth generalising: both mechanisms
+are SILENT-NEUTRAL BY DESIGN. A missing reading contributes exactly 1.0,
+which is indistinguishable from calm, average air. The rule that stops a
+guessed value moving the estimate in the wrong direction is the same rule
+that makes a dead feed invisible. `scratchpad/leverage.py`'s whole premise —
+that a wired mechanism is doing something — was false here for four days.
+
+FIXED: a cache carrying at least one temperature is final; one carrying none
+is a pregame read and is re-fetched after `EMPTY_TTL_SECONDS` (1800), which
+lets today's forecast arrive as first pitch approaches without hammering the
+feed inside one slate run. The backfill's have-set now requires
+`sum(temp_f is not null) > 0`. All 41 games healed on the next backfill.
+86F with 9mph out to right field is an air multiplier of 1.1634 — a 16% home
+run boost that had been silently 1.000.
+
+AND THE DETECTOR, because "nothing complained" is the actual defect:
+`data_status` now prints `mlb_weather (temp_f set)` beside `mlb_weather`. A
+ROW IS NOT A READING, and every freshness check in this project keyed on
+MAX(date). When the two dates disagree the table is being written and is not
+carrying readings. Three checks, all mutation-verified.
+
+WATCH ITEM, not a bug: a DAY-AHEAD price has no weather at all — the
+2026-09-11 feed carries zero temperatures for all fifteen games, and that is
+upstream and correct. Weather is a same-day term. A board run the night
+before is running with the air multiplier at 1.0 legitimately, and now says
+so instead of implying the night is neutral.
+
+### Addendum, same day — how well it performs, and the question splits in two
+
+THE OPERATOR ASKED HOW THE PREDICTOR PERFORMS AND I ANSWERED WITH BATTERY
+NUMBERS, WHICH WAS THE WRONG ANSWER TO THE QUESTION ASKED. Those rows score
+the MODEL on the REPLAY path, where the nine that batted is known. The tool
+he would actually run is `hr_odds` on the LIVE path, where it is not. The
+two are not the same thing and I presented one as the other.
+
+TWO CHECKS FOLLOWED, both from his push-back.
+
+**One: the battery numbers were on stale data, and it mattered enough to
+re-run.** The 41 weather games healed earlier in the session sit inside the
+2026 fold window (41 of 912), and CLAUDE.md's rule is never to backfill
+between recording a battery result and reading it. Identical code re-run:
+the ENGINE FINGERPRINT MOVED 8cfbe677e6f9 -> 229e10f06c56 on the data change
+alone, which is the documented effect and confirms the concern was real. The
+numbers themselves did not move — 2026 decile 10 +3.1 -> +3.0, spread +2.7
+-> +2.6, everything else identical, no row past one se. So the check was
+warranted and the answer held.
+
+**Two: the projected lineup, which is the real gap and is much larger.**
+`slate.projected_lineup`'s own docstring already said it: "`assemble` treats
+a confirmed lineup as REQUIRED for batter props for exactly this reason — a
+projection is a guess." `hr_odds` IS a batter-prop tool and I had it
+printing per-hitter numbers off projections without a word. Measured, 1,072
+club-games from 2026-08-01:
+
+    projected nine vs the nine that actually batted
+    mean overlap 7.02 of 9 (78.0%)
+    9/9  5.5%    8/9 29.4%    7/9 35.3%    6/9 22.4%    5/9 6.7%
+
+**ABOUT TWO NAMES PER CLUB ARE WRONG BEFORE LINEUPS POST**, and the tool now
+says so: projected rows are marked `~`, the header counts them and tells the
+operator to re-run. Once lineups are posted the live path and the replay
+path agree about the nine, which is when the backtest transfers.
+
+SO THE HONEST ANSWER IS CONDITIONAL. The MODEL is calibrated and
+discriminating — bottom decile 6.7% predicted against 6.8-7.0% real, top
+decile 21.5% against 20.9-21.1%, a threefold spread, three folds clean. The
+TOOL is that, minus a fifth of its names, until lineups post.
+
+## 2026-09-10, sixth entry — A DIRECT HOME RUN CLASSIFIER BEATS THE SIMULATION AT PICKING THE HITTER, four folds, and the win is ORDERING and not level
+
+QUESTION, operator's, after a day of my answering a different one: "we should
+just do a straightforward data in -> bool out hr predictor."
+
+NOT HERESY, AND CLAUDE.MD SAYS SO: **FIT THE QUANTITY THAT SETTLES, NOT THE
+UPSTREAM PROXY.** The engine is tuned on hazard curves and run distributions
+and the home run probability falls out the far end. This fits P(home run)
+directly. The engine's number is a real incumbent (`hrbat`, threefold decile
+spread) so the classifier had a benchmark to beat rather than a vacuum.
+
+THE DATA. One row per batter-game from `mlb_lineups`, 172,714 rows over four
+seasons, 11.64% with a home run — which matches `hrbat.p_hr_level`, so the
+label is right. The label needs no rate: a home run requires a ball in play,
+so a batter in the lineup with no `mlb_traj` row hit none. Features frozen
+STRICTLY BEFORE the row's month: both sides' shrunk HR and air rates, their
+log5, lineup slot, park HR index, temperature, signed wind, and the platoon
+cell. Split BY SEASON, never at random — the rate features are monthly
+aggregates, so a random hold-out leaks a batter to himself.
+
+### THE HEAD TO HEAD, ON IDENTICAL ROWS
+
+The `hrbat` deciles are on PAIRED July-onward games and the classifier's test
+set was the whole season; comparing those two tables would have compared
+POPULATIONS and handed the classifier a win it had not earned. So the battery
+now dumps its per-row predictions (`HRBAT_DUMP=...`, inert without it) and
+the two are joined on (game_id, batter). Label agreement 100.0000%.
+
+    fold        n   AUC sim  AUC clf   z raw   z RECALIBRATED
+    2023   17,522    0.5996   0.6126   +1.23        +1.27
+    2024   17,029    0.6093   0.6168   +0.42        +0.38
+    2025   16,228    0.5954   0.6152   +3.72        +3.58
+    2026   11,878    0.5877   0.6097   +3.21        +2.27
+
+**THE CLASSIFIER WINS AUC IN ALL FOUR FOLDS** (+0.008 to +0.022, mean
++0.014) and the paired Brier z is positive in all four, pooling to about
++3.8.
+
+**AND THE RECALIBRATION COLUMN IS THE FINDING.** 2026 is the fold where the
+engine is known to run 10% hot, so a 2026-only win could have been nothing
+but a better LEVEL — the cheapest possible edge. Granting the engine the
+TEST SEASON'S OWN BASE RATE, which it could never have live, barely moves
+anything: +1.23->+1.27, +0.42->+0.38, +3.72->+3.58, +3.21->+2.27. What the
+classifier has is ORDERING.
+
+### WHAT IT LEARNED, AND IT IS THE ENGINE'S OWN STRUCTURE
+
+Standardised logistic coefficients, largest first: log5 batter-x-pitcher
+(+0.395), lineup SLOT (-0.158, i.e. how many cuts he gets), the two raw
+rates, temperature (+0.090), park (+0.083), the pitcher's AIR SHARE (+0.077,
+which is item 24 rediscovered by a different method), wind, then the platoon
+cells. So it is not finding an exotic interaction — it is finding what the
+simulation already models, and fitting it to the outcome instead of
+inferring it through a whole simulated game.
+
+### THE HANDICAPS, BOTH DIRECTIONS, STATED
+
+FOR THE CLASSIFIER: it trained on three seasons WITH THE OUTCOME IN FRONT OF
+IT; the engine was never fitted to a home run at all. A narrow classifier win
+is not proof the approach is better — a classifier LOSS would have been
+strong proof it is not.
+
+FOR THE ENGINE: it gets for free what the classifier must infer from a
+lineup slot — how many plate appearances the man actually gets, who relieves
+and when, times through the order, and the base-out state each trip arrives
+in.
+
+AND NEITHER IS GOOD IN ABSOLUTE TERMS. AUC 0.59 against 0.61 on a 12% event.
+Home runs are mostly irreducible and this is what the ceiling looks like from
+below; the practical read stays the threefold decile spread, not the AUC.
+
+NOT SHIPPED, NOT WIRED, AND IT DOES NOT REPLACE THE ENGINE. The engine
+prices run totals, F5, K and outs props and game script, none of which a
+per-hitter home run classifier can do. What this says is narrower and still
+worth having: FOR THIS ONE QUESTION, fit it directly.
+
+THE OBVIOUS NEXT STEP, and it is cheap: **the Savant quality tiers are NOT
+in the feature set** and the fifth entry measured them at z +2.84 on exactly
+this target. `no_doubters`/`mostly_gone`/`doubters` from the prior completed
+season, joined per batter. That is the one known-live signal the model does
+not yet have.
+
+REPRODUCTION. `venv/bin/python -m scratchpad.hr_clf --build --fit`, then
+`HRBAT_DUMP=scratchpad/simpred venv/bin/python -m scratchpad.battery` and
+`... -m scratchpad.hr_clf --vs-sim-all`.
+
+## 2026-09-10 — the Savant quality tiers are REDUNDANT with the batter's own rate, not absent
+
+The "obvious next step" in the entry above, taken and REFUTED. `no_doubters`
+/ `mostly_gone` / `doubters` / `non_hr_would_have_left` from the prior
+COMPLETED season, joined per batter, added to `hr_clf`'s feature set. They
+buy nothing.
+
+### THE MEASUREMENT
+
+Four folds, PAIRED, tier columns zeroed against tier columns present —
+identical rows, identical hyperparameters, identical seed, one block of the
+matrix blanked. `... -m scratchpad.hr_clf --ablate`.
+
+      fold         n  AUC off  AUC on  brier off  brier on       z   t_seen
+      2023    41,964   0.6026  0.5994    0.10638   0.10698  -10.37     0.0%
+      2024    45,917   0.6133  0.6127    0.09851   0.09850   +0.46    89.5%
+      2025    46,189   0.6236  0.6244    0.10052   0.10050   +0.73    89.3%
+      2026    38,644   0.6157  0.6148    0.09949   0.09950   -0.48    89.9%
+
+Pooled over the three folds that carry tiers: **z +0.41**. A null.
+
+**THE 2023 ROW IS DISTRIBUTION SHIFT AND NOT A READING**, and it is worth
+keeping as the illustration. That fold has no tier data — its denominator
+needs 2022 balls in play and `mlb_traj` opens in 2023 — so it trains on
+three seasons where 89% of rows have `t_seen = 1` and then scores a fold
+where every tier is zero, a value it has only ever seen on rookies. It
+routes the whole fold down the rookie branch. Nothing about the tiers.
+
+### RULE 7 — THE HARNESS WAS POSITIVE-CONTROLLED, AND IT NEEDED TO BE
+
+Ablating `b_hr` and `log5` instead, a block known to carry signal:
+**+13.18 / +0.52 / +3.82 / +3.79**. So the screen sees a real effect at
+z ~+3.8 in 2025 and 2026 — the same two folds where the tiers read +0.73
+and -0.48. This is an ABSENCE, not a blind screen.
+
+It also says fold **2024 is low-powered on this harness**: it reads +0.52
+for the known-live block, so its tier null is uninformative rather than
+confirming. Two folds are doing the work, not three.
+
+### WHY — REDUNDANCY, WHICH IS A DIFFERENT FINDING FROM IRRELEVANCE
+
+The fifth entry's +2.84 put the tiers against ONE prior season's home run
+rate. `b_hr` here is a SHRUNK SEASON-TO-DATE rate, and it already knows
+everything a completed season could say and more. The tiers are collinear
+with it, and with `log5`, which is built out of it — which is also why the
+logistic coefficients are unreadable here and were not read (`b_hr` comes
+out NEGATIVE at -0.062 next to `log5` at +0.345; that is collinearity, not
+baseball).
+
+Corollary worth carrying: **the tiers may still be live where `b_hr` is
+weak.** `--ablate --early`, scoring only March-May rows where a
+season-to-date rate is almost all prior, reads +0.32 / +1.34 / +1.73 —
+positive in all three tier-carrying folds, pooled **z ~+2.0**, against a
+cold-start positive control that itself only manages +3.5 in one fold. NOT
+ENOUGH. This project has watched 2-sigma results dissolve repeatedly and
+this one is a subgroup found after the main test failed. Logged, not
+believed. TODO 30.
+
+### THE DENOMINATOR BUG, CAUGHT BEFORE IT SHIPPED — RULE 10 AGAIN
+
+First construction divided each tier by `hr_total`, which is what Savant
+itself does for its `no_doubter_per` field (reproduced exactly, 29/65 =
+44.6%). **It is the wrong base for the other three.** The tiers count
+BATTED BALLS, not home runs: Cooper Hummel reads 3 home runs and 4
+mostly-gone. Dividing by `hr_total` put 8 rows in 10 above 1.0 and the tail
+above 7.0, purely from the denominator collapsing on light hitters. Caught
+by printing the range and a slugger/slap-hitter pair before fitting
+anything — Judge and Arraez, which is the habit that keeps finding these.
+
+Correct base is BALLS IN PLAY, which all four share, and which is what the
++2.84 measurement used. Shrunk toward the league tier rate at `K["bat_hr"]`
+= 140.7 balls in play rather than floored: an eighth of matched batters have
+under 50 the season before, and a hard cutoff would throw the part-time
+slugger in with the rookies.
+
+### COVERAGE, AND WHAT MORE DOWNLOADING WOULD AND WOULD NOT BUY
+
+Savant leaderboards are cached forever per completed season and cost
+nothing, so 2018-2022 were pulled. One season of lookback covers 88.2% of
+batter-games, two covers 90.4%, three covers 90.6% — `TIER_BACK = 2`.
+
+**The residual ~10% is not a matching failure and no download fixes it.**
+The leaderboard lists only players who HOMERED, so a rookie with no prior
+major league home run is a genuine absence. Encoded as `t_seen = 0`, an
+explicit missing rather than a neutral impute — imputing that group to
+league-average power says something false exactly where it is most wrong.
+
+The one download that WOULD change the construction is a 2021-22 balls-in-
+play denominator, and it is not cheap: `bets.games` itself opens in 2023, so
+it would mean backfilling schedules and boxscores into `morning_bets.db` —
+the database that is not version controlled and cannot be regenerated.
+
+### STATE
+
+`USE_TIERS = False` in `scratchpad/hr_clf.py`, with the null in the flag's
+own comment. The tier block is ZEROED rather than dropped so `FEATS` indices
+stay valid and `--ablate` can turn it back on without a second code path.
+With it off, `--vs-sim-all` reproduces the previous entry's table EXACTLY
+(0.6126 / 0.6168 / 0.6152 / 0.6097), which is the check that this work did
+not perturb the incumbent result.
+
+Nothing entered `src/`, so no test ships with this — the engine is untouched.
+
+### CORRECTION, same day — the block ablation was diluted, and the "redundancy" story was WRONG for one column
+
+Pushed back on, correctly: the tiers are NOT a re-description of balls that
+already cleared the fence. `mostly_gone` runs PAST `hr_total` (Hummel, 3
+home runs, 4 mostly-gone) and `non_hr_would_have_left` is entirely balls
+that did NOT leave — 14 of them against his 3 homers. So the redundancy
+argument fails exactly where it should be weakest: `b_hr` counts balls that
+left and cannot contain the ones that didn't.
+
+AND THE BLOCK ABLATION WAS A DILUTION ERROR. All four columns were zeroed
+together, which hides a live column sitting next to three dead ones. Run
+in ISOLATION, on the three tier-carrying folds:
+
+      t_wl (near-misses)   -1.64  -0.08  +0.26      pooled -0.84
+      t_nd                 +1.97  +0.33  +0.01      pooled +1.33
+      t_mg                 -0.71  +0.19  -0.13      pooled -0.38
+      t_db                 -1.49  +1.08  +0.75      pooled +0.19
+
+Still null. The block was not hiding anything — but that was luck, not
+method, and the isolated run is the one to trust.
+
+**THE REAL REASON, and it inverts the intuition.** 117,050 batter-games
+with a prior tier row:
+
+      corr( near-miss rate , homered tonight )        -0.0173
+      partial, holding his own HR rate fixed          -0.0115
+      corr( his HR rate , homered tonight )           +0.1170
+      corr( near-miss rate , his own HR rate )        -0.0506
+      corr( near-miss rate , his typical park factor) -0.1132
+
+The near-miss count is NEW information, exactly as claimed — it is just
+not information about the HITTER. It is mostly a reading of his home
+PARK: the correlation with his own park factor is -0.11, so men in big
+parks accumulate near-misses and the model already has park. What is left
+over is warning-track power, which is why the correlation with his own
+home run rate is NEGATIVE: if you are strong enough, the borderline ball
+leaves and never enters the category at all.
+
+So a high near-miss rate is a mildly BAD sign, not hidden upside. Both
+effects push the same way and neither is worth a feature.
+
+CARRY THIS FORWARD TO TODO 28: "counts balls the scoreboard missed" is not
+by itself a reason to expect signal. Ask what varies the count — here it
+was the ballpark, twice removed.
+
+## 2026-09-10 — HITTER-PARK FIT IS REAL, CORRECTLY SCALED, AND BELONGS IN THE SIM, NOT THE CLASSIFIER
+
+Prompted by a push-back worth recording verbatim in substance: park shapes
+are ARBITRARY AND DIRECTIONAL, so a hard-hit ball in a given direction is a
+fly out in one yard and two feet over the wall in another, and a SCALAR park
+factor cannot represent that. Correct, and it is the same thing item 28's
+`xhr` autopsy said structurally — `xhr` is the MEAN of the thirty park
+columns and the mean is exactly what `NEUTRALISE_PARK` already removes.
+**Every feature tested before this one also collapsed across parks**, so
+none of them could have seen it.
+
+### THE FEATURE
+
+For each hitter, Savant's thirty park columns kept as a VECTOR — how many of
+his batted balls would have left each park. Double-centred:
+
+  * divide out HIS OWN level, which `b_hr` already has;
+  * subtract the LEAGUE's park profile, which `park_hr` already has.
+
+What is left is the interaction and nothing else. `_fit_for` in
+`scratchpad/hr_clf.py`; the game's park joins through `home_team_abbr`
+(two fixes, `AZ`->`ari` and `ATH`->`oak`; minor league neutral sites get no
+fit, the same rule park factors follow).
+
+PER BALL IN PLAY, NOT PER HIS OWN AVERAGE PARK. The relative form is the
+natural way to write a multiplier and it explodes on light hitters — one
+counterfactual home run over thirty parks means a mean of 1/30 and that park
+reads +29. It put |6.13| in the built column. The per-BIP form cannot blow
+up and is also MORE RELIABLE year over year (+0.227 against +0.19).
+
+### IT ENCODES REAL GEOMETRY, AND WAS NEVER TOLD ABOUT HANDEDNESS
+
+Mean fit by park, left-handed bats minus right:
+
+      bal +0.109   cle +0.075   pit +0.079      (short right field)
+      sf  -0.115   hou -0.072   chc -0.092      (Triples Alley, Crawford Boxes)
+
+Camden and Cleveland favour lefties, Oracle and Minute Maid favour righties,
+and handedness is nowhere in the construction. That is the check that the
+column is geometry and not an artefact.
+
+### THE INTERACTION, MEASURED WITHIN HITTER AND WITHIN PARK
+
+117,034 batter-games, both fixed effects removed by iterated demeaning, so
+neither "he is a slugger" nor "it is Coors" can produce it:
+
+      raw                             +0.0129
+      within hitter-season            +0.0095
+      within park                     +0.0114
+      within BOTH (the interaction)   +0.0087   se 0.0029   z +2.97
+
+Monotone across all five quintiles, which no single number can fake:
+
+      q1 -0.292 pp   q2 -0.059   q3 -0.039   q4 +0.154   q5 +0.235
+
+**AND IT IS ALREADY CORRECTLY SCALED.** The within-hitter within-park slope
+is **0.863 +/- 0.291** against a nominal 1.0 — half a standard error from
+unity. The Savant counterfactual is quantitatively right as it stands, so
+this is a COUNTED quantity and there is nothing to fit. Rule 5 satisfied by
+construction, which is rare here.
+
+Magnitude at the tails: **+23.6% / -21.9%** on a hitter's home run rate,
+the same order as `PLATOON_MULT`.
+
+### AND IT DOES NOT HELP THE CLASSIFIER — THREE MODEL FORMS, ALL FLAT OR WORSE
+
+      gradient boosting        -0.92  -1.89  -2.19
+      logistic                 +2.39  -2.29  -1.48
+      gb, monotone-constrained -2.13  -0.78  -0.93
+
+NOT A CONTRADICTION, and the reconciliation is the useful part. A per-game
+home run is a 12% coin flip, the effect lives in the TAILS of the fit
+distribution, and only a minority of batter-games sit there. The Brier gain
+from a +/-22% rate multiplier on that minority is smaller than the
+estimation noise of three added columns. The first version also let a
+300-tree booster memorise hitters through a near-unique continuous value,
+which is why the constrained forms are less bad.
+
+**SO THE CONCLUSION IS A REDIRECT, NOT A KILL.** This is rule 3's case
+exactly — small, MEASURED, not fitted, and it accumulates. A per-game bool
+cannot use a 0.5 pp shift; a SIMULATION that runs the multiplier over every
+plate appearance and every game, and prices team totals off the result,
+can. It belongs in `sim.py` next to `PLATOON_MULT`, not in `hr_clf`'s
+feature matrix. TODO 31.
+
+`USE_FIT = False` in `hr_clf.py` — the builder stays, the classifier does
+not use it.
+
+### METHOD NOTE, WORTH MORE THAN THE FEATURE
+
+The screen-before-building reflex would have killed this at the leverage
+step and been WRONG: the effect is real, correctly scaled, and as large as
+the platoon term. It was only visible after building the vector, joining the
+parks, and controlling both fixed effects. Two of this session's three
+"dead" verdicts were overturned by pushing further, and both times the
+counter-argument was cheaper to produce than the measurement that refuted
+it. BUILD THE THING FIRST.
+
+## 2026-09-10 — THE PER-PLATE-APPEARANCE REFRAME, and where the remaining headroom actually is
+
+`scratchpad/hr_pa.py`. One row per plate appearance, 769,511 of them over
+four seasons at 3.054% home runs, straight off the play-by-play cache
+(`result.type == 'atBat'`, label `eventType == 'home_run'`). Prompted by the
+observation that a per-GAME row forces two problems that a per-PA row simply
+does not have: the pitcher is unknown for half a hitter's chances, and
+`slot` smuggles OPPORTUNITY into what is supposed to be a rate.
+
+### IT WINS BIG, AND THEN THE WIN EVAPORATES UNDER SCRUTINY
+
+Rolled back up to "does he homer tonight" and scored against `hr_clf` on
+identical batter-games:
+
+      fold   AUC per-game   AUC per-PA    z
+      2024      0.6119        0.6428    +13.58
+      2025      0.6236        0.6530    +14.34
+      2026      0.6151        0.6464    +12.25
+
+**BUT THAT ROLLUP USES HIS ACTUAL NUMBER OF TRIPS AND THE ACTUAL ARMS**,
+neither of which exists before first pitch. Restricted to what is knowable
+— the first plate appearance's probability against the announced STARTER,
+raised to expected trips from (slot, home/away) learned on training rows —
+it reads **0.6106 / 0.6223 / 0.6147** against the per-game model's 0.6119 /
+0.6236 / 0.6151. A tie, z -0.82 / -0.68 / -0.65.
+
+So the per-AB model is a better DESCRIPTION and not a better PREDICTION.
+Everything it gained came from the part nobody has in advance.
+
+### THE DECOMPOSITION, WHICH IS THE REAL FINDING
+
+Same rollup, same rows, three information sets:
+
+      actual trips + the real arms          0.6702  0.6826  0.6704
+      actual trips + starter for every PA   0.6687  0.6814  0.6696
+      expected trips + starter for every PA 0.6427  0.6568  0.6368
+
+  * knowing WHICH ARMS he faced:      **+0.001 AUC**
+  * knowing HOW MANY TIMES he batted: **+0.028 AUC**
+
+Thirty to one. **PERFECT INFORMATION ABOUT THE BULLPEN IS WORTH ALMOST
+NOTHING.** This is the same verdict the club-aggregate bullpen null gave
+(z +0.30/+0.07/-0.48/-0.91) and the actual-arms ceiling gave (+1.2 pooled
+for pitcher quality against +4.5 for the arm COUNT, which is a consequence
+of home runs rather than a cause), now from a third direction and much
+stronger: it is not that the bullpen estimate was too coarse. Pitcher
+identity beyond the announced starter barely matters for whether a hitter
+homers.
+
+### WHAT THIS REDIRECTS THE WORK TOWARD
+
+**OPPORTUNITY, NOT PITCHING.** The per-game model already said so and it was
+misread: `slot` was its second most valuable input at z +5.7/+3.1/+5.1,
+which is not a baseball skill — it is a proxy for how many times he bats.
+The per-AB split confirms it by removing opportunity from the rate entirely
+and finding that is where all the headroom sits.
+
+`(slot, home/away)` is a crude expected-trips model and there is real room
+under it: team offence, the opposing starter's expected length, the game
+total, and the home club skipping the bottom of the ninth (measured
+separately: home hitters get 3.4% fewer balls in play, negative at all nine
+slots). None of that closes the whole 0.028 — actual trips depend on how the
+game goes — but it is the only channel on this problem with a large gap
+between what is known and what is knowable.
+
+AND NOTE WHAT THIS IS: predicting how many times a man bats and against
+what, from the game state forward, IS A GAME SIMULATION. The per-AB
+detour ends by pointing at the engine.
+
+### SLOT STAYS, FOR A NEW REASON
+
+Kept as a per-PA feature on the user's point that it is not only
+opportunity: a nine-hole hitter gets challenged and a three-hole hitter
+gets worked around, so the slot carries information about HOW HE IS
+PITCHED. `mlb_lineups` is the card as posted, so a pinch hitter has no slot
+and is marked (`slot_unk`) rather than assigned one.
+
+### TWO INPUT DEFECTS FOUND AND FIXED IN `hr_clf` ALONG THE WAY
+
+  * **Pitcher handedness missing on 17.5% of rows.** `roster.throws` reads
+    a CURRENT-season index, so labelling 2023-25 games returned None for
+    anyone off a 2026 roster — Berríos, Morton, Burnes, Heaney, López, 226
+    arms. Nothing in `context.db` carries handedness at all. Now counted
+    from `matchup.pitchHand` in the play-by-play: 10,167 games, 2,325
+    pitchers, 0.00% unknown. It moved the score essentially not at all,
+    because platoon is only worth z -0.3/+1.9/+1.5 on this channel.
+  * **Two games carried 0F**, one in late June, stored as a real value so
+    the missing-data path never fired.
+
+### THE BLOCK RANKING, `hr_clf`, paired z on 2024/25/26
+
+      hitter's own rate      +6.0  +9.6  +5.9
+      lineup slot            +5.7  +3.1  +5.1
+      opposing starter       +3.5  +3.1  +1.8
+      temperature and wind   +2.6  +1.8  +3.0
+      park factor            +1.6  +1.1  +0.3
+      platoon                -0.3  +1.9  +1.5
+      bullpen aggregate      +0.3  +0.1  -0.5
+
+---
+
+## 2026-09-11 — TODO 32, THE PER-ARM HOOK OFFSET: BUILT, SCORED, PARKED, AND THE ITEM'S PREMISE IS REFUTED
+
+Asked to fit the hook better to individual pitchers. The answer is that the
+shipped `sim.leash` is already close to the best a per-arm hook term can do,
+and the reason is a number nobody here had measured: the per-arm outs
+residual carries from one season to the next at only **r +0.225**.
+
+### WHAT WAS BUILT
+
+`src/context/armhook.py` — TODO 32 as specified: one per-arm log-odds offset
+per curve, fitted on 356,711 pre-holdout real decisions (81,247 boundary /
+275,464 mid), boundary and mid SEPARATELY (rule 9). Every constant measured,
+none searched:
+
+  * the offset is the MLE of a single log-odds shift on a fixed linear
+    predictor — the δ solving Σy = Σ sigmoid(logit p + δ);
+  * its variance is the CLUSTER-ROBUST sandwich on (game, side);
+  * the shrinkage is empirical Bayes with each arm weighted by his own
+    precision, not one pooled K;
+  * a per-SEASON league offset is fitted and **thrown away**, so the arm
+    terms stay orthogonal to TODO 33's era drift. That drift is large and
+    this reproduces it independently: boundary 2023 **-0.227** -> 2026
+    **+0.301**, mid -0.177 -> +0.374.
+
+Wired as `sim.Hook.arm_bnd_offset` / `arm_mid_offset` (two fields, because
+one cannot carry two numbers), `sim.USE_ARM_HOOK`, **shipped OFF**. Suite
+540 -> 566, 26 checks, five mutations verified.
+
+`hook_hash` now EXCLUDES the two new slots, with the rule enforced rather
+than trusted: an excluded field whose default is not 0.0 RAISES. Without
+this, adding two inert zero-default slots would have changed the digest and
+silently refused `hook_leash.json` — a new mechanism disabling an existing
+one by being added. Digest unchanged at `cd49f92bffe8`; pinned by
+`check_the_shipped_offset_tables_still_load`.
+
+### THE SECOND SHRINKAGE, which is the transferable lesson
+
+The first build had the clamp binding on ~40 arms and a mean offset of
++0.07/+0.13 — a per-arm term moving the league LEVEL. Both symptoms had one
+cause: **empirical Bayes removes SAMPLING noise only.** It answers "how much
+of this spread is real" and not "how much of what was real last year is
+still true this year", and an arm ages, changes clubs and managers while the
+league drifts under him. Shrinking for sampling noise alone leaves a term
+that describes an arm's PAST correctly and OVER-CORRECTS his future.
+
+Fixed by multiplying every offset by its MEASURED year-over-year
+reliability — estimate on season N, score on N+1, same machinery:
+
+    boundary  r +0.558 over 101 arm-pairs      mid  r +0.397 over 387
+
+which independently reproduces `hook_resid`'s +0.538 / +0.373 from a
+different estimator. The shipped table: **sd 0.2465 (bnd, 358 arms) / 0.1764
+(mid, 372)**, clamp binding on ONE arm each, level centred to zero on
+decision weights.
+
+ONE SEQUENCING WRINKLE, STATED RATHER THAN TIDIED: the score below was run
+against the table as first built (sd 0.2533 / 0.1879, 399 mid arms), BEFORE
+a test found that a one-cluster arm gets a cluster-robust variance of
+exactly zero and so escapes shrinkage entirely. Fixing that (`MIN_CLUSTERS`,
+plus the finite-cluster correction) dropped 27 thin mid arms and narrowed
+both curves. The rebuilt table is therefore slightly NARROWER than the one
+that scored +0.0008, so the null holds a fortiori — a smaller term cannot
+buy more. It was not re-scored.
+And the sd lands on `hook_resid`'s measured projectable sd of ~0.25 log-odds
+from the other direction — two routes, same number.
+
+**`leash.py` HAS THE SAME GAP** (its K is within/between off a one-way
+ANOVA) and so would any future per-arm term. Measure the carry.
+
+### THE RESULT: A POWERED NULL, POSITIVE-CONTROLLED
+
+`scratchpad/arm_score.py`, 2026 holdout, 680 games x 24 draws, paired seeds,
+se on the DELTA by paired bootstrap over starts (the marginal se of a
+correlation overstates a paired delta by an order of magnitude):
+
+    population            n      corr OFF   corr ON     delta      se     z
+    every start        1,360      +0.3649   +0.3658   +0.0008  0.0052  +0.2
+    arm HAS an offset  1,296      +0.2341   +0.2338   -0.0003  0.0073  -0.0
+    no offset          (64 — control, unmoved)
+
+THE POSITIVE CONTROL, same instrument, switching the SHIPPED LEASH instead:
+
+    every start        1,360      +0.3520   +0.3649   +0.0130  0.0098  +1.3
+    arm HAS an offset  1,164      +0.1893   +0.2166   +0.0273  0.0160  +1.7
+
+So the harness sees a per-arm hook term at ~0.02 and the new one reads zero.
+
+### WHY — AND IT REFUTES THE ITEM'S FOUNDING PREMISE
+
+TODO 32 argued that fitting on the DECISION is the better-posed version of
+the leash, "fit the quantity that settles, not the upstream proxy". Measured
+(`scratchpad/arm_dissociate.py`, per-arm outs residual on 129 arms with >= 6
+holdout starts, every per-arm term OFF):
+
+    corr( per-arm OUTS residual , X )              r       n     se
+      shipped leash, implied outs (CONTROL)   +0.234     114  0.095
+      shipped leash offset                    -0.236     114  0.095
+      new boundary offset                     -0.056     119  0.093
+      new mid offset                          +0.076     123  0.091
+      new offsets, implied outs               +0.015     117  0.094
+      his pitches per batter                  +0.137     119  0.093
+
+**The per-arm DECISION residual and the per-arm OUTS residual are
+near-orthogonal, and only the second predicts length.** The decision
+residual is MORE repeatable (+0.558 against +0.225) and worth less. The
+leash's apparent weakness — fitted on a proxy, converted through a
+derivative — is what makes it work: it is a residual against the
+SIMULATION's own error, so it corrects the composition of everything,
+including the fact that the engine ARRIVES AT DIFFERENT STATES than reality
+does. A residual measured at REAL states cannot be applied in a simulation
+that reaches other ones. Rule 10 bites one level deeper than it is written:
+matching the call site's ARGUMENTS is not matching its STATE DISTRIBUTION.
+
+E1 is REFUTED, do not re-check it: the two curves reinforce rather than
+cancel (implied-outs sd boundary 0.201, mid 0.117, combined 0.271, corr
++0.409).
+
+### THE NUMBER THAT BOUNDS THE WHOLE ITEM
+
+`scratchpad/leash_carry.py`, 8,175 pre-holdout paired games x 24 draws,
+leash OFF, 881 arm-seasons with >= 6 starts, 451 consecutive-season pairs:
+
+    carry r  +0.225 (se 0.047)      de-seasoned  +0.229
+    season-mean residual spread sd  1.161 outs
+    STABLE signal sd                0.551 outs
+    the SHIPPED table's implied sd  0.609 outs
+
+So the shipped leash is about **11% wider** than the stable signal — not
+2.7x, and the first version of that script printed the wrong comparison as
+its headline (it scaled the raw spread by the carry, which is the optimal
+ONE-SEASON prediction, a different and narrower quantity). The two spreads
+are now named separately in the script for that reason.
+
+Arithmetic on the 2026 fold (actual outs sd 4.104, model corr 0.3649, model
+prediction sd 1.941, per-arm ceiling 0.4995): a PERFECT per-arm residual
+term capturing the whole stable 0.551 outs would reach corr 0.388, i.e.
+**+0.023**, against a printed ceiling gap of **+0.135**. The shipped leash
+measures +0.0130 of that.
+
+**SO: PER-ARM HOOK OFFSETS CAN CLOSE AT MOST ABOUT A SIXTH OF THE OUTS
+DISCRIMINATION GAP, AND THE LEASH ALREADY HAS ROUGHLY 57% OF THAT SIXTH.
+THE OTHER FIVE SIXTHS IS NOT A PER-ARM CONSTANT.** That is the most useful
+thing here and it is why the item is parked rather than iterated.
+
+### THE NEW BATTERY ROW, `shape.outs_corr`
+
+Item 32's falsifier said to build the row if none could see a per-arm term,
+and none could: every other `shape` row is a pooled distribution over draws,
+and a term that moves one arm up and another down leaves all of them
+unmoved. `shape.outs_corr` is the per-start correlation between actual outs
+and the model's mean, against the model-free per-arm ceiling (one-way ANOVA
+on actual outs with sampling noise removed). No extra simulation — read off
+the same draws. Four folds, pre-change engine `dee291668e84`:
+
+    fold   model   ceiling      gap      se      z
+    2023  0.4164   0.5291  -0.1127  0.0224   -5.0
+    2024  0.3679   0.4719  -0.1040  0.0229   -4.6
+    2025  0.2559   0.3413  -0.0853  0.0232   -3.7
+    2026  0.3814   0.4995  -0.1181  0.0271   -4.4
+
+Sign-stable, 3.7-5.0 sigma, in every fold. **READ THE CEILING AS LOOSE** —
+it is computed within the fold, so it counts in-season variation no
+prior-season evidence can know, which is exactly why the reachable +0.023
+is a sixth of the printed gap. The caveat is in the code beside the row.
+
+### `OUTS_PER_OFFSET` IS MILDLY STALE, and each curve is worth half
+
+`scratchpad/arm_sweep.py`, 120 holdout games x 10 draws, zero = 15.432 outs:
+
+    offset   team_offset   d_outs   OUTS_PER_OFFSET says
+     -2.0        17.932    +2.500   +3.00   (ratio 0.83)
+     -1.0        16.839    +1.407   +1.60   (0.88)
+     -0.6        16.321    +0.889   +0.97   (0.92)
+     +0.6        14.447    -0.985   -1.00   (0.98)
+     +2.0        11.628    -3.804   -3.30   (1.15)
+
+The table is right on the SHORT-leash side and ~0.85 of its claim on the
+LONG-leash side, so every negative leash offset buys a little less than the
+conversion promises. And each curve alone delivers about HALF of
+`team_offset` (-0.255 boundary / -0.248 mid against -0.499 at +0.3), with
+`both` reproducing `team_offset` to three decimals — which is an independent
+check that the two new slots are wired correctly.
+
+A HARNESS BUG WORTH NAMING: the first run printed +0.000 for every negative
+offset, because the zero point was set mid-loop and the negative half
+differenced against itself. It is the half the table exists to check.
