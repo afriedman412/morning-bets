@@ -586,6 +586,10 @@ A test that guards nothing looks identical to one that guards something.
 - **`TODO.md`** — THE BACKLOG. Ordered, with ESTABLISHED separated from
   inferred and the falsifier pre-registered where one exists. Numbers are
   never reused; closed items compress to a line at the bottom.
+- **`TODO-SHORT.md`** — the one-line index of `TODO.md`: number, status,
+  one sentence. Read it to find an item; read `TODO.md` to work one.
+  DERIVED — it is updated in the SAME EDIT as `TODO.md`, never afterwards,
+  and it is also the quickest way to check which numbers are taken.
 - **`NOTES-context-layer.md`** — THE LOG, appended chronologically, so read
   backwards from the end. It carries the measured negatives and the
   calibration tables. Read it before changing the context layer.
