@@ -658,6 +658,18 @@ class Side:
     def __post_init__(self):
         if self.cur_line is None:
             self.cur_line = self.line
+        self._bill(self.cur_line, self.starter)
+
+    @staticmethod
+    def _bill(line: sim.StartResult, arm) -> None:
+        """Charge this arm's OWN pitch efficiency to the line he is throwing.
+
+        ONE HELPER FOR ALL THREE HANDOVERS — the starter here, the bulk arm in
+        `to_bulk`, every reliever in `next_arm`. Three copies of a one-line
+        assignment is how two of them end up right and one keeps billing the
+        previous pitcher, which is precisely item 23's stale-key defect.
+        """
+        line.pitch_mult = sim.pitch_eff(getattr(arm, "name", None))
 
     def _fold(self, ln: sim.StartResult) -> None:
         for src, dst in ((ln.scored_by, self.bat_scored),
@@ -734,6 +746,9 @@ class Side:
         self._fold(self.cur_line)
         self.cur_line = sim.StartResult()
         self.starter = self.bulk
+        # AFTER the reassignment above, so the bulk arm is billed his own
+        # efficiency and not the opener's.
+        self._bill(self.cur_line, self.starter)
         if self.bulk_hook is not None:
             self.hook = self.bulk_hook
         self.forced_exit_outs = None
@@ -840,6 +855,9 @@ class Side:
         # the outgoing arm's attribution goes with it otherwise.
         self._fold(self.cur_line)
         self.cur_line = sim.StartResult()
+        # `starter_out` / `pen_i` are already advanced above, so `current` is
+        # the arm who is about to throw rather than the one just removed.
+        self._bill(self.cur_line, self.current)
         self.cur_entry_outs = entry_outs
         self.cur_extra_innings = 0
         self.cur_entry_inning = inning
