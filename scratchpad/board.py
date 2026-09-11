@@ -186,9 +186,28 @@ def _game_mids(d: str, wanted: set) -> dict:
 def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
     lg = sim.league()
     pr = rate_src.pitcher_rates(lg, before=d)  # never a start's own day
-    games = [g for g in slate.slate(d)
-             if (g.get("away") or {}).get("starter")
-             and (g.get("home") or {}).get("starter")]
+    # A GAME WITH NO PROBABLE USED TO VANISH HERE. This was a bare list
+    # comprehension, so three of fifteen games on 2026-09-11 were dropped
+    # BEFORE `declined` was assembled: the board printed "12 games", the
+    # DECLINED section was empty because nothing had been appended to it,
+    # and nothing anywhere said the other three existed. Declining is
+    # right — both starters or neither — but it has to be SAID, and it is
+    # also the prompt to go fill the name in through `probables`.
+    all_games = slate.slate(d)
+    probable_notes = list(slate.LAST_PROBABLE_NOTES)
+    games, no_probable = [], []
+    for g in all_games:
+        a, h = g.get("away") or {}, g.get("home") or {}
+        missing = [s for s in ("away", "home")
+                   if not (g.get(s) or {}).get("starter")]
+        if missing:
+            no_probable.append(
+                (f"{a.get('abbr')} @ {h.get('abbr')}",
+                 f"{a.get('starter')} / {h.get('starter')}",
+                 f"no probable posted ({', '.join(missing)})"
+                 " — set one with `-m src.context.probables`"))
+            continue
+        games.append(g)
     _CTX.update(
         d=d, n=n, games=games, lg=lg, pr=pr,
         br=rate_src.batter_rates(lg, before=d),
@@ -215,7 +234,8 @@ def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
     mids = {stat: _mids(stat, d, {(nm, ln) for nm in names for ln in lines})
             for stat, lines in (("k", K_LINES), ("outs", OUTS_LINES))}
 
-    blocks, declined, not_quoted = [], [], []
+    blocks, not_quoted = [], []
+    declined = list(no_probable)
     for g, r in zip(games, out):
         a, h = g["away"], g["home"]
         tag = f"{a['abbr']} @ {h['abbr']}"
@@ -316,6 +336,7 @@ def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
 
     return {"date": d, "n": n, "band": band, "blocks": blocks,
             "declined": declined, "not_quoted": not_quoted,
+            "probables": probable_notes,
             "t_sim": t_sim, "t_mkt": t_mkt}
 
 
@@ -346,6 +367,11 @@ def print_board(payload):
         print("DECLINED — never filled with a league-average arm:")
         for tag, sp, why in payload["declined"]:
             print(f"  {tag:<12}{sp[:38]:<40}{why}")
+        print()
+    if payload.get("probables"):
+        print("MANUAL PROBABLES — operator-supplied, ahead of the feed:")
+        for line in payload["probables"]:
+            print(line.replace("  probables: ", "  "))
         print()
     print(f"outs corrected ({MEASURED_ON}); raw in note. K beats the OPEN"
           " only — bet early or not.")

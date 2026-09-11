@@ -1436,3 +1436,89 @@ def check_relief_intent_reaches_the_game():
             game.USE_RELIEF_INTENT = prev
     on, off = _pen_arms(True), _pen_arms(False)
     assert on < off - 0.5, (on, off)
+
+
+def check_a_manual_probable_fills_a_missing_starter_but_never_beats_the_feed():
+    """`probables` is a side channel for a name the API has not posted yet.
+
+    Three guarantees, each one a way this could silently go wrong: it fills
+    a None, it does NOT overwrite a name the feed carries (a stale manual
+    entry must not re-write a real probable after a rotation shuffle), and
+    it reports every fill — the failure it was written for was a filter
+    that dropped games without saying so.
+    """
+    import json
+    import tempfile
+    from pathlib import Path
+    from src.context import probables as pb
+
+    with tempfile.TemporaryDirectory() as tmp:
+        p = Path(tmp) / "probables.json"
+        p.write_text(json.dumps({
+            "2026-09-11": {
+                "TEX@AZ": {"away": "Kumar Rocker", "home": "Merrill Kelly"},
+                "LAD@MIA": {"away": "Blake Snell"},
+                "PIT@CHC": {"away": "Somebody Else"},
+            }}))
+
+        def row(a, h, asp, hsp):
+            return {"away": {"abbr": a, "starter": asp, "starter_id": 1},
+                    "home": {"abbr": h, "starter": hsp, "starter_id": 2}}
+
+        games = [row("TEX", "AZ", None, None),
+                 row("LAD", "MIA", None, "Ryan Gusto"),
+                 row("PIT", "CHC", "Wilber Dotel", "Shota Imanaga"),
+                 row("NYM", "NYY", None, "Carlos Rodón")]
+        notes = pb.apply(games, "2026-09-11", path=p)
+
+        # 1. Both sides of a wholly unlisted game get filled.
+        assert games[0]["away"]["starter"] == "Kumar Rocker", games[0]
+        assert games[0]["home"]["starter"] == "Merrill Kelly", games[0]
+        # 2. A half-filled game keeps the feed's name and gains the other.
+        assert games[1]["away"]["starter"] == "Blake Snell", games[1]
+        assert games[1]["home"]["starter"] == "Ryan Gusto", games[1]
+        # 3. THE API ALWAYS WINS — the feed's name survives a contradiction.
+        assert games[2]["away"]["starter"] == "Wilber Dotel", \
+            "a manual entry overwrote a probable the feed already carried"
+        # 4. A game with no entry is untouched, still declining on its own.
+        assert games[3]["away"]["starter"] is None, games[3]
+        # 5. An injected id is None rather than a guess inherited from the row.
+        assert games[0]["away"]["starter_id"] is None, games[0]
+
+        # 6. NOTHING HAPPENS SILENTLY: three fills and one contradiction.
+        assert len(notes) == 4, notes
+        assert sum("USING THE FEED" in n for n in notes) == 1, notes
+        assert any("Kumar Rocker" in n for n in notes), notes
+
+        # 7. An absent file is the normal case and must be a clean no-op,
+        #    not an exception on every board that has no override.
+        blank = [{"away": {"abbr": "TEX", "starter": None},
+                  "home": {"abbr": "AZ", "starter": None}}]
+        assert pb.apply(blank, "2026-09-11", path=p.parent / "gone.json") == []
+        assert blank[0]["away"]["starter"] is None
+
+        # 8. A date with no entry is likewise untouched.
+        assert pb.apply(blank, "2026-09-12", path=p) == []
+
+
+def check_the_board_reports_a_game_it_drops_for_a_missing_probable():
+    """The drop is correct; doing it silently is not.
+
+    On 2026-09-11 three of fifteen games had no probable when the board ran.
+    They were filtered by a bare comprehension BEFORE `declined` existed, so
+    the header said 12 games and the DECLINED section printed nothing. An
+    operator had no way to see that three games were missing, let alone that
+    supplying a name would recover two of them.
+    """
+    import inspect
+    from scratchpad import board
+
+    src = inspect.getsource(board.build)
+    assert "no_probable" in src, \
+        "the missing-probable drop is not being collected"
+    assert "declined = list(no_probable)" in inspect.getsource(board.build), \
+        "dropped games are not reaching the DECLINED list"
+
+    # The footer has to be willing to print them.
+    printed = inspect.getsource(board.print_board)
+    assert "DECLINED" in printed and "MANUAL PROBABLES" in printed, printed

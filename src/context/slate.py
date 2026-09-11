@@ -19,11 +19,12 @@ from __future__ import annotations
 
 import json
 import random
+import sys
 import urllib.request
 from datetime import date, timedelta
 
 from src import db, roster
-from src.context import calibrate, game, gamestate, sim
+from src.context import calibrate, game, gamestate, probables, sim
 from src.context.sources import rates as rate_src
 from src.context.sources import weather as weather_src
 
@@ -35,6 +36,9 @@ TIMEOUT = 25
 N_SIMS = 8000
 #: Days of recent playing time used to project a lineup when none is posted.
 LINEUP_WINDOW = 21
+#: What the last `slate()` call injected from `probables`, so a caller can
+#: record it in its own output without re-running the merge.
+LAST_PROBABLE_NOTES: list[str] = []
 
 # ── who we are willing to price ────────────────────────────────────────
 #
@@ -137,6 +141,16 @@ def slate(date_str: str) -> list[dict]:
                                for p in (lu.get(f"{side}Players") or [])],
                 }
             out.append(row)
+    # A probable the operator knows and the feed has not posted yet. Fills
+    # a None only — the API always wins, see `probables`. Notes go to
+    # STDERR on purpose: the board redirects stdout to its .txt and
+    # `board_json` re-parses that file by regex, so an extra stdout line
+    # is a parser risk for no gain. `board.build` records the same notes
+    # in the board's own footer, which is the artefact of record.
+    notes = probables.apply(out, date_str)
+    for note in notes:
+        print(note, file=sys.stderr)
+    LAST_PROBABLE_NOTES[:] = notes
     return out
 
 
