@@ -398,6 +398,8 @@ src/context/
   tto.py           times through the order, measured
   stabilise.py     how fast each rate becomes trustworthy, measured
   velo.py          recent fastball velocity -> tonight's K rate
+  arm.py           one arm's board inputs explained: starts, log, splits,
+                   neutralised rates, the per-PA chain. Read-only
   removal.py       the LEARNED hook. OFF — see the entrypoint list
   form.py          PARKED — "he does not have it tonight", not there
   gamestate.py     has this game started
@@ -498,6 +500,12 @@ fails. (`make lint` likewise references tooling that is not installed.)
   day seven**: it was validated on removal-decision AUC while discarding a
   fitted boundary share, and the premise in `game.USE_LEARNED_HOOK` (that one
   roll per plate appearance spans the inning boundary) is false.
+- `... -m src.context.arm "Name" [DATE]` — why the board prices an arm the
+  way it does: starts by season (`appearance_order` is 0-INDEXED), the
+  season log with empirical over-rates, home/road split, the neutralised
+  rates and velo kick as the sim gets them, and the per-PA chain vs that
+  date's slate. `--parks DATE` prints the slate's venue factors. Built
+  2026-09-13 after the Gasser o5.5 investigation retyped all of it by hand.
 - `... -m src.context.tto` — times through the order. K% falls 19% from the
   first pass to the third.
 - `... -m src.context.stabilise` — the four shrinkage constants. Batter rates

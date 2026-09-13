@@ -12849,3 +12849,56 @@ check that the two new slots are wired correctly.
 A HARNESS BUG WORTH NAMING: the first run printed +0.000 for every negative
 offset, because the zero point was set mid-loop and the negative half
 differenced against itself. It is the half the table exists to check.
+
+## 2026-09-13 — THE PARK "DOUBLE COUNT" WAS NOT ONE, and the Savant K index survives a count
+
+QUESTION. The board priced Robert Gasser o5.5 K at -153 (60%) against a 29%
+season-long empirical over-rate and a Kalshi mid of +160 (38%). Is the park
+K factor being double-counted — applied at MIL on top of rates half-earned
+at MIL?
+
+ESTABLISHED — no. `NEUTRALISE_PARK` (rates.py `_park_neutralised`, shipped
+2026-09-06) already divides every arm's rates by his COUNTED exposure
+before tonight's park goes back on: Gasser's exposure is 1.0527 and his
+shrunk k_pct is 0.2121 neutralised against 0.2232 on the raw path. The
+per-PA chain reproduces the board exactly: 0.2121 +0.0102 velo x 1.104
+lineup (CIN nine avg 0.239) x 1.11 park = 0.2725, engine realises 0.277
+and 60.4% over 5.5. The construction is right end to end.
+
+ESTABLISHED — the imported 1.11 is REAL ON THIS LEAGUE, which rule 4 said
+to doubt. Two paired designs off `bets.mlb_pitching`, four seasons, each
+carrying a different confound, both solved:
+
+    visiting arms at MIL vs same arm-seasons at other road parks
+        0.2288 / 0.2232 = 1.025 +/- 0.019   (confound: MIL's own batters)
+    MIL arms at home vs same arm-seasons on the road
+        0.2546 / 0.2209 = 1.152 +/- 0.030   (confound: home-K advantage)
+    league home-K advantage H (all arms, paired)  = 1.046 +/- 0.005
+    MIL batters' road K vs league road            = 0.934
+
+    park = 1.025 / 0.934 = 1.097     park = 1.152 / 1.046 = 1.101
+
+Two routes, one answer: ~1.10 counted against 1.11 imported. First imported
+constant here to survive a count. The side findings are worth keeping: MIL
+bats strike out 6.6% LESS than league (that is what made design one read
+low), and the league-wide home-arm K advantage is +4.6% +/- 0.5.
+
+SO THE GASSER LINE STANDS ON ITS INPUTS: park-neutral talent, tonight's
+K-heaviest venue (1.11, next closest on the slate 0.94), a CIN nine 2.3
+points K-prone, a +1.0 velo kick — and a 17-start empirical over-rate whose
+se is +/-11 points. Whether 60% beats Kalshi's 38% is a betting question,
+not a wiring one. The Burns ladder in the same game is DIFFERENT: he is on
+a 3-inning limit the rest of the season (operator knowledge, 2026-09-13)
+and the model cannot see it; his K/outs rungs are our error, not edge.
+
+TOOLING. `src/context/arm.py` (started in scratchpad, promoted the same day) hard-codes this whole investigation: identity
+by pitcher id (the Sandlin name-collision trap), starts by season with
+`appearance_order = 0` as the start (a `=1` filter counts second pitchers
+and reversed the Wesneski swingman verdict once), season log with
+empirical over-rates, career home/road split, the neutralised rates +
+exposure + velo kick as the sim gets them, and the per-PA chain with a
+binomial approximation of the K ladder. `--parks` prints the slate's venue
+factors. Checks in `tests/test_arm.py`, all three mutation-verified — the
+first fixture for the 0-index check was SYMMETRIC (one row of each order)
+and passed under either indexing; the asymmetric one kills it. Battery
+reference for the day: `battery_9da06ee20497.json` (no engine change).

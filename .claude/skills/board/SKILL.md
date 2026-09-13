@@ -90,7 +90,19 @@ and Stephen Kolek among them. **Check the arm's CURRENT season before
 believing a swingman or opener tag**, because BETTING.md says to treat a
 gap on a flagged arm as our error and that rule fires backwards on a false
 flag. The gate is display-only — every rate build filters `is_starter = 1`,
-so a bad tag never reached the simulation.
+so a bad tag never reached the simulation. The check is one command:
+
+```
+venv/bin/python -m src.context.arm "Name" <date>
+```
+
+whose STARTS table is counted with `appearance_order = 0` as the start —
+Wesneski's flag was once "confirmed" by a hand query that filtered `=1`
+and counted second pitchers. The same command answers "why is this K/outs
+line priced like that": neutralised rates, velo kick, and the per-PA
+chain against that night's lineup and park. `--parks <date>` lists the
+slate's venue factors (MIL's k 1.11 is real — verified by count, NOTES
+2026-09-13).
 
 ## Traps in the pipeline itself
 
