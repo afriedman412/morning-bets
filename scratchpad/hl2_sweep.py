@@ -43,6 +43,15 @@ def main():
         i = argv.index("--inject-recent-bb")
         inject = float(argv[i + 1])
         del argv[i:i + 2]
+    # A UNIFORM injection tests level power only — it cannot re-rank
+    # pitchers, so `outs_corr` is blind to it by construction. The claimed
+    # mechanism is per-pitcher (deGrom, Harrison), so the faithful control
+    # decays a deterministic SUBSET of arms and leaves the rest alone.
+    share = 1.0
+    if "--inject-share" in argv:
+        i = argv.index("--inject-share")
+        share = float(argv[i + 1])
+        del argv[i:i + 2]
     if hl:
         rates.CHANNEL_HALF_LIFE_DAYS = {"bb_pct": hl, "babip": hl}
     elif inject:
@@ -50,6 +59,14 @@ def main():
         # injection reaches both arms; 0.5 ** (age/inf) is exactly 1.0.
         rates.CHANNEL_HALF_LIFE_DAYS = {"bb_pct": float("inf")}
     if inject:
+        import hashlib
+
+        def _hit(name):
+            if share >= 1.0:
+                return True
+            h = hashlib.md5(name.encode()).digest()[0] / 255.0
+            return h < share
+
         orig = rates._weighted_rows_per_channel
 
         def _inject(games, chl):
@@ -57,13 +74,15 @@ def main():
             if games:
                 latest = max(g["date"] for g in games)
                 for g in games:
-                    if rates._days(latest, g["date"]) <= INJECT_DAYS:
+                    if (rates._days(latest, g["date"]) <= INJECT_DAYS
+                            and _hit(g["name"])):
                         g["bb"] = (g["bb"] or 0) * inject
             return orig(games, chl)
 
         rates._weighted_rows_per_channel = _inject
         print(f"  *** POSITIVE CONTROL: recent-{INJECT_DAYS}d walks x "
-              f"{inject} in the MODEL'S INPUTS ONLY ***")
+              f"{inject} for {share:.0%} of arms (md5-deterministic), "
+              f"MODEL'S INPUTS ONLY ***")
     battery.main(argv)
 
 

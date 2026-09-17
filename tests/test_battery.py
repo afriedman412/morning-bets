@@ -237,3 +237,27 @@ def check_the_home_run_probability_matches_what_the_engine_draws():
             f"state {state} does not reach the home run probability"
         assert abs(battery._hr_prob(mu, None, state) - want) > 1e-6, \
             f"state {state} multiplier is not moving anything"
+
+
+def check_divergence_buckets_by_the_recent_windows_own_error():
+    """Item 35's seeing rows: the z must read the RECENT window against the
+    season, on the recent window's own binomial error, and thin arms must
+    be OMITTED — an unknown arm reading as "not divergent" would dilute
+    the mid bucket with exactly the arms the floors exist to exclude."""
+    def gm(name, date, bb):
+        return {"name": name, "date": date, "o": 18, "h": 4, "bb": bb,
+                "k": 5, "hr": 1}
+    rows = (
+        # Decayed: season BB% ~9%, last-30d ~21% on 84 recent BF.
+        [gm("Decayed", "2026-04-01", 1)] * 10
+        + [gm("Decayed", "2026-06-20", 6)] * 3
+        # Sharp: season ~6.5%, recent 0 on 66 BF — the other tail.
+        + [gm("Sharp", "2026-04-01", 2)] * 10
+        + [gm("Sharp", "2026-06-20", 0)] * 3
+        # Thin: one recent game, 24 BF — under the floor, must be absent.
+        + [gm("Thin", "2026-04-01", 2)] * 10
+        + [gm("Thin", "2026-06-20", 2)] * 1)
+    got = battery._divergence(2026, "2026-07-01", rows=rows)
+    assert got["bb"]["Decayed"] > battery.DIVERGE_Z, got["bb"]
+    assert got["bb"]["Sharp"] < -battery.DIVERGE_Z, got["bb"]
+    assert "Thin" not in got["bb"], got["bb"]

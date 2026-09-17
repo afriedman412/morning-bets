@@ -845,6 +845,66 @@ class Fold:
             "n": n, "note": note})
 
 
+#: Item 35's divergence window and bucket edge: an arm is COMMAND-DIVERGENT
+#: when his trailing-30-day BB% (or BABIP) sits 1.5 of the recent window's
+#: own binomial errors away from his season rate — both frozen at the
+#: fold's cut, which is the information the fold's rates were built from.
+DIVERGE_DAYS = 30
+DIVERGE_Z = 1.5
+DIVERGE_MIN_RECENT_BF = 50
+DIVERGE_MIN_SEASON_BF = 150
+
+
+def _divergence(year, cut, rows=None):
+    """{'bb': {starter: z}, 'babip': {starter: z}} for QUALIFIED arms.
+
+    z is (recent rate - season rate) over the recent window's binomial
+    error, so a deGrom-size decay (+0.05 BB% over ~120 BF) reads ~2 and
+    pure sampling noise puts ~7% of arms past +-1.5. BIP here is the RAW
+    count (bf - k - bb - hr), not the `balls_in_play` unit correction — a
+    z-score wants the count that actually binned the trials. Arms under
+    the BF floors are omitted, not zeroed: a thin arm is unknown, and
+    unknown must not read as "not divergent" in either bucket.
+    `rows` is injectable for the checks; production reads the same
+    per-game table the recency machinery weights.
+    """
+    if rows is None:
+        q = rate_src._PITCHER_GAMES_Q.format(
+            where=rate_src._where(year, cut))
+        rows = rate_src._with(lambda c: c.execute(q).fetchall())
+    per: dict = {}
+    for g in rows:
+        bf = (g["o"] or 0) + (g["h"] or 0) + (g["bb"] or 0)
+        if bf < 1:
+            continue
+        per.setdefault(g["name"], []).append(
+            (g["date"], bf, g["bb"] or 0, g["k"] or 0,
+             g["hr"] or 0, g["h"] or 0))
+    out: dict = {"bb": {}, "babip": {}}
+    for name, gs in per.items():
+        rec = [x for x in gs
+               if rate_src._days(cut, x[0]) <= DIVERGE_DAYS]
+        s_bf = sum(x[1] for x in gs)
+        r_bf = sum(x[1] for x in rec)
+        if r_bf < DIVERGE_MIN_RECENT_BF or s_bf < DIVERGE_MIN_SEASON_BF:
+            continue
+        s_bb, r_bb = sum(x[2] for x in gs), sum(x[2] for x in rec)
+        p_s = s_bb / s_bf
+        if 0 < p_s < 1:
+            se = (p_s * (1 - p_s) / r_bf) ** 0.5
+            out["bb"][name] = (r_bb / r_bf - p_s) / se
+        bip = lambda x: x[1] - x[3] - x[2] - x[4]      # noqa: E731
+        s_bip, r_bip = sum(map(bip, gs)), sum(map(bip, rec))
+        s_hits = sum(x[5] - x[4] for x in gs)
+        r_hits = sum(x[5] - x[4] for x in rec)
+        if s_bip > 0 and r_bip >= DIVERGE_MIN_RECENT_BF * 0.6:
+            p_s = s_hits / s_bip
+            if 0 < p_s < 1:
+                se = (p_s * (1 - p_s) / r_bip) ** 0.5
+                out["babip"][name] = (r_hits / r_bip - p_s) / se
+    return out
+
+
 def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
     """Turn the per-game payloads into rows. `got` = {gid: (model, actual)}."""
     gids = sorted(got)
@@ -1338,6 +1398,7 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
     # for its ceiling. Read off the same draws as every row above — no
     # extra simulation, which is the whole point of one pass per fold.
     o_pairs, o_by_arm = [], defaultdict(list)
+    o_named = []
     for g in gids:
         for side, case in (("away", 0), ("home", 1)):
             act = _CASES[g][case][0]
@@ -1356,9 +1417,11 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
             spike_mid.update(d["spike_mid"])
             dn = sum(d["outs"].values())
             if act.get("o") is not None and dn:
-                o_pairs.append(
-                    (sum(v * c for v, c in d["outs"].items()) / dn, act["o"]))
+                mmean = sum(v * c for v, c in d["outs"].items()) / dn
+                o_pairs.append((mmean, act["o"]))
                 o_by_arm[act.get("player_name") or ""].append(act["o"])
+                o_named.append((mmean, act["o"],
+                                act.get("player_name") or ""))
     mo_n, mk_n = sum(mo.values()), sum(mk.values())
     mo_mean = sum(v * c for v, c in mo.items()) / mo_n
     mk_mean = sum(v * c for v, c in mk.items()) / mk_n
@@ -1397,6 +1460,42 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
                  len(o_pairs),
                  "actual vs model mean outs per start; real = the "
                  "model-free per-arm ceiling (LOOSE — see the comment)")
+    # ITEM 35's SEEING ROWS (added 2026-09-17, the same "build the row"
+    # obligation that produced the save rows and `outs_corr` itself). Both
+    # of item 35's positive controls — recent walks x1.6 in the model's
+    # inputs, uniformly and for a 20% subset of arms — separated hl=60
+    # from flat by ZERO rows past 1 se, so no pooled row here can score a
+    # per-channel recency sweep and reading one as a null would be
+    # unfalsifiable. These rows condition on the thing the mechanism is
+    # about: does the model over-predict outs for arms whose pre-cut
+    # trailing-30d command (BB%, BABIP) diverged from their season rate?
+    # `mid` is the control bucket and should sit at the overall bias; the
+    # se is PAIRED (sd of real-minus-model per start), which is what makes
+    # ~100-start buckets readable at all.
+    div = _divergence(fold.year, fold.cut)
+    for ch in ("bb", "babip"):
+        zmap = div[ch]
+        buckets: dict = {"hi": [], "mid": [], "lo": []}
+        for m_, a_, nm in o_named:
+            z = zmap.get(nm)
+            if z is None:
+                continue
+            lab = ("hi" if z >= DIVERGE_Z
+                   else "lo" if z <= -DIVERGE_Z else "mid")
+            buckets[lab].append((m_, a_))
+        for lab, prs in buckets.items():
+            key = f"outs_bias_{ch}_{lab}"
+            if len(prs) < 20:
+                fold.add("shape", key, None, None, 0.0, len(prs),
+                         "under 20 starts — not readable")
+                continue
+            diffs = [a_ - m_ for m_, a_ in prs]
+            fold.add("shape", key,
+                     st.mean(m_ for m_, _ in prs),
+                     st.mean(a_ for _, a_ in prs),
+                     st.pstdev(diffs) / len(diffs) ** 0.5, len(prs),
+                     f"mean outs where the starter's pre-cut 30d {ch} "
+                     f"z is {lab} (edge {DIVERGE_Z}); paired se")
     nk = len(real_k)
     fold.add("shape", "k_mean", mk_mean, st.mean(real_k),
              st.pstdev(real_k) / nk ** 0.5, nk)
