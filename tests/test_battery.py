@@ -252,22 +252,36 @@ def check_divergence_buckets_by_the_recent_windows_own_error():
     and miss the decay entirely; the starts-window must still catch it,
     because six starts ago is six starts ago whether he was on the IL
     since or not."""
-    def gm(name, date, bb):
-        return {"name": name, "date": date, "o": 18, "h": 4, "bb": bb,
+    def gm(name, date, bb, o=18):
+        return {"name": name, "date": date, "o": o, "h": 4, "bb": bb,
                 "k": 5, "hr": 1}
     rows = (
-        # Decayed: season BB% ~10%, last six appearances ~20% — and those
-        # six sit in mid-May, six weeks before the cut.
+        # Decayed: season BB% ~10%, last four appearances ~20% — and they
+        # sit in mid-May, six weeks before the cut, which a days window
+        # would age out.
         [gm("Decayed", "2026-04-01", 1)] * 10
-        + [gm("Decayed", "2026-05-15", 6)] * 6
-        # Sharp: season ~7%, last six walk nobody — the other tail.
+        + [gm("Decayed", "2026-05-15", 6)] * 4
+        # Sharp: season ~9%, last four walk nobody — the other tail.
         + [gm("Sharp", "2026-04-01", 3)] * 10
-        + [gm("Sharp", "2026-06-20", 0)] * 6
-        # Thin: six appearances TOTAL, over the season BF floor — the
+        + [gm("Sharp", "2026-06-20", 0)] * 4
+        # Fading: rates steady, but the last four went 9 outs where his
+        # season says 18 — the Harrison shape. DECAY IS `lo` on the outs
+        # channel, and it must fire off the arm's own outs sd.
+        + [gm("Fading", "2026-04-01", 2)] * 10
+        + [gm("Fading", "2026-06-10", 2, o=9)] * 4
+        # Thin: four appearances TOTAL, past the season BF floor — the
         # whole season IS the recent window, there is nothing to diverge
         # from, and the s_bf > r_bf guard (not the floors) must drop him.
-        + [gm("Thin", "2026-06-20", 4)] * 6)
+        + [gm("Thin", "2026-06-20", 4, o=30)] * 4)
     got = battery._divergence(2026, "2026-07-01", rows=rows)
     assert got["bb"]["Decayed"] > battery.DIVERGE_Z, got["bb"]
     assert got["bb"]["Sharp"] < -battery.DIVERGE_Z, got["bb"]
+    # Bounded on BOTH sides: the arithmetic gives -3.74 off the SEASON'S
+    # outs sd. An sd taken from the recent window instead reads its four
+    # identical outings as zero spread, hits the floor, and blows the z
+    # to -10 — a one-sided assert waved that mutation through.
+    assert -6 < got["outs"]["Fading"] < -battery.DIVERGE_Z, got["outs"]
+    # A steady arm's outs z must sit at zero — his sd floor, not a divide
+    # by his zero spread, is what keeps the arithmetic finite.
+    assert abs(got["outs"]["Decayed"]) < battery.DIVERGE_Z, got["outs"]
     assert "Thin" not in got["bb"], got["bb"]

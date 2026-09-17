@@ -1576,6 +1576,18 @@ one with a measurement behind it:
      re-establishes it. If anyone re-opens: pre-register which window and
      why, BEFORE looking. The `shape.outs_bias_*` rows stay in the battery
      (start units) as the instrument.
+  6. **RECENT-LENGTH PERSISTENCE (item 35 third sitting, 2026-09-17):
+     arms whose last FOUR starts went deep keep over-delivering ~0.29
+     outs against the model** (`outs_bias_outs_hi` +0.289 se 0.117, z
+     +2.47, 3/4 folds, WITH the leash on — residual beyond it), and the
+     outs channel is the only one whose divergence z is wider than
+     sampling noise in all four folds (sd 1.08-1.41). The mirror tail is
+     dead: recent SHORT starts carry nothing (+0.11, the Harrison shape
+     refuted). TWO NAMED CAVEATS before wiring: the se is unclustered
+     (~230 starts from ~40 arms), and hi>=0 was that run's control
+     clause, so this is multiplicity-exposed. The falsifier if opened:
+     re-read with arm-clustered se, pre-registered, before anything
+     touches the engine.
 
 THE FALSIFIER FOR ANY OF THEM: `shape.outs_corr`, four folds, with the
 reachable gain stated in advance rather than the printed gap. And the
@@ -1591,16 +1603,19 @@ the positive control came first and proved the pooled battery BLIND at
 claimed size** (recent walks x1.6 in the model's inputs, uniform AND for a
 20% subset of arms — zero rows past 1 se between hl=60 and flat either
 way). The seeing rows got built instead
-(`shape.outs_bias_{bb,babip}_{hi,mid,lo}`, pre-cut divergence z, now
-permanent battery rows — re-cut the same day from a 30-day window to the
-arm's LAST SIX STARTS on operator direction, since the evidence is
-denominated in starts) and they answer the question directly: BB shows no
-coherent decay signal in either window system, and the days-window BABIP
-symmetry (briefly item 34 candidate 5) vanished under the starts re-cut —
-flat in all four buckets, +0.01 se 0.18 at hi. The z distribution says
-the same in both unit systems (sd 0.96-1.09 vs 1.0 for pure noise):
-command divergence at the cut carries ~no repeatable between-arm signal
-to weight at all. The
+(`shape.outs_bias_{bb,babip,outs}_{hi,mid,lo}`, pre-cut divergence z, now
+permanent battery rows — re-cut twice the same day on operator direction,
+30 days -> six starts -> FOUR starts plus an OUTS channel, since the
+evidence was always denominated in starts and the Harrison tell was
+outing length) and they answer the question directly three times over:
+no decay signal in walks, contact or outs under any window (the
+days-window BABIP symmetry, briefly item 34 candidate 5, died under the
+starts re-cut; the outs_lo "fading arm" bucket — the most direct form of
+the hypothesis — reads +0.11, nothing). The rate channels' divergence z
+is pure sampling noise in every window system (sd 0.94-1.09); the one
+channel wider than noise is OUTING LENGTH (sd 1.08-1.41), whose
+persistent tail is the DEEP one (+0.29 outs beyond the leash, item 34
+candidate 6, unclustered-se caveat named). The
 wiring stays in, off, tested (`rates.CHANNEL_HALF_LIFE_DAYS = {}`). THE
 LIMIT, for whoever re-opens: folds freeze rates at the cut, so no battery
 sweep can test "tonight's trailing 30 days" — the live version needs

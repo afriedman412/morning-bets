@@ -852,14 +852,25 @@ class Fold:
 #: NOT DAYS (operator call, 2026-09-17): the evidence is per outing —
 #: deGrom's table was "last 7 starts", Harrison's "last 4" — and a
 #: calendar window hands one arm two starts of evidence and another six.
-DIVERGE_STARTS = 6
+#: FOUR of them (operator call, same day, second revision): six is still
+#: long against the shapes that motivated this, and the outs channel
+#: below is scored on the same window.
+DIVERGE_STARTS = 4
 DIVERGE_Z = 1.5
 DIVERGE_MIN_RECENT_BF = 50
 DIVERGE_MIN_SEASON_BF = 150
 
 
 def _divergence(year, cut, rows=None):
-    """{'bb': {starter: z}, 'babip': {starter: z}} for QUALIFIED arms.
+    """{'bb'|'babip'|'outs': {starter: z}} for QUALIFIED arms.
+
+    THE OUTS CHANNEL (added 2026-09-17, operator direction — the Harrison
+    tell was 14/15/11/11 OUTS, not a walk rate): mean outs per appearance
+    over the window against the season, on the arm's OWN per-start outs
+    sd (floored at 1.5 — a degenerate fixture arm can repeat one length
+    exactly; a real arm cannot), with the same overlap term. Sign
+    convention is the reverse of the rate channels: DECAY IS `lo` — his
+    recent starts got SHORT.
 
     The recent window is the arm's LAST `DIVERGE_STARTS` APPEARANCES
     before the cut (the per-game table does not mark starts; the BF
@@ -892,10 +903,11 @@ def _divergence(year, cut, rows=None):
             continue
         per.setdefault(g["name"], []).append(
             (g["date"], bf, g["bb"] or 0, g["k"] or 0,
-             g["hr"] or 0, g["h"] or 0))
-    out: dict = {"bb": {}, "babip": {}}
+             g["hr"] or 0, g["h"] or 0, g["o"] or 0))
+    out: dict = {"bb": {}, "babip": {}, "outs": {}}
     for name, gs in per.items():
-        rec = sorted(gs, key=lambda x: x[0])[-DIVERGE_STARTS:]
+        gs = sorted(gs, key=lambda x: x[0])
+        rec = gs[-DIVERGE_STARTS:]
         s_bf = sum(x[1] for x in gs)
         r_bf = sum(x[1] for x in rec)
         if (r_bf < DIVERGE_MIN_RECENT_BF
@@ -917,6 +929,12 @@ def _divergence(year, cut, rows=None):
                 se = (p_s * (1 - p_s)
                       * (1 / r_bip - 1 / s_bip)) ** 0.5
                 out["babip"][name] = (r_hits / r_bip - p_s) / se
+        if len(gs) > DIVERGE_STARTS:
+            o_all = [x[6] for x in gs]
+            sd_s = max(st.pstdev(o_all), 1.5)
+            se = sd_s * (1 / DIVERGE_STARTS - 1 / len(gs)) ** 0.5
+            out["outs"][name] = (st.mean(x[6] for x in rec)
+                                 - st.mean(o_all)) / se
     return out
 
 
@@ -1488,7 +1506,7 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
     # se is PAIRED (sd of real-minus-model per start), which is what makes
     # ~100-start buckets readable at all.
     div = _divergence(fold.year, fold.cut)
-    for ch in ("bb", "babip"):
+    for ch in ("bb", "babip", "outs"):
         zmap = div[ch]
         buckets: dict = {"hi": [], "mid": [], "lo": []}
         for m_, a_, nm in o_named:

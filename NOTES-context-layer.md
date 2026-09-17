@@ -13054,3 +13054,70 @@ folds freeze rates at the cut — and remains the only version left open.
 Battery reference: same `battery_f7c42621c431.json` (24 rows changed, all
 of them the re-specified `outs_bias_*`; nothing else moved; engine
 fingerprint unchanged).
+
+## 2026-09-17, THIRD SITTING — ITEM 35 ADDENDUM 2: FOUR STARTS, AND AN
+## OUTS CHANNEL. THE DECAY STORY FAILS ITS MOST DIRECT TEST; WHAT
+## SURVIVES POINTS THE OTHER WAY. (Fable, operator direction: "last 4
+## starts, and check outs")
+
+The operator's second correction of the day, and like the first it was
+right about the instrument: the Harrison tell was never a walk rate, it
+was OUTS — 14/15/11/11 — and six starts is long against every shape that
+motivated this. `DIVERGE_STARTS` is 4, and `_divergence` grew an OUTS
+channel: mean outs per appearance over the window vs the season, on the
+arm's OWN per-start outs sd (floored at 1.5), same overlap term. Decay is
+`lo` on this channel. Registered before the run: mechanism real if
+outs_lo reads actual-below-model >= 2 se pooled, sign in >= 3/4 folds,
+with outs_hi >= 0. The check gained a Fading fixture (steady rates, last
+four at 9 outs against a season of 18s) with the z BOUNDED ON BOTH SIDES
+(-6 < z < -1.5) — the one-sided assert waved through an sd taken from
+the window itself, which reads four identical short outings as zero
+spread and blows a -3.7 to a -10.
+
+THE z DISTRIBUTION FINALLY SHOWS A REAL CHANNEL, AND IT IS NOT A RATE.
+At J=4: bb sd(z) 0.94-1.05 and babip 1.00-1.07 — noise for the third
+window definition running — but OUTS sd(z) is 1.08 / 1.20 / 1.22 / 1.41
+by fold, wider than sampling noise in every fold and widest in 2026,
+even allowing ~6% inflation from small-sample sd estimation. Recent
+outing LENGTH varies between arms beyond luck; recent rates do not.
+The leash finding again, from a third instrument.
+
+THE BIAS ROWS against the registered bar:
+
+    outs_bias_outs_lo   +0.108  se 0.190  z +0.57   neg sign 2/4   FAILS
+    outs_bias_outs_hi   +0.289  se 0.117  z +2.47   pos in 3/4
+    outs_bias_bb_hi     +0.150  se 0.211  z +0.71   (decay predicts neg)
+    outs_bias_bb_lo     +0.200  se 0.167  z +1.20
+    outs_bias_babip_hi  +0.021  se 0.175  z +0.12
+    outs_bias_babip_lo  -0.081  se 0.205  z -0.40
+
+  * THE HARRISON MECHANISM FAILS ITS MOST DIRECT TEST. Arms whose last
+    four starts got SHORT show no model over-prediction at all — recent
+    shortness regresses, and the flat season rate prices it correctly.
+    The market being fast on that signal is not, by this evidence,
+    the market being right.
+  * BB and BABIP: flat for the third window definition in a row. The
+    command-decay hypothesis is now refuted at 30 days, 6 starts and 4
+    starts, in rates and in outs.
+  * WHAT SURVIVES IS THE OPPOSITE TAIL: arms whose last four went DEEP
+    keep over-delivering ~0.29 outs against the model (z +2.47
+    unclustered, 3/4 folds), measured WITH `sim.USE_LEASH` already on —
+    residual beyond the shipped per-arm term. Length persists;
+    shortness does not. TWO CAVEATS NAMED BEFORE ANYONE WIRES ANYTHING:
+    the se treats ~230 bucket starts as independent when they come from
+    ~40 arms (arm clustering deflates that z), and hi>=0 was this run's
+    CONTROL clause, not a registered discovery claim — after three
+    windows of reading, multiplicity makes this a CANDIDATE (item 34,
+    candidate 6), not a finding. Pre-register a clustered-se version
+    before believing it.
+
+CONCLUSION: item 35 stays CLOSED and is now closed three ways — days,
+six starts, four starts; walks, contact, and outing length. The decay
+direction has no support anywhere. The recency information that is real
+(outs sd(z) wide, hi-tail persistence) is about OUTING LENGTH and points
+at the hook/leash, not at the rate channels this item proposed to decay
+— consistent with where item D left it and with what `leash.py` measured
+in July. Battery reference: same `battery_f7c42621c431.json`; diff vs
+the second sitting is 24 rows re-specified (J 6->4) plus 12 new
+outs-channel rows, nothing else moved, engine fingerprint unchanged all
+day.

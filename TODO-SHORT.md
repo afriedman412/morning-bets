@@ -92,8 +92,10 @@ Refreshed 2026-09-17.
     20  Every cross-fold result re-run with live bullpens.
     24  The home run channel reads contact type (`sim.USE_AIR_HR`) —
         shipped.
-    35  Per-channel recency — closed the day it opened: the positive
-        control proved the battery blind, the seeing rows got built (days,
-        then re-cut to starts on operator direction), and both window
-        systems read noise, not decay. The brief BABIP lead died with the
-        starts re-cut; 34's candidate 5 records the downgrade.
+    35  Per-channel recency — closed the day it opened, three ways: 30
+        days, six starts, four starts; walks, contact, and outs. The
+        positive control proved the battery blind, the seeing rows got
+        built, and every decay direction reads noise — including the
+        Harrison shape itself (recent short starts carry nothing). What
+        survives is the deep tail (34's candidate 6) and a dead BABIP
+        lead (34's candidate 5 records the downgrade).
