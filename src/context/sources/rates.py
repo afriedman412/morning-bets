@@ -970,18 +970,29 @@ def pitcher_rates(
     flat. The weighted path feeds the SAME shrink targets (own prior,
     defence, pool constants) and the same park neutralisation, so a
     half-life sweep changes exactly one thing. See the recency block below.
+
+    `CHANNEL_HALF_LIFE_DAYS` (item 35) is the per-channel version: each
+    rate aggregates the same game lines under its OWN half-life, and its
+    shrink runs on its own effective sample. It is read ONLY when
+    `half_life` is None, so the prior-season builder's explicit 0 pins
+    both schemes flat at once.
     """
-    # None -> the module switch; 0 -> explicitly flat. The prior-season
+    # None -> the module switches; 0 -> explicitly flat. The prior-season
     # builder passes 0 so a half-life never reaches into a COMPLETED season
     # and re-weights it from its own final week.
     hl = HALF_LIFE_DAYS if half_life is None else (half_life or None)
+    chl = CHANNEL_HALF_LIFE_DAYS if half_life is None else {}
+    assert not (hl and chl), \
+        "scalar and per-channel half-life both set; pick one"
 
     def _run(c):
-        q = _PITCHER_GAMES_Q if hl else _PITCHER_Q
+        q = _PITCHER_GAMES_Q if (hl or chl) else _PITCHER_Q
         return c.execute(q.format(where=_where(season, before))).fetchall()
 
     rows = _run(conn) if conn is not None else _with(_run)
-    if hl:
+    if chl:
+        rows = _weighted_rows_per_channel(rows, chl)
+    elif hl:
         rows = _weighted_rows(rows, hl)
     prior = (prior or _ensure_prior(season)) if USE_PRIOR_SEASON else {}
     # These are already per BATTER FACED, which is the footing the league
@@ -1014,6 +1025,35 @@ def pitcher_rates(
 
     out = {}
     for r in rows:
+        if chl:
+            # Each rate reads its own weighted numerator over its own
+            # weighted denominator, and its shrink runs on that channel's
+            # effective sample. `pa` stays the raw count for the gates;
+            # `eff_pa` is per-channel because there is no longer one
+            # effective sample to report.
+            kd, bd, hd, pd = (r["k_pct_den"], r["bb_pct_den"],
+                              r["hr_pct_den"], r["babip_den"])
+            out[r["name"]] = {
+                "name": r["name"],
+                "pa": r["raw_bf"],
+                "apps": r["apps"],
+                "k_pct": _s((r["k_pct_num"] / kd) if kd > 0 else None,
+                            _t(r, "k_pct"), max(kd, 0), "k_pct", r["name"]),
+                "bb_pct": _s((r["bb_pct_num"] / bd) if bd > 0 else None,
+                             _t(r, "bb_pct"), max(bd, 0), "bb_pct",
+                             r["name"]),
+                "hr_pct": _s((r["hr_pct_num"] / hd) if hd > 0 else None,
+                             _t(r, "hr_pct"), max(hd, 0), "hr_pct",
+                             r["name"]),
+                "babip": _s(
+                    ((r["babip_num"] / pd)
+                     + defence_delta(_team_of.get(r["name"]), season))
+                    if pd > 0 else None,
+                    _t(r, "babip"), max(pd, 0), "babip", r["name"]),
+                "raw_k_pct": r["raw_k"] / r["raw_bf"],
+                "eff_pa": {ch: r[f"{ch}_den"] for ch in _RATE_CHANNELS},
+            }
+            continue
         bf = (r["o"] or 0) + (r["h"] or 0) + (r["bb"] or 0)
         if bf < 1:
             continue
@@ -1664,6 +1704,67 @@ def _weighted_rows(games, hl: float) -> list[dict]:
             a[f] += w * (g[f] or 0)
         a["apps"] += 1
         a["raw_bf"] += bf
+    return list(agg.values())
+
+
+#: The four rates `pitcher_rates` publishes, in one place so the
+#: per-channel machinery cannot drift from the output dict.
+_RATE_CHANNELS = ("k_pct", "bb_pct", "hr_pct", "babip")
+
+#: Item 35 — per-channel half-lives, in days. Keys from `_RATE_CHANNELS`;
+#: a missing (or falsy) key means that channel stays FLAT, and an empty
+#: dict disables the scheme and reproduces the flat aggregate exactly.
+#: OFF BY DEFAULT for the same reason `HALF_LIFE_DAYS` is: recency is
+#: plausible, wired, and ships only when it survives its falsifier.
+CHANNEL_HALF_LIFE_DAYS: dict[str, float] = {}
+
+
+def _weighted_rows_per_channel(games, chl: dict) -> list[dict]:
+    """Per-game lines -> one row per pitcher, each channel under its OWN
+    age discount.
+
+    Every channel aggregates the SAME whole game lines; within a channel
+    the numerator and the denominator share that channel's weight, so each
+    rate is a true weighted average. THE COUPLING DECISION, documented per
+    the item-35 pre-registration: BABIP's balls-in-play denominator ages
+    at BABIP's half-life — never K's or BB's — even though a game's BIP is
+    computed from that game's k/bb/hr counts. Mixing windows inside one
+    ratio would make BABIP drift when K moved and nothing about contact
+    changed.
+
+    Age is measured from the most recent game IN THE WINDOW, not from
+    today, for the same backtest reason as `_weighted_rows`. A channel
+    absent from `chl` gets weight 1.0 exactly, so its rate matches the
+    flat aggregate to float addition order.
+    """
+    if not games:
+        return []
+    latest = max(g["date"] for g in games)
+    agg: dict[str, dict] = {}
+    for g in games:
+        bf = (g["o"] or 0) + (g["h"] or 0) + (g["bb"] or 0)
+        if bf < 1:
+            continue
+        age = _days(latest, g["date"])
+        num_den = {
+            "k_pct": ((g["k"] or 0), bf),
+            "bb_pct": ((g["bb"] or 0), bf),
+            "hr_pct": ((g["hr"] or 0), bf),
+            "babip": ((g["h"] or 0) - (g["hr"] or 0),
+                      balls_in_play(bf, g["k"], g["bb"], g["hr"])),
+        }
+        a = agg.setdefault(g["name"], dict(
+            {"name": g["name"], "apps": 0, "raw_bf": 0, "raw_k": 0.0},
+            **{f"{ch}_{p}": 0.0 for ch in _RATE_CHANNELS
+               for p in ("num", "den")}))
+        for ch, (num, den) in num_den.items():
+            hl = chl.get(ch)
+            w = 0.5 ** (age / hl) if hl else 1.0
+            a[f"{ch}_num"] += w * num
+            a[f"{ch}_den"] += w * den
+        a["apps"] += 1
+        a["raw_bf"] += bf
+        a["raw_k"] += g["k"] or 0
     return list(agg.values())
 
 

@@ -166,6 +166,11 @@ def flags() -> dict:
     # runs printed the same fingerprint — with the knob in the header the
     # vacuous run would have been visible on sight.
     out["rates.HALF_LIFE_DAYS"] = getattr(rate_src, "HALF_LIFE_DAYS", None)
+    # Item 35's knob, same contract: an empty dict normalises to None so a
+    # flag-off run reads identically whether the constant predates the
+    # per-channel wiring or not.
+    out["rates.CHANNEL_HALF_LIFE_DAYS"] = getattr(
+        rate_src, "CHANNEL_HALF_LIFE_DAYS", None) or None
     return out
 
 

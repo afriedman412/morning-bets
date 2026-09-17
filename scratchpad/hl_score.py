@@ -19,23 +19,40 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 
 CANDIDATES = (0, 30, 60, 90, 150)
 K_ROWS = ("k_mean", "k_sd", "k_9_plus_share")
 
+#: `--v2` scores the item-35 PER-CHANNEL sweep instead: logs are
+#: `hl2_sweep_<hl>.log`, and the flag asserted is
+#: `rates.CHANNEL_HALF_LIFE_DAYS` = {'bb_pct': hl, 'babip': hl} (K and HR
+#: flat by construction). Same rows, same falsifier framework; the ship
+#: bar for v2 is registered in TODO.md item 35.
+V2 = "--v2" in sys.argv
+
 
 def fp_of(hl: int) -> str:
-    txt = open(f"scratchpad/hl_sweep_{hl}.log").read()
+    stem = "hl2_sweep" if V2 else "hl_sweep"
+    txt = open(f"scratchpad/{stem}_{hl}.log").read()
     m = re.findall(r"battery_([0-9a-f]{12})\.json", txt)
     if not m:
-        raise SystemExit(f"no battery JSON recorded in hl_sweep_{hl}.log")
+        raise SystemExit(f"no battery JSON recorded in {stem}_{hl}.log")
     return m[-1]
 
 
 def rows_of(hl: int):
     d = json.load(open(f"scratchpad/battery_{fp_of(hl)}.json"))
-    assert d["meta"]["flags"].get("rates.HALF_LIFE_DAYS") == (hl or None), \
-        (hl, d["meta"]["flags"].get("rates.HALF_LIFE_DAYS"))
+    if V2:
+        # flags_jsonable stringifies non-bools; a flag-off run may also
+        # predate the knob entirely (key absent -> None).
+        got = d["meta"]["flags"].get("rates.CHANNEL_HALF_LIFE_DAYS")
+        want = (None, "None") if not hl else \
+            (str({"bb_pct": hl, "babip": hl}),)
+        assert got in want, (hl, got)
+    else:
+        assert d["meta"]["flags"].get("rates.HALF_LIFE_DAYS") == \
+            (hl or None), (hl, d["meta"]["flags"].get("rates.HALF_LIFE_DAYS"))
     return d["rows"]
 
 

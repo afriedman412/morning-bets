@@ -507,6 +507,124 @@ def check_recency_ages_from_the_window_not_from_today():
     assert got["eff_pa"] > got["pa"] * 0.9, (got["eff_pa"], got["pa"])
 
 
+# ── per-channel recency (item 35) ──────────────────────────────────────
+_CH_LG = {"k_pct": 0.22, "bb_pct": 0.078, "hr_pct": 0.033, "babip": 0.29}
+
+#: Recent starts walk-heavy AND strikeout-heavy, old starts the reverse —
+#: so a decayed channel moves and a flat one holds still, visibly.
+_CH_ROWS = ([{"name": "A", "date": "2026-08-20", "o": 18, "h": 3, "bb": 6,
+              "k": 12, "hr": 0, "apps": 1}] * 5
+            + [{"name": "A", "date": "2026-05-01", "o": 18, "h": 6, "bb": 1,
+                "k": 2, "hr": 1, "apps": 1}] * 5)
+
+
+def _ch_rates(chl):
+    """`pitcher_rates` with `CHANNEL_HALF_LIFE_DAYS` pinned to `chl`."""
+    from src.context.sources import rates as R
+
+    class _C:
+        def execute(self, *_):
+            return _Rows(_CH_ROWS)
+    old = R.CHANNEL_HALF_LIFE_DAYS
+    R.CHANNEL_HALF_LIFE_DAYS = chl
+    try:
+        return R.pitcher_rates(_CH_LG, conn=_C())["A"]
+    finally:
+        R.CHANNEL_HALF_LIFE_DAYS = old
+
+
+def check_per_channel_decays_only_the_named_channel():
+    """bb decayed, k flat: bb_pct must move toward the recent games while
+    k_pct matches the flat aggregate EXACTLY.
+
+    The flat comparator runs through the same per-game path at an infinite
+    half-life (weight 1.0 exactly), so the only difference between the two
+    calls is the bb window — one change, one mover.
+    """
+    inf = float("inf")
+    flat = _ch_rates({"bb_pct": inf, "babip": inf})
+    dec = _ch_rates({"bb_pct": 14, "babip": inf})
+    assert dec["bb_pct"] > flat["bb_pct"] + 0.02, \
+        (flat["bb_pct"], dec["bb_pct"])
+    assert dec["k_pct"] == flat["k_pct"], (flat["k_pct"], dec["k_pct"])
+    assert dec["babip"] == flat["babip"], (flat["babip"], dec["babip"])
+
+
+def check_per_channel_shrinks_each_channel_on_its_own_sample():
+    """The decayed channel's effective sample must fall below the flat
+    channels' — discounting one channel's evidence discounts only that
+    channel's confidence (the item-35 wiring contract)."""
+    got = _ch_rates({"bb_pct": 14})
+    eff = got["eff_pa"]
+    assert eff["bb_pct"] < eff["k_pct"], eff
+    assert abs(eff["k_pct"] - got["pa"]) < 1e-9, (eff, got["pa"])
+
+
+def check_per_channel_babip_denominator_ages_at_babips_half_life():
+    """THE COUPLING DECISION: decaying K must not move BABIP at all.
+
+    Per-game balls in play is computed from that game's k/bb/hr, so an
+    implementation that aggregated channels first and divided later would
+    let K's window leak into BABIP's denominator. Numerator and
+    denominator both carry BABIP's own weight; with BABIP flat, BABIP
+    holds still whatever happens to K."""
+    flat = _ch_rates({"bb_pct": float("inf")})
+    kdec = _ch_rates({"k_pct": 14})
+    assert kdec["babip"] == flat["babip"], (flat["babip"], kdec["babip"])
+    assert kdec["k_pct"] != flat["k_pct"]      # the decay itself is live
+
+
+def check_per_channel_confidence_tracks_the_effective_sample():
+    """Ancient games must add (almost) no CONFIDENCE to a decayed channel.
+
+    Weighting the numerator while shrinking on the raw sample is the
+    overreaction bug the scalar path already fixed once — a channel at
+    hl=14 reading 260 raw batters faced would hold full-season confidence
+    behind two weeks of evidence. Ancient games carry ~zero weight, so
+    appending them must leave the decayed rate where it was; under the
+    raw-denominator bug they inflate the shrink sample and drag the rate
+    toward the recent observation.
+    """
+    from src.context.sources import rates as R
+    recent = [{"name": "A", "date": "2026-08-20", "o": 18, "h": 3, "bb": 6,
+               "k": 12, "hr": 0, "apps": 1}] * 5
+    ancient = [{"name": "A", "date": "2026-01-05", "o": 18, "h": 6, "bb": 1,
+                "k": 2, "hr": 1, "apps": 1}] * 5
+
+    def _rates(rows):
+        class _C:
+            def execute(self, *_):
+                return _Rows(rows)
+        old = R.CHANNEL_HALF_LIFE_DAYS
+        R.CHANNEL_HALF_LIFE_DAYS = {"bb_pct": 14}
+        try:
+            return R.pitcher_rates(_CH_LG, conn=_C())["A"]["bb_pct"]
+        finally:
+            R.CHANNEL_HALF_LIFE_DAYS = old
+    lone = _rates(recent)
+    padded = _rates(recent + ancient)
+    assert abs(lone - padded) < 1e-3, (lone, padded)
+
+
+def check_per_channel_pinned_flat_by_explicit_half_life_zero():
+    """`half_life=0` must pin BOTH schemes flat — it is what the
+    prior-season builder passes, and a per-channel half-life reaching into
+    a completed season would re-weight it from its own final week."""
+    from src.context.sources import rates as R
+
+    class _C:
+        def execute(self, *_):
+            return _Rows(_CH_ROWS)
+    old = R.CHANNEL_HALF_LIFE_DAYS
+    R.CHANNEL_HALF_LIFE_DAYS = {"bb_pct": 14}
+    try:
+        pinned = R.pitcher_rates(_CH_LG, conn=_C(), half_life=0)["A"]
+    finally:
+        R.CHANNEL_HALF_LIFE_DAYS = old
+    flat = R.pitcher_rates(_CH_LG, conn=_C())["A"]
+    assert pinned == flat, (pinned, flat)
+
+
 def check_every_grid_contains_its_own_shipped_value():
     """A grid missing its incumbent freezes that parameter silently.
 
