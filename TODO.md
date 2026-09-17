@@ -1565,6 +1565,13 @@ one with a measurement behind it:
      tonight" is one name for the rest.
   4. Opponent and park, which vary start to start and are already modelled
      — check they are not DOUBLE-counted here before adding anything.
+  5. **CONTACT VOLATILITY (from item 35, 2026-09-17): BABIP-divergent arms
+     in EITHER direction deliver ~0.5 fewer real outs than the model plays
+     for them** (`shape.outs_bias_babip_hi` -0.53 se 0.22, lo -0.35 se
+     0.23, relative to mid, fold-homogeneous). Not a decay effect — the
+     symmetry rules that out — it reads as the leash: managers sit
+     volatile-contact arms down earlier than the hook expects. A per-start
+     feature, which is where item 32 says the error lives.
 
 THE FALSIFIER FOR ANY OF THEM: `shape.outs_corr`, four folds, with the
 reachable gain stated in advance rather than the printed gap. And the
@@ -1574,71 +1581,24 @@ instrument for a quick read before committing a battery run is
 
 ---
 
-**35. PER-CHANNEL RECENCY IN PITCHER RATES — opened 2026-09-17 from
-`RESUME-recency.md`. Successor to RESUME item D (single half-life, CLOSED
-2026-09-07), NOT a rescue of it: new item, new falsifier, per item D's own
-closing words.**
-
-THE QUESTION: should the command/contact channels (BB%, BABIP) decay with a
-half-life while K% stays flat — scored on OUTCOMES, never the market.
-
-ESTABLISHED (all in `RESUME-recency.md`; do not re-run):
-
-  * A SINGLE half-life over all four rates is CLOSED — K worse in 16/16
-    fold×candidate cells, outs improved on the clean 2026 fold only.
-  * Market-scored recency is dead at 3-5 sigma, and it is the wrong
-    yardstick anyway.
-  * Recency in the LEASH is a wash — outing length is a different mechanism
-    with its own open item; do not conflate.
-  * The deGrom decomposition is the hypothesis in one table: K% .298 v .301
-    (identical), BB% +63%, BABIP .407 v .255. The stuff holds; the command
-    decays. Seen again live in Kyle Harrison, 2026-09-17 board.
-  * The K-side already shipped as the velo term (`sim.USE_VELO_K`) — the
-    second reason K stays FLAT here.
-  * `stabilise.py`: BABIP is the slowest channel to become trustworthy; the
-    per-channel shrink must run on each channel's own EFFECTIVE sample.
-
-THE BUILD: extend `rates._weighted_rows` / `pitcher_rates` so each channel
-aggregates whole game lines under its OWN half-life — numerator and
-denominator both under that channel's weight (BABIP's BIP denominator uses
-BABIP's weight; decided here, documented in the code), each channel's
-shrink fed by its own effective sample. K and HR stay flat by construction.
-Flag-off must stay bit-identical (fingerprint) and prior seasons stay
-pinned flat (`half_life=0` forces per-channel off too).
-
-PRE-REGISTERED, before any sweep runs:
-
-  * GRID: BB and BABIP decayed JOINTLY at hl ∈ {30, 60, 90, 150} days; K
-    and HR excluded from the sweep entirely. A bb-only/babip-only
-    decomposition runs only to ATTRIBUTE a pass, never to rescue a fail.
-  * BASELINE: flag-off battery re-run on current data first (the 2026-09-09
-    fold numbers predate backfills); no backfill between paired runs.
-  * POSITIVE CONTROL (rule 7), run BEFORE the sweep is read: inject a
-    synthetic BB decay of the deGrom size (~+60% BB over the trailing ~30
-    days) into the model's per-game rate inputs only — never the actuals —
-    and confirm hl=60 separates from flat past 1 se on named rows. The rows
-    that move are THE ROWS THAT CAN SEE the mechanism; if none move, the
-    item concludes NOT SCOREABLE BY THE BATTERY and names the missing row —
-    it does not report a null (item D's candidates were all sub-1-se
-    per row, so power is the live risk here).
-  * SHIPS ONLY IF: the outs family (`outs_*`/`spike_*`, `hl_score.py`'s
-    classification, which includes `outs_corr`) improves on the clean 2026
-    fold AND in >= 3 of 4 folds; the K rows (`k_mean`, `k_sd`,
-    `k_9_plus_share`) do not worsen past 1 se anywhere; the ladder holds
-    within 1 se everywhere; no unrelated row worsens past 1 se unexplained;
-    and the winner is not at the grid edge (rule 8).
-  * THE CONFOUND DISCRIMINATOR, decided now: item D's named mechanism (the
-    shipped constants were co-fitted with FLAT rates on 2023-25 rows)
-    predicts clean-fold-only improvement with mirrored degradation in the
-    same row family on 2023/24. If the per-channel sweep reproduces exactly
-    that pattern, the item CLOSES as "cannot distinguish from the constants
-    confound without refitting constants per fold — a different item". It
-    does not ship on the clean fold alone, and the bar does not move
-    (rule 13).
-
-HARNESS: `scratchpad/hl_score.py` extended for per-channel logs — read it,
-do not rebuild. Protocol: `data_status` first (ran clean 2026-09-17),
-battery before and after with the diff reported, stages labelled.
+**35. CLOSED 2026-09-17, same day it opened — per-channel recency (BB and
+BABIP decayed, K flat). NOTHING SHIPS, and the registered sweep never ran:
+the positive control came first and proved the pooled battery BLIND at
+claimed size** (recent walks x1.6 in the model's inputs, uniform AND for a
+20% subset of arms — zero rows past 1 se between hl=60 and flat either
+way). The seeing rows got built instead
+(`shape.outs_bias_{bb,babip}_{hi,mid,lo}`, pre-cut trailing-30d divergence
+z, now permanent battery rows) and they answer the question directly: BB
+shows no coherent decay signal (folds disagree past noise), BABIP shows a
+SYMMETRIC effect — both tails under-deliver — which is volatility, not
+decay (recorded as item 34 candidate 5); and the corrected z distribution
+(sd 0.88-1.05 vs 1.0 for pure noise) says 30-day command divergence at the
+cut carries ~no repeatable between-arm signal to weight at all. The
+wiring stays in, off, tested (`rates.CHANNEL_HALF_LIFE_DAYS = {}`). THE
+LIMIT, for whoever re-opens: folds freeze rates at the cut, so no battery
+sweep can test "tonight's trailing 30 days" — the live version needs
+per-date rate rebuilds in a replay loop, a NEW item with its own
+falsifier. Full write-up: NOTES 2026-09-17.
 
 ---
 

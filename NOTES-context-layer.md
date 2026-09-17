@@ -12902,3 +12902,103 @@ factors. Checks in `tests/test_arm.py`, all three mutation-verified — the
 first fixture for the 0-index check was SYMMETRIC (one row of each order)
 and passed under either indexing; the asymmetric one kills it. Battery
 reference for the day: `battery_9da06ee20497.json` (no engine change).
+
+## 2026-09-17 — ITEM 35, PER-CHANNEL RECENCY: THE HARNESS WAS PROVEN BLIND
+## BEFORE THE SWEEP, THE SEEING ROW GOT BUILT, AND THE MECHANISM IS NOT
+## THERE. NOTHING SHIPS. (Fable)
+
+QUESTION (from `RESUME-recency.md`, item 35, falsifier registered in
+TODO.md before any run): should BB% and BABIP decay with a half-life while
+K% stays flat — the deGrom/Harrison shape, "the stuff holds, the command
+decays" — scored on outcomes?
+
+THE WIRING (kept, off): `rates.CHANNEL_HALF_LIFE_DAYS` — each channel
+aggregates the same game lines under its own half-life, numerator and
+denominator inside one channel share that channel's weight (BABIP's
+balls-in-play denominator ages at BABIP's clock, never K's), each shrink
+runs on its own effective sample, `pa` stays raw for the gates. Explicit
+`half_life=0` pins the per-channel scheme flat too, so prior seasons stay
+untouched. Flag-off proven bit-identical by cp-swap fingerprint
+(f0caf82d3b50 both ways); five checks shipped with it, every one verified
+by mutation (channel isolation, per-channel effective sample, the BABIP
+coupling decision, the overreaction guard, the half_life=0 pin).
+
+TEST 1 — POSITIVE CONTROL FIRST, AND IT FAILED, WHICH IS THE FINDING. Rule
+7 as written in the registration: inject a claimed-size command decay into
+the model's rate inputs only and confirm the harness separates hl=60 from
+flat. Recent-30d walks x1.6 for EVERY arm: 0 rows past 1 se between the
+arms on the 2026 fold. For a 20% md5 subset (the faithful shape — uniform
+injection cannot re-rank arms, so `outs_corr` is blind to it by
+construction): 0 rows again, outs_corr 0.4001 -> 0.3961 against se 0.0259.
+The harness is not blind to levels — the same injection under FLAT rates
+moved outs_mean 1.8 se off the clean baseline — it is blind to
+FLAT-VS-WEIGHTED at claimed size, because the effective-sample shrink
+hands back roughly half of what the weighting amplifies and the remainder
+is ~0.15 se. So THE REGISTERED SWEEP NEVER RAN: reading its flat rows as a
+null would have been unfalsifiable, which is exactly what the 2026-09-09
+rule exists to stop.
+
+TEST 2 — BUILD THE ROW THAT WOULD SEE IT (the save-rows obligation).
+`shape.outs_bias_{bb,babip}_{hi,mid,lo}`: mean real and model outs for
+starts bucketed by the starter's PRE-CUT trailing-30d command divergence,
+z on the sampling error of the difference, edge 1.5, BF floors 50/150,
+paired se. Power stated before reading: n_hi 90-200 a fold, pooled se
+~0.2, a deGrom-size decay in a third of the bucket predicts -0.3 to -0.5.
+Registered reading: real if hi is negative >= 2 se pooled with the sign in
+>= 3/4 folds AND lo reads >= 0.
+
+ONE ARITHMETIC ERROR, CAUGHT BY ITS OWN DISTRIBUTION BEFORE THE READ: the
+first cut used p(1-p)/bf_recent for the z denominator. The recent window
+is a SUBSET of the season, so the error of the difference is
+p(1-p)*(1/bf_r - 1/bf_s); without the overlap term the z sd across arms
+came out 0.72-0.86 and the tails held 14-30 starts where the power
+statement said 100-250. Fixed, re-run, and the corrected sd is 0.88-1.05 —
+WHICH IS ITSELF THE POPULATION RESULT: thirty-day command divergence at
+the cut is statistically indistinguishable from sampling noise across
+~180 arms a fold. There is close to no repeatable between-arm signal for
+a half-life to weight.
+
+EVALUATE against the registered bar (bias relative to each fold's own mid
+bucket, inverse-variance pooled):
+
+    outs_bias_bb_hi      -0.409  se 0.244  z -1.68   neg sign 1/3 folds
+    outs_bias_bb_lo      +0.289  se 0.184  z +1.57   (predicted >= 0: ok)
+    outs_bias_babip_hi   -0.525  se 0.218  z -2.41   neg sign 3/4 folds
+    outs_bias_babip_lo   -0.349  se 0.226  z -1.55   (predicted >= 0: FAILS)
+
+  * BB — the primary channel, the deGrom decomposition's channel — FAILS
+    both clauses, and not as a small-consistent-effect: the readable folds
+    disagree past noise (-0.80 / +0.50 / +0.36, chi-sq 7.9 on 2 df).
+  * BABIP hi clears 2 se with 3/4 signs, but lo breaks the direction
+    clause: arms whose recent contact IMPROVED also under-deliver. Both
+    tails negative and fold-homogeneous is not decay — it is a SYMMETRIC
+    effect: BABIP-divergent arms in either direction record ~0.4 fewer
+    real outs than the model plays for them, relative to mid.
+
+CONCLUSION. ESTABLISHED: the pooled battery cannot score per-channel
+recency at claimed size (two controls, 0 rows); 30-day command divergence
+at the cut is ~pure sampling noise between arms (corrected z sd ~1); and
+there is no directional command-decay signal in real outs (BB incoherent
+across folds, BABIP symmetric). NOTHING SHIPS — `CHANNEL_HALF_LIFE_DAYS`
+stays `{}`, K and BB and BABIP all price off the flat season aggregate.
+INFERRED, and the honest limit of the instrument: the fold design freezes
+rates at the cut, so ANY battery sweep tests June-weighting for
+July-September games, never "tonight's trailing 30 days" — the live
+Harrison question is structurally out of reach of this harness and would
+need per-date rate rebuilds in a replay loop. Pre-register that as its own
+item before building it; do not read this session as having tested it.
+
+LEADS IT LEAVES: (1) the symmetric BABIP-divergence effect is a per-start
+discriminator candidate for item 34 — volatile-contact arms get shorter
+real outings than the model gives them, -0.5 outs at 2.4 sigma; recorded
+in 34's candidate list. (2) The mid-bucket bias trend across folds (+0.55
+outs in 2023 falling to 0.00 in 2026 — the model under-predicts outs on
+old folds and is calibrated on the current one) is the hazard-drift story
+of TODO 33 read from a new angle.
+
+Battery reference: `battery_f7c42621c431.json` — 24 rows added, 0 rows
+changed, engine fingerprint unchanged through the whole session (the
+wiring is off and the seeing rows are measurement only). Suite 593 green.
+Sweep driver `scratchpad/hl2_sweep.py` (`--inject-recent-bb`,
+`--inject-share`), scorer `hl_score.py --v2`, control JSONs
+`battery_dev_{08aab31cf181,11ad18891ae3,262bf07d11b6,236a01fa8e59}.json`.

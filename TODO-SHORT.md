@@ -16,8 +16,6 @@ Refreshed 2026-09-17.
 
 ## READY — nothing has to be decided before starting
 
-    35  Per-channel recency in pitcher rates — BB and BABIP decay, K and HR
-        flat; successor to RESUME item D, falsifier pre-registered in full.
     34  What tells two starts apart, now that a per-arm constant is ruled
         out — outs_corr is 3.7-5.0 sigma short of the per-arm ceiling in
         all four folds. Successor to 32.
@@ -94,3 +92,6 @@ Refreshed 2026-09-17.
     20  Every cross-fold result re-run with live bullpens.
     24  The home run channel reads contact type (`sim.USE_AIR_HR`) —
         shipped.
+    35  Per-channel recency — closed the day it opened: the positive
+        control proved the battery blind, the seeing rows got built, and
+        they show noise, not decay. Symmetric BABIP lead moved to 34.

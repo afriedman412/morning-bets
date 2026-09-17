@@ -858,13 +858,20 @@ DIVERGE_MIN_SEASON_BF = 150
 def _divergence(year, cut, rows=None):
     """{'bb': {starter: z}, 'babip': {starter: z}} for QUALIFIED arms.
 
-    z is (recent rate - season rate) over the recent window's binomial
-    error, so a deGrom-size decay (+0.05 BB% over ~120 BF) reads ~2 and
-    pure sampling noise puts ~7% of arms past +-1.5. BIP here is the RAW
-    count (bf - k - bb - hr), not the `balls_in_play` unit correction — a
-    z-score wants the count that actually binned the trials. Arms under
-    the BF floors are omitted, not zeroed: a thin arm is unknown, and
-    unknown must not read as "not divergent" in either bucket.
+    z is (recent rate - season rate) over the sampling error OF THAT
+    DIFFERENCE. The recent window is a SUBSET of the season, so the error
+    is p(1-p) * (1/bf_recent - 1/bf_season) — the first cut of this row
+    used p(1-p)/bf_recent, which overstates the se by the overlap factor
+    and squeezed the sd of z across arms to 0.72-0.86 instead of ~1,
+    leaving 14-30 starts in tails powered for 100-250 (caught 2026-09-17
+    from the z distribution, BEFORE any hi/lo outs row was read). With
+    the correction a deGrom-size decay (+0.05 BB% over ~120 recent BF)
+    reads ~2.3 and noise alone puts ~13% of arms past +-1.5 two-sided.
+    BIP here is the RAW count (bf - k - bb - hr), not the
+    `balls_in_play` unit correction — a z-score wants the count that
+    actually binned the trials. Arms under the BF floors are omitted,
+    not zeroed: a thin arm is unknown, and unknown must not read as
+    "not divergent" in either bucket.
     `rows` is injectable for the checks; production reads the same
     per-game table the recency machinery weights.
     """
@@ -891,16 +898,17 @@ def _divergence(year, cut, rows=None):
         s_bb, r_bb = sum(x[2] for x in gs), sum(x[2] for x in rec)
         p_s = s_bb / s_bf
         if 0 < p_s < 1:
-            se = (p_s * (1 - p_s) / r_bf) ** 0.5
+            se = (p_s * (1 - p_s) * (1 / r_bf - 1 / s_bf)) ** 0.5
             out["bb"][name] = (r_bb / r_bf - p_s) / se
         bip = lambda x: x[1] - x[3] - x[2] - x[4]      # noqa: E731
         s_bip, r_bip = sum(map(bip, gs)), sum(map(bip, rec))
         s_hits = sum(x[5] - x[4] for x in gs)
         r_hits = sum(x[5] - x[4] for x in rec)
-        if s_bip > 0 and r_bip >= DIVERGE_MIN_RECENT_BF * 0.6:
+        if (s_bip > r_bip >= DIVERGE_MIN_RECENT_BF * 0.6):
             p_s = s_hits / s_bip
             if 0 < p_s < 1:
-                se = (p_s * (1 - p_s) / r_bip) ** 0.5
+                se = (p_s * (1 - p_s)
+                      * (1 / r_bip - 1 / s_bip)) ** 0.5
                 out["babip"][name] = (r_hits / r_bip - p_s) / se
     return out
 
