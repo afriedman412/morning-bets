@@ -10,12 +10,14 @@ an index that lags is worse than none, because it is read as current.
 Numbers are never reused, so a line here always resolves against the full
 item.
 
-Refreshed 2026-09-11.
+Refreshed 2026-09-17.
 
 ---
 
 ## READY — nothing has to be decided before starting
 
+    35  Per-channel recency in pitcher rates — BB and BABIP decay, K and HR
+        flat; successor to RESUME item D, falsifier pre-registered in full.
     34  What tells two starts apart, now that a per-arm constant is ruled
         out — outs_corr is 3.7-5.0 sigma short of the per-arm ceiling in
         all four folds. Successor to 32.
