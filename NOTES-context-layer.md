@@ -13002,3 +13002,55 @@ wiring is off and the seeing rows are measurement only). Suite 593 green.
 Sweep driver `scratchpad/hl2_sweep.py` (`--inject-recent-bb`,
 `--inject-share`), scorer `hl_score.py --v2`, control JSONs
 `battery_dev_{08aab31cf181,11ad18891ae3,262bf07d11b6,236a01fa8e59}.json`.
+
+## 2026-09-17, SECOND SITTING — ITEM 35 ADDENDUM: THE WINDOW RE-CUT IN
+## STARTS, AND THE ONE SURVIVING SIGNAL DIES UNDER IT. (Fable, operator
+## direction: "number of starts, not days")
+
+The operator's objection to the first sitting was correct and specific:
+every piece of evidence behind the hypothesis is denominated in STARTS
+(deGrom "last 7 starts", Harrison "last 4"), and a 30-day window hands one
+arm two starts of evidence and another six. `_divergence` now takes the
+arm's LAST SIX APPEARANCES before the cut (~145 BF, uniform evidence per
+arm, immune to IL gaps and schedule irregularity); same z arithmetic with
+the overlap term, same 1.5 edge, same floors plus a season-exceeds-window
+guard, same registered bar. Check re-fixtured for start units — the
+decayed fixture's bad outings sit six weeks before the cut with nothing
+after, which a days window ages out and a starts window must catch — and
+mutation-verified again (window end, the new guard; the guard needed its
+own fixture, an arm whose whole season IS the window).
+
+THE POPULATION READ, start units, all four folds: sd(z) 0.96-1.09 across
+all eight fold x channel cells against 1.0 for pure sampling noise.
+Six-start command divergence between arms is noise in start units too.
+
+THE BIAS ROWS, start units, against the registered bar:
+
+    outs_bias_bb_hi      -0.141  se 0.228  z -0.62   neg sign 2/4
+    outs_bias_bb_lo      -0.014  se 0.174  z -0.08   neg sign 3/4
+    outs_bias_babip_hi   +0.007  se 0.180  z +0.04   neg sign 2/4
+    outs_bias_babip_lo   -0.242  se 0.194  z -1.25   neg sign 3/4
+
+Flat everywhere, every clause of the bar fails, and — the sitting's real
+result — THE DAYS-WINDOW BABIP EFFECT DOES NOT REPLICATE: -0.53 at 2.4
+sigma under the calendar window becomes +0.01 at 0.04 sigma when the same
+arms are bucketed by their last six starts. A 2.4-sigma pattern that a
+cleaner re-specification of its own window erases was selection noise,
+not a mechanism; item 34's candidate 5 is downgraded accordingly in the
+same edit as this entry (rule: the index moves with the finding, not
+after it).
+
+POWER OF THIS NULL, stated: pooled se 0.17-0.23 a bucket, so a
+deGrom-size decay in a third of the hi bucket (-0.3 to -0.5 outs) would
+have read at 1.5 to 3 se. Not a definitive exclusion alone; combined with
+sd(z) ~ 1 in both unit systems and fold-incoherent signs everywhere, the
+mechanism has no support from any instrument this session built.
+
+CONCLUSION UNCHANGED AND STRENGTHENED: item 35 stays CLOSED, nothing
+ships, `CHANNEL_HALF_LIFE_DAYS` stays `{}`. Two independent window
+definitions now agree there is nothing to weight at the cut. The live
+question (trailing starts as of TONIGHT) remains structurally untested —
+folds freeze rates at the cut — and remains the only version left open.
+Battery reference: same `battery_f7c42621c431.json` (24 rows changed, all
+of them the re-specified `outs_bias_*`; nothing else moved; engine
+fingerprint unchanged).

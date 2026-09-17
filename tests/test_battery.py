@@ -240,23 +240,33 @@ def check_the_home_run_probability_matches_what_the_engine_draws():
 
 
 def check_divergence_buckets_by_the_recent_windows_own_error():
-    """Item 35's seeing rows: the z must read the RECENT window against the
-    season, on the recent window's own binomial error, and thin arms must
-    be OMITTED — an unknown arm reading as "not divergent" would dilute
-    the mid bucket with exactly the arms the floors exist to exclude."""
+    """Item 35's seeing rows: the recent window is the LAST N APPEARANCES
+    (starts, not days — a calendar window hands one arm two starts of
+    evidence and another six), the z reads it against the season on the
+    sampling error of the DIFFERENCE, and thin arms are OMITTED — an
+    unknown arm reading as "not divergent" would dilute the mid bucket
+    with exactly the arms the floors exist to exclude.
+
+    The decayed arm's bad outings are deliberately OLD by the calendar
+    (mid-May) with nothing after them: a days-window would age them out
+    and miss the decay entirely; the starts-window must still catch it,
+    because six starts ago is six starts ago whether he was on the IL
+    since or not."""
     def gm(name, date, bb):
         return {"name": name, "date": date, "o": 18, "h": 4, "bb": bb,
                 "k": 5, "hr": 1}
     rows = (
-        # Decayed: season BB% ~9%, last-30d ~21% on 84 recent BF.
+        # Decayed: season BB% ~10%, last six appearances ~20% — and those
+        # six sit in mid-May, six weeks before the cut.
         [gm("Decayed", "2026-04-01", 1)] * 10
-        + [gm("Decayed", "2026-06-20", 6)] * 3
-        # Sharp: season ~6.5%, recent 0 on 66 BF — the other tail.
-        + [gm("Sharp", "2026-04-01", 2)] * 10
-        + [gm("Sharp", "2026-06-20", 0)] * 3
-        # Thin: one recent game, 24 BF — under the floor, must be absent.
-        + [gm("Thin", "2026-04-01", 2)] * 10
-        + [gm("Thin", "2026-06-20", 2)] * 1)
+        + [gm("Decayed", "2026-05-15", 6)] * 6
+        # Sharp: season ~7%, last six walk nobody — the other tail.
+        + [gm("Sharp", "2026-04-01", 3)] * 10
+        + [gm("Sharp", "2026-06-20", 0)] * 6
+        # Thin: six appearances TOTAL, over the season BF floor — the
+        # whole season IS the recent window, there is nothing to diverge
+        # from, and the s_bf > r_bf guard (not the floors) must drop him.
+        + [gm("Thin", "2026-06-20", 4)] * 6)
     got = battery._divergence(2026, "2026-07-01", rows=rows)
     assert got["bb"]["Decayed"] > battery.DIVERGE_Z, got["bb"]
     assert got["bb"]["Sharp"] < -battery.DIVERGE_Z, got["bb"]

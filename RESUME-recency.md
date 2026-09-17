@@ -3,10 +3,12 @@
 **RESOLVED 2026-09-17, the same day — item 35, CLOSED, nothing ships.**
 The registered sweep never ran: the positive control (rule 7) came first
 and proved the battery blind at claimed size, the seeing rows
-(`shape.outs_bias_*`) were built per the build-the-row obligation, and
-they read noise, not decay — BB incoherent across folds, BABIP symmetric
-(a volatility lead, moved to item 34 candidate 5), and the corrected
-divergence z distribution consistent with pure sampling noise. The
+(`shape.outs_bias_*`) were built per the build-the-row obligation — first
+on a 30-day window, then re-cut to the arm's LAST SIX STARTS on operator
+direction — and both window systems read noise, not decay: BB incoherent
+across folds, the days-window BABIP symmetry erased by the starts re-cut
+(item 34 candidate 5 records the downgrade), and the divergence z
+distribution consistent with pure sampling noise in both unit systems. The
 per-channel wiring is in and off (`rates.CHANNEL_HALF_LIFE_DAYS = {}`).
 Full write-up: `NOTES-context-layer.md` 2026-09-17; closed record: TODO.md
 item 35. Kept for the framing below — the ESTABLISHED list is still

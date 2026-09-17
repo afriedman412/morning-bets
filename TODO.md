@@ -1565,13 +1565,17 @@ one with a measurement behind it:
      tonight" is one name for the rest.
   4. Opponent and park, which vary start to start and are already modelled
      — check they are not DOUBLE-counted here before adding anything.
-  5. **CONTACT VOLATILITY (from item 35, 2026-09-17): BABIP-divergent arms
-     in EITHER direction deliver ~0.5 fewer real outs than the model plays
-     for them** (`shape.outs_bias_babip_hi` -0.53 se 0.22, lo -0.35 se
-     0.23, relative to mid, fold-homogeneous). Not a decay effect — the
-     symmetry rules that out — it reads as the leash: managers sit
-     volatile-contact arms down earlier than the hook expects. A per-start
-     feature, which is where item 32 says the error lives.
+  5. **CONTACT VOLATILITY — DOWNGRADED TO LIKELY NOISE the same day it was
+     recorded (item 35, 2026-09-17, both sittings).** Under a 30-DAY
+     divergence window, BABIP-divergent arms in either direction read ~0.5
+     fewer real outs than the model plays (-0.53 se 0.22 hi, -0.35 se 0.23
+     lo); re-cut to the arm's LAST SIX STARTS — the better-specified
+     window, uniform evidence per arm — the effect vanishes (+0.01 se 0.18
+     hi, -0.24 se 0.19 lo). A 2.4-sigma pattern erased by a cleaner
+     re-specification of its own window is selection noise until something
+     re-establishes it. If anyone re-opens: pre-register which window and
+     why, BEFORE looking. The `shape.outs_bias_*` rows stay in the battery
+     (start units) as the instrument.
 
 THE FALSIFIER FOR ANY OF THEM: `shape.outs_corr`, four folds, with the
 reachable gain stated in advance rather than the printed gap. And the
@@ -1587,13 +1591,16 @@ the positive control came first and proved the pooled battery BLIND at
 claimed size** (recent walks x1.6 in the model's inputs, uniform AND for a
 20% subset of arms — zero rows past 1 se between hl=60 and flat either
 way). The seeing rows got built instead
-(`shape.outs_bias_{bb,babip}_{hi,mid,lo}`, pre-cut trailing-30d divergence
-z, now permanent battery rows) and they answer the question directly: BB
-shows no coherent decay signal (folds disagree past noise), BABIP shows a
-SYMMETRIC effect — both tails under-deliver — which is volatility, not
-decay (recorded as item 34 candidate 5); and the corrected z distribution
-(sd 0.88-1.05 vs 1.0 for pure noise) says 30-day command divergence at the
-cut carries ~no repeatable between-arm signal to weight at all. The
+(`shape.outs_bias_{bb,babip}_{hi,mid,lo}`, pre-cut divergence z, now
+permanent battery rows — re-cut the same day from a 30-day window to the
+arm's LAST SIX STARTS on operator direction, since the evidence is
+denominated in starts) and they answer the question directly: BB shows no
+coherent decay signal in either window system, and the days-window BABIP
+symmetry (briefly item 34 candidate 5) vanished under the starts re-cut —
+flat in all four buckets, +0.01 se 0.18 at hi. The z distribution says
+the same in both unit systems (sd 0.96-1.09 vs 1.0 for pure noise):
+command divergence at the cut carries ~no repeatable between-arm signal
+to weight at all. The
 wiring stays in, off, tested (`rates.CHANNEL_HALF_LIFE_DAYS = {}`). THE
 LIMIT, for whoever re-opens: folds freeze rates at the cut, so no battery
 sweep can test "tonight's trailing 30 days" — the live version needs

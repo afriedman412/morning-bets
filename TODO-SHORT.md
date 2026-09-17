@@ -93,5 +93,7 @@ Refreshed 2026-09-17.
     24  The home run channel reads contact type (`sim.USE_AIR_HR`) —
         shipped.
     35  Per-channel recency — closed the day it opened: the positive
-        control proved the battery blind, the seeing rows got built, and
-        they show noise, not decay. Symmetric BABIP lead moved to 34.
+        control proved the battery blind, the seeing rows got built (days,
+        then re-cut to starts on operator direction), and both window
+        systems read noise, not decay. The brief BABIP lead died with the
+        starts re-cut; 34's candidate 5 records the downgrade.

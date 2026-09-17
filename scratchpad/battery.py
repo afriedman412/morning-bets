@@ -846,10 +846,13 @@ class Fold:
 
 
 #: Item 35's divergence window and bucket edge: an arm is COMMAND-DIVERGENT
-#: when his trailing-30-day BB% (or BABIP) sits 1.5 of the recent window's
-#: own binomial errors away from his season rate — both frozen at the
-#: fold's cut, which is the information the fold's rates were built from.
-DIVERGE_DAYS = 30
+#: when his trailing-N-APPEARANCE BB% (or BABIP) sits 1.5 of the window's
+#: own sampling errors from his season rate — both frozen at the fold's
+#: cut, which is the information the fold's rates were built from. STARTS,
+#: NOT DAYS (operator call, 2026-09-17): the evidence is per outing —
+#: deGrom's table was "last 7 starts", Harrison's "last 4" — and a
+#: calendar window hands one arm two starts of evidence and another six.
+DIVERGE_STARTS = 6
 DIVERGE_Z = 1.5
 DIVERGE_MIN_RECENT_BF = 50
 DIVERGE_MIN_SEASON_BF = 150
@@ -858,20 +861,23 @@ DIVERGE_MIN_SEASON_BF = 150
 def _divergence(year, cut, rows=None):
     """{'bb': {starter: z}, 'babip': {starter: z}} for QUALIFIED arms.
 
-    z is (recent rate - season rate) over the sampling error OF THAT
-    DIFFERENCE. The recent window is a SUBSET of the season, so the error
-    is p(1-p) * (1/bf_recent - 1/bf_season) — the first cut of this row
-    used p(1-p)/bf_recent, which overstates the se by the overlap factor
-    and squeezed the sd of z across arms to 0.72-0.86 instead of ~1,
-    leaving 14-30 starts in tails powered for 100-250 (caught 2026-09-17
-    from the z distribution, BEFORE any hi/lo outs row was read). With
-    the correction a deGrom-size decay (+0.05 BB% over ~120 recent BF)
-    reads ~2.3 and noise alone puts ~13% of arms past +-1.5 two-sided.
-    BIP here is the RAW count (bf - k - bb - hr), not the
-    `balls_in_play` unit correction — a z-score wants the count that
-    actually binned the trials. Arms under the BF floors are omitted,
-    not zeroed: a thin arm is unknown, and unknown must not read as
-    "not divergent" in either bucket.
+    The recent window is the arm's LAST `DIVERGE_STARTS` APPEARANCES
+    before the cut (the per-game table does not mark starts; the BF
+    floors keep pure short relievers out, and for rotation arms an
+    appearance is a start). z is (recent rate - season rate) over the
+    sampling error OF THAT DIFFERENCE — the recent window is a SUBSET of
+    the season, so the error is p(1-p) * (1/bf_recent - 1/bf_season);
+    the first cut of this row used p(1-p)/bf_recent, which overstates
+    the se by the overlap factor and squeezed sd(z) across arms to
+    0.72-0.86 instead of ~1 (caught 2026-09-17 from the z distribution,
+    BEFORE any hi/lo outs row was read). A deGrom-size decay (+0.05 BB%
+    over ~145 recent BF) reads ~2.4 and noise alone puts ~13% of arms
+    past +-1.5 two-sided. BIP here is the RAW count (bf - k - bb - hr),
+    not the `balls_in_play` unit correction — a z-score wants the count
+    that actually binned the trials. Arms under the BF floors, or with
+    no season evidence OUTSIDE the window, are omitted, not zeroed: a
+    thin arm is unknown, and unknown must not read as "not divergent"
+    in either bucket.
     `rows` is injectable for the checks; production reads the same
     per-game table the recency machinery weights.
     """
@@ -889,11 +895,12 @@ def _divergence(year, cut, rows=None):
              g["hr"] or 0, g["h"] or 0))
     out: dict = {"bb": {}, "babip": {}}
     for name, gs in per.items():
-        rec = [x for x in gs
-               if rate_src._days(cut, x[0]) <= DIVERGE_DAYS]
+        rec = sorted(gs, key=lambda x: x[0])[-DIVERGE_STARTS:]
         s_bf = sum(x[1] for x in gs)
         r_bf = sum(x[1] for x in rec)
-        if r_bf < DIVERGE_MIN_RECENT_BF or s_bf < DIVERGE_MIN_SEASON_BF:
+        if (r_bf < DIVERGE_MIN_RECENT_BF
+                or s_bf < DIVERGE_MIN_SEASON_BF
+                or s_bf <= r_bf):
             continue
         s_bb, r_bb = sum(x[2] for x in gs), sum(x[2] for x in rec)
         p_s = s_bb / s_bf
@@ -1476,7 +1483,7 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
     # per-channel recency sweep and reading one as a null would be
     # unfalsifiable. These rows condition on the thing the mechanism is
     # about: does the model over-predict outs for arms whose pre-cut
-    # trailing-30d command (BB%, BABIP) diverged from their season rate?
+    # trailing-6-start command (BB%, BABIP) diverged from their season rate?
     # `mid` is the control bucket and should sit at the overall bias; the
     # se is PAIRED (sd of real-minus-model per start), which is what makes
     # ~100-start buckets readable at all.
@@ -1502,8 +1509,9 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
                      st.mean(m_ for m_, _ in prs),
                      st.mean(a_ for _, a_ in prs),
                      st.pstdev(diffs) / len(diffs) ** 0.5, len(prs),
-                     f"mean outs where the starter's pre-cut 30d {ch} "
-                     f"z is {lab} (edge {DIVERGE_Z}); paired se")
+                     f"mean outs where the starter's pre-cut "
+                     f"{DIVERGE_STARTS}-start {ch} z is {lab} "
+                     f"(edge {DIVERGE_Z}); paired se")
     nk = len(real_k)
     fold.add("shape", "k_mean", mk_mean, st.mean(real_k),
              st.pstdev(real_k) / nk ** 0.5, nk)
