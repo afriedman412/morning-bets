@@ -379,6 +379,9 @@ src/context/
   game.py          THE ENGINE. Whole game, both sides, bullpen, extras
   slate.py         a DATE -> two game.Side objects (the live path)
   probables.py     operator-designated probables, for when the feed is behind
+  plans.py         operator-ANNOUNCED opener/short-start plans: planned
+                   exit outs and the named bulk arm, applied on the live
+                   path only. Never inferred — the operator supplies it
   calibrate.py     replays real starts; reliability + Brier; paired_cases
   fitf5.py         fit to F5 runs, discrete CRPS over the full support
   ladder.py        score by inning prefix — where the model is wrong

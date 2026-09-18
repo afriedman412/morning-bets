@@ -1384,7 +1384,9 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
                rng: random.Random, depth: int = PEN_DEPTH,
                team: str | None = None, apply_leash: bool = True,
                date: str | None = None,
-               bulk: sim.PitcherRates | None = None) -> Side:
+               bulk: sim.PitcherRates | None = None,
+               bulk_hook: sim.Hook | None = None,
+               planned_exit: int | str | None = None) -> Side:
     """Draw a bullpen for one club and assemble its pitching side.
 
     Arms are sampled WITHOUT replacement and weighted by appearances: a
@@ -1538,6 +1540,25 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
         own = dist[rng.randrange(len(dist))]
         if USE_OPENER_EXIT and (USE_OPENER_POOL or not pooled):
             fx = own
+    if planned_exit is not None:
+        # THE OPERATOR'S ANNOUNCED PLAN (`src/context/plans.py`) outranks
+        # the historical classification above: it is tonight's stated
+        # usage, not an inference from past starts. Applied AFTER the
+        # record draws, so a side without a plan consumes the identical
+        # rng stream — None is exactly inert.
+        if planned_exit == "pool" or "-" in str(planned_exit):
+            pool_dist = _opener_pool()
+            if planned_exit != "pool":
+                # A `lo-hi` range clips the counted curve to the operator's
+                # bounds, keeping the mass at the inning boundaries where
+                # real opener exits land; uniform only if the clip empties.
+                lo, hi = (int(x) for x in str(planned_exit).split("-", 1))
+                pool_dist = ([o for o in pool_dist if lo <= o <= hi]
+                             or list(range(lo, hi + 1)))
+            if pool_dist:
+                fx = pool_dist[rng.randrange(len(pool_dist))]
+        else:
+            fx = int(planned_exit)
     # THE BULK ARM'S OWN HOOK, built off the SAME base as the opener's so
     # club patience is not lost, then his own leash, then the counted role
     # delta. `leash.offset_for` is the one road an outs delta travels into a
@@ -1545,8 +1566,14 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
     # conversion to keep in step with the first.
     bh = None
     if bulk is not None:
-        bh = hook or sim.Hook()
-        if apply_leash:
+        # A caller that pre-builds hooks (`slate`, with `apply_leash=False`)
+        # must hand over the bulk arm's own finished hook too: the fallback
+        # base here is the STARTER'S hook, which under `apply_leash=False`
+        # would leave the opener's personal leash on the bulk arm and the
+        # bulk arm's own leash off him. The counted role delta stays here
+        # either way — one road for it, whoever built the base.
+        bh = bulk_hook or hook or sim.Hook()
+        if bulk_hook is None and apply_leash:
             bh = sim.for_start(bh, team, bulk.name)
         off = _leash.offset_for(BULK_OUTS_DELTA)
         bh = sim.Hook(**{**bh.__dict__,
@@ -1908,6 +1935,15 @@ def _role_is_opener(name: str, date: str) -> bool:
     return early <= OPENER_ROLE_EARLY_SHARE
 
 
+def _opener_pool() -> list[int]:
+    """The counted first-time-opener exit curve, flattened for drawing."""
+    global _OPENER_POOL
+    if _OPENER_POOL is None:
+        _OPENER_POOL = [o for o, n in sorted(OPENER_POOL_DIST.items())
+                        for _ in range(n)]
+    return _OPENER_POOL
+
+
 def opener_record(name: str | None,
                   date: str | None) -> tuple[list[int], bool] | None:
     """(outs to bootstrap from, is_pooled) — or None for an ordinary arm.
@@ -1931,11 +1967,8 @@ def opener_record(name: str | None,
         # first-time opener, and gets him the pooled curve counted on
         # exactly this population. See `OPENER_POOL_DIST`.
         if _role_is_opener(name, date):
-            global _OPENER_POOL
-            if _OPENER_POOL is None:
-                _OPENER_POOL = [o for o, n in sorted(OPENER_POOL_DIST.items())
-                                for _ in range(n)]
-            return (_OPENER_POOL, True) if _OPENER_POOL else None
+            pool = _opener_pool()
+            return (pool, True) if pool else None
         return None
     if _record_mean(prior, date) >= OPENER_AVG_OUTS:
         return None

@@ -1531,6 +1531,56 @@ def check_no_named_bulk_arm_means_the_pen_exactly_as_before():
     assert _side().to_bulk() is False
 
 
+def check_a_planned_exit_reaches_the_forced_exit():
+    """An operator-announced short start (`plans.py`) must land on
+    `forced_exit_outs`, outranking whatever `_draw_early_exit` and the
+    historical opener record drew. MUTATION: delete the `planned_exit`
+    block in `build_side` and this fails."""
+    rng = random.Random(11)
+    s = game.build_side(_pitcher(), [], _lineup(), None, rng,
+                        team="CIN", date="2026-09-18", planned_exit=9)
+    assert s.forced_exit_outs == 9, s.forced_exit_outs
+
+
+def check_a_pool_planned_exit_draws_from_the_counted_opener_curve():
+    """`pool` is "he is opening, length unannounced" — the exit must come
+    from the counted first-time-opener curve, not a full start."""
+    rng = random.Random(13)
+    seen = {game.build_side(_pitcher(), [], _lineup(), None, rng,
+                            team="CLE", date="2026-09-18",
+                            planned_exit="pool").forced_exit_outs
+            for _ in range(30)}
+    assert seen <= set(game.OPENER_POOL_DIST), seen
+    assert len(seen) > 1, "the pool draw is not varying"
+
+
+def check_a_ranged_planned_exit_stays_inside_its_bounds():
+    """`3-6` draws the counted opener curve CLIPPED to the announced
+    bounds — never an exit outside what the operator stated."""
+    rng = random.Random(23)
+    seen = {game.build_side(_pitcher(), [], _lineup(), None, rng,
+                            team="CLE", date="2026-09-18",
+                            planned_exit="3-6").forced_exit_outs
+            for _ in range(30)}
+    assert seen <= {3, 4, 5, 6}, seen
+
+
+def check_a_prebuilt_bulk_hook_is_used_not_the_openers():
+    """`slate` passes `apply_leash=False` with finished hooks, so it must
+    be able to hand over the BULK ARM'S own hook — the fallback base is
+    the starter's, which would leave the opener's personal leash on the
+    wrong arm. The counted role delta is still added on top: one road."""
+    from src.context import leash
+    rng = random.Random(17)
+    given = sim.Hook(team_offset=5.0)
+    s = game.build_side(_pitcher(), [], _lineup(), sim.Hook(), rng,
+                        team="STL", date="2026-09-18", apply_leash=False,
+                        bulk=_pitcher(name="bulk"), bulk_hook=given)
+    want = 5.0 + leash.offset_for(game.BULK_OUTS_DELTA)
+    assert abs(s.bulk_hook.team_offset - want) < 1e-9, \
+        (s.bulk_hook.team_offset, want)
+
+
 def check_the_bulk_arm_keeps_the_openers_line_for_props():
     """`line` is the man the board named. Handing the bulk arm the starter's
     line reports HIS fifteen outs as the opener's in every replay, and the

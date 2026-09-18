@@ -24,7 +24,7 @@ import urllib.request
 from datetime import date, timedelta
 
 from src import db, roster
-from src.context import calibrate, game, gamestate, probables, sim
+from src.context import calibrate, game, gamestate, plans, probables, sim
 from src.context.sources import rates as rate_src
 from src.context.sources import weather as weather_src
 
@@ -240,6 +240,29 @@ def _build(names, br, league_bats):
     return out
 
 
+def _arm_rates(name: str, pr: dict) -> sim.PitcherRates | None:
+    """One arm's PitcherRates as the live path builds them, or None.
+
+    Factored from the starter-spec loop so an announced BULK ARM
+    (`plans.py`) is built through the identical construction — same
+    batted-ball lookups, same hand resolution — rather than a second copy
+    that can drift.
+    """
+    p = pr.get(name)
+    if not p:
+        return None
+    try:
+        from src.context.sources import battedball
+        gb_p = battedball.gb_pct_map("pit").get(name)
+        air_p = battedball.air_pct_map("pit").get(name)
+    except Exception:
+        gb_p = air_p = None
+    return sim.PitcherRates(
+        name=name, k_pct=p["k_pct"], bb_pct=p["bb_pct"],
+        hr_pct=p["hr_pct"], babip=p["babip"], pa=p["pa"],
+        hand=roster.throws(name) or "", gb_pct=gb_p, air_pct=air_p)
+
+
 def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
                         seed=0, progress=None, track=(5,)):
     """`n_sims` simulated games for one slate matchup. -> (results, reason).
@@ -301,18 +324,35 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
             hook = sim.Hook(**{
                 **hook.__dict__,
                 "team_offset": hook.team_offset + calibrate.HOME_HOOK})
-        try:
-            from src.context.sources import battedball
-            gb_p = battedball.gb_pct_map("pit").get(name)
-            air_p = battedball.air_pct_map("pit").get(name)
-        except Exception:
-            gb_p = air_p = None
-        specs[side] = (sim.PitcherRates(
-            name=name, k_pct=p["k_pct"], bb_pct=p["bb_pct"],
-            hr_pct=p["hr_pct"], babip=p["babip"], pa=p["pa"],
-            hand=roster.throws(name) or "", gb_pct=gb_p,
-            air_pct=air_p), faces,
-            s["abbr"], hook)
+        specs[side] = (_arm_rates(name, pr), faces, s["abbr"], hook)
+
+    # THE OPERATOR'S ANNOUNCED PLAN for either club — an opener or short
+    # start, with or without a named bulk arm (`plans.py`). Resolved once
+    # per matchup like the hooks: the plan does not vary by draw. The bulk
+    # arm gets his OWN finished hook here because `apply_leash=False` below
+    # stops `build_side` building one, and its fallback would hand him the
+    # opener's personal leash.
+    plan_by_side = {}
+    for side in ("away", "home"):
+        plan = plans.for_team(d, g[side]["abbr"])
+        if not plan:
+            continue
+        b_rates = b_hook = None
+        b_name = plan.get("bulk")
+        if b_name:
+            b_rates = _arm_rates(b_name, pr)
+            if b_rates is None:
+                # Loudly, not half-applied: a plan the operator typed that
+                # cannot price as stated is theirs to correct, and a board
+                # number quietly missing its bulk arm looks like the others.
+                return None, (f"plan for {g[side]['abbr']} names bulk arm "
+                              f"{b_name!r} but he has no rates on record")
+            b_hook = sim.for_start(sim.Hook(), g[side]["abbr"], b_name)
+            if side == "home" and calibrate.HOME_HOOK:
+                b_hook = sim.Hook(**{
+                    **b_hook.__dict__,
+                    "team_offset": b_hook.team_offset + calibrate.HOME_HOOK})
+        plan_by_side[side] = (plan.get("outs"), b_rates, b_hook)
 
     park = (calibrate.park_for(g["venue_id"])
             if calibrate.USE_PARK else None)
@@ -351,9 +391,12 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
         sides = {}
         for side in ("away", "home"):
             pitcher, faces, abbr, hook = specs[side]
+            p_exit, b_rates, b_hook = plan_by_side.get(
+                side, (None, None, None))
             sides[side] = game.build_side(
                 pitcher, pens.get((abbr or "").upper(), []), faces, hook,
-                rng, team=abbr, apply_leash=False, date=d)
+                rng, team=abbr, apply_leash=False, date=d,
+                bulk=b_rates, bulk_hook=b_hook, planned_exit=p_exit)
         # TRACK THE FIFTH BY DEFAULT. `prefix_side` is only populated for
         # innings named here, and this passed nothing — so every caller got
         # an empty dict and `scratchpad/tonight.py` printed the first-five

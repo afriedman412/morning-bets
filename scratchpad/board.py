@@ -29,7 +29,7 @@ import time
 from datetime import date as _date
 
 from src import roster
-from src.context import sim, slate
+from src.context import plans, sim, slate
 from src.context.sources import rates as rate_src
 from scratchpad import kalshi
 from scratchpad.outs_adjust import MEASURED_ON, correction
@@ -280,6 +280,17 @@ def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
         game_note = "  ".join(
             f"[{g[s]['starter']}: {gate[s][1]}]" for s in ("away", "home")
             if not gate[s][0])
+        # AN APPLIED PLAN IS ANNOUNCED (`plans.py`, probables rule 2) —
+        # on the whole block, because the total and F5 rows inherit the
+        # replanned start exactly as they inherit a flagged arm.
+        day_plans = plans.for_date(d)
+        plan_note = "  ".join(
+            f"[PLAN {g[s]['abbr']}: {g[s]['starter']} "
+            f"{plans.describe(day_plans[g[s]['abbr']])}]"
+            for s in ("away", "home") if g[s]["abbr"] in day_plans)
+        if plan_note:
+            game_note = f"{plan_note}  {game_note}" if game_note \
+                else plan_note
         for label, key in (("total", "total"), (f"{a['abbr']} total",
                            "away"), (f"{h['abbr']} total", "home")):
             lines = TOTAL_LINES if key == "total" else TEAM_LINES

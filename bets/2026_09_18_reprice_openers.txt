@@ -1,0 +1,72 @@
+
+CHC@CIN   Clay Holmes v Chase Burns
+  OPERATOR PLAN: Chase Burns opens (9 outs), Brandon Williamson in bulk relief   [20,000 sims]
+  mean total 10.3  (board had 9.9)
+
+  bet                              replan           board  kalshi
+  total 9                     -137 /  +137     -116 /  +116       -   
+  total 9.5                   -109 /  +109     +107 /  -107    +147   
+  total 10                    +107 /  -107     +125 /  -125       -   
+  CHC total 4.5               -134 /  +134     -109 /  +109    -102   
+  CHC total 5.5               +118 /  -118     +146 /  -146    +160   
+  CIN total 3.5               -151 /  +151     -154 /  +154    -120   
+  CIN total 4.5               +112 /  -112     +111 /  -111    +147   
+  F5 total 4.5                -127 /  +127     -113 /  +113    +115   
+  F5 total 5.5                +125 /  -125     +141 /  -141    +186   
+  Clay Holmes k 2.5           -520 /  +520     -525 /  +525    -525   
+  Clay Holmes k 3.5           -224 /  +224     -223 /  +223    -203   
+  Clay Holmes k 4.5           -103 /  +103     -103 /  +103    +108   
+  Clay Holmes k 5.5           +196 /  -196     +199 /  -199    +223   
+  Clay Holmes k 6.5           +405 /  -405     +414 /  -414    +471   
+  Clay Holmes k 7.5           +874 /  -874     +894 /  -894   +1233   
+  Clay Holmes outs 15.5       -117 /  +117     -114 /  +114    -111   raw -117
+  Clay Holmes outs 16.5       +107 /  -107     +110 /  -110       -   raw +104
+  Chase Burns k 2.5           -338 /  +338    -1404 / +1404    -257   
+  Chase Burns k 3.5           -115 /  +115     -604 /  +604    -125   
+  Chase Burns k 4.5           +233 /  -233     -285 /  +285    +170   
+  Chase Burns k 5.5           +672 /  -672     -144 /  +144    +335   
+  Chase Burns k 6.5          +2413 / -2413     +134 /  -134    +852   
+  Chase Burns outs 15.5     +99900 /-99900     -111 /  +111       -   raw -
+  Chase Burns outs 16.5     +99900 /-99900     +113 /  -113       -   raw -
+
+  Chase Burns k ladder (replanned):
+    k 2.5                   -338 /  +338    -264   off-band  vol $7.1k
+    k 3.5                   -115 /  +115    -122   vol $6.2k
+    k 4.5                   +233 /  -233    +174   off-band  vol $24k
+    k 5.5                   +672 /  -672    +326   off-band  vol $2.7k
+    k 6.5                  +2413 / -2413    +953   off-band  vol $1.6k
+
+  Chase Burns outs ladder (replanned):
+
+ATH@CLE   Mason Barnett v Daniel Espino
+  OPERATOR PLAN: Daniel Espino opens (pooled opener exit), Joey Cantillo in bulk relief   [20,000 sims]
+  mean total 9.2  (board had 9.0)
+
+  bet                              replan           board  kalshi
+  total 8                     -132 /  +132     -123 /  +123       -   
+  total 8.5                   -110 /  +110     -104 /  +104    +102   
+  total 9                     +114 /  -114     +121 /  -121       -   
+  ATH total 3.5               -106 /  +106     +106 /  -106    +104   
+  CLE total 4.5               -113 /  +113     -111 /  +111    -111   
+  CLE total 5.5               +150 /  -150     +150 /  -150    +156   
+  F5 total 4.5                -115 /  +115     -108 /  +108    -117   
+  F5 total 5.5                +139 /  -139     +148 /  -148    +144   
+  Mason Barnett k 2.5         -136 /  +136     -134 /  +134    -113   
+  Mason Barnett k 3.5         +166 /  -166     +168 /  -168    +217   
+  Mason Barnett k 4.5         +372 /  -372     +370 /  -370    +545   
+  Mason Barnett outs 12.5     +107 /  -107     +105 /  -105    -117   raw +114
+  Mason Barnett outs 13.5     +126 /  -126     +124 /  -124       -   raw +139
+  Daniel Espino k 5.5         +929 /  -929     -162 /  +162       -   
+  Daniel Espino k 6.5        +1623 / -1623     +118 /  -118       -   
+  Daniel Espino outs 16.5    +7652 / -7652     -114 /  +114       -   raw +4685
+  Daniel Espino outs 17.5   +13323 /-13323     +116 /  -116       -   raw +5979
+
+  Daniel Espino k ladder (replanned):
+    k 2.5                   +148 /  -148       -   
+
+  Daniel Espino outs ladder (replanned):
+    outs 3.5                   -139 /  +139       -   raw -130
+    outs 4.5                   -105 /  +105       -   raw +102
+    outs 5.5                   +113 /  -113       -   raw +121
+
+Bulk arms carry no ladder: the sim records the starter's line only, and so does the market.

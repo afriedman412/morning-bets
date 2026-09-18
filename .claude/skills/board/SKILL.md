@@ -45,6 +45,37 @@ total moved 7.34 → 7.05 between 400 and 20k, and two 1,500-sim runs of one
 line differed 1.2 points on seed alone. Do not lower it to save time and
 then quote the output. Five games is about 75 seconds.
 
+## Operator-announced openers (added 2026-09-18)
+
+When the operator announces a plan the schedule cannot know — "Burns goes
+three innings, Williamson has the bulk" — record it BEFORE step 1 and the
+board applies it to every rung of that game:
+
+```
+venv/bin/python -m src.context.plans <DATE> CIN 9 Brandon Williamson
+venv/bin/python -m src.context.plans <DATE> CLE 3 Joey Cantillo
+venv/bin/python -m src.context.plans <DATE>            # list
+venv/bin/python -m src.context.plans <DATE> CIN off    # clear
+```
+
+OUTS is an int ("three innings" is 9), a range like `3-6` (the counted
+opener curve clipped to those bounds), or `pool` for the full first-time
+-opener curve. Omit the bulk name when the pen simply takes over. An
+applied plan prints `[PLAN ...]` on the game's rungs, and plans expire
+with their date.
+
+**DO NOT INFER A PLAN FROM RECENT USAGE — THE OPERATOR SUPPLIES IT**
+(settled 2026-09-18, twice). The historical opener gate cannot see an
+announced plan either way: its 120-day half-life left Leahy's weighted
+mean at 14.1 outs against the 11-out trigger while his last three starts
+were 9, 8, 9.
+
+The opener's own OUTS rows can vanish from the board under a flat plan —
+every line goes off-band when all 20,000 draws exit at 9 — and that is
+the plan working, not the parser dropping rungs. His K ladder is the
+comparable market; the morning of 2026-09-18 it moved Burns k 4.5 from
+-285 (unplanned, vs a +170 market) to +233 (planned, vs +174).
+
 ## Freshness, and the gap that is not fixed
 
 `data_status` measures every source against the newest FINISHED GAME, which

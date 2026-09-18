@@ -1181,6 +1181,31 @@ def check_the_slate_simulation_tracks_the_first_five():
     assert "track=track" in src, "track must reach simulate_game"
 
 
+def check_an_operator_plan_reaches_build_side_on_the_live_path():
+    """The whole reason `plans.py` exists: a club announcing "Burns goes
+    three, Williamson in bulk" the morning of is invisible to the
+    historical opener gate, and on 2026-09-18 the board priced Burns as a
+    full starter while $24k of Kalshi volume priced the short start. The
+    plan lookup, the bulk arm's OWN hook, and all three build_side
+    arguments have to survive in the live path — any one silently dropped
+    prices the board unplanned with no warning anywhere.
+
+    Source-level like the `track=track` check above, because the function
+    needs a live schedule row and a weather fetch to run. MUTATION: remove
+    the `plan_by_side` block or any of the three kwargs and the matching
+    assertion fails.
+    """
+    import inspect
+    from src.context import slate as slate_src
+
+    src = inspect.getsource(slate_src.simulate_slate_game)
+    assert "plans.for_team" in src, "the plan lookup is gone"
+    for kw in ("bulk=", "bulk_hook=", "planned_exit="):
+        assert kw in src, f"{kw} does not reach build_side"
+    assert "for_start(sim.Hook(), g[side]['abbr'], b_name)" in \
+        src.replace('"', "'"), "the bulk arm's own hook is not built"
+
+
 def check_both_hook_curves_read_the_counted_pitch_hazard():
     """Both backbones are the counted table.
 
