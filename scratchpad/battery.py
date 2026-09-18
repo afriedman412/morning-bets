@@ -1502,9 +1502,15 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
     # unfalsifiable. These rows condition on the thing the mechanism is
     # about: does the model over-predict outs for arms whose pre-cut
     # trailing-6-start command (BB%, BABIP) diverged from their season rate?
-    # `mid` is the control bucket and should sit at the overall bias; the
-    # se is PAIRED (sd of real-minus-model per start), which is what makes
-    # ~100-start buckets readable at all.
+    # `mid` is the control bucket and should sit at the overall bias. The
+    # se is paired AND ARM-CLUSTERED (2026-09-17 fourth sitting): a
+    # bucket's ~230 starts come from ~40 arms, six apiece, and whether
+    # the model over- or under-predicts one arm is a trait of the arm —
+    # same rates, same hook profile every time out — so his starts are
+    # one piece of evidence counted six times, not six pieces. Treating
+    # them as independent is what made the deep-tail read print +2.47;
+    # the cluster-robust se (per-arm residual sums, CR0) is the honest
+    # one, and the effective sample is the ARM count.
     div = _divergence(fold.year, fold.cut)
     for ch in ("bb", "babip", "outs"):
         zmap = div[ch]
@@ -1515,21 +1521,27 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
                 continue
             lab = ("hi" if z >= DIVERGE_Z
                    else "lo" if z <= -DIVERGE_Z else "mid")
-            buckets[lab].append((m_, a_))
+            buckets[lab].append((m_, a_, nm))
         for lab, prs in buckets.items():
             key = f"outs_bias_{ch}_{lab}"
             if len(prs) < 20:
                 fold.add("shape", key, None, None, 0.0, len(prs),
                          "under 20 starts — not readable")
                 continue
-            diffs = [a_ - m_ for m_, a_ in prs]
+            diffs = [a_ - m_ for m_, a_, _ in prs]
+            dbar = st.mean(diffs)
+            arm_resid: dict = {}
+            for (_m, _a, nm), d_ in zip(prs, diffs):
+                arm_resid[nm] = arm_resid.get(nm, 0.0) + (d_ - dbar)
+            se = sum(t * t for t in arm_resid.values()) ** 0.5 / len(prs)
             fold.add("shape", key,
-                     st.mean(m_ for m_, _ in prs),
-                     st.mean(a_ for _, a_ in prs),
-                     st.pstdev(diffs) / len(diffs) ** 0.5, len(prs),
+                     st.mean(m_ for m_, _, _ in prs),
+                     st.mean(a_ for _, a_, _ in prs),
+                     se, len(prs),
                      f"mean outs where the starter's pre-cut "
                      f"{DIVERGE_STARTS}-start {ch} z is {lab} "
-                     f"(edge {DIVERGE_Z}); paired se")
+                     f"(edge {DIVERGE_Z}); {len(arm_resid)} arms, "
+                     f"arm-clustered se")
     nk = len(real_k)
     fold.add("shape", "k_mean", mk_mean, st.mean(real_k),
              st.pstdev(real_k) / nk ** 0.5, nk)

@@ -13121,3 +13121,39 @@ in July. Battery reference: same `battery_f7c42621c431.json`; diff vs
 the second sitting is 24 rows re-specified (J 6->4) plus 12 new
 outs-channel rows, nothing else moved, engine fingerprint unchanged all
 day.
+
+## 2026-09-18 — ITEM 35 ADDENDUM 3: THE CLUSTERED RE-READ. THE DEEP TAIL
+## DOES NOT SURVIVE ITS OWN PRE-REGISTERED CHECK. (Fable, operator: "the
+## games are correlated by pitcher")
+
+The bias rows' se is now PAIRED AND ARM-CLUSTERED (CR0, per-arm residual
+sums) — a bucket's ~230 starts come from ~25-40 arms and an arm's
+model residual is a trait, so his six starts were one piece of evidence
+counted six times. This was candidate 6's pre-registered falsifier, run
+before anything touched the engine.
+
+    outs_bias_outs_hi   rel +0.302  se 0.152  z +1.99   (was +2.47)
+      by fold: 2023 +2.59, 2024 +0.45, 2025 +2.62, 2026 +0.77 —
+      two hot folds carry it and the CLEAN fold reads rel +0.11.
+
+z 1.99 against a registered bar of 2, with the effect living in 2/4
+folds and the untuned fold flat: rule 13, the bar does not move, the
+deep-tail persistence is NOT ESTABLISHED. Item 34 candidate 6 is
+downgraded in the same edit — outing-length divergence is still the one
+channel wider than sampling noise (that population fact stands), but
+this instrument cannot show the model misprices its tails.
+
+AND ONE POOLED NUMBER TO NEVER HARVEST: `outs_bias_bb_hi` prints a
+pooled z of +4.87 under clustered weights. Its per-fold rels run -0.57
+to +0.91 — the folds contradict each other by a full out — and the
+"significance" is the 2023 fold's clustered se exploding (few arms) and
+handing the weights to the positive folds. Inverse-variance pooling
+over heterogeneous folds is not a measurement; state-of-the-folds IS
+the result, and it says incoherent. Flagged here so a later session
+does not mine it.
+
+HOUSEKEEPING: fingerprint f7c42621c431 -> 15482c0372e9 overnight with
+identical flags — six new September finals entered `bets.games` (2026
+fold 745 -> 751). Data drift, so no row-diff against yesterday's JSONs;
+this read is internal to its own run, which is all the clustered
+question needed.

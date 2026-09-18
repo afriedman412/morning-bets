@@ -96,6 +96,6 @@ Refreshed 2026-09-17.
         days, six starts, four starts; walks, contact, and outs. The
         positive control proved the battery blind, the seeing rows got
         built, and every decay direction reads noise — including the
-        Harrison shape itself (recent short starts carry nothing). What
-        survives is the deep tail (34's candidate 6) and a dead BABIP
-        lead (34's candidate 5 records the downgrade).
+        Harrison shape itself (recent short starts carry nothing). The
+        deep-tail lead then died its own pre-registered death by
+        arm-clustered se (34's candidates 5 and 6 record the downgrades).

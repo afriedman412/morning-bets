@@ -1576,18 +1576,17 @@ one with a measurement behind it:
      re-establishes it. If anyone re-opens: pre-register which window and
      why, BEFORE looking. The `shape.outs_bias_*` rows stay in the battery
      (start units) as the instrument.
-  6. **RECENT-LENGTH PERSISTENCE (item 35 third sitting, 2026-09-17):
-     arms whose last FOUR starts went deep keep over-delivering ~0.29
-     outs against the model** (`outs_bias_outs_hi` +0.289 se 0.117, z
-     +2.47, 3/4 folds, WITH the leash on — residual beyond it), and the
-     outs channel is the only one whose divergence z is wider than
-     sampling noise in all four folds (sd 1.08-1.41). The mirror tail is
-     dead: recent SHORT starts carry nothing (+0.11, the Harrison shape
-     refuted). TWO NAMED CAVEATS before wiring: the se is unclustered
-     (~230 starts from ~40 arms), and hi>=0 was that run's control
-     clause, so this is multiplicity-exposed. The falsifier if opened:
-     re-read with arm-clustered se, pre-registered, before anything
-     touches the engine.
+  6. **RECENT-LENGTH PERSISTENCE — DOWNGRADED 2026-09-18: did not survive
+     its own pre-registered falsifier.** The arm-clustered re-read (an
+     arm's residual is a trait; ~230 bucket starts are ~25 arms) took
+     `outs_bias_outs_hi` from z +2.47 to +1.99 against a registered bar
+     of 2, with the effect carried by 2/4 folds and the CLEAN fold at
+     rel +0.11. Rule 13: the bar does not move. What still stands is the
+     population fact that outing-length divergence is wider than
+     sampling noise in all four folds (sd(z) 1.08-1.41) — recent length
+     is real information ABOUT ARMS; this instrument just cannot show
+     the model misprices its tails. Re-open only with a different
+     instrument (per-arm, not bucket means), pre-registered.
 
 THE FALSIFIER FOR ANY OF THEM: `shape.outs_corr`, four folds, with the
 reachable gain stated in advance rather than the printed gap. And the
