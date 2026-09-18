@@ -74,6 +74,12 @@ def parse(path: str, date: str) -> dict:
         r["gate"] = gate.group(1) if gate else None
         rawm = re.search(r"raw ([+-]\d+)", note)
         r["raw"] = rawm.group(1) if rawm else None
+        # traded dollars on the Kalshi contract; 'vol $8.5k' -> 8500.0.
+        # $0 is a real reading (a resting quote nobody has traded), so
+        # None means the token was absent, never that volume was low.
+        vm = re.search(r"vol \$([\d.]+)(k?)", note)
+        r["vol"] = (float(vm.group(1)) * (1000 if vm.group(2) else 1)
+                    if vm else None)
 
         if re.match(r"^total ", bet):
             r["cls"] = "total"

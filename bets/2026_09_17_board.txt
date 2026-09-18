@@ -1,0 +1,224 @@
+BOARD — 2026-09-17 · 8 games · 20,000 sims · fair inside ±170 · odds are FAIR (no vig)
+
+MIL @ PIT   Kyle Harrison v Wilber Dotel   (PROJECTED lineups, mean 8.9)
+  bet                          over / under  kalshi
+  total 8                      -115 /  +115       -   [Wilber Dotel: only 1 start(s) on record]
+  total 8.5                    +104 /  -104    -115   [Wilber Dotel: only 1 start(s) on record]  vol $30k
+  total 9                      +131 /  -131       -   [Wilber Dotel: only 1 start(s) on record]
+  MIL total 3.5                -126 /  +126    -178   [Wilber Dotel: only 1 start(s) on record]  vol $594
+  MIL total 4.5                +129 /  -129    -106   [Wilber Dotel: only 1 start(s) on record]  vol $950
+  PIT total 3.5                -136 /  +136    -115   [Wilber Dotel: only 1 start(s) on record]  vol $807
+  PIT total 4.5                +130 /  -130    +150   [Wilber Dotel: only 1 start(s) on record]  vol $583
+  F5 total 4.5                 +102 /  -102    -111   [Wilber Dotel: only 1 start(s) on record]  vol $3.8k
+  F5 total 5.5                 +163 /  -163    +144   [Wilber Dotel: only 1 start(s) on record]  vol $14
+  Kyle Harrison k 2.5          -601 /  +601    -590   proj lineup  off-band  vol $180
+  Kyle Harrison k 3.5          -279 /  +279    -264   proj lineup  off-band  vol $69
+  Kyle Harrison k 4.5          -140 /  +140    -130   proj lineup  vol $6.0k
+  Kyle Harrison k 5.5          +142 /  -142    +170   proj lineup  vol $3.2k
+  Kyle Harrison k 6.5          +280 /  -280    +365   proj lineup  off-band  vol $1.4k
+  Kyle Harrison k 7.5          +566 /  -566    +770   proj lineup  off-band  vol $630
+  Kyle Harrison outs 14.5      -149 /  +149    +120   proj lineup  raw -131  vol $1.1k
+  Wilber Dotel k 2.5           +239 /  -239    +257   proj lineup  THIN  [only 1 start(s) on record]  off-band  vol $305
+  Wilber Dotel k 3.5           +493 /  -493    +809   proj lineup  THIN  [only 1 start(s) on record]  off-band  vol $1.1k
+
+LAD @ CIN   Justin Wrobleski v Brady Singer   (PROJECTED lineups, mean 9.6)
+  bet                          over / under  kalshi
+  total 8.5                    -129 /  +129    -167   [Justin Wrobleski: 29/62 appearances are starts — swingman]  vol $3.0k
+  total 9                      -105 /  +105       -   [Justin Wrobleski: 29/62 appearances are starts — swingman]
+  total 9.5                    +119 /  -119    -111   [Justin Wrobleski: 29/62 appearances are starts — swingman]  vol $173k
+  LAD total 4.5                -109 /  +109    -150   [Justin Wrobleski: 29/62 appearances are starts — swingman]  vol $32
+  LAD total 5.5                +146 /  -146    +102   [Justin Wrobleski: 29/62 appearances are starts — swingman]  vol $2.7k
+  CIN total 3.5                -136 /  +136    -135   [Justin Wrobleski: 29/62 appearances are starts — swingman]  vol $298
+  CIN total 4.5                +128 /  -128    +130   [Justin Wrobleski: 29/62 appearances are starts — swingman]  vol $2
+  F5 total 4.5                 -121 /  +121    -153   [Justin Wrobleski: 29/62 appearances are starts — swingman]  vol $4.8k
+  F5 total 5.5                 +134 /  -134    -102   [Justin Wrobleski: 29/62 appearances are starts — swingman]  vol $17k
+  Justin Wrobleski k 2.5       -678 /  +678    -355   proj lineup  [29/62 appearances are starts — swingman]  off-band  vol $501
+  Justin Wrobleski k 3.5       -307 /  +307    -163   proj lineup  [29/62 appearances are starts — swingman]  off-band  vol $1.6k
+  Justin Wrobleski k 4.5       -153 /  +153    +141   proj lineup  [29/62 appearances are starts — swingman]  vol $16k
+  Justin Wrobleski k 5.5       +128 /  -128    +300   proj lineup  [29/62 appearances are starts — swingman]  vol $13k
+  Justin Wrobleski k 6.5       +248 /  -248    +567   proj lineup  [29/62 appearances are starts — swingman]  off-band  vol $1.8k
+  Justin Wrobleski k 7.5       +485 /  -485   +1718   proj lineup  [29/62 appearances are starts — swingman]  off-band  vol $778
+  Justin Wrobleski outs 14.5   -198 /  +198    +264   proj lineup  [29/62 appearances are starts — swingman]  raw -172  off-band  vol $48k
+  Justin Wrobleski outs 15.5   +141 /  -141       -   proj lineup  [29/62 appearances are starts — swingman]  raw +142
+  Justin Wrobleski outs 16.5   +173 /  -173       -   proj lineup  [29/62 appearances are starts — swingman]  raw +167
+  Brady Singer k 2.5           -271 /  +271    -335   proj lineup  off-band  vol $67
+  Brady Singer k 3.5           -119 /  +119    -135   proj lineup  vol $689
+  Brady Singer k 4.5           +181 /  -181    +153   proj lineup  off-band  vol $570
+  Brady Singer k 5.5           +392 /  -392    +355   proj lineup  off-band  vol $24
+  Brady Singer k 6.5           +900 /  -900    +809   proj lineup  off-band  vol $56
+  Brady Singer k 7.5          +2072 / -2072   +2400   proj lineup  off-band  vol $5
+  Brady Singer outs 14.5       -178 /  +178    -135   proj lineup  raw -155  vol $0
+  Brady Singer outs 15.5       +128 /  -128       -   proj lineup  raw +129
+
+ATH @ TB   Jeffrey Springs v Drew Rasmussen   (PROJECTED lineups, mean 8.9)
+  bet                          over / under  kalshi
+  total 8                      -117 /  +117       -   
+  total 8.5                    +102 /  -102    +130   vol $533
+  total 9                      +128 /  -128       -   
+  ATH total 2.5                -143 /  +143    -117   vol $3.2k
+  ATH total 3.5                +129 /  -129    +170   vol $1.8k
+  TB total 4.5                 -122 /  +122    -106   vol $851
+  TB total 5.5                 +136 /  -136    +163   vol $24
+  F5 total 4.5                 -103 /  +103    +117   vol $332
+  F5 total 5.5                 +157 /  -157    +178   vol $0
+  Jeffrey Springs k 2.5        -166 /  +166    -174   proj lineup  vol $207
+  Jeffrey Springs k 3.5        +142 /  -142    +138   proj lineup  vol $507
+  Jeffrey Springs k 4.5        +326 /  -326    +326   proj lineup  off-band  vol $13
+  Jeffrey Springs k 5.5        +795 /  -795    +809   proj lineup  off-band  vol $2
+  Jeffrey Springs k 6.5       +2130 / -2130   +2757   proj lineup  off-band  vol $1
+  Jeffrey Springs outs 14.5    -200 /  +200    -167   proj lineup  raw -173  off-band  vol $1.3k
+  Jeffrey Springs outs 15.5    +111 /  -111       -   proj lineup  raw +112
+  Jeffrey Springs outs 16.5    +143 /  -143       -   proj lineup  raw +138
+  Drew Rasmussen k 2.5        -1139 / +1139   -1438   proj lineup  off-band  vol $40
+  Drew Rasmussen k 3.5         -461 /  +461    -614   proj lineup  off-band  vol $722
+  Drew Rasmussen k 4.5         -212 /  +212    -264   proj lineup  off-band  vol $673
+  Drew Rasmussen k 5.5         -105 /  +105    -133   proj lineup  vol $638
+  Drew Rasmussen k 6.5         +190 /  -190    +160   proj lineup  off-band  vol $610
+  Drew Rasmussen k 7.5         +372 /  -372    +308   proj lineup  off-band  vol $287
+  Drew Rasmussen k 8.5         +796 /  -796    +641   proj lineup  off-band  vol $333
+  Drew Rasmussen k 9.5        +1790 / -1790   +2122   proj lineup  off-band  vol $113
+  Drew Rasmussen outs 18.5     +172 /  -172       -   proj lineup  raw +149
+
+SD @ COL   Michael King v Tanner Gordon   (PROJECTED lineups, mean 10.7)
+  bet                          over / under  kalshi
+  total 9.5                    -123 /  +123    -147   vol $6.5k
+  total 10                     -107 /  +107       -   
+  total 10.5                   +109 /  -109    -111   vol $22k
+  SD total 4.5                 -135 /  +135    -190   vol $438
+  SD total 5.5                 +117 /  -117    -120   vol $635
+  COL total 4.5                -110 /  +110    +106   vol $158
+  COL total 5.5                +150 /  -150    +182   vol $0
+  F5 total 4.5                 -153 /  +153    -190   vol $691
+  F5 total 5.5                 +104 /  -104    -113   vol $1.6k
+  Michael King k 2.5           -566 /  +566    -388   proj lineup  off-band  vol $91
+  Michael King k 3.5           -240 /  +240    -167   proj lineup  off-band  vol $496
+  Michael King k 4.5           -112 /  +112    +127   proj lineup  vol $437
+  Michael King k 5.5           +186 /  -186    +300   proj lineup  off-band  vol $89
+  Michael King k 6.5           +382 /  -382    +669   proj lineup  off-band  vol $26
+  Michael King k 7.5           +810 /  -810   +1900   proj lineup  off-band  vol $58
+  Michael King outs 15.5       -121 /  +121       -   proj lineup  raw -121
+  Michael King outs 16.5       +103 /  -103       -   proj lineup  raw -100
+  Michael King outs 17.5       +137 /  -137    +104   proj lineup  raw +132  vol $3.6k
+  Tanner Gordon k 2.5          -313 /  +313    -228   proj lineup  off-band  vol $1.5k
+  Tanner Gordon k 3.5          -135 /  +135    +104   proj lineup  vol $2.1k
+  Tanner Gordon k 4.5          +158 /  -158    +233   proj lineup  vol $2.1k
+  Tanner Gordon k 5.5          +344 /  -344    +567   proj lineup  off-band  vol $394
+  Tanner Gordon k 6.5          +753 /  -753   +1329   proj lineup  off-band  vol $4
+  Tanner Gordon outs 14.5      -261 /  +261    -182   proj lineup  raw -224  off-band  vol $315
+  Tanner Gordon outs 15.5      -114 /  +114       -   proj lineup  raw -113
+  Tanner Gordon outs 16.5      +111 /  -111       -   proj lineup  raw +108
+
+PHI @ NYM   Aaron Nola v Nolan McLean   (PROJECTED lineups, mean 8.5)
+  bet                          over / under  kalshi
+  total 7.5                    -116 /  +116    -125   vol $846
+  total 8                      +101 /  -101       -   
+  total 8.5                    +119 /  -119    +111   vol $13k
+  PHI total 3.5                +105 /  -105    -111   vol $19
+  NYM total 3.5                -147 /  +147    -138   vol $0
+  NYM total 4.5                +120 /  -120    +127   vol $23
+  F5 total 3.5                 -153 /  +153    -167   vol $23
+  F5 total 4.5                 +111 /  -111    +104   vol $62
+  Aaron Nola k 2.5             -530 /  +530    -770   proj lineup  off-band  vol $12
+  Aaron Nola k 3.5             -237 /  +237    -292   proj lineup  off-band  vol $209
+  Aaron Nola k 4.5             -112 /  +112    -141   proj lineup  vol $213
+  Aaron Nola k 5.5             +181 /  -181    +141   proj lineup  off-band  vol $107
+  Aaron Nola k 6.5             +374 /  -374    +317   proj lineup  off-band  vol $33
+  Aaron Nola k 7.5             +787 /  -787    +669   proj lineup  off-band  vol $1
+  Aaron Nola outs 15.5         +128 /  -128       -   proj lineup  raw +129
+  Aaron Nola outs 16.5         +165 /  -165    +108   proj lineup  raw +159  vol $2
+  Nolan McLean k 2.5           -930 /  +930   -1011   proj lineup  off-band  vol $12
+  Nolan McLean k 3.5           -377 /  +377    -388   proj lineup  off-band  vol $7
+  Nolan McLean k 4.5           -174 /  +174    -174   proj lineup  off-band  vol $410
+  Nolan McLean k 5.5           +117 /  -117    +117   proj lineup  vol $701
+  Nolan McLean k 6.5           +231 /  -231    +251   proj lineup  off-band  vol $21
+  Nolan McLean k 7.5           +471 /  -471    +545   proj lineup  off-band  vol $17
+  Nolan McLean k 8.5          +1002 / -1002   +1567   proj lineup  off-band  vol $1
+  Nolan McLean outs 16.5       -132 /  +132       -   proj lineup  raw -136
+  Nolan McLean outs 17.5       -100 /  +100    +113   proj lineup  raw -104  vol $358
+
+DET @ CWS   Framber Valdez v Erick Fedde   (PROJECTED lineups, mean 9.3)
+  bet                          over / under  kalshi
+  total 8.5                    -115 /  +115    +102   vol $7.7k
+  total 9                      +107 /  -107       -   
+  total 9.5                    +130 /  -130    +160   vol $1.0k
+  DET total 4.5                +100 /  -100    +133   vol $675
+  DET total 5.5                +165 /  -165    +213   vol $698
+  CWS total 3.5                -130 /  +130    -133   vol $0
+  CWS total 4.5                +133 /  -133    +130   vol $6
+  F5 total 4.5                 -112 /  +112    +100   vol $13
+  F5 total 5.5                 +141 /  -141    +156   vol $0
+  Framber Valdez k 2.5         -461 /  +461    -388   proj lineup  off-band  vol $0
+  Framber Valdez k 3.5         -194 /  +194    -153   proj lineup  off-band  vol $119
+  Framber Valdez k 4.5         +111 /  -111    +125   proj lineup  vol $3.3k
+  Framber Valdez k 5.5         +236 /  -236    +285   proj lineup  off-band  vol $46
+  Framber Valdez k 6.5         +515 /  -515    +669   proj lineup  off-band  vol $4
+  Framber Valdez k 7.5        +1208 / -1208   +1438   proj lineup  off-band  vol $1
+  Framber Valdez outs 16.5     -117 /  +117       -   proj lineup  raw -121
+  Framber Valdez outs 17.5     +111 /  -111    +130   proj lineup  raw +107  vol $19
+  Erick Fedde k 2.5            -194 /  +194    -203   proj lineup  off-band  vol $146
+  Erick Fedde k 3.5            +119 /  -119    +127   proj lineup  vol $710
+  Erick Fedde k 4.5            +264 /  -264    +285   proj lineup  off-band  vol $3
+  Erick Fedde k 5.5            +594 /  -594    +770   proj lineup  off-band  vol $243
+  Erick Fedde k 6.5           +1413 / -1413   +2122   proj lineup  off-band  vol $1
+  Erick Fedde outs 14.5        -149 /  +149    -113   proj lineup  raw -131  vol $1.7k
+  Erick Fedde outs 15.5        +158 /  -158       -   proj lineup  raw +159
+
+BOS @ TEX   Sonny Gray v Tyler Alexander   (PROJECTED lineups, mean 7.5)
+  bet                          over / under  kalshi
+  total 6.5                    -130 /  +130    -174   [Tyler Alexander: 20/171 appearances are starts — swingman]  vol $134
+  total 7                      -103 /  +103       -   [Tyler Alexander: 20/171 appearances are starts — swingman]
+  total 7.5                    +123 /  -123    -106   [Tyler Alexander: 20/171 appearances are starts — swingman]  vol $2.2k
+  BOS total 2.5                -163 /  +163    -245   [Tyler Alexander: 20/171 appearances are starts — swingman]  vol $0
+  BOS total 3.5                +110 /  -110    -138   [Tyler Alexander: 20/171 appearances are starts — swingman]  vol $10
+  TEX total 3.5                +109 /  -109    +106   [Tyler Alexander: 20/171 appearances are starts — swingman]  vol $16
+  F5 total 3.5                 -104 /  +104    -156   [Tyler Alexander: 20/171 appearances are starts — swingman]  vol $0
+  Sonny Gray k 2.5             -885 /  +885   -1076   proj lineup  off-band  vol $3
+  Sonny Gray k 3.5             -376 /  +376    -426   proj lineup  off-band  vol $20
+  Sonny Gray k 4.5             -172 /  +172    -194   proj lineup  off-band  vol $284
+  Sonny Gray k 5.5             +118 /  -118    +104   proj lineup  vol $437
+  Sonny Gray k 6.5             +233 /  -233    +239   proj lineup  off-band  vol $3
+  Sonny Gray k 7.5             +465 /  -465    +545   proj lineup  off-band  vol $2
+  Sonny Gray k 8.5             +986 /  -986   +1233   proj lineup  off-band  vol $2
+  Sonny Gray k 9.5            +2250 / -2250   +3900   proj lineup  off-band  vol $51
+  Sonny Gray outs 17.5         -133 /  +133    -150   proj lineup  raw -138  vol $1.3k
+  Tyler Alexander k 2.5        -156 /  +156       -   proj lineup  [20/171 appearances are starts — swingman]  
+  Tyler Alexander k 3.5        +126 /  -126       -   proj lineup  [20/171 appearances are starts — swingman]  
+  Tyler Alexander outs 12.5    +114 /  -114       -   proj lineup  [20/171 appearances are starts — swingman]  raw +122
+
+MIN @ LAA   Taj Bradley v Walbert Ureña   (PROJECTED lineups, mean 8.2)
+  bet                          over / under  kalshi
+  total 7.5                    -106 /  +106    +106   vol $31k
+  total 8                      +112 /  -112       -   
+  total 8.5                    +131 /  -131    +144   vol $2.4k
+  MIN total 3.5                -119 /  +119    -111   vol $4
+  MIN total 4.5                +140 /  -140    +150   vol $0
+  LAA total 3.5                -101 /  +101    +111   vol $165
+  F5 total 3.5                 -125 /  +125    -120   vol $223
+  F5 total 4.5                 +134 /  -134    +153   vol $14k
+  Taj Bradley k 6.5            -147 /  +147       -   proj lineup  
+  Taj Bradley k 7.5            +126 /  -126       -   proj lineup  
+  Taj Bradley outs 16.5        -107 /  +107       -   proj lineup  raw -111
+  Taj Bradley outs 17.5        +122 /  -122    -125   proj lineup  raw +118  vol $657
+  Walbert Ureña k 2.5          -670 /  +670    -614   proj lineup  off-band  vol $21
+  Walbert Ureña k 3.5          -298 /  +298    -257   proj lineup  off-band  vol $537
+  Walbert Ureña k 4.5          -140 /  +140    -130   proj lineup  vol $4.7k
+  Walbert Ureña k 5.5          +143 /  -143    +190   proj lineup  vol $2.6k
+  Walbert Ureña k 6.5          +287 /  -287    +365   proj lineup  off-band  vol $1.9k
+  Walbert Ureña k 7.5          +586 /  -586    +770   proj lineup  off-band  vol $504
+  Walbert Ureña outs 15.5      -120 /  +120       -   proj lineup  raw -120
+  Walbert Ureña outs 16.5      +104 /  -104       -   proj lineup  raw +101
+  Walbert Ureña outs 17.5      +141 /  -141    +115   proj lineup  raw +136  vol $1.0k
+
+ARMS FLAGGED — priced, but not a normal starter's line:
+  MIL @ PIT   Wilber Dotel            only 1 start(s) on record
+  LAD @ CIN   Justin Wrobleski        29/62 appearances are starts — swingman
+  BOS @ TEX   Tyler Alexander         20/171 appearances are starts — swingman
+
+DECLINED — never filled with a league-average arm:
+  KC @ HOU    Seth Lugo / None                        no probable posted (home) — set one with `-m src.context.probables`
+
+outs corrected (2026-09-09); raw in note. K beats the OPEN only — bet early or not.
+Totals Jul/Aug ran ~0.15-0.20 light a side (unshipped month term); Sept unmeasured.
+Re-run after lineups post: a projected nine has cost half an edge before.
+
+wall clock: 129s total — 116s simulating, 9s fetching markets, 3s loading rates. RE-RUNNING IS CHEAP; do it when lineups post.

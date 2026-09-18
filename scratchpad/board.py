@@ -119,8 +119,26 @@ def _one(i):
     }
 
 
+def _vol(v: float) -> str:
+    """'vol $8.5k' — traded dollars, as a note token.
+
+    It rides in the NOTE column because board_json reads the printed
+    columns with a regex and the note is its free-text group; a new
+    column would silently drop every rung. $0 prints on purpose: an
+    untraded book is the finding (a resting algo quote, not a market),
+    and it is exactly what separated Lowder from Foster Griffin on
+    2026-09-15 ($122 against $10k on the same slate).
+    """
+    if v >= 10000:
+        return f"vol ${v / 1000:.0f}k"
+    if v >= 1000:
+        return f"vol ${v / 1000:.1f}k"
+    return f"vol ${v:.0f}"
+
+
 def _mids(stat: str, d: str, wanted: set) -> dict:
-    """{(pitcher, line): kalshi mid}. Books wider than MAX_SPREAD dropped."""
+    """{(pitcher, line): (kalshi mid, traded $)}. Books wider than
+    MAX_SPREAD dropped."""
     series = kalshi.SERIES_BY_STAT.get(stat)
     if not series or not wanted:
         return {}
@@ -132,6 +150,7 @@ def _mids(stat: str, d: str, wanted: set) -> dict:
     except Exception as e:
         print(f"  (kalshi {series} unavailable: {type(e).__name__})")
         return {}
+    rows = []
     for m in markets:
         tk = m["ticker"]
         if kalshi.ticker_date(tk) != d:
@@ -146,15 +165,17 @@ def _mids(stat: str, d: str, wanted: set) -> dict:
             key = (ids.get(pid), threshold - 0.5) if pid else None
             if key is None or key not in wanted:
                 continue
-        bid, ask = kalshi.book(tk)
+        rows.append((key, m))
+    for (key, m), (bid, ask) in zip(rows, kalshi.quotes([m for _, m in rows])):
         if bid is None or ask is None or (ask - bid) > kalshi.MAX_SPREAD:
             continue
-        out[key] = (bid + ask) / 2
+        out[key] = ((bid + ask) / 2, float(m.get("volume_fp") or 0))
     return out
 
 
 def _game_mids(d: str, wanted: set) -> dict:
-    """{(game, team, line, kind): mid} for totals, team totals and F5.
+    """{(game, team, line, kind): (mid, traded $)} for totals, team totals
+    and F5.
 
     These series were listed as unmapped for weeks on the grounds that
     their subtitles do not fit the player-prop shape. They do not need to:
@@ -163,7 +184,7 @@ def _game_mids(d: str, wanted: set) -> dict:
     the first-five total, which is the market this model has actually
     beaten a settled price on, and it was the last one still missing.
     """
-    out = {}
+    out, rows = {}, []
     for kind in ("total", "team", "f5"):
         try:
             ms = kalshi.game_markets(kind, d)
@@ -174,12 +195,13 @@ def _game_mids(d: str, wanted: set) -> dict:
             key = (m["game"], m["team"], m["line"], kind)
             if key not in wanted:
                 continue
-            bid, ask = kalshi.book(m["ticker"])
-            if bid is None or ask is None:
-                continue
-            if (ask - bid) > kalshi.MAX_SPREAD:
-                continue
-            out[key] = (bid + ask) / 2
+            rows.append((key, m["market"]))
+    for (key, m), (bid, ask) in zip(rows, kalshi.quotes([m for _, m in rows])):
+        if bid is None or ask is None:
+            continue
+        if (ask - bid) > kalshi.MAX_SPREAD:
+            continue
+        out[key] = ((bid + ask) / 2, float(m.get("volume_fp") or 0))
     return out
 
 
@@ -317,8 +339,11 @@ def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
                         xtra = f"raw {american(raw)}"
                     if not in_band(raw, band):
                         xtra = (xtra + "  " if xtra else "") + "off-band"
+                    mid, vol = mids[stat].get((name, ln)) or (None, None)
+                    if vol is not None:
+                        xtra = (xtra + "  " if xtra else "") + _vol(vol)
                     b["rows"].append(
-                        (stat, name, ln, p, mids[stat].get((name, ln)),
+                        (stat, name, ln, p, mid,
                          (note + "  " if note else "") + xtra
                          if xtra or note else ""))
         blocks.append(b)
@@ -330,9 +355,17 @@ def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
     gm = _game_mids(d, wanted)
     t_mkt = time.monotonic() - t_mkt
     for b in blocks:
-        b["rows"] = [row[:4] + (gm.get(row[4]) if row[0] == "tot"
-                                else row[4],) + row[5:]
-                     for row in b["rows"]]
+        rows = []
+        for row in b["rows"]:
+            if row[0] != "tot":
+                rows.append(row)
+                continue
+            mid, vol = gm.get(row[4]) or (None, None)
+            note = row[5]
+            if vol is not None:
+                note = (note + "  " if note else "") + _vol(vol)
+            rows.append(row[:4] + (mid, note))
+        b["rows"] = rows
 
     return {"date": d, "n": n, "band": band, "blocks": blocks,
             "declined": declined, "not_quoted": not_quoted,

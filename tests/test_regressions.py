@@ -240,6 +240,190 @@ def check_recency_window_leads_when_it_has_enough_starts():
 # ── kalshi timing ──────────────────────────────────────────────────────
 
 
+# ── kalshi summary fast path ───────────────────────────────────────────
+#
+# quote() prices a market off its own list row when the top of book holds
+# real size, and falls back to the /orderbook call when it does not. The
+# fallback only ever fires on thin markets, so a bug in either path hides
+# in exactly the rows nobody looks at — these force both, offline.
+
+def _summary_row(**over):
+    row = {"ticker": "KXMLBKS-26SEP151840CWSCLE-CLEFGRIFFIN22-5",
+           "yes_bid_dollars": "0.5700", "yes_ask_dollars": "0.5800",
+           "yes_bid_size_fp": "2808.00", "yes_ask_size_fp": "287.00"}
+    row.update(over)
+    return row
+
+
+def check_summary_quote_answers_without_touching_the_orderbook():
+    """The point of the fast path is not making the HTTP call, so the call
+    itself is the assertion: book() is replaced with a tripwire and quote()
+    must come back with the row's own top-of-book anyway."""
+    from scratchpad import kalshi
+
+    def tripwire(ticker):
+        raise AssertionError("fast path fell through to /orderbook")
+
+    orig = kalshi.book
+    kalshi.book = tripwire
+    try:
+        assert kalshi.quote(_summary_row()) == (0.57, 0.58)
+    finally:
+        kalshi.book = orig
+
+
+def check_thin_topofbook_falls_back_to_the_orderbook():
+    """Griffin's 5+ ask on 2026-09-15 was $0.58 with $4.71 behind it. A
+    price with no size is a stray lot, not a price — that is the bug
+    MIN_SIZE killed in book(), and the summary row cannot look deeper than
+    the top level, so it must decline and hand the ticker to book()."""
+    from scratchpad import kalshi
+
+    sentinel = (0.11, 0.22)
+    orig = kalshi.book
+    kalshi.book = lambda ticker: sentinel
+    try:
+        assert kalshi.quote(_summary_row(yes_ask_size_fp="4.71")) == sentinel
+        assert kalshi.quote(_summary_row(yes_bid_size_fp="24.99")) == sentinel
+        # an empty side is a one-sided book, not a zero-size level
+        assert kalshi.quote(_summary_row(yes_bid_dollars=None)) == sentinel
+    finally:
+        kalshi.book = orig
+
+
+def check_summary_and_orderbook_pick_the_same_level():
+    """For a row that passes the size gate the two paths are the same
+    number by construction — the best level holding MIN_SIZE *is* the top
+    of book when the top of book holds MIN_SIZE. Pinned on a fixture where
+    the books agree, so a drift in either derivation (book() builds the
+    YES ask as 1 minus the best NO bid) breaks it offline."""
+    from scratchpad import kalshi
+
+    ob = {"orderbook_fp": {
+        "yes_dollars": [["0.50", "100"], ["0.57", "2808"]],
+        "no_dollars": [["0.30", "50"], ["0.42", "287"]],
+    }}
+    orig = kalshi._get
+    kalshi._get = lambda path: ob
+    try:
+        slow, fast = kalshi.book("ANY"), kalshi.summary_book(_summary_row())
+        # book() builds its ask as 1 - no_bid, so equality is up to float
+        # epsilon, not identity
+        assert all(abs(a - b) < 1e-9 for a, b in zip(slow, fast)), \
+            (slow, fast)
+    finally:
+        kalshi._get = orig
+
+
+def check_a_vanished_summary_schema_is_loud_once():
+    """Kalshi has renamed these fields before — volume went null and
+    volume_fp appeared beside it. If it happens again, every market takes
+    the slow path and the board still prints correct numbers; the only
+    symptom is the fetch clock. That regression must announce itself, and
+    once, not per market."""
+    import contextlib
+    import io
+    from scratchpad import kalshi
+
+    legacy = {"ticker": "T", "yes_bid": None, "yes_ask": None}
+    orig_book, orig_warned = kalshi.book, kalshi._schema_warned
+    kalshi.book = lambda ticker: (0.4, 0.5)
+    kalshi._schema_warned = False
+    try:
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            assert kalshi.quote(dict(legacy)) == (0.4, 0.5)
+            assert kalshi.quote(dict(legacy)) == (0.4, 0.5)
+        assert buf.getvalue().count("schema") == 1, buf.getvalue()
+        # a thin-but-present row is a normal fallback, never a warning
+        buf2 = io.StringIO()
+        kalshi._schema_warned = False
+        with contextlib.redirect_stdout(buf2):
+            kalshi.quote(_summary_row(yes_ask_size_fp="1.00"))
+        assert buf2.getvalue() == "", buf2.getvalue()
+    finally:
+        kalshi.book, kalshi._schema_warned = orig_book, orig_warned
+
+
+def check_batched_quotes_stay_aligned_with_their_rows():
+    """quotes() zips its answers back onto (key, market) pairs in board.py,
+    so order is load-bearing: a fallback answered out of input order would
+    hang one pitcher's mid on another's rung, which is the wrong-player
+    bug names_match exists to prevent, reintroduced through concurrency.
+    Thin rows must route to book() by TICKER, fat rows must not, and a
+    fallback whose fetch dies must come back (None, None) rather than
+    killing the board."""
+    from scratchpad import kalshi
+
+    fat = _summary_row()
+    thin_a = _summary_row(ticker="T-A", yes_ask_size_fp="1.00")
+    thin_b = _summary_row(ticker="T-B", yes_bid_size_fp="0.00")
+    dead = _summary_row(ticker="T-DEAD", yes_bid_dollars=None)
+
+    def by_ticker(tk):
+        if tk == "T-DEAD":
+            raise OSError("orderbook fetch died")
+        return {"T-A": (0.11, 0.12), "T-B": (0.21, 0.22)}[tk]
+
+    orig = kalshi.book
+    kalshi.book = by_ticker
+    try:
+        got = kalshi.quotes([thin_a, fat, dead, thin_b])
+    finally:
+        kalshi.book = orig
+    assert got == [(0.11, 0.12), (0.57, 0.58), (None, None), (0.21, 0.22)], \
+        got
+
+
+def check_volume_token_round_trips_from_print_to_json():
+    """board_json reads the printed board with a regex whose only
+    free-text group is the trailing note, so traded volume travels as a
+    note token ('vol $8.5k') — a new COLUMN would silently drop every
+    rung, the standing print_board trap. Pinned here: every format _vol
+    emits is one the parser reads back, the token never costs a rung,
+    and the flags sharing the note still parse around it. $0 must
+    survive as 0.0, not None — an untraded book is the finding."""
+    import re
+    import tempfile
+    from scratchpad.board import _vol
+    from scratchpad import board_json
+
+    for dollars, expect in ((0, 0.0), (122, 122.0), (1500, 1500.0),
+                            (12092, 12000.0)):
+        tok = _vol(dollars)
+        m = re.search(r"vol \$([\d.]+)(k?)", tok)
+        assert m, f"parser cannot read {tok!r}"
+        got = float(m.group(1)) * (1000 if m.group(2) else 1)
+        assert got == expect, (tok, got)
+
+    txt = (
+        "BOARD — 2026-09-15 · 1 games · 20,000 sims · fair inside ±170"
+        " · odds are FAIR (no vig)\n"
+        "\n"
+        "LAD @ CIN   Yoshinobu Yamamoto v Rhett Lowder   "
+        "(PROJECTED lineups, mean 9.0)\n"
+        "  bet                          over / under  kalshi\n"
+        "  total 8.5                    -101 /  +101    -102   vol $1.5k\n"
+        "  Rhett Lowder k 3.5           -168 /  +168    -102   "
+        "proj lineup  vol $53\n"
+        "  Rhett Lowder outs 14.5       -198 /  +198    -122   "
+        "proj lineup  raw -172  off-band  vol $0\n"
+        "  Rhett Lowder k 4.5           +129 /  -129    +239   "
+        "proj lineup\n"
+    )
+    with tempfile.NamedTemporaryFile("w", suffix=".txt") as f:
+        f.write(txt)
+        f.flush()
+        d = board_json.parse(f.name, "2026-09-15")
+    rows = d["games"][0]["rows"]
+    assert len(rows) == 4, [r["bet"] for r in rows]
+    assert rows[0]["vol"] == 1500.0, rows[0]
+    assert rows[1]["vol"] == 53.0 and rows[1]["proj"], rows[1]
+    assert rows[2]["vol"] == 0.0, rows[2]
+    assert rows[2]["offband"] and rows[2]["raw"] == "-172", rows[2]
+    assert rows[3]["vol"] is None, rows[3]
+
+
 # ── coverage lookup ────────────────────────────────────────────────────
 
 

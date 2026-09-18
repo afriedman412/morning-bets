@@ -1,0 +1,275 @@
+BOARD — 2026-09-14 · 10 games · 20,000 sims · fair inside ±170 · odds are FAIR (no vig)
+
+LAD @ CIN   Tarik Skubal v Nick Lodolo   (PROJECTED lineups, mean 8.8)
+  bet                          over / under  kalshi
+  total 7.5                    -129 /  +129    +102   
+  total 8                      -111 /  +111       -   
+  total 8.5                    +107 /  -107    +135   
+  LAD total 4.5                -115 /  +115    -106   
+  LAD total 5.5                +140 /  -140    +153   
+  CIN total 2.5                -145 /  +145    -120   
+  CIN total 3.5                +127 /  -127    +163   
+  F5 total 3.5                 -138 /  +138    -120   
+  F5 total 4.5                 +122 /  -122    +144   
+  Tarik Skubal k 3.5          -1537 / +1537   -1011   proj lineup  off-band
+  Tarik Skubal k 4.5           -722 /  +722    -770   proj lineup  off-band
+  Tarik Skubal k 5.5           -359 /  +359    -413   proj lineup  off-band
+  Tarik Skubal k 6.5           -191 /  +191    -190   proj lineup  off-band
+  Tarik Skubal k 7.5           -103 /  +103    -104   proj lineup  
+  Tarik Skubal k 8.5           +179 /  -179    +182   proj lineup  off-band
+  Tarik Skubal k 9.5           +331 /  -331    +365   proj lineup  off-band
+  Tarik Skubal outs 17.5       -137 /  +137       -   proj lineup  raw -142
+  Tarik Skubal outs 18.5       +271 /  -271    +160   proj lineup  raw +229  off-band
+  Nick Lodolo k 2.5            -361 /  +361    -413   proj lineup  off-band
+  Nick Lodolo k 3.5            -160 /  +160    -170   proj lineup  
+  Nick Lodolo k 4.5            +130 /  -130    +125   proj lineup  
+  Nick Lodolo k 5.5            +267 /  -267    +300   proj lineup  off-band
+  Nick Lodolo k 6.5            +571 /  -571    +641   proj lineup  off-band
+  Nick Lodolo outs 14.5        -178 /  +178       -   proj lineup  raw -155
+  Nick Lodolo outs 15.5        +129 /  -129    +120   proj lineup  raw +130
+
+CWS @ CLE   Sean Newcomb v Gavin Williams   (PROJECTED lineups, mean 8.5)
+  bet                          over / under  kalshi
+  total 7.5                    -115 /  +115    +135   [Sean Newcomb: averages 10.1 outs a start — opener]
+  total 8                      +102 /  -102       -   [Sean Newcomb: averages 10.1 outs a start — opener]
+  total 8.5                    +119 /  -119    +194   [Sean Newcomb: averages 10.1 outs a start — opener]
+  CWS total 3.5                -107 /  +107    +135   [Sean Newcomb: averages 10.1 outs a start — opener]
+  CWS total 4.5                +158 /  -158    +239   [Sean Newcomb: averages 10.1 outs a start — opener]
+  CLE total 3.5                -127 /  +127    +100   [Sean Newcomb: averages 10.1 outs a start — opener]
+  CLE total 4.5                +136 /  -136    +178   [Sean Newcomb: averages 10.1 outs a start — opener]
+  F5 total 3.5                 -132 /  +132    +104   [Sean Newcomb: averages 10.1 outs a start — opener]
+  F5 total 4.5                 +126 /  -126    +178   [Sean Newcomb: averages 10.1 outs a start — opener]
+  Sean Newcomb k 2.5           -104 /  +104       -   proj lineup  [averages 10.1 outs a start — opener]  
+  Gavin Williams k 4.5         -899 /  +899    -770   proj lineup  off-band
+  Gavin Williams k 5.5         -446 /  +446    -456   proj lineup  off-band
+  Gavin Williams k 6.5         -235 /  +235    -212   proj lineup  off-band
+  Gavin Williams k 7.5         -127 /  +127    -125   proj lineup  
+  Gavin Williams k 8.5         +144 /  -144    +156   proj lineup  
+  Gavin Williams k 9.5         +267 /  -267    +292   proj lineup  off-band
+  Gavin Williams outs 16.5     -124 /  +124       -   proj lineup  raw -129
+  Gavin Williams outs 17.5     +103 /  -103    -111   proj lineup  raw -101
+
+DET @ TOR   Troy Melton v José Soriano   (PROJECTED lineups, mean 8.8)
+  bet                          over / under  kalshi
+  total 7.5                    -128 /  +128    +102   
+  total 8                      -110 /  +110       -   
+  total 8.5                    +107 /  -107    +141   
+  DET total 3.5                -123 /  +123    +102   
+  DET total 4.5                +136 /  -136    +163   
+  TOR total 3.5                -134 /  +134    -106   
+  TOR total 4.5                +130 /  -130    +163   
+  F5 total 3.5                 -152 /  +152    -135   
+  F5 total 4.5                 +109 /  -109    +130   
+  Troy Melton k 2.5            -181 /  +181    -388   proj lineup  off-band
+  Troy Melton k 3.5            +131 /  -131    -133   proj lineup  
+  Troy Melton k 4.5            +305 /  -305    +170   proj lineup  off-band
+  Troy Melton k 5.5            +717 /  -717    +376   proj lineup  off-band
+  Troy Melton k 6.5           +1801 / -1801    +809   proj lineup  off-band
+  Troy Melton outs 16.5        -105 /  +105       -   proj lineup  raw -108
+  Troy Melton outs 17.5        +126 /  -126    +100   proj lineup  raw +122
+  José Soriano k 2.5           -589 /  +589    -900   proj lineup  off-band
+  José Soriano k 3.5           -245 /  +245    -326   proj lineup  off-band
+  José Soriano k 4.5           -117 /  +117    -147   proj lineup  
+  José Soriano k 5.5           +178 /  -178    +120   proj lineup  off-band
+  José Soriano k 6.5           +369 /  -369    +251   proj lineup  off-band
+  José Soriano k 7.5           +792 /  -792    +471   proj lineup  off-band
+  José Soriano k 8.5          +1774 / -1774    +953   proj lineup  off-band
+  José Soriano outs 16.5       -106 /  +106       -   proj lineup  raw -109
+  José Soriano outs 17.5       +125 /  -125    +104   proj lineup  raw +121
+
+BAL @ NYM   Brandon Young v Jonah Tong   (PROJECTED lineups, mean 9.0)
+  bet                          over / under  kalshi
+  total 8                      -123 /  +123       -   
+  total 8.5                    -103 /  +103    +125   
+  total 9                      +122 /  -122       -   
+  BAL total 3.5                -127 /  +127    -113   
+  BAL total 4.5                +133 /  -133    +150   
+  NYM total 3.5                -150 /  +150    -120   
+  NYM total 4.5                +115 /  -115    +147   
+  F5 total 4.5                 -112 /  +112    +111   
+  F5 total 5.5                 +144 /  -144    +186   
+  Brandon Young k 2.5          -332 /  +332    -355   proj lineup  off-band
+  Brandon Young k 3.5          -141 /  +141    -141   proj lineup  
+  Brandon Young k 4.5          +154 /  -154    +153   proj lineup  
+  Brandon Young k 5.5          +333 /  -333    +344   proj lineup  off-band
+  Brandon Young k 6.5          +736 /  -736    +770   proj lineup  off-band
+  Brandon Young outs 15.5      -124 /  +124    +104   proj lineup  raw -124
+  Brandon Young outs 16.5      +102 /  -102       -   proj lineup  raw -101
+  Jonah Tong k 2.5            -1134 / +1134    -953   proj lineup  THIN  off-band
+  Jonah Tong k 3.5             -491 /  +491    -426   proj lineup  THIN  off-band
+  Jonah Tong k 4.5             -239 /  +239    -212   proj lineup  THIN  off-band
+  Jonah Tong k 5.5             -124 /  +124    -102   proj lineup  THIN  
+  Jonah Tong k 6.5             +155 /  -155    +190   proj lineup  THIN  
+  Jonah Tong k 7.5             +296 /  -296    +365   proj lineup  THIN  off-band
+  Jonah Tong k 8.5             +590 /  -590   +1076   proj lineup  THIN  off-band
+  Jonah Tong outs 14.5         -227 /  +227    -138   proj lineup  THIN  raw -196  off-band
+  Jonah Tong outs 15.5         +110 /  -110       -   proj lineup  THIN  raw +111
+  Jonah Tong outs 16.5         +139 /  -139       -   proj lineup  THIN  raw +135
+
+ATL @ CHC   Reynaldo López v David Peterson   (PROJECTED lineups, mean 9.4)
+  bet                          over / under  kalshi
+  total 8.5                    -119 /  +119    -141   [Reynaldo López: 40/127 appearances are starts — swingman]
+  total 9                      +104 /  -104       -   [Reynaldo López: 40/127 appearances are starts — swingman]
+  total 9.5                    +127 /  -127    +100   [Reynaldo López: 40/127 appearances are starts — swingman]
+  ATL total 3.5                -110 /  +110    -153   [Reynaldo López: 40/127 appearances are starts — swingman]
+  ATL total 4.5                +152 /  -152    +113   [Reynaldo López: 40/127 appearances are starts — swingman]
+  CHC total 4.5                -118 /  +118    -111   [Reynaldo López: 40/127 appearances are starts — swingman]
+  CHC total 5.5                +145 /  -145    +147   [Reynaldo López: 40/127 appearances are starts — swingman]
+  F5 total 4.5                 -120 /  +120    -138   [Reynaldo López: 40/127 appearances are starts — swingman]
+  F5 total 5.5                 +132 /  -132    +117   [Reynaldo López: 40/127 appearances are starts — swingman]
+  Reynaldo López k 2.5         -367 /  +367    -426   proj lineup  [40/127 appearances are starts — swingman]  off-band
+  Reynaldo López k 3.5         -163 /  +163    -174   proj lineup  [40/127 appearances are starts — swingman]  
+  Reynaldo López k 4.5         +126 /  -126    +120   proj lineup  [40/127 appearances are starts — swingman]  
+  Reynaldo López k 5.5         +259 /  -259    +257   proj lineup  [40/127 appearances are starts — swingman]  off-band
+  Reynaldo López k 6.5         +559 /  -559    +567   proj lineup  [40/127 appearances are starts — swingman]  off-band
+  Reynaldo López outs 14.5     -141 /  +141    -127   proj lineup  [40/127 appearances are starts — swingman]  raw -123
+  Reynaldo López outs 15.5     +168 /  -168       -   proj lineup  [40/127 appearances are starts — swingman]  raw +168
+  David Peterson k 2.5         -504 /  +504    -441   proj lineup  off-band
+  David Peterson k 3.5         -213 /  +213    -167   proj lineup  off-band
+  David Peterson k 4.5         +100 /  -100    +127   proj lineup  
+  David Peterson k 5.5         +206 /  -206    +239   proj lineup  off-band
+  David Peterson k 6.5         +437 /  -437    +590   proj lineup  off-band
+  David Peterson k 7.5         +954 /  -954   +1438   proj lineup  off-band
+  David Peterson outs 15.5     -115 /  +115    +102   proj lineup  raw -114
+  David Peterson outs 16.5     +110 /  -110       -   proj lineup  raw +106
+
+NYY @ MIN   Will Warren v Dean Kremer   (PROJECTED lineups, mean 9.4)
+  bet                          over / under  kalshi
+  total 8.5                    -122 /  +122    +111   
+  total 9                      +101 /  -101       -   
+  total 9.5                    +125 /  -125    +153   
+  NYY total 4.5                +101 /  -101    +108   
+  NYY total 5.5                +163 /  -163    +178   
+  MIN total 3.5                -140 /  +140    -111   
+  MIN total 4.5                +122 /  -122    +156   
+  F5 total 4.5                 -119 /  +119    +102   
+  F5 total 5.5                 +136 /  -136    +163   
+  Will Warren k 2.5            -457 /  +457    -400   proj lineup  off-band
+  Will Warren k 3.5            -202 /  +202    -182   proj lineup  off-band
+  Will Warren k 4.5            +103 /  -103    +130   proj lineup  
+  Will Warren k 5.5            +214 /  -214    +308   proj lineup  off-band
+  Will Warren k 6.5            +432 /  -432    +545   proj lineup  off-band
+  Will Warren k 7.5            +927 /  -927   +1233   proj lineup  off-band
+  Will Warren outs 15.5        -106 /  +106    +120   proj lineup  raw -105
+  Will Warren outs 16.5        +121 /  -121       -   proj lineup  raw +117
+  Dean Kremer k 2.5            -599 /  +599    -590   proj lineup  off-band
+  Dean Kremer k 3.5            -266 /  +266    -233   proj lineup  off-band
+  Dean Kremer k 4.5            -129 /  +129    -113   proj lineup  
+  Dean Kremer k 5.5            +159 /  -159    +208   proj lineup  
+  Dean Kremer k 6.5            +319 /  -319    +413   proj lineup  off-band
+  Dean Kremer k 7.5            +672 /  -672    +852   proj lineup  off-band
+  Dean Kremer outs 14.5        -225 /  +225    -135   proj lineup  raw -195  off-band
+  Dean Kremer outs 15.5        +106 /  -106       -   proj lineup  raw +107
+  Dean Kremer outs 16.5        +134 /  -134       -   proj lineup  raw +130
+
+SF @ STL   Landen Roupp v Quinn Mathews   (PROJECTED lineups, mean 8.3)
+  bet                          over / under  kalshi
+  total 7.5                    -105 /  +105    -115   
+  total 8                      +112 /  -112       -   
+  total 8.5                    +130 /  -130    +120   
+  SF total 3.5                 -111 /  +111    +100   
+  SF total 4.5                 +154 /  -154    +156   
+  STL total 3.5                -111 /  +111    -130   
+  STL total 4.5                +157 /  -157    +141   
+  F5 total 3.5                 -128 /  +128    -141   
+  F5 total 4.5                 +129 /  -129    +127   
+  Landen Roupp k 2.5           -590 /  +590    -400   proj lineup  off-band
+  Landen Roupp k 3.5           -252 /  +252    -178   proj lineup  off-band
+  Landen Roupp k 4.5           -118 /  +118    +135   proj lineup  
+  Landen Roupp k 5.5           +173 /  -173    +292   proj lineup  off-band
+  Landen Roupp k 6.5           +355 /  -355    +614   proj lineup  off-band
+  Landen Roupp outs 16.5       -104 /  +104       -   proj lineup  raw -107
+  Landen Roupp outs 17.5       +126 /  -126       -   proj lineup  raw +121
+  Quinn Mathews k 2.5          -542 /  +542    -614   proj lineup  THIN  off-band
+  Quinn Mathews k 3.5          -245 /  +245    -233   proj lineup  THIN  off-band
+  Quinn Mathews k 4.5          -116 /  +116    -122   proj lineup  THIN  
+  Quinn Mathews k 5.5          +176 /  -176    +182   proj lineup  THIN  off-band
+  Quinn Mathews k 6.5          +365 /  -365    +376   proj lineup  THIN  off-band
+  Quinn Mathews k 7.5          +777 /  -777    +770   proj lineup  THIN  off-band
+  Quinn Mathews outs 15.5      -110 /  +110       -   proj lineup  THIN  raw -109
+  Quinn Mathews outs 16.5      +115 /  -115    -106   proj lineup  THIN  raw +112
+
+SD @ COL   Casey Mize v Tomoyuki Sugano   (PROJECTED lineups, mean 11.0)
+  bet                          over / under  kalshi
+  total 9.5                    -135 /  +135    -163   
+  total 10                     -118 /  +118       -   
+  total 10.5                   -100 /  +100    -120   
+  SD total 4.5                 -156 /  +156    -199   
+  SD total 5.5                 +101 /  -101    -130   
+  COL total 4.5                -107 /  +107    +100   
+  COL total 5.5                +153 /  -153    +160   
+  F5 total 5.5                 -108 /  +108    -122   
+  F5 total 6.5                 +142 /  -142    +122   
+  Casey Mize k 2.5             -449 /  +449    -285   proj lineup  off-band
+  Casey Mize k 3.5             -195 /  +195    -120   proj lineup  off-band
+  Casey Mize k 4.5             +106 /  -106    +203   proj lineup  
+  Casey Mize k 5.5             +221 /  -221    +456   proj lineup  off-band
+  Casey Mize outs 15.5         -107 /  +107    +100   proj lineup  raw -107
+  Casey Mize outs 16.5         +116 /  -116       -   proj lineup  raw +112
+  Tomoyuki Sugano k 2.5        -181 /  +181    -150   proj lineup  off-band
+  Tomoyuki Sugano k 3.5        +128 /  -128    +153   proj lineup  
+  Tomoyuki Sugano k 4.5        +287 /  -287    +388   proj lineup  off-band
+  Tomoyuki Sugano k 5.5        +678 /  -678    +953   proj lineup  off-band
+  Tomoyuki Sugano outs 15.5    -105 /  +105    +120   proj lineup  raw -104
+  Tomoyuki Sugano outs 16.5    +122 /  -122       -   proj lineup  raw +118
+
+SEA @ LAA   Kade Anderson v Reid Detmers   (PROJECTED lineups, mean 8.8)
+  bet                          over / under  kalshi
+  total 7.5                    -131 /  +131    -102   
+  total 8                      -113 /  +113       -   
+  total 8.5                    +105 /  -105    +130   
+  SEA total 3.5                -116 /  +116    -115   
+  SEA total 4.5                +144 /  -144    +141   
+  LAA total 3.5                -144 /  +144    -102   
+  LAA total 4.5                +122 /  -122    +160   
+  F5 total 4.5                 +100 /  -100    +141   
+  F5 total 5.5                 +160 /  -160    +217   
+  Kade Anderson k 4.5          +105 /  -105       -   proj lineup  THIN  
+  Kade Anderson k 5.5          +217 /  -217    -108   proj lineup  THIN  off-band
+  Kade Anderson outs 15.5      +120 /  -120       -   proj lineup  THIN  raw +120
+  Kade Anderson outs 16.5      +154 /  -154       -   proj lineup  THIN  raw +149
+  Reid Detmers k 3.5           -732 /  +732    -700   proj lineup  off-band
+  Reid Detmers k 4.5           -328 /  +328    -365   proj lineup  off-band
+  Reid Detmers k 5.5           -164 /  +164    -208   proj lineup  
+  Reid Detmers k 6.5           +118 /  -118    +111   proj lineup  
+  Reid Detmers k 7.5           +228 /  -228    +223   proj lineup  off-band
+  Reid Detmers k 8.5           +449 /  -449    +441   proj lineup  off-band
+  Reid Detmers k 9.5           +933 /  -933    +953   proj lineup  off-band
+  Reid Detmers outs 16.5       -158 /  +158       -   proj lineup  raw -164
+  Reid Detmers outs 17.5       -121 /  +121    -130   proj lineup  raw -126
+
+MIA @ AZ   Sandy Alcantara v Corbin Burnes   (PROJECTED lineups, mean 8.8)
+  bet                          over / under  kalshi
+  total 7.5                    -130 /  +130    -115   [Corbin Burnes: only 13 batters faced]
+  total 8                      -112 /  +112       -   [Corbin Burnes: only 13 batters faced]
+  total 8.5                    +105 /  -105    +115   [Corbin Burnes: only 13 batters faced]
+  MIA total 3.5                -123 /  +123    -111   [Corbin Burnes: only 13 batters faced]
+  MIA total 4.5                +140 /  -140    +153   [Corbin Burnes: only 13 batters faced]
+  AZ total 3.5                 -138 /  +138    -135   [Corbin Burnes: only 13 batters faced]
+  AZ total 4.5                 +126 /  -126    +130   [Corbin Burnes: only 13 batters faced]
+  F5 total 3.5                 -155 /  +155    -144   [Corbin Burnes: only 13 batters faced]
+  F5 total 4.5                 +106 /  -106    +117   [Corbin Burnes: only 13 batters faced]
+  Sandy Alcantara k 2.5        -183 /  +183    -233   proj lineup  off-band
+  Sandy Alcantara k 3.5        +136 /  -136    -115   proj lineup  
+  Sandy Alcantara k 4.5        +321 /  -321    +245   proj lineup  off-band
+  Sandy Alcantara k 5.5        +761 /  -761    +441   proj lineup  off-band
+  Sandy Alcantara k 6.5       +2065 / -2065   +1438   proj lineup  off-band
+  Sandy Alcantara outs 17.5    -132 /  +132    -138   proj lineup  raw -137
+  Corbin Burnes k 2.5          -722 /  +722    -308   proj lineup  THIN  [only 13 batters faced]  off-band
+  Corbin Burnes k 3.5          -317 /  +317    -135   proj lineup  THIN  [only 13 batters faced]  off-band
+  Corbin Burnes k 4.5          -153 /  +153    +160   proj lineup  THIN  [only 13 batters faced]  
+  Corbin Burnes k 5.5          +129 /  -129    +413   proj lineup  THIN  [only 13 batters faced]  
+  Corbin Burnes k 6.5          +257 /  -257    +953   proj lineup  THIN  [only 13 batters faced]  off-band
+  Corbin Burnes outs 15.5      -108 /  +108       -   proj lineup  THIN  [only 13 batters faced]  raw -107
+  Corbin Burnes outs 16.5      +117 /  -117       -   proj lineup  THIN  [only 13 batters faced]  raw +113
+
+ARMS FLAGGED — priced, but not a normal starter's line:
+  CWS @ CLE   Sean Newcomb            averages 10.1 outs a start — opener
+  ATL @ CHC   Reynaldo López          40/127 appearances are starts — swingman
+  MIA @ AZ    Corbin Burnes           only 13 batters faced
+
+outs corrected (2026-09-09); raw in note. K beats the OPEN only — bet early or not.
+Totals Jul/Aug ran ~0.15-0.20 light a side (unshipped month term); Sept unmeasured.
+Re-run after lineups post: a projected nine has cost half an edge before.
+
+wall clock: 140s total — 122s simulating, 15s fetching markets, 3s loading rates. RE-RUNNING IS CHEAP; do it when lineups post.

@@ -41,6 +41,12 @@ import sys
 MIN_GAP = 3.0
 K_LADDER = (2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5)
 
+#: Below this many dollars traded, a Kalshi mid is a market maker's
+#: resting quote rather than a price anyone has taken. Chosen off the
+#: 2026-09-15 slate, where the split was not close: untraded books sat
+#: at $14-$122 while real ones started around $500 and ran to $12k.
+UNTRADED = 500.0
+
 CLS_LABEL = {"f5": "F5", "total": "game", "team": "team",
              "k": "K", "outs": "outs"}
 
@@ -131,6 +137,26 @@ def chips(r):
     return out
 
 
+def vol_cell(r):
+    v = r.get("vol")
+    if v is None:
+        return '<td class="c-vol c-none">&mdash;</td>'
+    lbl = (f"${v / 1000:.0f}k" if v >= 10000
+           else f"${v / 1000:.1f}k" if v >= 1000 else f"${v:.0f}")
+    if v < UNTRADED:
+        return (f'<td class="c-vol novol" title="Dollars traded on the '
+                f'Kalshi contract. Under ${UNTRADED:.0f} the mid is a '
+                'market maker&rsquo;s resting quote, not a price anyone '
+                'has taken &mdash; a gap here is model-vs-model, and '
+                'there is no informed flow for it to be wrong against.">'
+                f'{lbl}</td>')
+    return ('<td class="c-vol" title="Dollars traded on the Kalshi '
+            'contract. Real flow &mdash; a gap here is a disagreement '
+            'with actual traders, which is when &lsquo;the market knows '
+            'something&rsquo; is worth a news check.">'
+            f'{lbl}</td>')
+
+
 def price(p, cls):
     if p is None:
         return f'<td class="c-num {cls} c-none">&mdash;</td>'
@@ -152,7 +178,7 @@ def row_html(r, game=None):
 {CLS_LABEL[r['cls']]}</span> {html.escape(r['bet'])}{cs}</td>
   {price(po, 'c-ours')}{price(1 - po, 'c-ours')}\
 {price(pk, 'c-mkt')}{price(None if pk is None else 1 - pk, 'c-mkt')}
-  {edge}
+  {vol_cell(r)}{edge}
 </tr>"""
 
 
@@ -160,6 +186,7 @@ HEAD = ('<thead><tr>{g}<th>market</th>'
         '<th class="c-num">our over</th><th class="c-num">our under</th>'
         '<th class="c-num">kalshi over</th>'
         '<th class="c-num">kalshi under</th>'
+        '<th class="c-vol">vol</th>'
         '<th class="c-gap">edge</th></tr></thead>')
 
 
@@ -515,7 +542,7 @@ thead th{font-family:var(--mono);font-size:10px;letter-spacing:.1em;
   text-transform:uppercase;color:var(--ink3);font-weight:500;
   text-align:left;padding:0 10px 7px 0;border-bottom:1px solid var(--rule);
   white-space:nowrap;}
-thead th.c-num,thead th.c-gap{text-align:right;}
+thead th.c-num,thead th.c-gap,thead th.c-vol{text-align:right;}
 tbody tr{border-bottom:1px solid var(--rule2);}
 tbody tr:hover{background:var(--sunk);}
 td{padding:7px 10px 7px 0;vertical-align:middle;}
@@ -529,6 +556,10 @@ td{padding:7px 10px 7px 0;vertical-align:middle;}
   margin-top:1px;}
 .c-gap{font-weight:640;padding-right:14px;}
 .c-gap.over{color:var(--over);} .c-gap.under{color:var(--under);}
+.c-vol{font-family:var(--mono);font-variant-numeric:tabular-nums;
+  text-align:right;white-space:nowrap;width:1%;font-size:11.5px;
+  color:var(--ink3);cursor:help;}
+.c-vol.novol{color:var(--warn);font-style:italic;}
 .c-game{font-family:var(--mono);font-size:11.5px;color:var(--ink3);
   white-space:nowrap;width:1%;padding-right:16px;}
 .c-who{font-size:13.5px;white-space:nowrap;padding-right:14px;}
@@ -547,6 +578,7 @@ td{padding:7px 10px 7px 0;vertical-align:middle;}
 .chip-bump{color:var(--accent);border-color:var(--accent-soft);}
 .chip-gate{color:var(--under);background:var(--under-soft);
   border-color:var(--under);letter-spacing:.07em;font-weight:600;}
+.chip-novol{color:var(--warn);border-style:dashed;background:none;}
 
 /* ── K divergence grid ────────────────────────────────────── */
 .t-k tbody tr.big .c-who{font-weight:680;}

@@ -201,6 +201,91 @@ def book(ticker: str) -> tuple[float | None, float | None]:
     return yes_bid, yes_ask
 
 
+# The market LIST rows carry top-of-book and volume directly:
+# yes_bid_dollars / yes_ask_dollars with yes_bid_size_fp / yes_ask_size_fp,
+# and volume_fp. The unsuffixed fields this module's docstring complains
+# about (volume, yes_bid) are the OLD schema and are permanently null —
+# Kalshi migrated to fixed-point names. Reading the row instead of calling
+# /orderbook saves one round trip per rung, which was ~50s of a 52s market
+# fetch on a 14-game slate (measured 2026-09-15).
+#
+# The row shows only the single best bid and ask, so the MIN_SIZE guard
+# cannot look deeper: a top level with less than $25 behind it goes down
+# the slow path, where book() skips stray lots. For a row that passes the
+# gate the two paths pick the same level by construction — the best level
+# holding MIN_SIZE *is* the top of book when the top of book holds
+# MIN_SIZE. Verified live across a full slate on 2026-09-15.
+
+_schema_warned = False
+
+
+def summary_book(m: dict) -> tuple[float, float] | None:
+    """(best YES bid, best YES ask) read off a market row's own top-of-book.
+
+    None means "use book() instead": a side is missing, insane, or holds
+    less than MIN_SIZE. If the fixed-point fields vanish wholesale —
+    Kalshi has renamed this schema once already — say so ONCE rather than
+    silently sending every market down the slow path, where the only
+    symptom would be the wall clock.
+    """
+    global _schema_warned
+    raw = tuple(m.get(f) for f in (
+        "yes_bid_dollars", "yes_ask_dollars",
+        "yes_bid_size_fp", "yes_ask_size_fp"))
+    if any(v is None for v in raw):
+        if not _schema_warned and "yes_bid_dollars" not in m:
+            _schema_warned = True
+            print("  (kalshi summary schema changed — every quote is "
+                  "taking the slow orderbook path)")
+        return None
+    try:
+        bid, ask, bid_sz, ask_sz = map(float, raw)
+    except (TypeError, ValueError):
+        return None
+    if bid_sz < MIN_SIZE or ask_sz < MIN_SIZE:
+        return None
+    if not 0.0 < bid <= ask < 1.0:
+        return None
+    return bid, ask
+
+
+def quote(m: dict) -> tuple[float | None, float | None]:
+    """(best YES bid, best YES ask) for a market row, off the row itself
+    when its top-of-book holds real size, from /orderbook when not."""
+    got = summary_book(m)
+    if got is not None:
+        return got
+    return book(m["ticker"])
+
+
+def quotes(
+    ms: list[dict], workers: int = 8,
+) -> list[tuple[float | None, float | None]]:
+    """quote() over many rows, the orderbook fallbacks in parallel.
+
+    One (bid, ask) per input row, in input order. Summary rows answer off
+    their own payload for free; only the thin ones pay a round trip, and
+    those go over `workers` threads instead of one at a time — on a
+    14-game slate the fallbacks are ~40% of printed rungs and were the
+    whole market-fetch wall clock. `workers` is explicit because gather()
+    defaults to one thread per item, and a slate can put hundreds of thin
+    strikes in one call.
+
+    A fallback whose fetch errors comes back (None, None) — one dead
+    orderbook must not cost the whole board, and (None, None) is already
+    the shape callers skip.
+    """
+    from src import parallel
+
+    out: list[tuple[float | None, float | None] | None] = [
+        summary_book(m) for m in ms]
+    need = [i for i, got in enumerate(out) if got is None]
+    for i, bk, err in parallel.gather(
+            lambda j: book(ms[j]["ticker"]), need, workers=workers):
+        out[i] = bk if bk and err is None else (None, None)
+    return out
+
+
 #: Game-level series. Unlike the player props these need NO subtitle
 #: parsing — every market carries `floor_strike` (the line) and
 #: `strike_type='greater'` (YES is the over), and the ticker carries the
@@ -221,10 +306,11 @@ _GAME_PREFIX = re.compile(r"^\d{2}[A-Z]{3}\d{2}\d{4}")
 def game_markets(kind: str, date_str: str) -> list[dict]:
     """Open markets for a game-level series on one date.
 
-    Each row is {game, team, line, ticker}. `team` is None for a full-game
-    or F5 total and the club code for a team total; both use the same club
-    abbreviations this repo already uses, verified across all 30 on
-    2026-09-08, so no translation table is needed.
+    Each row is {game, team, line, ticker, market}. `team` is None for a
+    full-game or F5 total and the club code for a team total; both use the
+    same club abbreviations this repo already uses, verified across all 30
+    on 2026-09-08, so no translation table is needed. `market` is the raw
+    exchange row, which quote() can price without another round trip.
     """
     out = []
     for m in markets(GAME_SERIES[kind]):
@@ -238,7 +324,7 @@ def game_markets(kind: str, date_str: str) -> list[dict]:
         game = _GAME_PREFIX.sub("", parts[1])
         team = parts[-1].rstrip("0123456789") if kind == "team" else None
         out.append({"game": game, "team": team,
-                    "line": float(line), "ticker": tk})
+                    "line": float(line), "ticker": tk, "market": m})
     return out
 
 

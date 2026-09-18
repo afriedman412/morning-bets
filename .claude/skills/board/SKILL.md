@@ -59,7 +59,10 @@ prints "0 dates to pull" forever. It only fills BACKWARDS toward opening
 day; pulling yesterday was the deleted scheduler's job.
 
 So before a board, check the newest date by hand and pull it explicitly if
-it is behind:
+it is behind. **Results ending at yesterday is the EXPECTED morning state,
+not a failure** — nothing runs overnight by design, so the morning session
+pulls the previous night's games itself. Do it quietly and report the count;
+warn only if the gap is more than one day (settled 2026-09-17):
 
 ```
 venv/bin/python -c "
@@ -89,7 +92,15 @@ league-wide are mis-flagged this way — Clay Holmes, Griffin Jax, Kyle Leahy
 and Stephen Kolek among them. **Check the arm's CURRENT season before
 believing a swingman or opener tag**, because BETTING.md says to treat a
 gap on a flagged arm as our error and that rule fires backwards on a false
-flag. The gate is display-only — every rate build filters `is_starter = 1`,
+flag. **AND CHECK HIS LAST FEW WEEKS, NOT JUST THE SEASON SHARE** (added
+2026-09-17): Wrobleski was 20/25 starts in 2026 and the flag was called
+stale — but he had no start since 08-15, two 2-inning relief outings since,
+and was an OPENER that night. A season share cannot see a September role
+change; the market can (+264 on his outs 14.5, $48k traded, against our
+-198). When the flag disagrees with the season share, query his recent
+appearances (`is_starter`, outs) before overriding it — and a heavily
+traded market far from our number on a flagged arm is the tell that the
+flag is fresh, not stale. The gate is display-only — every rate build filters `is_starter = 1`,
 so a bad tag never reached the simulation. The check is one command:
 
 ```
