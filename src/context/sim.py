@@ -3175,6 +3175,21 @@ USE_OFFSETS = False
 #: quarters of it.
 USE_LEASH = True
 
+#: THE RECENT-WORKLOAD TERM — item 36, wired 2026-09-19. The engine
+#: prices outs off season-long inputs; the per-date gap between an
+#: arm's last-4 pitch counts and his season norm carries +0.0571 outs
+#: of engine error per pitch (counted pre-holdout, z +5.5, linear,
+#: symmetric, within-arm — `src/context/usage.py` has the provenance).
+#: Applied in `game.build_side` as a hook offset through
+#: `leash.offset_for`, starter only, deterministic. UNLIKE the leash it
+#: varies start to start — it is the state term the leash's season
+#: constant cannot carry. ON since 2026-09-19: the registered A/B
+#: passed on the held-out 2026 fold (usage rows hi z +0.3 / lo z +0.2,
+#: separation +1.40 -> +0.02 outs; outs_corr within 1 se in all four
+#: folds; conversion sweep realized 1.04x the counted coefficient).
+#: Battery reference battery_2daa40c284f5.json.
+USE_USAGE_GAP = True
+
 #: THE CLUB, and it stays off: this is the SIXTH independent finding that
 #: team-specific hook effects do not pay. Fitted in the correct order (club
 #: first, pitcher against the remainder) a club offset moves the

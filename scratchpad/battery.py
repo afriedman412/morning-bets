@@ -861,6 +861,47 @@ DIVERGE_MIN_RECENT_BF = 50
 DIVERGE_MIN_SEASON_BF = 150
 
 
+#: Item 36 stage 2's registered falsifier (2026-09-19): the engine's
+#: candidate blindness is the arm's RECENT PITCH-COUNT LEVEL against his
+#: season norm, read AS OF EACH START — per-date, unlike the divergence
+#: buckets above, which freeze at the fold cut. Pitch counts are DATA,
+#: not rates, so a per-date read has no fold-freeze objection. The edge
+#: matches every prior instrument in this item (stage 1's detector and
+#: stage 2's buckets both used 8).
+USAGE_EDGE = 8.0
+USAGE_MIN_PRIOR = 4
+_USAGE_CACHE: dict | None = None
+
+
+def _usage_gap(seq=None):
+    """(name, date) -> last-4-minus-season-to-date mean pitch count,
+    from STRICTLY PRIOR same-season starts (>= USAGE_MIN_PRIOR of them).
+    Same-name-same-date collisions are dropped, never guessed. `seq` is
+    injectable for the checks ({(pid, name, season): [(date, pitches,
+    outs), ...]} date-ordered, `usage_trend.load_starts` shape)."""
+    global _USAGE_CACHE
+    production = seq is None
+    if production:
+        if _USAGE_CACHE is not None:
+            return _USAGE_CACHE
+        from scratchpad.usage_trend import load_starts
+        seq = load_starts()
+    out: dict = {}
+    seen: set = set()
+    for (_pid, name, _season), starts in seq.items():
+        for i in range(USAGE_MIN_PRIOR, len(starts)):
+            key = (name, starts[i][0])
+            if key in seen:
+                out.pop(key, None)
+                continue
+            seen.add(key)
+            prior = [p for _, p, _ in starts[:i]]
+            out[key] = st.mean(prior[-4:]) - st.mean(prior)
+    if production:
+        _USAGE_CACHE = out
+    return out
+
+
 def _divergence(year, cut, rows=None):
     """{'bb'|'babip'|'outs': {starter: z}} for QUALIFIED arms.
 
@@ -1454,7 +1495,8 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
                 o_pairs.append((mmean, act["o"]))
                 o_by_arm[act.get("player_name") or ""].append(act["o"])
                 o_named.append((mmean, act["o"],
-                                act.get("player_name") or ""))
+                                act.get("player_name") or "",
+                                act.get("date") or ""))
     mo_n, mk_n = sum(mo.values()), sum(mk.values())
     mo_mean = sum(v * c for v, c in mo.items()) / mo_n
     mk_mean = sum(v * c for v, c in mk.items()) / mk_n
@@ -1515,7 +1557,7 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
     for ch in ("bb", "babip", "outs"):
         zmap = div[ch]
         buckets: dict = {"hi": [], "mid": [], "lo": []}
-        for m_, a_, nm in o_named:
+        for m_, a_, nm, _dt in o_named:
             z = zmap.get(nm)
             if z is None:
                 continue
@@ -1542,6 +1584,37 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
                      f"{DIVERGE_STARTS}-start {ch} z is {lab} "
                      f"(edge {DIVERGE_Z}); {len(arm_resid)} arms, "
                      f"arm-clustered se")
+    # ITEM 36's REGISTERED FALSIFIER ROWS (2026-09-19): same construction
+    # as the divergence rows above, but bucketed on the PER-DATE usage
+    # gap — the arm's last-4-vs-season pitch level AS OF EACH START.
+    ug = _usage_gap()
+    ubuckets: dict = {"hi": [], "mid": [], "lo": []}
+    for m_, a_, nm, dt in o_named:
+        gap = ug.get((nm, dt))
+        if gap is None:
+            continue
+        lab = ("hi" if gap >= USAGE_EDGE
+               else "lo" if gap <= -USAGE_EDGE else "mid")
+        ubuckets[lab].append((m_, a_, nm))
+    for lab, prs in ubuckets.items():
+        key = f"outs_bias_usage_{lab}"
+        if len(prs) < 20:
+            fold.add("shape", key, None, None, 0.0, len(prs),
+                     "under 20 starts — not readable")
+            continue
+        diffs = [a_ - m_ for m_, a_, _ in prs]
+        dbar = st.mean(diffs)
+        arm_resid = {}
+        for (_m, _a, nm), d_ in zip(prs, diffs):
+            arm_resid[nm] = arm_resid.get(nm, 0.0) + (d_ - dbar)
+        se = sum(t * t for t in arm_resid.values()) ** 0.5 / len(prs)
+        fold.add("shape", key,
+                 st.mean(m_ for m_, _, _ in prs),
+                 st.mean(a_ for _, a_, _ in prs),
+                 se, len(prs),
+                 f"mean outs where the starter's PER-DATE last-4-vs-"
+                 f"season pitch gap is {lab} (edge {USAGE_EDGE:.0f}); "
+                 f"{len(arm_resid)} arms, arm-clustered se")
     nk = len(real_k)
     fold.add("shape", "k_mean", mk_mean, st.mean(real_k),
              st.pstdev(real_k) / nk ** 0.5, nk)

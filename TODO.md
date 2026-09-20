@@ -1623,6 +1623,198 @@ falsifier. Full write-up: NOTES 2026-09-17.
 
 ---
 
+**36. USAGE-TREND DETECTION — is a managed-down arm visible in the usage
+record before the operator announces it? Opened 2026-09-19 on the
+operator's question ("identify pitchers where things are changing over
+time — lowered pitch count, fewer innings, lower velo"), registered
+BEFORE any run.**
+
+WHAT THIS IS NOT: item 35, which is closed three ways and stays closed.
+35 tested whether recent OUTCOME divergence — window LEVELS of walks,
+contact and outing length against the season — predicts the model's
+error at a frozen fold cut, and it does not; recent shortness regresses.
+This item tests the within-season SLOPE of two channels that are not
+outcomes — PITCH COUNT (a club's decision) and FASTBALL VELOCITY
+(physiology) — per-date and leak-free on pure data, no simulation, so
+the fold-freeze limit named at the bottom of 35 does not apply.
+
+ESTABLISHED, and why the prior is not already refuted:
+
+  * Every repeatable per-arm quantity this project has measured is a
+    DECISION: the hook decision residual carries season-over-season at
+    +0.558, deploy roles at +0.55 to +0.78, and outing-length divergence
+    is the one recency channel wider than sampling noise in all four
+    folds (sd(z) 1.08-1.41). OUTCOME residuals carry at +0.225. Pitch
+    count is a decision.
+  * Leahy (last three starts said 9 outs, the board said 14.1) and Burns
+    (3-inning September limit) were both real managed-down arms, caught
+    only by operator knowledge through `plans.py`. The item asks what
+    share of those is detectable from the record alone.
+
+NOT ESTABLISHED: that a usage trend has any predictive content BEYOND
+the trailing level — item 35's outs channel says the level regresses,
+and slope and level are correlated in a 4-start window, so the slope
+term must earn its keep with the level in the fit.
+
+STAGE 1 (`scratchpad/usage_trend.py`), pure data: one row per start with
+>= 7 prior same-season starts. Outcome = tonight's pitches (outs as the
+secondary readout). Regressors: season-to-date mean pitches, last-4 mean
+pitches, LAST-4 OLS SLOPE (the term on trial), rest days (capped 30),
+and for the velo channel the wired recent5-vs-season level plus the
+LAST-5 VELO SLOPE. Arm-clustered (CR0) se, reported per season.
+
+REGISTERED BAR: the slope term is real if it reads >= 3 sigma pooled on
+pre-holdout rows (date < HOLDOUT) with arm-clustered se AND carries the
+same sign in all four seasons, WITH both level terms and rest in the
+fit. Prediction under "managed down": positive coefficient (a declining
+ramp continues). Under pure regression to level: zero.
+
+POSITIVE CONTROL FIRST (the 2026-09-09 rule): inject a -8 pitches/start
+ramp into the final five starts of a 10% md5 subset of arm-seasons and
+confirm the regression reads it at >= 5 sigma; if the harness cannot see
+a Leahy, the real read does not run.
+
+AMENDED 2026-09-19, SAME SITTING, BEFORE ANY REAL READ: the control was
+made BLIND (within-arm-season shuffle first, so the gate cannot ride
+real signal; shuffled-clean slope z -0.1 confirms specificity) and the
+GLOBAL-SLOPE INSTRUMENT FAILED ITS GATE — injected-minus-clean z +2.5
+against the registered 5. DILUTION, quantified: the ramp fires on ~2%
+of rows (59 arm-seasons x ~4 informative rows of 12,404), so a pooled
+beta divides a Leahy by ~50. Item 35's battery-blindness lesson, same
+shape. Sequencing disclosure: the FIRST control run was unblind
+(injection on real data) and printed pooled z +9.1 before the shuffle
+existed — that number mixes real signal with the injection and is not
+a read, but it was seen.
+
+INSTRUMENT v2, THE DETECTOR (registered before its control ran): flag
+rows with last-4 slope <= -8 pitches/start AND last-4 mean at least 8
+below the season-to-date mean (the Leahy signature: low and still
+falling). Fit the level-only model (season + last4 + rest) on UNFLAGGED
+rows, predict the flagged, read the mean residual with arm-clustered
+se. Managed-down predicts NEGATIVE (the decline continues below what
+the level says); pure regression-to-level predicts ~0 or positive
+(selection on noise). v2 BAR: flagged mean residual <= -3 sigma pooled
+pre-holdout AND negative in >= 3/4 seasons. v2 CONTROL GATE: on
+shuffled data, injected-minus-clean detector read >= 5 sigma negative.
+The global-slope regression still gets REPORTED (a positive from a
+low-power instrument is interpretable; only its null is not), but the
+detector is the instrument on trial.
+
+STAGE 2, ONLY if stage 1 passes, registered separately then: does the
+ENGINE misprice trend-flagged starts — that is the per-date replay item
+35's limit calls for, and it is expensive. Do not fold it into stage 1.
+
+STAGE 1 RAN 2026-09-19 (full write-up: NOTES same date). ESTABLISHED:
+the v2 detector reads NOTHING on real data (+0.92 +/- 1.81 against a
+control that reads a 10%-incidence Leahy at -5.4 +/- 0.8) — the
+managed-down arm is not in the usage record and `plans.py` stays its
+only channel. ESTABLISHED: the global slope passed its registered bar
+(+0.188 +/- 0.028, z +6.8, 4/4 seasons, survives a start-index
+control) and the post-hoc sign split shows it is ALL the up direction:
+t_pos +0.352 +/- 0.050 (>= 3.4 sigma every season; +0.362 +/- 0.095 on
+untouched post-holdout rows) against t_neg +0.036 +/- 0.051. THE
+STRETCH-OUT CONTINUES (~14% of full continuation, p90 ramp ~ +3.2
+pitches ~ +0.6 outs); the decline does not. Velo slope dead on usage;
+velo LEVEL +1.41 pitches/mph (z +3.2, 4/4) recorded as a candidate
+only. WHAT REMAINS is stage 2: register its falsifier, then replay —
+does the engine under-call outs for arms on a rising ramp?
+
+STAGE 2 REGISTERED 2026-09-19, before any simulation
+(`scratchpad/ramp_score.py`): four folds, July-onward, rates frozen at
+each cut, shipped engine (leash ON), 24 draws a game, per-start model
+mean outs vs actual. Ramp = last-4 pitch-count OLS slope from strictly
+prior same-season starts (>= 4 prior; the >= 7 gate was stage 1's
+baseline need, not this one's). PRIMARY STATISTIC: regression of
+(actual - model) outs on [1, t_neg, t_pos], CR0 arm-clustered, every
+fold reported. BAR: t_pos >= 2.5 sigma pooled AND positive in >= 3/4
+folds, AND the control clause t_neg |z| < 2 (stage 1 says declines
+regress and the model should already be right there). EXPECTED SIZE if
+the engine captures none of the stage-1 effect: ~+0.07 outs per
+pitch/start of ramp (0.352 / ~5.2 pitches-per-out); power ~z 2-2.5 at
+full size on ~5,000 pooled starts — adequate, not lavish. ESTIMATOR
+CONTROL: inject -0.05 x t_pos into the model column post-hoc and
+recover it at >= 4 sigma. Bucket table (up >= +8 / mid / down <= -8,
+rel to mid) printed for legibility, NOT the test. NAMED LIMIT: paired
+cases need pre-cut rates, so late call-ups — where stretch-outs
+concentrate — are under-sampled; this measures established arms, and
+the live population should carry at least as much of the effect.
+
+STAGE 2 RAN 2026-09-19, SECOND SITTING (write-up: NOTES same date).
+BAR NOT MET, and informatively: t_pos pooled z +0.2 is a POWERED null
+(exact recovery of the injected 0.05 at z +3.3) — THE ENGINE ALREADY
+PRICES STRETCH-OUTS, because its season anchor is where a ramp is
+heading anyway. THE CONTROL CLAUSE FIRED INSTEAD: t_neg +0.086
+(0.016), z +5.3, 4/4 folds — the engine over-calls declining-usage
+arms by ~0.7 outs at a -8/start ramp. Post-hoc attribution: the
+recent-vs-season pitch LEVEL takes the whole effect (~+0.06 outs per
+pitch of gap, each fold >= 2.4, t_neg collapses) — the slope was a
+proxy; the engine's miss is the window weight it lacks. Leahy was
+this defect; `plans.py` is its manual patch. CANDIDATE, NOT A
+FINDING (control clause + post-hoc = 35's multiplicity discipline).
+NEXT SITTING, falsifier registered in the NOTES entry: per-date
+`shape.outs_bias_usage_*` battery rows (data-only bucketing, no
+fold-freeze objection), hi/lo separate >= 3 se pooled, 3/4 signs on
+lo; only then count the coefficient pre-HOLDOUT and wire behind a
+flag.
+
+FALSIFIER RAN 2026-09-19, THIRD SITTING: **CONFIRMED.** The rows are
+permanent battery rows now (`battery.py _usage_gap`, strictly-prior
+contract mutation-verified twice, suite 607). Pooled hi-lo separation
++1.29 outs, se 0.27, z +4.7 against the bar of 3; lo below mid 4/4
+folds, hi above mid 4/4, homogeneous (chi-sq 2.19/3df). ESTABLISHED:
+the engine misprices outs by the arm's recent pitch-count level,
+symmetric, ~+0.06 outs per pitch of last-4-vs-season gap. WHAT
+REMAINS — the wiring item, fresh sitting: count the coefficient
+pre-HOLDOUT, wire a per-start usage-gap term into the removal side
+behind a flag, mutation-verify, battery A/B with the usage rows as
+the target. Battery ref `battery_45d6762210a1.json`.
+
+PRE-WIRING RUN REGISTERED 2026-09-19, FOURTH SITTING, before the
+count (`scratchpad/usage_coef.py`): the coefficient is the slope of
+(actual - model) outs on the per-date usage gap, counted on the
+2023/2024/2025 folds ONLY (all pre-HOLDOUT; the 2026 fold is scored
+by the wiring A/B and must not enter the count — rule 6), CR0 by
+arm, shipped engine, leash ON. FORM CHECKS, each decided by count
+not taste: (a) LINEARITY by gap bins, clamp registered only if the
+tails saturate; (b) SYMMETRY, separate slopes each side of zero —
+wire one coefficient if they agree within 2 se, two if not; (c)
+WITHIN-ARM: arm-season demeaned slope must survive, else the term is
+a per-arm trait the leash already owns and the wiring dies here; (d)
+thin history (< 4 prior same-season starts) gets exactly 0 — velo's
+silent-neutral rule. THE WIRING FALSIFIER, registered now so the
+wiring session cannot move it: with the term ON, the 2026 fold's
+usage rows (held out of the count) read pooled |z| < 2 with the
+hi-lo separation at most half its OFF value; `outs_corr` does not
+degrade past 1 se in any fold; every unrelated row that moves past
+1 se is explained in the log or the flag stays off. The 2023-25 row
+movement is DESCRIPTIVE (the count saw those rows). Conversion note:
+do not trust OUTS_PER_OFFSET blind (0.83-1.15 by side, 2026-09-11) —
+verify the realized d_outs per offset by sweep during wiring.
+
+PRE-WIRING RAN, SAME SITTING: **+0.0571 (0.0103) outs per pitch of
+gap, z +5.5, three folds agreeing (chi-sq 0.62)**. Form checks all
+came back simple: LINEAR to both tails (no clamp), SYMMETRIC (one
+coefficient, sides 1.3 se apart), WITHIN-ARM it survives (+0.0357
+(0.0113) z +3.2 under across-fold demeaning, a deliberate floor).
+Full table: NOTES fourth sitting. THE WIRING IS NOW MECHANICAL:
+gap = last-4 minus season-to-date mean pitches, strictly prior, same
+season, < 4 prior -> exactly 0; one linear term; convert to a hook
+offset and verify realized d_outs by sweep; score against the
+falsifier above. Nothing about the term's form is left to decide.
+
+SHIPPED 2026-09-19, FIFTH SITTING: `sim.USE_USAGE_GAP = True`,
+`src/context/usage.py` + `game.build_side`, suite 610, four mutations
+killed (the MIN_PRIOR floor is arithmetic, not killable — documented
+in the tests), flag-off bit-identical, conversion sweep 1.04x the
+counted coefficient, and the registered A/B passed every clause on
+the held-out 2026 fold (usage rows z +0.3/+0.2, separation +1.40 ->
++0.02 outs; outs_corr within 1 se everywhere; movers explained, one
++2 se 2024 high-rung overshoot logged). Battery reference
+`battery_2daa40c284f5.json`. ITEM CLOSED — write-ups: NOTES
+2026-09-19, five entries.
+
+---
+
 ## Shipped 2026-09-10 — item 24, the home run channel reads contact type
 
 **24. SHIPPED (`sim.USE_AIR_HR`): the pitcher's air-ball share into the home

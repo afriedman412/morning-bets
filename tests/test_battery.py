@@ -285,3 +285,35 @@ def check_divergence_buckets_by_the_recent_windows_own_error():
     # by his zero spread, is what keeps the arithmetic finite.
     assert abs(got["outs"]["Decayed"]) < battery.DIVERGE_Z, got["outs"]
     assert "Thin" not in got["bb"], got["bb"]
+
+
+def check_usage_gap_is_per_date_and_strictly_prior():
+    """Item 36's falsifier rows read the arm's last-4-vs-season pitch gap
+    AS OF EACH START — per-date, from strictly prior starts only. The
+    fixture arm collapses from 95-pitch starts to 60-pitch starts
+    mid-season: the gap at each date must reflect only what came BEFORE
+    it (the first short start still reads a gap of zero), and by the
+    fifth short start the window is fully collapsed while the season mean
+    still remembers the 95s. An arm with fewer than USAGE_MIN_PRIOR prior
+    starts must be ABSENT, not zeroed — unknown is not 'steady'."""
+    def s(dates_pitches):
+        return [(d, float(p), 18.0) for d, p in dates_pitches]
+    seq = {
+        (1, "Capped", 2026): s(
+            [(f"2026-04-{d:02d}", 95) for d in range(1, 9)]
+            + [(f"2026-06-{d:02d}", 60) for d in range(1, 7)]),
+        (2, "Fresh", 2026): s(
+            [(f"2026-05-{d:02d}", 90) for d in range(1, 4)]),
+    }
+    got = battery._usage_gap(seq=seq)
+    # The morning of the FIRST short start: window and season are both
+    # all 95s — a gap of zero. Anything else is a leak of that day's own
+    # start into its own predictor.
+    assert abs(got[("Capped", "2026-06-01")]) < 1e-9, \
+        got[("Capped", "2026-06-01")]
+    # By the fifth short start the last four are all 60s against a season
+    # mean still carrying eight 95s: gap = 60 - (8*95 + 4*60)/12 = -23.3.
+    assert got[("Capped", "2026-06-05")] < -battery.USAGE_EDGE, \
+        got[("Capped", "2026-06-05")]
+    # Three prior starts is under USAGE_MIN_PRIOR: absent, never zeroed.
+    assert not any(nm == "Fresh" for nm, _ in got), got.keys()

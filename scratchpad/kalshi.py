@@ -291,8 +291,8 @@ def quotes(
 #: `strike_type='greater'` (YES is the over), and the ticker carries the
 #: matchup. The module comment used to say wiring these up "means a second
 #: parser"; it does not, it means reading two fields that were already in
-#: the payload. KXMLBF5TOTAL is the first-five total — the one market this
-#: model has ever beaten a settled price on.
+#: the payload. KXMLBF5TOTAL is the first-five total — the quantity the
+#: model fits directly.
 GAME_SERIES = {
     "total": "KXMLBTOTAL",          # full-game total
     "team": "KXMLBTEAMTOTAL",       # one club's runs

@@ -13157,3 +13157,342 @@ identical flags — six new September finals entered `bets.games` (2026
 fold 745 -> 751). Data drift, so no row-diff against yesterday's JSONs;
 this read is internal to its own run, which is all the clustered
 question needed.
+
+## 2026-09-19 — ITEM 36 STAGE 1: USAGE TRENDS, PURE DATA. THE MANAGED-DOWN
+## ARM IS NOT IN THE RECORD; THE STRETCH-OUT IS. (Fable, operator: "identify
+## pitchers where things are changing over time — pitch count, innings,
+## velo")
+
+QUESTION. Item 35 killed outcome decay three ways, but the operator's list
+is decisions and physiology, not outcomes — and every repeatable per-arm
+quantity here has been a decision (hook residual +0.558, deploy +0.55/+0.78)
+against +0.225 for outcomes. Is a managed-down arm (Leahy, Burns — both
+caught only by operator knowledge through `plans.py`) visible in the usage
+record alone? Registered as TODO 36 BEFORE any run; pure data, per-date,
+leak-free (`scratchpad/usage_trend.py`), no simulation, so item 35's
+fold-freeze limit does not apply.
+
+TEST. One row per start with >= 7 prior same-season starts: 12,404 rows,
+390 arms, four seasons. Outcome tonight's pitches; regressors season-to-date
+mean, last-4 mean, LAST-4 SLOPE (on trial), rest (capped 30); CR0 by arm.
+
+CONTROLS FIRST, BLIND — both run on within-arm-season SHUFFLED data so the
+gate cannot ride real signal (sequencing disclosure: the FIRST control ran
+unblind on real data and printed z +9.1; that mixes real signal with the
+injection and was discarded as a read, but it was seen):
+
+  * specificity: shuffled-clean slope z -0.1; shuffled-clean detector
+    +1.99 +/- 1.05 (noise-flagged arms regress UP — the selection bias the
+    instrument needs named).
+  * v1 GATE FAILED: the global slope sees an injected Leahy (-8
+    pitches/start, final five starts, 10% of arm-seasons) at z +2.5 against
+    the registered 5. DILUTION, quantified: ~2% of rows carry the ramp, a
+    pooled beta divides it by ~50. The 2026-09-09 rule did its job — its
+    null is uninformative and stays unread.
+  * v2, THE DETECTOR (registered in the TODO amendment before its control
+    ran): flag slope <= -8 AND last4 >= 8 pitches under season ("low and
+    still falling"), level-only model fitted on unflagged rows, mean
+    flagged residual. Gate uses the PAIRED arm-clustered bootstrap — the
+    two reads share their innocent rows, so the unpaired se overstates the
+    delta's error (item 32's lesson): injection reads d -5.40 +/- 0.81,
+    z -6.6. PASS, and the power statement: a 10% incidence of -8/start
+    ramps reads ~-5.4 +/- 0.8.
+
+EVALUATE, real data:
+
+  * THE DETECTOR READS NOTHING: +0.92 +/- 1.81 pooled pre-holdout, signs
+    mixed (2023 +7.3, the wrong direction). Indistinguishable from the
+    shuffled selection bias. Arms that are low and still falling regress
+    to their level — there is no Leahy POPULATION dense enough for this
+    instrument, which bounds the incidence of that shape well under the
+    10% the control was sized on.
+  * THE GLOBAL SLOPE PASSES ITS REGISTERED BAR AS A POSITIVE: +0.188 +/-
+    0.028, z +6.8 pooled pre-holdout, same sign all four seasons (z +5.2 /
+    +2.9 / +3.9 / +4.9). Survives a start-index control (+0.184), so it is
+    not a September proxy.
+  * POST-HOC SPLIT BY SIGN, and it owns the whole finding: t_neg +0.036
+    +/- 0.051 (NOTHING — declines regress fully, agreeing with the
+    detector and with 35) against t_pos +0.352 +/- 0.050, z +7.0, >= 3.4
+    sigma in every season separately. POST-HOLDOUT CONFIRMATION on rows
+    no fit touched (date >= HOLDOUT, n 1,559): t_pos +0.362 +/- 0.095,
+    z +3.8; t_neg +0.214 +/- 0.105, incoherent with its pre-holdout zero.
+  * VELO: the slope is dead on usage (-0.13 +/- 0.61). The LEVEL is not —
+    +1.41 pitches per mph of recent-vs-season drift, z +3.2, positive in
+    all four seasons: an arm above his own velo is left in longer. Noted
+    as a candidate only (post-hoc this session; velo level already feeds
+    K through `velo.py`, this would be a second, USAGE consumer).
+  * outs secondary: +0.070 +/- 0.022, z +3.2, 4/4 — same story, smaller
+    units.
+
+CONCLUSION. ESTABLISHED: the managed-down arm is NOT detectable in the
+pitch-count record — the wind-down either barely exists at scale or
+arrives as an announcement, not a ramp; `plans.py` stays the only channel
+for a Leahy/Burns, now with a measurement saying nothing cheaper replaces
+it. ESTABLISHED (registered bar + untouched-sample confirmation): THE
+STRETCH-OUT CONTINUES — a rising pitch-count ramp carries ~+0.35 pitches
+per unit slope beyond both levels, ~14% of full continuation; the mean
+ramp (+3.9/start) is worth +1.4 pitches next start, the p90 ramp (+8.9)
++3.2 pitches ~ +0.6 outs. IL returns, call-ups being stretched, swingmen
+converting — the build-up phase is the predictable one. INFERRED: this is
+item 35's third-sitting asymmetry ("length persists, shortness does not")
+showing up in the DECISION channel, where it is much stronger and
+arm-clustered from the start.
+
+NEXT: STAGE 2, registered separately before it runs — does the ENGINE
+misprice stretch-out arms? The sim's outs come from season rates + hazard
++ a season-constant leash; a rising pitch allowance is not an input. That
+is a per-date replay question and it is where this goes or dies. No engine
+change this session, no battery run needed (nothing in src/ touched;
+measurement only).
+
+## 2026-09-19, SECOND SITTING — ITEM 36 STAGE 2: THE ENGINE ALREADY PRICES
+## THE STRETCH-OUT. WHAT IT MISSES IS THE RECENT USAGE LEVEL, AND THE MISS
+## IS ON THE SIDE STAGE 1 SAID WAS "NOT IN THE RECORD". (Fable)
+
+QUESTION (registered in TODO 36 before any simulation): does the engine
+under-call outs for arms on a rising pitch-count ramp — the stage-1
+stretch-out effect the sim has no input for?
+
+TEST. `scratchpad/ramp_score.py`: four folds July-onward, rates frozen at
+each cut, shipped engine (leash ON), 24 draws a game, per-start model mean
+outs vs actual, 7,043 scored starts with a per-date ramp (96-97% join by
+(name, date), 0 collisions). Ramp = last-4 pitch slope from strictly prior
+same-season starts. Primary statistic: (actual - model) ~ t_neg + t_pos,
+CR0 by arm. TWO PROCESS DEFECTS NAMED: (1) the registered estimator
+control demanded 4-sigma recovery of a 0.05 injection two sentences after
+stating z 2-2.5 power at that size — arithmetically unmeetable as
+written; the recovery itself was EXACT (+0.0500 of +0.0500, and its
+z +3.3 is the honest power statement: a full-size effect would have read
+>= 3). (2) The 4-draw smoke test printed the real read before the full
+run — ordering flaw in the script, so the 24-draw read was seen in noisy
+preview first. Same signs both runs; nothing was changed between them.
+
+THE READ, against the registered bar (t_pos >= 2.5 pooled, 3/4 positive,
+t_neg |z| < 2):
+
+    t_pos  pooled +0.0029 (0.0146)  z +0.2     folds +0.8/-0.7/+0.3/+0.1
+    t_neg  pooled +0.0860 (0.0161)  z +5.3     folds +4.0/+1.3/+2.6/+2.7
+
+**BAR NOT MET, and the t_pos side is a POWERED null**: the engine does
+not misprice stretch-outs. The season-anchored pricing was already where
+the ramp is heading — stage 1's continuation was "beyond a level model
+that leans on the recent window", and the engine never leaned on the
+window in the first place.
+
+**THE CONTROL CLAUSE IS WHAT FIRED.** t_neg positive, 4/4 fold signs:
+the engine OVER-calls outs for declining-usage arms (~-0.7 outs at a
+-8/start ramp; the down-vs-mid bucket reads -1.20/-0.55/-0.92/-0.85
+across folds). POST-HOC ATTRIBUTION (registered as such, not a claim):
+add the last4-minus-season pitch LEVEL and it takes the whole effect —
+lvl z +3.0/+3.0/+2.4/+4.6, inverse-variance ~+0.060 outs per pitch of
+gap (z ~+6.5 post hoc), while t_neg collapses to incoherence
+(+2.8/+0.2/+1.8/+0.9) and t_pos stays flat. THE SLOPE WAS A PROXY. The
+mechanism-shaped statement: reality's next start sits on a mix of season
+and recent-window usage; the engine prices season(+leash, a season
+constant); the residual is proportional to the window-minus-season gap.
+
+WHY THIS DOES NOT CONTRADICT ITEM 35's outs_lo NULL, stated before
+anyone re-litigates it (rule 11): 35's bucket was outs-divergence AT THE
+FOLD CUT — June's window scored against September's starts, the
+staleness 35 itself named as its structural limit. This read is
+PER-DATE. The per-date version sees exactly what the frozen version
+could not, which is what 35 predicted would be the only version worth
+building. And it does not contradict stage 1 either: the stage-1
+detector scored reality against a LEVEL-AWARE data model and found no
+continuation below it; the engine is not level-aware, and its miss is
+precisely the window weight it lacks. Leahy WAS this defect — the
+120-day gate priced him at 14.1 outs while his last three starts said 9
+— caught then by the operator; this is its graded, automatic form.
+
+STATUS: CANDIDATE, NOT A FINDING — t_neg was the registered CONTROL
+clause and lvl is post-hoc (the multiplicity discipline of 35's third
+sitting). Its strength on record: 4/4 fold signs on both the raw t_neg
+read and the lvl attribution, each fold >= 2.4 on lvl. REGISTERED
+FALSIFIER FOR THE NEXT SITTING, before any wiring: add per-date
+usage-level rows to the battery (`shape.outs_bias_usage_{hi,mid,lo}`,
+bucketed on the last4-minus-season pitch gap AS OF EACH START — pitch
+counts are data, not rates, so the fold-freeze objection does not apply),
+arm-clustered like the 09-18 re-read; the candidate is real if hi/lo
+separate by >= 3 se pooled with 3/4 fold signs on the lo side. Only
+then measure the coefficient pre-HOLDOUT and wire it behind a flag
+(likely a per-start leash-style offset from the usage gap; note
+OUTS_PER_OFFSET is ~0.85 of its claim on the long side, 2026-09-11).
+
+Engine untouched all session; measurement only, no battery run owed.
+Driver: `scratchpad/ramp_score.py`; log `scratchpad/ramp24.log` in the
+session scratchpad.
+
+## 2026-09-19, THIRD SITTING — ITEM 36: THE REGISTERED FALSIFIER RAN AND
+## THE CANDIDATE IS CONFIRMED. THE ENGINE IS BLIND TO THE RECENT USAGE
+## LEVEL, ~1.3 OUTS OF SEPARATION ACROSS ITS TAILS, ALL FOUR FOLDS.
+## (Fable, operator: "run the falsifier — and consider your tendency to
+## argue hard against yourself")
+
+THE INSTRUMENT, exactly as registered in the second sitting's NOTES
+entry before this run: `shape.outs_bias_usage_{hi,mid,lo}` battery rows,
+bucketed on the arm's last-4-vs-season pitch gap AS OF EACH START
+(per-date — pitch counts are data, so no fold-freeze objection), edge
++/-8 matching every prior instrument in the item, arm-clustered paired
+se, `_usage_gap` in `battery.py` with the strictly-prior contract
+checked and both mutations verified (leak today's start -> the zero-gap
+fixture fails; drop the 4-prior floor -> the thin-arm fixture fails).
+Suite 607 green. Full battery run, 40 sims, all four folds, engine
+fingerprint 45d6762210a11e1e (data drifted overnight again — new finals
+— so no row-diff against older JSONs; the read is internal to this run,
+which is all the registered bar needs).
+
+THE READ, actual minus model, rel to each fold's mid bucket:
+
+    fold    hi-mid    lo-mid    hi-lo sep     se      z
+    2023    +0.597    -0.568     +1.165    0.507   +2.30
+    2024    +0.258    -1.915     +2.174    0.722   +3.01
+    2025    +0.207    -0.711     +0.918    0.484   +1.90
+    2026    +0.394    -1.006     +1.400    0.552   +2.54
+
+    pooled separation +1.288  se 0.274  z +4.71
+    homogeneity chi-sq 2.19 on 3 df — the folds agree
+
+BAR (registered): separation >= 3 se pooled, lo sign in >= 3/4 folds.
+READ: z +4.7, lo below mid 4/4, hi above mid 4/4 unasked. **MET, with
+room.** This is not the outs_bias_bb_hi trap — the folds are
+homogeneous, no single fold's clustered se hands the weights anywhere.
+
+ESTABLISHED, and stated without the usual self-argument because the
+evidence earns it: THE ENGINE MISPRICES OUTS BY THE ARM'S RECENT
+PITCH-COUNT LEVEL. Arms whose last four pitch counts sit 8+ under their
+season norm get over-called (~-0.6 to -1.9 outs of real shortfall by
+fold); arms 8+ over get under-called (~+0.2 to +0.6). Symmetric, the
+right shape for the second sitting's ~+0.06 outs/pitch attribution, in
+its fourth independent read this item (stage-2 t_neg raw, stage-2 lvl
+post hoc, the ramp buckets, now the registered rows). The mid rows also
+carry the known TODO-33 old-fold under-call (z -2.7/-2.4 in 2023/24,
+flat in 2025/26) — not this item's business, already on the list.
+
+WHAT REMAINS (the wiring item, for a fresh sitting): count the
+coefficient on pre-HOLDOUT rows only, wire it as a per-start usage-gap
+term into the removal side behind a flag (leash-style offset; recall
+OUTS_PER_OFFSET delivers ~0.85 of its claim on the long side), verify
+by mutation, battery A/B with THESE rows as the target — the seeing
+instrument now exists and is permanent. Population note carried
+forward: paired cases under-sample late call-ups, so the live effect is
+if anything larger than what these rows can show.
+
+Battery reference: `battery_45d6762210a1.json` (12 usage rows added; no
+engine change — flags identical, the fingerprint move is data drift).
+
+## 2026-09-19, FOURTH SITTING — ITEM 36 PRE-WIRING: THE COEFFICIENT IS
+## COUNTED AND EVERY FORM CHECK CAME BACK SIMPLE. (Fable)
+
+`scratchpad/usage_coef.py`, registered in TODO 36 before the run: folds
+2023/24/25 only (the 2026 fold is the wiring A/B's holdout and never
+entered the count), shipped engine, leash ON, 24 draws, 5,568 joined
+starts, CR0 by arm.
+
+THE COEFFICIENT — (actual - model) outs per pitch of per-date
+last-4-vs-season gap:
+
+    2023 +0.0616 (0.0170)   2024 +0.0665 (0.0213)   2025 +0.0474 (0.0163)
+    POOLED +0.0571 (0.0103)  z +5.5   homogeneity chi-sq 0.62 on 2 df
+
+Three folds, three agreeing counts, fifth independent read of the same
+number this item (the second sitting's post-hoc ~+0.06 now has a
+registered, pre-holdout count behind it).
+
+THE FORM CHECKS, decided by count as registered:
+
+  * (a) LINEAR END TO END — the binned means track coef x gap out to
+    both tails (-1.04 real vs -0.93 linear below -12; +0.87 vs +0.86
+    past +12). NO CLAMP. The small positive offset in the near-zero
+    bins is the old-fold global under-call (TODO 33), absorbed by the
+    intercept and not this term's business.
+  * (b) SYMMETRIC — gap<0 slope +0.0804 (0.0215), gap>0 +0.0457
+    (0.0168), 1.3 se apart: ONE COEFFICIENT.
+  * (c) WITHIN-ARM IT SURVIVES — +0.0357 (0.0113), z +3.2 after
+    demeaning within arm ACROSS folds (deliberately conservative; it
+    removes real within-season variation too, so this is a floor).
+    The term is start-to-start state, not a per-arm trait the leash
+    already owns — and it is measured ON TOP of the shipped leash by
+    construction, so no double count either way.
+
+DELIVERABLE FOR THE WIRING SITTING: coefficient +0.0571 outs per pitch
+of gap; gap = last-4 mean minus season-to-date mean pitches, strictly
+prior, same season; < 4 prior starts -> exactly 0 (velo's
+silent-neutral rule); one linear term, no clamp. Convert to a hook
+offset and VERIFY the realized d_outs by sweep — OUTS_PER_OFFSET runs
+0.83-1.15 by side and is not to be trusted blind. The falsifier the
+wiring is scored against is already registered in TODO 36 (2026 fold's
+usage rows pooled |z| < 2 and separation at most half of OFF;
+outs_corr not degraded past 1 se anywhere; unrelated movers explained
+or the flag stays off).
+
+Population context for sizing: gap sd 6.2 pitches, 20.2% of starts
+past +/-8 — so the term moves a typical start by ~0.35 outs of model
+and the tails by 0.7-1.7, which is leverage-floor territory on outs
+lines without any tail case needed.
+
+## 2026-09-19, FIFTH SITTING — ITEM 36 SHIPPED: `sim.USE_USAGE_GAP` IS ON.
+## THE ENGINE NOW READS RECENT WORKLOAD. (Fable)
+
+THE WIRING. `src/context/usage.py` — `gap_for(name, date)`, the starter's
+last-4 mean pitch count minus his season-to-date mean, strictly prior,
+same season, velo's leak-free lookup shape; < 4 prior starts, unknown
+name, missing date, or an ambiguous name (two ids, one string) return
+exactly 0.0. Applied in `game.build_side` inside the `apply_leash` branch
+(part of the per-start hook; the tuners' flat-curve rule excludes it),
+starter only, deterministic — no variate consumed, A/B streams stay
+paired. Conversion through `leash.offset_for` onto `team_offset`, the
+counted +0.0571 outs/pitch as the target.
+
+VERIFICATION, in order:
+
+  * Checks: `tests/test_usage.py`, 610 green. Mutations killed: the
+    strictly-prior leak (`<` -> `<=`), the ambiguity gate, the wiring
+    deletion, the negated coefficient. NOT claimed: the MIN_PRIOR floor —
+    with WINDOW == MIN_PRIOR a gap at or under the floor is zero by
+    arithmetic, so the guard is contract documentation. THE TRAP THAT
+    CAUGHT ITSELF: the first fixtures planted FLAT pitch counts, which
+    make the gap zero through any code path, and "verified" two
+    mutations that were never tested — the battery's Fading-fixture
+    lesson (2026-09-17) re-learned in one sitting. Fixtures are non-flat
+    now and every claimed mutation demonstrably kills.
+  * Flag off is inert: engine fingerprint 45d6762210a11e1ea03a1780...
+    reproduced exactly with the wiring in place.
+  * THE CONVERSION SWEEP (`scratchpad/usage_sweep.py`, 2026 fold, 1,475
+    paired starts, 24 draws): realized +0.0595 (0.0012) outs per pitch
+    against the counted +0.0571 — ratio 1.04, inside the pre-stated
+    0.85-1.15 band, so the coefficient ships as counted. Mean |shift|
+    0.280 outs a start, largest 2.96.
+  * THE REGISTERED A/B (`battery_2daa40c284f5.json` ON vs
+    `battery_45d6762210a1.json` OFF, same data, flags differing only in
+    the term): every clause —
+      - 2026 fold (held out of the count): usage_hi z +0.3, usage_lo
+        z +0.2, hi-lo separation +1.400 -> +0.024 outs. Quiet.
+      - `outs_corr` absent from the diff — within 1 se in all four
+        folds, nominally up in each.
+      - Unrelated movers, all explained: 2023/24 `outs_mean` under-call
+        shrank ~0.13 toward actual (qualifying starts sit slightly above
+        their season pitch norm, so the term nets slightly longer);
+        2023's `outs_over_*` ladder moved toward actual across the
+        board; `hook_mid/90` (2023) and `pen/arms_per_side` (2024)
+        moved toward zero. THE ONE BLEMISH: 2024's high rungs
+        (`outs_over_16.5/17.5`) overshoot to ~+2 se where the OFF run
+        sat at +0.8-1 se — one fold, one direction, a fold the count
+        saw; logged here rather than excused.
+
+WHAT THE BOARD GETS TONIGHT: an arm whose recent pitch counts run under
+his season norm loses outs (and K opportunity downstream); an arm being
+stretched gains them. ~0.28 outs on a typical start, 1-3 on the
+Leahy-shaped tails the operator used to have to catch by hand.
+`plans.py` remains the channel for ANNOUNCED limits the record cannot
+yet see; `usage.py` is the graded version of everything it can.
+
+Item 36 CLOSED, opened and shipped 2026-09-19, five sittings:
+stage 1 (the trend screen: no managed-down population, stretch-outs
+continue), stage 2 (the engine already prices stretch-outs; the miss is
+the LEVEL), the falsifier (registered rows confirm at z +4.7), the
+count (+0.0571, linear, symmetric, within-arm), the wiring (this
+entry). The operator's opening question — "identify pitchers where
+things are changing over time" — turned out to have a sign the
+intuition did not predict and a mechanism nobody had measured: the
+record can't see the wind-down coming, but the engine couldn't see the
+wind-down that had ALREADY HAPPENED, and now it does.

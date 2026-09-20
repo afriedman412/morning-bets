@@ -78,6 +78,10 @@ Refreshed 2026-09-17.
 
 ## CLOSED — do not re-run; write-ups in `NOTES-context-layer.md`
 
+    36  SHIPPED same day it opened (`sim.USE_USAGE_GAP`): the engine
+        reads recent workload — +0.0571 outs/pitch of last-4-vs-season
+        gap through the hook; the 2026 holdout usage rows went quiet.
+
      1  Extra innings — withdrawn, the model reaches them at about the
         right rate.
      7  The counted MID pitch hazard — shipped.

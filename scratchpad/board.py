@@ -181,8 +181,8 @@ def _game_mids(d: str, wanted: set) -> dict:
     their subtitles do not fit the player-prop shape. They do not need to:
     every game-level market carries `floor_strike` and `strike_type`, so
     the line and the side come straight off the payload. KXMLBF5TOTAL is
-    the first-five total, which is the market this model has actually
-    beaten a settled price on, and it was the last one still missing.
+    the first-five total — the quantity the model fits directly — and it
+    was the last one still missing.
     """
     out, rows = {}, []
     for kind in ("total", "team", "f5"):

@@ -46,7 +46,7 @@ import random
 from dataclasses import dataclass, field, replace
 
 from src.context import leash as _leash
-from src.context import relief, removal, sim, velo
+from src.context import relief, removal, sim, usage, velo
 from src.context.sources import rates as rate_src
 
 #: How many relief arms a club is assumed to have available. Real bullpens
@@ -1446,6 +1446,21 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
     h = hook or sim.Hook()
     if apply_leash:
         h = sim.for_start(h, team, starter.name)
+        if sim.USE_USAGE_GAP:
+            # THE RECENT-WORKLOAD TERM (item 36): the gap between his
+            # last-4 pitch counts and his season norm, strictly prior,
+            # converted through the measured outs->log-odds table onto
+            # the same offset the leash rides. Starter only,
+            # deterministic — no variate consumed, the A/B stream stays
+            # paired. Inside `apply_leash` on purpose: it is part of
+            # the per-start hook, and the tuners' flat-curve rule
+            # (`apply_leash=False`) must exclude it too.
+            g = usage.gap_for(starter.name, date)
+            if g:
+                h = sim.Hook(**{
+                    **h.__dict__,
+                    "team_offset": h.team_offset + _leash.offset_for(
+                        usage.USAGE_OUTS_PER_PITCH * g)})
     if sim.USE_VELO_K:
         # THE RADAR GUN, before the nightly draw: recent fastball velocity
         # vs his own season mean, counted at +0.0157 K% per mph (item E,
