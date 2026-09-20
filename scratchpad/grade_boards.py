@@ -8,29 +8,51 @@ bets.mlb_pitching. Report, per market class and overall:
   - the record and P&L of "bet the gap at Kalshi's mid" by threshold.
 
 Read-only. Usage: venv/bin/python -m scratchpad.grade_boards [--through DATE]
+
+THE TABLES ARE FUNCTIONS, NOT PRINT STATEMENTS. `graded_rungs` returns one
+row per settled rung and `head_to_head` / `bet_the_gap` / `calibration`
+reduce that list; `main` only formats what they return. The chat endpoint
+(`scratchpad.ask`) calls the same three, so the page and the terminal
+cannot report two different Briers for the same date range — the same
+reason `boards.py` exists.
+
+PATHS ARE ABSOLUTE, resolved off this file rather than the working
+directory, because the Flask server is not always started from the repo
+root and a silently empty `glob` reads as "no boards graded yet".
 """
 import glob
 import json
-import math
+import os
 import re
 import sqlite3
 import sys
 from collections import defaultdict
 
+ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+BETS_DIR = os.path.join(ROOT, "bets")
+DB = os.path.join(ROOT, "morning_bets.db")
+
 # later in this list wins when several boards exist for one date
 VERSION_RANK = ["proj", "", "wx", "v2", "v3", "pm"]
 
+BOARD_FILE = re.compile(
+    r"^(\d{4}_\d{2}_\d{2})_(?:(\w+)_)?board(?:_(\w+))?\.json$")
 
-def pick_boards(through):
+
+def pick_boards(through, since=None, bets_dir=None):
+    """{date: path} — the board of record per date, oldest date first.
+
+    `bets_dir` defaults at CALL time so tests can point at a fixture.
+    """
     by_date = {}
-    for path in sorted(glob.glob("bets/2026_*_board*.json")):
-        m = re.match(r"bets/(\d{4}_\d{2}_\d{2})_(?:(\w+)_)?board(?:_(\w+))?\.json",
-                     path)
+    for path in sorted(glob.glob(os.path.join(bets_dir or BETS_DIR,
+                                              "2026_*_board*.json"))):
+        m = BOARD_FILE.match(os.path.basename(path))
         if not m:
             continue
         date = m.group(1).replace("_", "-")
         tag = m.group(2) or m.group(3) or ""
-        if date > through:
+        if date > through or (since and date < since):
             continue
         rank = VERSION_RANK.index(tag) if tag in VERSION_RANK else -1
         if rank < 0:
@@ -40,8 +62,8 @@ def pick_boards(through):
     return {d: p for d, (r, p) in sorted(by_date.items())}
 
 
-def load_actuals(dates):
-    con = sqlite3.connect("file:morning_bets.db?mode=ro", uri=True)
+def load_actuals(dates, db=None):
+    con = sqlite3.connect(f"file:{db or DB}?mode=ro", uri=True)
     qmarks = ",".join("?" * len(dates))
     games = {}          # (date, away, home) -> list of game rows
     for row in con.execute(
@@ -94,34 +116,126 @@ def line_of(bet):
     return float(bet.split()[-1])
 
 
-def main(argv):
-    through = "2026-09-18"
-    if "--through" in argv:
-        through = argv[argv.index("--through") + 1]
-    boards = pick_boards(through)
-    games, pitching = load_actuals(list(boards))
+def graded_rungs(through, since=None, bets_dir=None, db=None):
+    """Every rung on every board of record that SETTLED, one dict each.
 
-    graded = []         # dicts: date, cls, bet, p_us, p_k, hit(0/1), push
-    unmatched = defaultdict(int)
+    Returns (rows, unresolved, boards). A row carries both what was
+    priced (`p_us`, `p_k`, `line`) and what happened (`actual`, `hit`,
+    `push`), so a caller never has to re-open a board to say why a rung
+    won. `p_k` is None where Kalshi never quoted it — the head-to-head
+    tables drop those and the calibration table keeps them.
+    """
+    boards = pick_boards(through, since=since, bets_dir=bets_dir)
+    if not boards:
+        return [], {}, {}
+    games, pitching = load_actuals(list(boards), db=db)
+
+    rows = []
+    unresolved = defaultdict(int)
     for date, path in boards.items():
         d = json.load(open(path))
         for g in d["games"]:
             key = (date, g["away"], g["home"])
-            rows = games.get(key, [])
-            if len(rows) != 1:
-                unmatched["game " + ("dup" if len(rows) > 1 else "missing")] \
+            found = games.get(key, [])
+            if len(found) != 1:
+                unresolved["game " + ("dup" if len(found) > 1 else "missing")]\
                     += len(g["rows"])
                 continue
             for r in g["rows"]:
-                val = actual_value(r, rows[0], pitching)
+                val = actual_value(r, found[0], pitching)
                 if val is None:
-                    unmatched[r["cls"]] += 1
+                    unresolved[r["cls"]] += 1
                     continue
                 line = line_of(r["bet"])
-                graded.append(dict(
+                rows.append(dict(
                     date=date, cls=r["cls"], bet=r["bet"], board=path,
+                    game=f'{g["away"]} @ {g["home"]}', line=line, actual=val,
                     p_us=r["p_over"], p_k=r.get("p_kalshi"),
                     push=(val == line), hit=(1 if val > line else 0)))
+    return rows, dict(unresolved), boards
+
+
+def head_to_head(rows, classes=("total", "team", "f5", "k", "outs", "ALL")):
+    """Brier ours against Kalshi's, PAIRED on the rungs both quoted.
+
+    The se is of the PER-RUNG DIFFERENCE, not of either Brier: the two
+    scores are read off the same outcome and move together, so the
+    difference is far better resolved than two independent means would
+    suggest. Rungs Kalshi never quoted are not a head to head and are
+    dropped rather than scored against nothing.
+    """
+    paired = [r for r in rows if not r["push"] and r["p_k"] is not None]
+    out = []
+    for cls in classes:
+        sel = paired if cls == "ALL" else [r for r in paired
+                                           if r["cls"] == cls]
+        if not sel:
+            continue
+        diffs = [(r["p_us"] - r["hit"]) ** 2 - (r["p_k"] - r["hit"]) ** 2
+                 for r in sel]
+        md = sum(diffs) / len(diffs)
+        sd = (sum((x - md) ** 2 for x in diffs) / max(len(diffs) - 1, 1)) ** .5
+        out.append(dict(
+            cls=cls, n=len(sel),
+            brier_us=sum((r["p_us"] - r["hit"]) ** 2 for r in sel) / len(sel),
+            brier_kalshi=sum((r["p_k"] - r["hit"]) ** 2 for r in sel)
+            / len(sel),
+            diff=md, se=sd / len(diffs) ** .5))
+    return out
+
+
+def bet_the_gap(rows, thresholds=(0.03, 0.05, 0.10)):
+    """Our side at Kalshi's mid, one unit a rung, by minimum gap.
+
+    A COUNTERFACTUAL, not a record: it takes every disagreement at the
+    morning mid, which is neither what was bet nor what could have been
+    filled. Read it as whether the disagreements pointed the right way.
+    """
+    paired = [r for r in rows if not r["push"] and r["p_k"] is not None]
+    out = []
+    for thr in thresholds:
+        rets, wins = [], 0
+        for r in paired:
+            gap = r["p_us"] - r["p_k"]
+            if abs(gap) < thr:
+                continue
+            over = gap > 0
+            price = r["p_k"] if over else 1 - r["p_k"]
+            won = r["hit"] if over else 1 - r["hit"]
+            rets.append((1 - price) / price if won else -1.0)
+            wins += won
+        if not rets:
+            continue
+        m = sum(rets) / len(rets)
+        sd = (sum((x - m) ** 2 for x in rets) / max(len(rets) - 1, 1)) ** .5
+        out.append(dict(thr=thr, n=len(rets), won=wins, pl=sum(rets),
+                        per_bet=m, se=sd / len(rets) ** .5))
+    return out
+
+
+def calibration(rows, min_n=20):
+    """Our P(over) against how often the over actually hit, by decile."""
+    live = [r for r in rows if not r["push"]]
+    out = []
+    for lo in [x / 10 for x in range(1, 9)]:
+        sel = [r for r in live if lo <= r["p_us"] < lo + .1]
+        if len(sel) < min_n:
+            continue
+        hr = sum(r["hit"] for r in sel) / len(sel)
+        out.append(dict(lo=lo, hi=lo + .1, n=len(sel),
+                        ours=sum(r["p_us"] for r in sel) / len(sel),
+                        actual=hr, se=(hr * (1 - hr) / len(sel)) ** .5))
+    return out
+
+
+def main(argv):
+    through = "2026-09-18"
+    if "--through" in argv:
+        through = argv[argv.index("--through") + 1]
+    graded, unresolved, boards = graded_rungs(through)
+    if not boards:
+        print(f"no boards on or before {through}")
+        return
 
     live = [g for g in graded if not g["push"]]
     paired = [g for g in live if g["p_k"] is not None]
@@ -130,62 +244,28 @@ def main(argv):
           f"(latest version per date)")
     print(f"rungs graded {len(graded)}  pushes {sum(g['push'] for g in graded)}"
           f"  live {len(live)}  with-kalshi {len(paired)}")
-    if unmatched:
-        print("unresolved:", dict(unmatched))
+    if unresolved:
+        print("unresolved:", unresolved)
 
     print("\nHEAD TO HEAD — Brier on the same rungs, lower is better")
     print(f"  {'class':6s} {'n':>5s} {'us':>8s} {'kalshi':>8s} "
           f"{'diff':>8s} {'se(diff)':>8s}")
-    for cls in ["total", "team", "f5", "k", "outs", "ALL"]:
-        rows = paired if cls == "ALL" else [g for g in paired
-                                            if g["cls"] == cls]
-        if not rows:
-            continue
-        diffs = [(g["p_us"] - g["hit"]) ** 2 - (g["p_k"] - g["hit"]) ** 2
-                 for g in rows]
-        bu = sum((g["p_us"] - g["hit"]) ** 2 for g in rows) / len(rows)
-        bk = sum((g["p_k"] - g["hit"]) ** 2 for g in rows) / len(rows)
-        md = sum(diffs) / len(diffs)
-        sd = (sum((x - md) ** 2 for x in diffs) / max(len(diffs) - 1, 1)) ** .5
-        se = sd / len(diffs) ** .5
-        print(f"  {cls:6s} {len(rows):5d} {bu:8.4f} {bk:8.4f} "
-              f"{md:+8.4f} {se:8.4f}")
+    for r in head_to_head(graded):
+        print(f"  {r['cls']:6s} {r['n']:5d} {r['brier_us']:8.4f} "
+              f"{r['brier_kalshi']:8.4f} {r['diff']:+8.4f} {r['se']:8.4f}")
 
     print("\nBET THE GAP — our side at Kalshi's mid, 1 unit stake per rung")
     print(f"  {'gap>=':>6s} {'n':>5s} {'won':>4s} {'P&L':>8s} "
           f"{'per bet':>8s} {'se':>7s}")
-    for thr in (0.03, 0.05, 0.10):
-        pl, wins, n, rets = 0.0, 0, 0, []
-        for g in paired:
-            gap = g["p_us"] - g["p_k"]
-            if abs(gap) < thr:
-                continue
-            over = gap > 0
-            price = g["p_k"] if over else 1 - g["p_k"]
-            won = g["hit"] if over else 1 - g["hit"]
-            ret = (1 - price) / price if won else -1.0
-            pl += ret
-            wins += won
-            n += 1
-            rets.append(ret)
-        if not n:
-            continue
-        m = pl / n
-        sd = (sum((x - m) ** 2 for x in rets) / max(n - 1, 1)) ** .5
-        print(f"  {thr:6.2f} {n:5d} {wins:4d} {pl:+8.2f} "
-              f"{m:+8.3f} {sd / n ** .5:7.3f}")
+    for r in bet_the_gap(graded):
+        print(f"  {r['thr']:6.2f} {r['n']:5d} {r['won']:4d} {r['pl']:+8.2f} "
+              f"{r['per_bet']:+8.3f} {r['se']:7.3f}")
 
     print("\nCALIBRATION — our probability vs how often over actually hit")
     print(f"  {'bucket':>10s} {'n':>5s} {'ours':>6s} {'actual':>7s}")
-    for lo in [x / 10 for x in range(1, 9)]:
-        rows = [g for g in live if lo <= g["p_us"] < lo + .1]
-        if len(rows) < 20:
-            continue
-        mu = sum(g["p_us"] for g in rows) / len(rows)
-        hr = sum(g["hit"] for g in rows) / len(rows)
-        se = (hr * (1 - hr) / len(rows)) ** .5
-        print(f"  {lo:.1f}-{lo + .1:.1f} {len(rows):5d} {mu:6.3f} "
-              f"{hr:7.3f}  (se {se:.3f})")
+    for r in calibration(graded):
+        print(f"  {r['lo']:.1f}-{r['hi']:.1f} {r['n']:5d} {r['ours']:6.3f} "
+              f"{r['actual']:7.3f}  (se {r['se']:.3f})")
 
 
 if __name__ == "__main__":

@@ -18,6 +18,13 @@ versions stay reachable through the version links in the sidebar.
 
 Pages re-render per request straight off the JSON (a few ms); nothing is
 cached, so a re-run of the board shows up on the next refresh.
+
+ONE ROUTE ADDS NUMBERS AND IT IS NOT A PAGE: POST /ask hands a question
+to `scratchpad.ask`, which answers it out of tool calls over the board
+JSONs and the two databases. It is the only thing here that costs money
+per request and the only thing that reaches the network, so it is a
+separate route rather than something the page does on load, and a missing
+API key comes back as a sentence in the panel rather than a 500.
 """
 from __future__ import annotations
 
@@ -25,9 +32,9 @@ import html
 import os
 import sys
 
-from flask import Flask, abort, redirect, request
+from flask import Flask, abort, jsonify, redirect, request
 
-from scratchpad import boards
+from scratchpad import ask, boards
 from scratchpad.gen_board_html import build
 
 app = Flask(__name__)
@@ -105,7 +112,28 @@ def board(date):
         if not match:
             abort(404, f"no version {src} for {date}")
         path = match[0]
-    return build(boards.load(path), nav=_nav(date, path))
+    return build(boards.load(path), nav=_nav(date, path), chat=True)
+
+
+@app.post("/ask")
+def ask_route():
+    """A question from the panel, answered with the lookup trace."""
+    body = request.get_json(silent=True) or {}
+    q = (body.get("question") or "").strip()
+    if not q:
+        return jsonify(error="ask something"), 400
+    if len(q) > 2000:
+        return jsonify(error="question too long"), 400
+    history = [m for m in (body.get("history") or [])
+               if isinstance(m, dict) and m.get("role") in ("user",
+                                                            "assistant")
+               and isinstance(m.get("content"), str)]
+    try:
+        return jsonify(ask.answer(q, history=history, date=body.get("date")))
+    except RuntimeError as e:      # no key, no anthropic package
+        return jsonify(error=str(e)), 503
+    except Exception as e:         # an API failure is the panel's problem
+        return jsonify(error=f"{type(e).__name__}: {e}"), 502
 
 
 def main(argv):

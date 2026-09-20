@@ -255,7 +255,7 @@ def date_label(iso):
     return t.strftime("%A %-d %B %Y")
 
 
-def build(d, nav=None):
+def build(d, nav=None, chat=False):
     games = d["games"]
     DATE_LABEL = date_label(d["date"])
     # Derived from the blocks themselves, not a JSON key, so an older file
@@ -351,6 +351,11 @@ lineups</span><span class="g-count"><b class="n-keep">{n_keep}</b>\
         or "<li>none &mdash; every quoted arm cleared the gate</li>"
 
     side = f'\n<nav class="side">{nav}</nav>' if nav else ""
+    # STATIC PAGES GET NO PANEL. `-m scratchpad.gen_board_html` writes a
+    # file that is read off disk, often days later and often nowhere near
+    # a running server, and a box that posts to a /ask nobody is serving
+    # is worse than no box. The Flask path passes chat=True.
+    chatbox = CHAT_HTML.replace("__DATE__", d["date"]) if chat else ""
     return f"""<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -370,6 +375,7 @@ lineups</span><span class="g-count"><b class="n-keep">{n_keep}</b>\
   </dl>
   <p class="standfirst">{standfirst}</p>
 </header>
+{chatbox}
 
 <section class="kdiv" id="k-model">
   <h2>Strikeout model &mdash; where we diverge</h2>
@@ -479,6 +485,28 @@ lineups</span><span class="g-count"><b class="n-keep">{n_keep}</b>\
 </div>
 </div>
 <script>{JS}</script>
+"""
+
+
+#: Rendered only on the served page (`chat=True`). The log, the trace
+#: under each answer and the example questions are built by CHAT_JS;
+#: this is the empty frame it fills.
+CHAT_HTML = """
+<section class="chat" id="chat" data-date="__DATE__">
+  <h2>Ask the board</h2>
+  <p class="sub">Every figure in an answer comes back from a lookup &mdash;
+  the board JSONs, the graded record, or read-only SQL over the two
+  databases &mdash; and the calls are listed under each answer. It is told
+  to say it cannot find something rather than recall it, and it knows we
+  sit behind Kalshi on Brier. <b>It reads; it places nothing.</b></p>
+  <div class="chat-log" id="chat-log"></div>
+  <form class="chat-form" id="chat-form">
+    <textarea id="chat-q" rows="1" spellcheck="false"
+      placeholder="how did the strikeout rungs grade last week?"></textarea>
+    <button type="submit" id="chat-send">ask</button>
+  </form>
+  <p class="chat-eg" id="chat-eg"></p>
+</section>
 """
 
 
@@ -745,9 +773,65 @@ tbody tr.hidden{display:none;}
   .facts>div{padding-right:18px;margin-right:18px;}
   .g-meta{margin-left:0;flex-basis:100%;}
 }
+
+/* ── the ask panel ─────────────────────────────────────────────── */
+.chat{background:var(--surface);border:1px solid var(--rule);
+  border-radius:3px;padding:22px 24px 18px;}
+.chat h2{margin:0 0 6px;}
+.chat .sub{margin:0 0 16px;}
+.chat-log:empty{display:none;}
+.chat-log{margin:0 0 14px;display:flex;flex-direction:column;gap:16px;}
+.turn-q{font-family:var(--sans);font-size:14px;font-weight:600;
+  color:var(--ink);border-left:2px solid var(--accent);padding:1px 0 1px 12px;}
+.turn-a{font-family:var(--serif);font-size:15px;line-height:1.62;
+  color:var(--ink);}
+.turn-a p{margin:0 0 10px;}
+.turn-a ul{margin:0 0 10px;padding-left:20px;}
+.turn-a li{margin:0 0 3px;}
+.turn-a code{font-family:var(--mono);font-size:12.5px;background:var(--sunk);
+  border:1px solid var(--rule2);border-radius:2px;padding:0 4px;}
+.turn-a .scroll{margin:0 0 12px;}
+.turn-a table{border-collapse:collapse;font-family:var(--mono);
+  font-size:12.5px;}
+.turn-a th,.turn-a td{border-bottom:1px solid var(--rule2);
+  padding:4px 16px 4px 0;text-align:left;white-space:nowrap;}
+.turn-a th{font-family:var(--sans);font-size:10.5px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--ink3);}
+.turn-err{font-family:var(--sans);font-size:13px;color:var(--under);
+  background:var(--under-soft);border-radius:2px;padding:9px 11px;}
+.trace{margin:9px 0 0;font-family:var(--mono);font-size:11.5px;
+  color:var(--ink3);}
+.trace summary{cursor:pointer;}
+.trace summary:hover{color:var(--ink2);}
+.trace ol{margin:6px 0 0;padding-left:24px;}
+.trace li{margin:0 0 2px;word-break:break-word;}
+.trace .bad{color:var(--under);}
+.chat-form{display:flex;gap:8px;align-items:flex-end;}
+.chat-form textarea{flex:1;font-family:var(--sans);font-size:14px;
+  color:var(--ink);background:var(--sunk);border:1px solid var(--rule);
+  border-radius:2px;padding:9px 11px;resize:none;line-height:1.45;
+  max-height:170px;}
+.chat-form textarea:focus{outline:none;border-color:var(--accent);}
+.chat-form button{font-family:var(--sans);font-size:12px;font-weight:600;
+  letter-spacing:.04em;color:var(--surface);background:var(--ink2);
+  border:0;border-radius:2px;padding:10px 18px;cursor:pointer;}
+.chat-form button:hover{background:var(--ink);}
+.chat-form button[disabled]{background:var(--ink3);cursor:default;}
+.chat-eg{margin:11px 0 0;font-family:var(--sans);font-size:12px;
+  color:var(--ink3);}
+.chat-eg button{font:inherit;color:var(--accent);background:none;border:0;
+  border-bottom:1px dotted var(--rule);padding:0;cursor:pointer;
+  margin:0 12px 0 0;}
+.chat-eg button:hover{border-bottom-style:solid;}
+.waiting{font-family:var(--mono);font-size:12px;color:var(--ink3);}
+@media (max-width:640px){
+  .chat{padding:18px 15px 15px;}
+  .chat-form{flex-wrap:wrap;}
+  .chat-form button{width:100%;}
+}
 """
 
-JS = """
+JS = r"""
 (function(){
   var body=document.body,
       keep=document.getElementById('btn-keep'),
@@ -811,6 +895,157 @@ JS = """
   }
   inp.addEventListener('input',apply);
   apply();
+})();
+
+/* ── the ask panel ──────────────────────────────────────────────
+   Answers arrive as markdown. Rather than ship a parser, this
+   renders the four things the panel is told to produce — pipe
+   tables, bullets, `code` and **bold** — and shows anything else as
+   the paragraph it already is. EVERYTHING IS ESCAPED FIRST and the
+   inline rules run on escaped text, so a stray < in a tool result
+   cannot become a tag on its way through. */
+(function(){
+  var sec=document.getElementById('chat'),
+      log=document.getElementById('chat-log'),
+      form=document.getElementById('chat-form'),
+      box=document.getElementById('chat-q'),
+      send=document.getElementById('chat-send'),
+      egs=document.getElementById('chat-eg');
+  if(!sec||!form)return;
+  var date=sec.dataset.date,history=[],busy=false;
+
+  function esc(t){
+    return t.replace(/&/g,'&amp;').replace(/</g,'&lt;')
+            .replace(/>/g,'&gt;');
+  }
+  function inline(t){
+    return esc(t).replace(/`([^`]+)`/g,'<code>$1</code>')
+                 .replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
+  }
+  function cells(line){
+    var p=line.trim().replace(/^\||\|$/g,'').split('|');
+    return p.map(function(c){return c.trim();});
+  }
+  function md(text){
+    var out=[],lines=text.split('\n'),i=0;
+    while(i<lines.length){
+      var ln=lines[i];
+      /* a pipe table: header, a |---|---| rule, then rows */
+      if(/^\s*\|.*\|\s*$/.test(ln)&&i+1<lines.length
+         &&/^\s*\|[\s:|-]+\|\s*$/.test(lines[i+1])){
+        var head=cells(ln),body=[];
+        i+=2;
+        while(i<lines.length&&/^\s*\|.*\|\s*$/.test(lines[i])){
+          body.push(cells(lines[i]));i++;
+        }
+        out.push('<div class="scroll"><table><thead><tr>'
+          +head.map(function(c){return '<th>'+inline(c)+'</th>';}).join('')
+          +'</tr></thead><tbody>'
+          +body.map(function(r){
+              return '<tr>'+r.map(function(c){
+                return '<td>'+inline(c)+'</td>';}).join('')+'</tr>';
+            }).join('')
+          +'</tbody></table></div>');
+        continue;
+      }
+      if(/^\s*[-*]\s+/.test(ln)){
+        var items=[];
+        while(i<lines.length&&/^\s*[-*]\s+/.test(lines[i])){
+          items.push('<li>'+inline(lines[i].replace(/^\s*[-*]\s+/,''))+'</li>');
+          i++;
+        }
+        out.push('<ul>'+items.join('')+'</ul>');
+        continue;
+      }
+      if(!ln.trim()){i++;continue;}
+      var para=[];
+      while(i<lines.length&&lines[i].trim()
+            &&!/^\s*[-*]\s+/.test(lines[i])
+            &&!/^\s*\|.*\|\s*$/.test(lines[i])){
+        para.push(lines[i]);i++;
+      }
+      out.push('<p>'+inline(para.join(' '))+'</p>');
+    }
+    return out.join('');
+  }
+  function trace(calls){
+    if(!calls||!calls.length)return '';
+    var n=calls.length;
+    return '<details class="trace"><summary>'+n+' lookup'
+      +(n>1?'s':'')+'</summary><ol>'
+      +calls.map(function(c){
+          var a=JSON.stringify(c.input);
+          if(a.length>180)a=a.slice(0,180)+'…';
+          return '<li'+(c.error?' class="bad"':'')+'>'+esc(c.tool)+' '
+                 +esc(a)+(c.error?' — failed':'')+'</li>';
+        }).join('')
+      +'</ol></details>';
+  }
+  function turn(q){
+    var d=document.createElement('div');
+    d.innerHTML='<div class="turn-q">'+esc(q)+'</div>'
+               +'<div class="turn-a"><p class="waiting">looking…</p></div>';
+    log.appendChild(d);
+    return d.querySelector('.turn-a');
+  }
+  function grow(){
+    box.style.height='auto';
+    box.style.height=Math.min(box.scrollHeight,170)+'px';
+  }
+
+  function ask(q){
+    if(busy||!q.trim())return;
+    busy=true;send.disabled=true;
+    var slot=turn(q);
+    box.value='';grow();
+    fetch('/ask',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({question:q,date:date,history:history})})
+      .then(function(r){return r.json().then(function(j){
+        return {ok:r.ok,body:j};});})
+      .then(function(res){
+        if(!res.ok||res.body.error){
+          slot.innerHTML='<div class="turn-err">'
+            +esc(res.body.error||('HTTP '+res.status))+'</div>';
+          return;
+        }
+        slot.innerHTML=md(res.body.answer||'(no answer)')
+                       +trace(res.body.trace,res.body.usage);
+        /* History carries TEXT ONLY — the tool calls and their results
+           stay server-side, so a long session does not resend a
+           fortnight of rungs it already read. */
+        history.push({role:'user',content:q});
+        history.push({role:'assistant',content:res.body.answer||''});
+      })
+      .catch(function(e){
+        slot.innerHTML='<div class="turn-err">'+esc(String(e))+'</div>';
+      })
+      .then(function(){
+        busy=false;send.disabled=false;
+        slot.scrollIntoView({block:'nearest'});
+      });
+  }
+
+  form.addEventListener('submit',function(e){e.preventDefault();ask(box.value);});
+  box.addEventListener('input',grow);
+  box.addEventListener('keydown',function(e){
+    if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ask(box.value);}
+  });
+  [['biggest disagreement tonight',
+    'What is the largest disagreement on the '+date+' board, and is the '
+    +'Kalshi side of it actually traded?'],
+   ['how the K model has graded',
+    'How have the strikeout rungs scored against Kalshi over the last two '
+    +'weeks, and is the difference bigger than its standard error?'],
+   ['where we are worst',
+    'Which market class has the worst head-to-head Brier against Kalshi, '
+    +'and how many rungs is that judgement resting on?']]
+  .forEach(function(pair){
+    var b=document.createElement('button');
+    b.type='button';b.textContent=pair[0];
+    b.addEventListener('click',function(){box.value=pair[1];grow();ask(pair[1]);});
+    egs.appendChild(b);
+  });
 })();
 """
 
