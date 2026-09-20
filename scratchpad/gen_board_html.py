@@ -170,10 +170,13 @@ def row_html(r, game=None):
                  for k, v, t in chips(r))
     g = f'<td class="c-game">{html.escape(game)}</td>' if game else ""
     k = "1" if (game or keep(r)) else "0"
+    ag = "" if r["gap"] is None else (
+        f' data-agap="{abs(r["gap"]):.1f}"'
+        f' data-po="{po:.4f}" data-pk="{pk:.4f}"')
     d = "" if r["gap"] is None else ("over" if r["gap"] > 0 else "under")
     edge = ('<td class="c-gap c-none">no book</td>' if r["gap"] is None
             else f'<td class="c-gap {d}">{r["gap"]:+.1f}</td>')
-    return f"""<tr class="r-{r['cls']}" data-keep="{k}">
+    return f"""<tr class="r-{r['cls']}" data-keep="{k}"{ag}>
   {g}<td class="c-bet"><span class="mk mk-{r['cls']}">\
 {CLS_LABEL[r['cls']]}</span> {html.escape(r['bet'])}{cs}</td>
   {price(po, 'c-ours')}{price(1 - po, 'c-ours')}\
@@ -229,7 +232,7 @@ def k_table(games):
                           f'{"above" if v > 0 else "below"} the mid">'
                           f'{v:+.0f}</td>')
         big = "big" if abs(diff) >= 0.40 else ""
-        out.append(f"""<tr class="{big}">
+        out.append(f"""<tr class="{big}" data-adiff="{abs(diff):.2f}">
   <td class="c-who">{html.escape(who)}</td>
   <td class="c-game"><a href="#g-{g['away']}-{g['home']}">{tag}</a></td>
   <td class="c-num">{ours:.2f}</td>
@@ -238,7 +241,7 @@ def k_table(games):
   {cells}
 </tr>""")
     hx = "".join(f'<th class="hx">{x}</th>' for x in K_LADDER)
-    return f"""<div class="scroll"><table class="t-k">
+    return f"""<div class="scroll"><table class="t-k" id="t-k">
   <thead><tr><th>pitcher</th><th>game</th>
     <th class="c-num">our K line</th><th class="c-num">market</th>
     <th class="c-gap">diff</th>{hx}</tr></thead>
@@ -252,7 +255,7 @@ def date_label(iso):
     return t.strftime("%A %-d %B %Y")
 
 
-def build(d):
+def build(d, nav=None):
     games = d["games"]
     DATE_LABEL = date_label(d["date"])
     # Derived from the blocks themselves, not a JSON key, so an older file
@@ -261,12 +264,14 @@ def build(d):
     sched = len(games) + len(d.get("declined", []))
     lu_class = "warn" if posted < sched else ""
     allrows = [(g, r) for g in games for r in g["rows"]]
-    # A flagged arm's gap is mostly our own leash error, so it never leads
-    # the board. It still prints in its game block, chip attached.
+    # EVERY row with a mid renders, ranked by weight; the threshold input
+    # decides what shows. Was top 12 — a fixed N hid exactly the middle of
+    # the list a reader asks about next. A flagged arm's gap is mostly our
+    # own leash error, so it still never leads the board; it prints in its
+    # game block, chip attached.
     ranked = sorted((x for x in allrows
-                     if keep(x[1]) and x[1]["gap"] is not None
-                     and not x[1].get("gate")),
-                    key=lambda x: weight(x[1]), reverse=True)[:12]
+                     if x[1]["gap"] is not None and not x[1].get("gate")),
+                    key=lambda x: weight(x[1]), reverse=True)
     fls = [x for x in (cross([(line_of(r), r["p_over"])
                               for r in g["rows"] if r["cls"] == "total"])
                        for g in games) if x]
@@ -345,8 +350,13 @@ lineups</span><span class="g-count"><b class="n-keep">{n_keep}</b>\
         f'{html.escape(x["why"])}</li>' for x in d.get("not_quoted", [])) \
         or "<li>none &mdash; every quoted arm cleared the gate</li>"
 
-    return f"""<title>Board &mdash; {DATE_LABEL}</title>
+    side = f'\n<nav class="side">{nav}</nav>' if nav else ""
+    return f"""<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Board &mdash; {DATE_LABEL}</title>
 <style>{CSS}</style>
+<div class="layout{' has-side' if nav else ''}">{side}
 <div class="wrap">
 
 <header class="masthead">
@@ -361,7 +371,7 @@ lineups</span><span class="g-count"><b class="n-keep">{n_keep}</b>\
   <p class="standfirst">{standfirst}</p>
 </header>
 
-<section class="kdiv">
+<section class="kdiv" id="k-model">
   <h2>Strikeout model &mdash; where we diverge</h2>
   <p class="sub">Our implied K line against the market&rsquo;s, fitted across
   each pitcher&rsquo;s whole ladder rather than read off a single rung.
@@ -371,32 +381,47 @@ lineups</span><span class="g-count"><b class="n-keep">{n_keep}</b>\
   lower. A row leaning one way throughout is a disagreement about the pitcher;
   the two ends disagreeing is a disagreement about the shape of his
   distribution.</p>
+  <p class="filterline">line diff of at least
+    <input type="number" id="kdiff-min" value="0.2" min="0" max="3"
+      step="0.05" aria-label="minimum K line difference"> strikeouts
+    &mdash; showing <b id="kdiff-n">&mdash;</b> of {len(krows)} arms.</p>
   {ktab}
 </section>
 
-<section class="lead">
-  <h2>Largest disagreements, all markets</h2>
+<section class="lead" id="disagreements">
+  <h2>Disagreements, all markets</h2>
   <p class="sub">Ranked by gap weighted toward even money &mdash; a 12-point gap
   on a longshot is worth less than a 9-point gap at a coin flip. <b>Edge is our
   P(over) minus the mid&rsquo;s</b>, so a positive number means we price the over
   higher than Kalshi and a negative one means we price it lower.</p>
-  <div class="scroll"><table class="t-lead">{HEAD.format(g='<th>game</th>')}
+  <p class="filterline">gap of at least
+    <input type="number" id="gap-min" value="10" min="0" max="40"
+      step="0.5" aria-label="minimum gap in points"> points, both prices
+    inside &plusmn;<input type="number" id="odds-max" value="200"
+      min="100" max="2000" step="10" aria-label="odds band, both sides">
+    (blank for any odds) &mdash; showing
+    <b id="gap-n">&mdash;</b> of {len(ranked)} rungs carrying a Kalshi mid.
+    Off-band and thin rungs are in the count too; their chips travel with
+    them.</p>
+  <div class="scroll"><table class="t-lead" id="t-lead">\
+{HEAD.format(g='<th>game</th>')}
     <tbody>
 {lead}
     </tbody>
   </table></div>
 </section>
 
-<section class="f5">
+<section class="f5" id="f5">
   <h2>First five &mdash; the product</h2>
-  <p class="sub">The only market here that has ever beaten a settled price on
-  outcomes: 0.1890 Brier against Kalshi&rsquo;s close at 0.1919 over 455
-  contracts, unconfirmed at that sample. The large figure is the fair F5 line;
-  no ticker exists for totals, so bring your own number.</p>
+  <p class="sub">The settled quantity the model fits directly. It does not
+  beat Kalshi&rsquo;s close on outcomes &mdash; 0.1947 Brier against
+  0.1927 over 2,149 contracts; an early 455-contract sample showed us ahead
+  and did not survive. The large figure is the fair F5 line; no ticker
+  exists for totals, so bring your own number.</p>
   <div class="f5-grid">{"".join(cards)}</div>
 </section>
 
-<section class="detail">
+<section class="detail" id="games">
   <h2>Every game</h2>
   <p class="filterline">Showing
     <button type="button" class="ctl is-on" id="btn-keep"
@@ -451,6 +476,7 @@ lineups</span><span class="g-count"><b class="n-keep">{n_keep}</b>\
   other. <b>This is not a bet list.</b></p>
 </footer>
 
+</div>
 </div>
 <script>{JS}</script>
 """
@@ -664,6 +690,45 @@ td{padding:7px 10px 7px 0;vertical-align:middle;}
 .colophon b{color:var(--ink);font-family:var(--sans);font-size:13px;
   font-weight:680;}
 
+/* ── sidebar (server pages only; static files render without) ── */
+.layout.has-side{display:flex;align-items:flex-start;}
+.side{position:sticky;top:0;max-height:100vh;overflow-y:auto;
+  flex:0 0 212px;padding:56px 16px 48px 20px;
+  border-right:1px solid var(--rule);}
+.side .side-title{font-family:var(--mono);font-size:11px;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--accent);
+  margin-bottom:12px;}
+.side details{border-bottom:1px solid var(--rule2);}
+.side summary{list-style:none;cursor:pointer;padding:7px 2px;
+  font-family:var(--mono);font-size:12.5px;color:var(--ink2);
+  display:flex;align-items:baseline;gap:6px;}
+.side summary::before{content:"+";color:var(--ink3);font-size:11px;
+  width:10px;}
+.side details[open] summary::before{content:"\\2212";}
+.side details[open] summary{color:var(--ink);font-weight:640;}
+.side summary a{text-decoration:none;color:inherit;}
+.side summary a:hover{color:var(--accent);}
+.side ul{list-style:none;margin:0 0 10px;padding:0 0 0 16px;
+  display:flex;flex-direction:column;gap:1px;}
+.side li a{display:block;padding:3px 6px;font-size:12px;
+  color:var(--ink2);text-decoration:none;border-radius:2px;}
+.side li a:hover{background:var(--sunk);color:var(--ink);}
+.side li.side-sub{font-family:var(--mono);font-size:9.5px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);
+  padding:7px 6px 2px;}
+@media (max-width:900px){
+  .layout.has-side{display:block;}
+  .side{position:static;max-height:none;border-right:0;
+    border-bottom:1px solid var(--rule);padding:24px 20px 12px;}
+}
+
+#gap-min{font:inherit;font-family:var(--mono);font-size:12.5px;
+  width:60px;padding:2px 5px;margin:0 3px;
+  background:var(--surface);color:var(--ink);
+  border:1px solid var(--rule);border-radius:2px;}
+#gap-min:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+#gap-n{color:var(--ink);font-family:var(--mono);}
+
 .n-all-note{display:none;}
 body.show-all .n-keep-note{display:none;}
 body.show-all .n-all-note{display:inline;}
@@ -700,6 +765,52 @@ JS = """
   keep.addEventListener('click',function(){set(false);});
   all.addEventListener('click',function(){set(true);});
   set(false);
+})();
+(function(){
+  var inp=document.getElementById('gap-min'),
+      band=document.getElementById('odds-max'),
+      n=document.getElementById('gap-n'),
+      tbl=document.getElementById('t-lead');
+  if(!inp||!tbl)return;
+  var rows=[].slice.call(tbl.querySelectorAll('tbody tr'));
+  function apply(){
+    var min=parseFloat(inp.value),shown=0;
+    if(isNaN(min))min=0;
+    /* odds band: fair American +/-b <=> p in [100/(b+100), b/(b+100)],
+       and BOTH prices must sit inside it. Blank means any odds. */
+    var b=parseFloat(band.value),lo=0,hi=1;
+    if(!isNaN(b)&&b>=100){hi=b/(b+100);lo=1-hi;}
+    rows.forEach(function(r){
+      var po=parseFloat(r.dataset.po),pk=parseFloat(r.dataset.pk),
+          hide=(parseFloat(r.dataset.agap)||0)<min
+            ||po<lo||po>hi||pk<lo||pk>hi;
+      r.classList.toggle('hidden',hide);
+      if(!hide)shown++;
+    });
+    n.textContent=shown;
+  }
+  inp.addEventListener('input',apply);
+  band.addEventListener('input',apply);
+  apply();
+})();
+(function(){
+  var inp=document.getElementById('kdiff-min'),
+      n=document.getElementById('kdiff-n'),
+      tbl=document.getElementById('t-k');
+  if(!inp||!tbl)return;
+  var rows=[].slice.call(tbl.querySelectorAll('tbody tr'));
+  function apply(){
+    var min=parseFloat(inp.value),shown=0;
+    if(isNaN(min))min=0;
+    rows.forEach(function(r){
+      var hide=(parseFloat(r.dataset.adiff)||0)<min;
+      r.classList.toggle('hidden',hide);
+      if(!hide)shown++;
+    });
+    n.textContent=shown;
+  }
+  inp.addEventListener('input',apply);
+  apply();
 })();
 """
 
