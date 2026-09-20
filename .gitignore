@@ -4,11 +4,25 @@
 
 # Local data — never publish
 morning_bets.db
+# Derived from the play-by-play cache; rebuilds in ~30s. Never the
+# authority on anything, which is why it is a separate file.
+context.db
+context.db-wal
+context.db-shm
 # WAL mode puts the hot pages in a sibling file; the exact-name rule above
 # does not cover them.
 morning_bets.db-wal
 morning_bets.db-shm
 bets/*.json
+# EXCEPT the printed boards. A `_board.json` is the frozen record of what we
+# said AND what Kalshi's mid was at print time, and the mid is unrecoverable
+# once the market moves — it is the evidence TODO item 14's falsifier is
+# scored against. ~85 KB a night.
+!bets/*_board.json
+# The rendered page is ~175 KB a night and rebuilds from that JSON in one
+# second, so it is a render and not a record. Same argument as
+# `scratchpad/board_*.html` below.
+bets/*_board.html
 bets/*_graded.md
 sent.json
 .cron-config
@@ -96,3 +110,70 @@ docs/build/*
 .elasticbeanstalk/*
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
+
+# Assembled context briefs — local record, regenerable-ish but not source.
+# Immutable and accumulating; several hundred KB a day compressed.
+snapshots/
+
+.claude/settings.local.json
+scratchpad/august_rows.json
+
+# Simulated draws kept for querying; regenerate with scratchpad/bets.py
+scratchpad/sims/
+# Per-batter handedness splits, 15 MB, rebuilt from the play-by-play cache
+# in a few minutes by scratchpad/platoon_bat.py. Delete it to force a
+# rebuild after changing the shape of a counts cell.
+scratchpad/bat_splits.json
+
+# Persisted simulation draws, ~3 MB each. Regenerate with
+# `scratchpad/starts_dump.py`; they exist so a question about the outs
+# distribution is a QUERY rather than another engine run.
+scratchpad/starts_*.json
+# A rendered board is true for one slate and is ~230 KB a night.
+# `scratchpad/board.py --html` rebuilds any date.
+scratchpad/board_*.html
+
+# CAPTURED STDOUT from a measurement run. 133 of these were tracked and 3
+# were referenced by anything — the CONCLUSION belongs in
+# NOTES-context-layer.md, which is the log, and the run that produced it
+# belongs in the .py beside it. The transcript is neither.
+scratchpad/*.out
+
+# Per-start rows dumped so a question is a QUERY rather than another engine
+# run — the same argument as `starts_*.json` above, and these are the same
+# class of file. 11 MB across four `ceiling_rows` variants alone.
+scratchpad/ceiling_rows*.json
+scratchpad/ceiling_holdout*.json
+# Per-batter platoon cells and fitted boundary curves, both rebuilt from the
+# play-by-play cache by the script that shares their name.
+scratchpad/platoon_fix*.json
+scratchpad/bnd_curves*.json
+# Per-game count rows for the batted-ball and weather items, each rebuilt
+# by `<name>.py --backfill` from the play-by-play cache in a few minutes.
+# Outputs of the pitch-expectation work (TODO records it CLOSED WITH A
+# NULL; the reusable leftovers are the .py files, not these). 2.9 MB and
+# 305 KB, both rebuilt by the script that shares their name.
+scratchpad/expect_starts.json
+scratchpad/pitch_e0.json
+scratchpad/dp_gb_rows.json
+scratchpad/hitmix_gb_rows.json
+scratchpad/temp_hr_rows.json
+scratchpad/damage_state.json
+scratchpad/inning_feedback_pas.json.gz
+scratchpad/ump_kbb_rows.json.gz
+
+# Per-plate-appearance and per-batter-game rows for the home run work,
+# both rebuilt from the play-by-play cache by the script that shares their
+# name. `hr_clf_rows.json` alone is 111 MB — over GitHub's file limit — and
+# `hr_pa_rows.json.gz` is 770k plate appearances at 6.6 MB.
+scratchpad/hr_clf_rows.json
+scratchpad/hr_pa_rows.json.gz
+scratchpad/hr_clf_pred.npy
+scratchpad/hr_clf_test_keys.json
+# Pitcher and batter handedness counted off the whole pbp cache in ~2
+# minutes by `hr_clf._hands()`. Derived, not authored.
+scratchpad/hands.json
+# The engine's per-batter-game home run probabilities, dumped by
+# `battery.py` under HRBAT_DUMP so the classifier can be scored against
+# the simulation on identical rows. 1.5 MB a fold, one engine run each.
+scratchpad/simpred.*.json

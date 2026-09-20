@@ -1,0 +1,28 @@
+  2023  1000 games, 2,000 real starts   band 0.0850 -> 0.0709   IMPROVES
+  2024  958 games, 1,916 real starts   band 0.0576 -> 0.0420   IMPROVES
+  2025  929 games, 1,858 real starts   band 0.0408 -> 0.0267   IMPROVES
+  2026  661 games, 1,322 real starts   band 0.0557 -> 0.0409   IMPROVES
+
+  MIDDLE BAND o12.5-o17.5, mean |gap|, off -> ON
+
+  fold           off        ON      change
+  2023        0.0850    0.0709     -0.0142
+  2024        0.0576    0.0420     -0.0155
+  2025        0.0408    0.0267     -0.0141
+  2026        0.0557    0.0409     -0.0148
+
+  LONG LINES o18.5/o20.5 (expected to get worse)
+
+  fold           off        ON      change
+  2023        0.0274    0.0228     -0.0046
+  2024        0.0181    0.0134     -0.0047
+  2025        0.0036    0.0075     +0.0040
+  2026        0.0098    0.0140     +0.0043
+
+  MEAN OUTS, model vs real
+
+  fold           off        ON      real
+  2023         14.90     14.98     15.60
+  2024         15.24     15.32     15.74
+  2025         15.46     15.54     15.78
+  2026         15.40     15.48     15.75

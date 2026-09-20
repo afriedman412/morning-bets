@@ -1,0 +1,144 @@
+BOARD — 2026-09-10 · 5 games · 20,000 sims · fair inside ±170 · odds are FAIR (no vig)
+
+TB @ ATL   Nick Martinez v Martín Pérez   (PROJECTED lineups, mean 9.5)
+  bet                          over / under  kalshi
+  total 8.5                    -125 /  +125    +108   [Nick Martinez: 81/177 appearances are starts — swingman]
+  total 9                      -102 /  +102       -   [Nick Martinez: 81/177 appearances are starts — swingman]
+  total 9.5                    +122 /  -122    +167   [Nick Martinez: 81/177 appearances are starts — swingman]
+  TB total 3.5                 -159 /  +159    -125   [Nick Martinez: 81/177 appearances are starts — swingman]
+  TB total 4.5                 +103 /  -103    +133   [Nick Martinez: 81/177 appearances are starts — swingman]
+  ATL total 3.5                -152 /  +152    -125   [Nick Martinez: 81/177 appearances are starts — swingman]
+  ATL total 4.5                +114 /  -114    +135   [Nick Martinez: 81/177 appearances are starts — swingman]
+  F5 total 4.5                 -120 /  +120    +108   [Nick Martinez: 81/177 appearances are starts — swingman]
+  F5 total 5.5                 +130 /  -130    +167   [Nick Martinez: 81/177 appearances are starts — swingman]
+  Nick Martinez k 2.5          -196 /  +196    -233   proj lineup  [81/177 appearances are starts — swingman]  off-band
+  Nick Martinez k 3.5          +125 /  -125    +102   proj lineup  [81/177 appearances are starts — swingman]  
+  Nick Martinez k 4.5          +291 /  -291    +251   proj lineup  [81/177 appearances are starts — swingman]  off-band
+  Nick Martinez k 5.5          +691 /  -691    +614   proj lineup  [81/177 appearances are starts — swingman]  off-band
+  Nick Martinez outs 16.5      -149 /  +149       -   proj lineup  [81/177 appearances are starts — swingman]  raw -154
+  Nick Martinez outs 17.5      -114 /  +114    +104   proj lineup  [81/177 appearances are starts — swingman]  raw -118
+  Martín Pérez k 2.5           -198 /  +198    -182   proj lineup  off-band
+  Martín Pérez k 3.5           +121 /  -121    +138   proj lineup  
+  Martín Pérez k 4.5           +272 /  -272    +355   proj lineup  off-band
+  Martín Pérez k 5.5           +618 /  -618    +852   proj lineup  off-band
+  Martín Pérez outs 15.5       -104 /  +104    +108   proj lineup  raw -103
+  Martín Pérez outs 16.5       +123 /  -123       -   proj lineup  raw +119
+
+HOU @ PHI   Cristian Javier v Zack Wheeler   (PROJECTED lineups, mean 9.1)
+  bet                          over / under  kalshi
+  total 8                      -130 /  +130       -   
+  total 8.5                    -110 /  +110    +102   
+  total 9                      +114 /  -114       -   
+  HOU total 3.5                -121 /  +121    +106   
+  HOU total 4.5                +139 /  -139    +174   
+  PHI total 3.5                -168 /  +168    -170   
+  PHI total 4.5                +107 /  -107    +100   
+  F5 total 4.5                 -107 /  +107    +106   
+  F5 total 5.5                 +147 /  -147    +163   
+  Cristian Javier k 2.5        -339 /  +339    -326   proj lineup  off-band
+  Cristian Javier k 3.5        -147 /  +147    -135   proj lineup  
+  Cristian Javier k 4.5        +144 /  -144    +170   proj lineup  
+  Cristian Javier k 5.5        +313 /  -313    +376   proj lineup  off-band
+  Cristian Javier k 6.5        +684 /  -684    +953   proj lineup  off-band
+  Cristian Javier outs 14.5    -192 /  +192    +120   proj lineup  raw -167
+  Cristian Javier outs 15.5    +120 /  -120       -   proj lineup  raw +121
+  Cristian Javier outs 16.5    +155 /  -155       -   proj lineup  raw +150
+  Zack Wheeler k 3.5           -734 /  +734    -700   proj lineup  off-band
+  Zack Wheeler k 4.5           -343 /  +343    -317   proj lineup  off-band
+  Zack Wheeler k 5.5           -171 /  +171    -163   proj lineup  off-band
+  Zack Wheeler k 6.5           +113 /  -113    +120   proj lineup  
+  Zack Wheeler k 7.5           +213 /  -213    +257   proj lineup  off-band
+  Zack Wheeler k 8.5           +409 /  -409    +525   proj lineup  off-band
+  Zack Wheeler k 9.5           +827 /  -827   +1076   proj lineup  off-band
+  Zack Wheeler outs 17.5       -128 /  +128    -133   proj lineup  raw -133
+
+TEX @ SEA   Jacob deGrom v Logan Gilbert   (PROJECTED lineups, mean 8.0)
+  bet                          over / under  kalshi
+  total 7                      -123 /  +123       -   
+  total 7.5                    +106 /  -106    +141   
+  total 8                      +128 /  -128       -   
+  TEX total 3.5                +104 /  -104    +133   
+  SEA total 3.5                -110 /  +110    +113   
+  SEA total 4.5                +160 /  -160    +199   
+  F5 total 3.5                 -122 /  +122    -104   
+  F5 total 4.5                 +141 /  -141    +167   
+  Jacob deGrom k 3.5           -773 /  +773    -900   proj lineup  off-band
+  Jacob deGrom k 4.5           -370 /  +370    -413   proj lineup  off-band
+  Jacob deGrom k 5.5           -188 /  +188    -203   proj lineup  off-band
+  Jacob deGrom k 6.5           +103 /  -103    +100   proj lineup  
+  Jacob deGrom k 7.5           +194 /  -194    +199   proj lineup  off-band
+  Jacob deGrom k 8.5           +377 /  -377    +400   proj lineup  off-band
+  Jacob deGrom k 9.5           +746 /  -746    +900   proj lineup  off-band
+  Jacob deGrom outs 16.5       -122 /  +122    +106   proj lineup  raw -126
+  Jacob deGrom outs 17.5       +108 /  -108       -   proj lineup  raw +104
+  Logan Gilbert k 3.5         -1151 / +1151    -900   proj lineup  off-band
+  Logan Gilbert k 4.5          -524 /  +524    -388   proj lineup  off-band
+  Logan Gilbert k 5.5          -262 /  +262    -186   proj lineup  off-band
+  Logan Gilbert k 6.5          -136 /  +136    +108   proj lineup  
+  Logan Gilbert k 7.5          +139 /  -139    +223   proj lineup  
+  Logan Gilbert k 8.5          +262 /  -262    +488   proj lineup  off-band
+  Logan Gilbert k 9.5          +506 /  -506   +1011   proj lineup  off-band
+  Logan Gilbert outs 17.5      -135 /  +135       -   proj lineup  raw -140
+
+COL @ NYY   Ryan Feltner v Max Fried   (PROJECTED lineups, mean 9.0)
+  bet                          over / under  kalshi
+  total 8                      -122 /  +122       -   
+  total 8.5                    -102 /  +102    -115   
+  total 9                      +124 /  -124       -   
+  COL total 2.5                -160 /  +160    -130   
+  COL total 3.5                +112 /  -112    +147   
+  NYY total 4.5                -116 /  +116    -150   
+  NYY total 5.5                +145 /  -145    +108   
+  F5 total 4.5                 +102 /  -102    -117   
+  F5 total 5.5                 +160 /  -160    +144   
+  Ryan Feltner k 2.5           -307 /  +307    -388   proj lineup  off-band
+  Ryan Feltner k 3.5           -134 /  +134    -163   proj lineup  
+  Ryan Feltner k 4.5           +162 /  -162    +141   proj lineup  
+  Ryan Feltner k 5.5           +352 /  -352    +308   proj lineup  off-band
+  Ryan Feltner k 6.5           +761 /  -761    +700   proj lineup  off-band
+  Ryan Feltner outs 14.5       -156 /  +156       -   proj lineup  raw -137
+  Ryan Feltner outs 15.5       +151 /  -151    +150   proj lineup  raw +151
+  Max Fried k 2.5             -1630 / +1630    -852   proj lineup  off-band
+  Max Fried k 3.5              -662 /  +662    -365   proj lineup  off-band
+  Max Fried k 4.5              -300 /  +300    -170   proj lineup  off-band
+  Max Fried k 5.5              -148 /  +148    +115   proj lineup  
+  Max Fried k 6.5              +132 /  -132    +251   proj lineup  
+  Max Fried k 7.5              +255 /  -255    +567   proj lineup  off-band
+  Max Fried k 8.5              +503 /  -503   +1329   proj lineup  off-band
+  Max Fried outs 16.5          -197 /  +197    +106   proj lineup  raw -204  off-band
+  Max Fried outs 17.5          -151 /  +151       -   proj lineup  raw -157
+
+PIT @ CWS   Jared Jones v Hagen Smith   (PROJECTED lineups, mean 9.1)
+  bet                          over / under  kalshi
+  total 8                      -129 /  +129       -   [Hagen Smith: only 1 start(s) on record]
+  total 8.5                    -107 /  +107    +127   [Hagen Smith: only 1 start(s) on record]
+  total 9                      +116 /  -116       -   [Hagen Smith: only 1 start(s) on record]
+  PIT total 3.5                -133 /  +133    -113   [Hagen Smith: only 1 start(s) on record]
+  PIT total 4.5                +124 /  -124    +150   [Hagen Smith: only 1 start(s) on record]
+  CWS total 3.5                -144 /  +144    -108   [Hagen Smith: only 1 start(s) on record]
+  CWS total 4.5                +120 /  -120    +167   [Hagen Smith: only 1 start(s) on record]
+  F5 total 4.5                 -104 /  +104    +100   [Hagen Smith: only 1 start(s) on record]
+  F5 total 5.5                 +152 /  -152    +167   [Hagen Smith: only 1 start(s) on record]
+  Jared Jones k 2.5            -788 /  +788   -1150   proj lineup  off-band
+  Jared Jones k 3.5            -363 /  +363    -506   proj lineup  off-band
+  Jared Jones k 4.5            -181 /  +181    -233   proj lineup  off-band
+  Jared Jones k 5.5            +105 /  -105    -130   proj lineup  
+  Jared Jones k 6.5            +203 /  -203    +186   proj lineup  off-band
+  Jared Jones k 7.5            +389 /  -389    +355   proj lineup  off-band
+  Jared Jones k 8.5            +775 /  -775    +770   proj lineup  off-band
+  Jared Jones outs 14.5        -165 /  +165       -   proj lineup  raw -144
+  Jared Jones outs 15.5        +149 /  -149    +150   proj lineup  raw +149
+  Hagen Smith k 5.5            -131 /  +131       -   proj lineup  THIN  [only 1 start(s) on record]  
+  Hagen Smith k 6.5            +144 /  -144       -   proj lineup  THIN  [only 1 start(s) on record]  
+  Hagen Smith outs 14.5        -174 /  +174       -   proj lineup  THIN  [only 1 start(s) on record]  raw -152
+  Hagen Smith outs 15.5        +144 /  -144       -   proj lineup  THIN  [only 1 start(s) on record]  raw +144
+
+ARMS FLAGGED — priced, but not a normal starter's line:
+  TB @ ATL    Nick Martinez           81/177 appearances are starts — swingman
+  PIT @ CWS   Hagen Smith             only 1 start(s) on record
+
+outs corrected (2026-09-09); raw in note. K beats the OPEN only — bet early or not.
+Totals Jul/Aug ran ~0.15-0.20 light a side (unshipped month term); Sept unmeasured.
+Re-run after lineups post: a projected nine has cost half an edge before.
+
+wall clock: 78s total — 63s simulating, 12s fetching markets, 3s loading rates. RE-RUNNING IS CHEAP; do it when lineups post.

@@ -1,0 +1,319 @@
+"""The battery's wiring contract: a run is attributable to a configuration
+only if the header prints EVERY switch, live.
+
+The battery exists so a change scores against everything at once, and the
+one way that can silently fail is a run made under the wrong flags being
+read as the shipped engine. So the contract is checked in both directions:
+the flag inventory is TOTAL (a new `USE_*` cannot be added without
+appearing), and the values are LIVE (verified by mutation — flip a flag,
+the header changes — because a check that guards nothing looks identical
+to one that does).
+"""
+from src.context import calibrate as cal, game, sim
+from scratchpad import battery
+
+
+def check_battery_header_lists_every_flag():
+    """Every USE_* in sim, game and calibrate appears in the header."""
+    got = battery.flags()
+    for mod, name in ((sim, "sim"), (game, "game"), (cal, "calibrate")):
+        for k in vars(mod):
+            if k.startswith("USE_"):
+                assert f"{name}.{k}" in got, f"{name}.{k} missing from " \
+                    "the battery header — a run under this flag would be " \
+                    "mis-attributed"
+    # The two non-USE_ knobs that change what a run means.
+    assert "calibrate.NEUTRALISE_PARK" in got
+    assert "calibrate.HOME_HOOK" in got
+
+
+def check_battery_header_is_live_not_a_copy():
+    """MUTATION: flipping a flag changes the header. A header read off a
+    snapshot taken at import time would pass the inventory check above and
+    still mis-attribute every run after the first flag flip."""
+    before = battery.flags()["sim.USE_LEASH"]
+    sim.USE_LEASH = not before
+    try:
+        assert battery.flags()["sim.USE_LEASH"] == (not before), \
+            "the battery header did not follow a live flag flip"
+    finally:
+        sim.USE_LEASH = before
+
+
+def check_battery_wrappers_do_not_change_the_game():
+    """The logging wrappers must be observationally inert: same rng stream,
+    same outcomes, wrapped or not. A wrapper that consumed randomness would
+    silently unpair every seed in the battery."""
+    import random
+
+    from tests.test_sim import LG, _lineup, _pitcher
+
+    def one_game(seed):
+        rng = random.Random(seed)
+        A = game.build_side(_pitcher(), [], _lineup(), sim.Hook(), rng,
+                            apply_leash=False)
+        H = game.build_side(_pitcher(), [], _lineup(), sim.Hook(), rng,
+                            apply_leash=False)
+        r = game.simulate_game(A, H, LG, rng, track=(5,))
+        return (r.away, r.home, r.away_sp.outs, r.away_sp.k,
+                r.home_sp.outs, r.home_sp.k)
+
+    bare = [one_game(s) for s in range(5)]
+    orig_apply = sim.apply_pa
+    orig_bnd = sim.Hook.removal_p
+    orig_mid = sim.Hook.mid_removal_p
+    battery._WRAPPED[0] = False
+    battery._install()
+    try:
+        wrapped = [one_game(s) for s in range(5)]
+    finally:
+        sim.apply_pa = orig_apply
+        sim.Hook.removal_p = orig_bnd
+        sim.Hook.mid_removal_p = orig_mid
+        battery._WRAPPED[0] = False
+        battery._PA_LOG.clear()
+        battery._HOOK_LOG.clear()
+    assert bare == wrapped, "the battery's wrappers changed simulation " \
+        "outcomes — they must be observationally inert"
+
+
+def check_the_save_row_counts_a_held_lead_on_both_sides():
+    """The save rows exist because every bullpen instrument shipped on
+    2026-09-09 was a PROXY — outing length, selection percentile, closer
+    usage rate — and none said whether the model wins the games a real
+    bullpen wins.
+
+    Both sides of the battery must agree on what a save situation IS, or the
+    row compares two different populations and reads as a permanent defect.
+    They share `battery.save_cell`, and this exercises THAT rather than a
+    copy of its arithmetic — the first version of this check carried its own
+    copy and would have passed through any change to the real thing.
+    """
+    # A one-run lead after eight, protected: away 4-3 after 8, final 4-3.
+    assert battery.save_cell(4, 3, 4, 3) == {
+        "n": 1, "held": 1, "r0": 1, "r2": 0}
+    # Same lead, blown by two in the bottom of the ninth.
+    assert battery.save_cell(4, 3, 4, 5) == {
+        "n": 1, "held": 0, "r0": 0, "r2": 1}
+    # The HOME club leading is the mirror, and getting this crossed is the
+    # single likeliest way to build the row backwards.
+    assert battery.save_cell(3, 4, 3, 4) == {
+        "n": 1, "held": 1, "r0": 1, "r2": 0}
+    # A four-run lead is not a save situation and must not be counted.
+    assert battery.save_cell(7, 3, 7, 3)["n"] == 0
+    # Tied after eight is not one either.
+    assert battery.save_cell(3, 3, 4, 3)["n"] == 0
+
+
+def check_the_pen_row_drops_the_starter_and_the_phantom_arm():
+    """The relief-length rows (TODO 23) exist because four bullpen
+    mechanisms shipped on 2026-09-09 and not one moved a row in this file —
+    there was no row here that COULD have moved.
+
+    TWO WAYS TO BUILD THE MODEL SIDE WRONG, and both were made before:
+
+      THE PHANTOM ARM. `game._end_of_inning` fires after the LAST inning
+      too, so a failed continuation roll warms up a reliever who never
+      faces a batter. `mlb_stints` has no row for him, so counting him
+      reads 4.23 arms a side against a real 3.38 and puts 41% of outings
+      at two outs or fewer — a wrong instrument reading as a wrong engine.
+
+      THE STARTER. He is the first entry each side logs and he is not a
+      relief outing. Dropping him GLOBALLY rather than per side eats the
+      away club's first reliever.
+    """
+    from scratchpad import battery as B
+
+    class _Line:
+        def __init__(self, outs, batters):
+            self.outs, self.batters = outs, batters
+
+    class _Side:
+        def __init__(self, entry_outs, outs, batters):
+            self.cur_entry_outs = entry_outs
+            self.cur_line = _Line(outs, batters)
+
+    away, home = _Side(0, 0, 0), _Side(2, 1, 4)
+    keep_log, keep_sides = list(B._ARM_LOG), list(B._SIDES)
+    B._ARM_LOG.clear()
+    try:
+        # away: starter 18 outs, then two relievers of 3 and 4 outs, then
+        # the phantom (0 outs, 0 batters) still on the mound at the end.
+        B._ARM_LOG.append((id(away), 0, 18, 24))
+        B._ARM_LOG.append((id(away), 0, 3, 4))
+        B._ARM_LOG.append((id(away), 1, 4, 5))
+        # home: starter 15 outs, then one reliever of 6, and the arm who
+        # ended the game entered mid-inning and got 1 out.
+        B._ARM_LOG.append((id(home), 0, 15, 21))
+        B._ARM_LOG.append((id(home), 0, 6, 8))
+        B._SIDES[0], B._SIDES[1] = away, home
+        acc = {k: 0 for k in ("n", "outs", "outs2", "le2", "ge7", "mid",
+                              "sides", "arms2")}
+        B._collect_pen(acc)
+    finally:
+        B._ARM_LOG.clear()
+        B._ARM_LOG.extend(keep_log)
+        B._SIDES[0], B._SIDES[1] = keep_sides[0], keep_sides[1]
+
+    # Four relief outings: 3, 4 (away) and 6, 1 (home). The away phantom is
+    # not one of them and neither starter is.
+    assert acc["n"] == 4, acc
+    assert acc["outs"] == 14, acc
+    assert acc["outs2"] == 9 + 16 + 36 + 1, acc
+    assert acc["sides"] == 2, acc
+    # <=2 outs is the home closer's single out, and nothing else.
+    assert acc["le2"] == 1, acc
+    assert acc["ge7"] == 0, acc
+    # Mid-inning entries: the away 4-out arm (entered with 1 down) and the
+    # home arm who finished (entered with 2 down).
+    assert acc["mid"] == 2, acc
+    # Two arms each side, so 4 + 4 — NOT (2+2)^2, which is what pooling the
+    # sides would give and is how a per-side variance goes wrong.
+    assert acc["arms2"] == 8, acc
+
+
+def check_the_home_run_probability_matches_what_the_engine_draws():
+    """`battery._hr_prob` must equal the rate `sim.pa_from` actually
+    draws, or the `hrbat` rows score a number the engine never used.
+
+    THE TRAP THIS GUARDS. `pa_from` divides its home run probability by
+    `cond` — the probability that neither the sacrifice nor the
+    hit-by-pitch fired off the top — because the draw at that point is
+    already conditional on both having missed. The UNCONDITIONAL
+    probability, which is what "does he go deep tonight" asks for, is the
+    undivided one. Getting it backwards inflates every prediction, and it
+    would read as a calibration defect in the engine rather than as a bug
+    in the instrument.
+
+    THE FIRST VERSION OF THIS CHECK GUARDED NOTHING and was caught by
+    mutation, which is the only reason it is written this way. It sampled
+    a league-average matchup at 200,000 draws and allowed 5 se. Real
+    `cond` is 0.980, so the mutation it exists to catch moved a 0.03
+    probability by 0.0006 against a 5 se band of 0.0019 — invisible. The
+    fixture below drives `cond` to 0.70 so the same mutation moves the
+    answer by 43%, and the two multiplier assertions are exact rather
+    than sampled.
+    """
+    import dataclasses
+    import random
+    from scratchpad import battery
+    from src.context import sim
+    b = sim.BatterRates(name="bat", hr_pct=0.055)
+    p = sim.PitcherRates(name="arm", hr_pct=0.040, air_pct=0.55)
+    lg = sim.league(before="2026-07-01")
+    base = sim.resolve(b, p, lg)
+    # cond FAR from 1.0, so a stray division by it cannot hide inside the
+    # sampling error the way it did at the real 0.980.
+    mu = dataclasses.replace(base, sac=0.15, hbp=0.15, cond=0.70)
+    assert abs(mu.cond - 0.70) < 1e-9
+    want = battery._hr_prob(mu, None, None)
+    rng = random.Random(11)
+    n = 200_000
+    got = sum(sim.pa_from(mu, rng) == sim.HR for _ in range(n)) / n
+    se = (want * (1 - want) / n) ** 0.5
+    assert abs(got - want) < 4 * se, \
+        f"analytic {want:.5f} against drawn {got:.5f} (4 se {4 * se:.5f})"
+
+    # THE TWO INPUT MULTIPLIERS, asserted EXACTLY rather than sampled —
+    # each is a few percent, which no affordable number of draws can
+    # resolve, and dropping either was a mutation the sampled check
+    # waved through. `odds_mult` is not linear in its multiplier, so the
+    # assertion is against a recomputation through the same primitive
+    # and not against a scaled probability.
+    for tto in (2, 3):
+        m = sim.tto_mult(tto)
+        exp = sim.odds_mult(
+            sim.log5(mu.b_hr, mu.p_hr * m["hr_pct"], mu.lg_hr),
+            mu.m_hr, mu.lg_hr)
+        assert abs(battery._hr_prob(mu, tto, None) - exp) < 1e-12, \
+            f"tto {tto} does not reach the home run probability"
+        assert abs(battery._hr_prob(mu, tto, None) - want) > 1e-5, \
+            f"tto {tto} multiplier is not moving anything"
+    for state in ((1, 1), (3, 2)):
+        st = sim.state_mult(state)
+        exp = sim.odds_mult(sim.log5(mu.b_hr, mu.p_hr, mu.lg_hr),
+                            mu.m_hr * st.get("hr_pct", 1.0), mu.lg_hr)
+        assert abs(battery._hr_prob(mu, None, state) - exp) < 1e-12, \
+            f"state {state} does not reach the home run probability"
+        assert abs(battery._hr_prob(mu, None, state) - want) > 1e-6, \
+            f"state {state} multiplier is not moving anything"
+
+
+def check_divergence_buckets_by_the_recent_windows_own_error():
+    """Item 35's seeing rows: the recent window is the LAST N APPEARANCES
+    (starts, not days — a calendar window hands one arm two starts of
+    evidence and another six), the z reads it against the season on the
+    sampling error of the DIFFERENCE, and thin arms are OMITTED — an
+    unknown arm reading as "not divergent" would dilute the mid bucket
+    with exactly the arms the floors exist to exclude.
+
+    The decayed arm's bad outings are deliberately OLD by the calendar
+    (mid-May) with nothing after them: a days-window would age them out
+    and miss the decay entirely; the starts-window must still catch it,
+    because six starts ago is six starts ago whether he was on the IL
+    since or not."""
+    def gm(name, date, bb, o=18):
+        return {"name": name, "date": date, "o": o, "h": 4, "bb": bb,
+                "k": 5, "hr": 1}
+    rows = (
+        # Decayed: season BB% ~10%, last four appearances ~20% — and they
+        # sit in mid-May, six weeks before the cut, which a days window
+        # would age out.
+        [gm("Decayed", "2026-04-01", 1)] * 10
+        + [gm("Decayed", "2026-05-15", 6)] * 4
+        # Sharp: season ~9%, last four walk nobody — the other tail.
+        + [gm("Sharp", "2026-04-01", 3)] * 10
+        + [gm("Sharp", "2026-06-20", 0)] * 4
+        # Fading: rates steady, but the last four went 9 outs where his
+        # season says 18 — the Harrison shape. DECAY IS `lo` on the outs
+        # channel, and it must fire off the arm's own outs sd.
+        + [gm("Fading", "2026-04-01", 2)] * 10
+        + [gm("Fading", "2026-06-10", 2, o=9)] * 4
+        # Thin: four appearances TOTAL, past the season BF floor — the
+        # whole season IS the recent window, there is nothing to diverge
+        # from, and the s_bf > r_bf guard (not the floors) must drop him.
+        + [gm("Thin", "2026-06-20", 4, o=30)] * 4)
+    got = battery._divergence(2026, "2026-07-01", rows=rows)
+    assert got["bb"]["Decayed"] > battery.DIVERGE_Z, got["bb"]
+    assert got["bb"]["Sharp"] < -battery.DIVERGE_Z, got["bb"]
+    # Bounded on BOTH sides: the arithmetic gives -3.74 off the SEASON'S
+    # outs sd. An sd taken from the recent window instead reads its four
+    # identical outings as zero spread, hits the floor, and blows the z
+    # to -10 — a one-sided assert waved that mutation through.
+    assert -6 < got["outs"]["Fading"] < -battery.DIVERGE_Z, got["outs"]
+    # A steady arm's outs z must sit at zero — his sd floor, not a divide
+    # by his zero spread, is what keeps the arithmetic finite.
+    assert abs(got["outs"]["Decayed"]) < battery.DIVERGE_Z, got["outs"]
+    assert "Thin" not in got["bb"], got["bb"]
+
+
+def check_usage_gap_is_per_date_and_strictly_prior():
+    """Item 36's falsifier rows read the arm's last-4-vs-season pitch gap
+    AS OF EACH START — per-date, from strictly prior starts only. The
+    fixture arm collapses from 95-pitch starts to 60-pitch starts
+    mid-season: the gap at each date must reflect only what came BEFORE
+    it (the first short start still reads a gap of zero), and by the
+    fifth short start the window is fully collapsed while the season mean
+    still remembers the 95s. An arm with fewer than USAGE_MIN_PRIOR prior
+    starts must be ABSENT, not zeroed — unknown is not 'steady'."""
+    def s(dates_pitches):
+        return [(d, float(p), 18.0) for d, p in dates_pitches]
+    seq = {
+        (1, "Capped", 2026): s(
+            [(f"2026-04-{d:02d}", 95) for d in range(1, 9)]
+            + [(f"2026-06-{d:02d}", 60) for d in range(1, 7)]),
+        (2, "Fresh", 2026): s(
+            [(f"2026-05-{d:02d}", 90) for d in range(1, 4)]),
+    }
+    got = battery._usage_gap(seq=seq)
+    # The morning of the FIRST short start: window and season are both
+    # all 95s — a gap of zero. Anything else is a leak of that day's own
+    # start into its own predictor.
+    assert abs(got[("Capped", "2026-06-01")]) < 1e-9, \
+        got[("Capped", "2026-06-01")]
+    # By the fifth short start the last four are all 60s against a season
+    # mean still carrying eight 95s: gap = 60 - (8*95 + 4*60)/12 = -23.3.
+    assert got[("Capped", "2026-06-05")] < -battery.USAGE_EDGE, \
+        got[("Capped", "2026-06-05")]
+    # Three prior starts is under USAGE_MIN_PRIOR: absent, never zeroed.
+    assert not any(nm == "Fresh" for nm, _ in got), got.keys()

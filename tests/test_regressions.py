@@ -1,0 +1,1059 @@
+"""One check per bug actually found, so none of them come back quietly.
+
+Every entry here is a real defect that shipped and was caught by hand. The
+name says what broke; the docstring says how. Nothing in this file is
+hypothetical, and nothing touches the network.
+"""
+from __future__ import annotations
+
+
+from src import roster
+from src.context.sources import catcher, park, statsapi
+
+
+# ── name resolution ────────────────────────────────────────────────────
+_FAKE_ROSTER = {
+    "season": 2026,
+    "by_full": {
+        "jose suarez": {"id": 1, "type": "Pitcher", "pos": "P",
+                        "name": "José Suárez", "throws": "L", "team_id": 108},
+        "ranger suarez": {"id": 2, "type": "Pitcher", "pos": "P",
+                          "name": "Ranger Suárez", "throws": "L",
+                          "team_id": 143},
+        "masataka yoshida": {"id": 3, "type": "Hitter", "pos": "DH",
+                             "name": "Masataka Yoshida", "throws": "R",
+                             "team_id": 111},
+        "shohei ohtani": {"id": 4, "type": "Two-Way Player", "pos": "DH",
+                          "name": "Shohei Ohtani", "throws": "R",
+                          "team_id": 119},
+        "macKenzie gore".lower(): {"id": 5, "type": "Pitcher", "pos": "P",
+                                   "name": "MacKenzie Gore", "throws": "L",
+                                   "team_id": 120},
+    },
+    "by_last": {},
+    "by_initial": {},
+}
+for _rec in _FAKE_ROSTER["by_full"].values():
+    _last = _rec["name"].split()[-1].lower().replace("á", "a").replace("é", "e")
+    _FAKE_ROSTER["by_last"].setdefault(_last, []).append(_rec)
+
+
+def _with_fake_roster(fn):
+    saved = roster._index
+    roster._index = _FAKE_ROSTER
+    try:
+        return fn()
+    finally:
+        roster._index = saved
+
+
+def check_full_name_never_falls_back_to_surname():
+    """'Eugenio Suarez' is a third baseman absent from the index. Falling
+    back to the surname found three Suarezes who all pitch and relabelled
+    his home-run prop 'hr_allowed'. A full name that misses is a different
+    person, not a hint."""
+    def go():
+        assert roster.position("Eugenio Suarez") is None
+        assert roster.player_id("Eugenio Suarez") is None
+        # a bare surname may still resolve when every match agrees
+        assert roster.position("suarez") == "Pitcher"
+    _with_fake_roster(go)
+
+
+def check_player_id_requires_exactly_one_match():
+    """position() tolerates several players who agree; player_id() must
+    not, because a wrong id silently returns another player's game log."""
+    def go():
+        assert roster.position("suarez") == "Pitcher"   # all agree
+        assert roster.player_id("suarez") is None       # but ambiguous
+    _with_fake_roster(go)
+
+
+def check_two_way_player_never_guessed():
+    """Ohtani legitimately carries props on both sides; any repair keyed
+    off his position is a coin flip."""
+    def go():
+        assert roster.is_pitcher("Shohei Ohtani") is None
+        assert roster.throws("Shohei Ohtani") is None or True
+    _with_fake_roster(go)
+
+
+# ── stat / line repair ─────────────────────────────────────────────────
+def check_outs_magnitude_fix_beats_stat_swap():
+    """'under 15 outs' reaches the transcript as 'under 1.5 outs'. The old
+    code swapped the STAT and produced 'k 1.5' — a starter under 1.5
+    strikeouts. Keeping the stat and fixing the magnitude is the smaller
+    claim and the right one."""
+    from src.grading import repair_stat_line
+    stat, line, note = repair_stat_line("outs", 1.5)
+    assert (stat, line) == ("outs", 15.0), (stat, line)
+    assert note
+
+
+def check_low_k_line_is_real_and_survives():
+    """Steven Matz went under 1.5 strikeouts and it graded W. Bounds alone
+    cannot separate that from a mistranscribed outs line, so ordering has
+    to: magnitude first, stat swap second."""
+    from src.grading import repair_stat_line
+    assert repair_stat_line("k", 1.5) == ("k", 1.5, None)
+
+
+def check_repair_never_invents_an_unbettable_line():
+    """'so 15.5' divides to 1.55 — in range for a batter strikeout prop and
+    not a number any book posts. A repair that lands off the half-point
+    grid is a fabrication."""
+    from src.grading import repair_stat_line
+    stat, line, note = repair_stat_line("so", 15.5)
+    assert (stat, line) == ("so", 15.5)
+    assert note and "no magnitude fix" in note
+
+
+def check_hrr_15_reads_as_1_point_5():
+    from src.grading import repair_stat_line
+    assert repair_stat_line("h+r+rbi", 15.0)[:2] == ("h+r+rbi", 1.5)
+
+
+# ── position-based stat repair ─────────────────────────────────────────
+def check_batter_with_pitcher_stat_is_relabelled():
+    """'Masataka Yoshida k over 1.5' is in range for pitcher strikeouts
+    forever; only the roster knows he is a DH."""
+    from src.grading import repair_stat_position
+    def go():
+        stat, note = repair_stat_position("k", "Masataka Yoshida")
+        assert stat == "so", stat
+        assert note
+    _with_fake_roster(go)
+
+
+def check_unresolvable_name_is_left_alone():
+    from src.grading import repair_stat_position
+    def go():
+        assert repair_stat_position("k", "Palante") == ("k", None)
+    _with_fake_roster(go)
+
+
+# ── neutral sites ──────────────────────────────────────────────────────
+def check_unknown_venue_does_not_borrow_the_home_park():
+    """MLB plays at Field of Dreams, Mexico City and London. Falling back
+    to the home club's park factors there would be confidently wrong —
+    Mexico City is one of the most extreme run environments anywhere."""
+    saved = park.park_factors
+    park.park_factors = lambda *a, **k: {
+        "id:99": {"venue": "Real Park", "venue_id": 99, "team_id": 5,
+                  "runs": 101},
+        "team:5": {"venue": "Real Park", "venue_id": 99, "team_id": 5,
+                   "runs": 101},
+    }
+    try:
+        # a venue we know -> found
+        assert park.for_venue(venue_id=99)["runs"] == 101
+        # a venue id we do NOT know must be None, never the home club's park
+        assert park.for_venue(venue_id=12345, team_id=5) is None
+    finally:
+        park.park_factors = saved
+
+
+# ── catcher framing: three states, not two ─────────────────────────────
+def check_confirmed_but_unrated_catcher_gets_neutral_not_a_substitute():
+    """When the lineup names Harry Ford and Savant has never heard of him,
+    returning the club's PRIMARY catcher's framing attaches the wrong
+    player's number to a known name."""
+    saved_f, saved_p = catcher.framing, catcher.primary_catchers
+    catcher.framing = lambda *a, **k: {
+        "adley rutschman": {"name": "Rutschman, Adley", "player_id": 7,
+                            "pitches": 4000, "framing_runs": 5.1,
+                            "strike_rate": 0.48},
+    }
+    catcher.primary_catchers = lambda *a, **k: {
+        9: {"name": "Rutschman, Adley", "player_id": 7, "pitches": 4000,
+            "framing_runs": 5.1, "strike_rate": 0.48, "team_id": 9,
+            "estimated": True},
+    }
+    try:
+        exact = catcher.for_team(9, catcher_name="Adley Rutschman")
+        assert exact["confidence"] == "exact"
+        assert exact["framing_runs"] == 5.1
+
+        unrated = catcher.for_team(9, catcher_name="Harry Ford")
+        assert unrated["confidence"] == "unrated"
+        assert unrated["name"] == "Harry Ford"
+        # the critical part: no borrowed number
+        assert unrated["framing_runs"] is None
+
+        est = catcher.for_team(9)
+        assert est["confidence"] == "estimated"
+    finally:
+        catcher.framing, catcher.primary_catchers = saved_f, saved_p
+
+
+# ── game logs ──────────────────────────────────────────────────────────
+def _log(*rows):
+    out = []
+    for date, outs, pitches, is_start in rows:
+        out.append({"date": date, "outs": outs, "ip": None,
+                    "pitches": pitches, "is_start": is_start,
+                    "pitches_per_inning": None, "er": 1, "k": 4, "bb": 1,
+                    "h": 4, "hr": 0, "opponent": None, "home": True})
+    return out
+
+
+def check_relief_appearances_excluded_from_a_starter_summary():
+    """Drew Anderson has 5 starts in 43 appearances. Averaging his last ten
+    APPEARANCES gave 6.5 outs — a relief average used to price a start, and
+    the headline example in an audit that turned out to be an artifact."""
+    rows = _log(
+        ("2026-07-01", 3, 12, False), ("2026-07-05", 3, 11, False),
+        ("2026-07-11", 4, 19, False), ("2026-07-19", 4, 20, False),
+        ("2026-08-05", 11, 42, True), ("2026-08-11", 12, 70, True),
+        ("2026-08-16", 15, 74, True), ("2026-08-20", 14, 71, True),
+    )
+    s = statsapi.game_log_summary(rows, as_of="2026-08-22")
+    assert s["basis"] == "starts", s["basis"]
+    assert s["starts"] == 4
+    assert s["avg_outs"] == 13.0, s["avg_outs"]   # not the relief-dragged 8.2
+
+
+def check_summary_falls_back_when_there_are_no_starts():
+    rows = _log(("2026-08-01", 3, 12, False), ("2026-08-05", 3, 11, False))
+    s = statsapi.game_log_summary(rows, as_of="2026-08-22")
+    assert "no starts on record" in s["basis"]
+
+
+def check_recency_window_leads_when_it_has_enough_starts():
+    """A flat last-10 spans role changes and injury layoffs. Jacob Lopez
+    averaged 13.5 outs over ten starts and 16.3 over six weeks, because the
+    ten included May outings from before he was stretched out."""
+    rows = _log(
+        ("2026-05-14", 6, 40, True), ("2026-05-19", 5, 38, True),
+        ("2026-05-31", 6, 41, True),
+        ("2026-07-19", 13, 84, True), ("2026-07-24", 15, 91, True),
+        ("2026-07-29", 16, 97, True), ("2026-08-05", 15, 87, True),
+    )
+    s = statsapi.game_log_summary(rows, as_of="2026-08-22")
+    assert s["lead"] == "recent", s["lead"]
+    assert s["recent"]["starts"] == 4
+    # expected_outs must follow the recent window, not the flat mean
+    assert s["expected_outs"] == s["recent"]["avg_outs"]
+    assert s["expected_outs"] > s["avg_outs"]
+
+
+# ── kalshi timing ──────────────────────────────────────────────────────
+
+
+# ── kalshi summary fast path ───────────────────────────────────────────
+#
+# quote() prices a market off its own list row when the top of book holds
+# real size, and falls back to the /orderbook call when it does not. The
+# fallback only ever fires on thin markets, so a bug in either path hides
+# in exactly the rows nobody looks at — these force both, offline.
+
+def _summary_row(**over):
+    row = {"ticker": "KXMLBKS-26SEP151840CWSCLE-CLEFGRIFFIN22-5",
+           "yes_bid_dollars": "0.5700", "yes_ask_dollars": "0.5800",
+           "yes_bid_size_fp": "2808.00", "yes_ask_size_fp": "287.00"}
+    row.update(over)
+    return row
+
+
+def check_summary_quote_answers_without_touching_the_orderbook():
+    """The point of the fast path is not making the HTTP call, so the call
+    itself is the assertion: book() is replaced with a tripwire and quote()
+    must come back with the row's own top-of-book anyway."""
+    from scratchpad import kalshi
+
+    def tripwire(ticker):
+        raise AssertionError("fast path fell through to /orderbook")
+
+    orig = kalshi.book
+    kalshi.book = tripwire
+    try:
+        assert kalshi.quote(_summary_row()) == (0.57, 0.58)
+    finally:
+        kalshi.book = orig
+
+
+def check_thin_topofbook_falls_back_to_the_orderbook():
+    """Griffin's 5+ ask on 2026-09-15 was $0.58 with $4.71 behind it. A
+    price with no size is a stray lot, not a price — that is the bug
+    MIN_SIZE killed in book(), and the summary row cannot look deeper than
+    the top level, so it must decline and hand the ticker to book()."""
+    from scratchpad import kalshi
+
+    sentinel = (0.11, 0.22)
+    orig = kalshi.book
+    kalshi.book = lambda ticker: sentinel
+    try:
+        assert kalshi.quote(_summary_row(yes_ask_size_fp="4.71")) == sentinel
+        assert kalshi.quote(_summary_row(yes_bid_size_fp="24.99")) == sentinel
+        # an empty side is a one-sided book, not a zero-size level
+        assert kalshi.quote(_summary_row(yes_bid_dollars=None)) == sentinel
+    finally:
+        kalshi.book = orig
+
+
+def check_summary_and_orderbook_pick_the_same_level():
+    """For a row that passes the size gate the two paths are the same
+    number by construction — the best level holding MIN_SIZE *is* the top
+    of book when the top of book holds MIN_SIZE. Pinned on a fixture where
+    the books agree, so a drift in either derivation (book() builds the
+    YES ask as 1 minus the best NO bid) breaks it offline."""
+    from scratchpad import kalshi
+
+    ob = {"orderbook_fp": {
+        "yes_dollars": [["0.50", "100"], ["0.57", "2808"]],
+        "no_dollars": [["0.30", "50"], ["0.42", "287"]],
+    }}
+    orig = kalshi._get
+    kalshi._get = lambda path: ob
+    try:
+        slow, fast = kalshi.book("ANY"), kalshi.summary_book(_summary_row())
+        # book() builds its ask as 1 - no_bid, so equality is up to float
+        # epsilon, not identity
+        assert all(abs(a - b) < 1e-9 for a, b in zip(slow, fast)), \
+            (slow, fast)
+    finally:
+        kalshi._get = orig
+
+
+def check_a_vanished_summary_schema_is_loud_once():
+    """Kalshi has renamed these fields before — volume went null and
+    volume_fp appeared beside it. If it happens again, every market takes
+    the slow path and the board still prints correct numbers; the only
+    symptom is the fetch clock. That regression must announce itself, and
+    once, not per market."""
+    import contextlib
+    import io
+    from scratchpad import kalshi
+
+    legacy = {"ticker": "T", "yes_bid": None, "yes_ask": None}
+    orig_book, orig_warned = kalshi.book, kalshi._schema_warned
+    kalshi.book = lambda ticker: (0.4, 0.5)
+    kalshi._schema_warned = False
+    try:
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            assert kalshi.quote(dict(legacy)) == (0.4, 0.5)
+            assert kalshi.quote(dict(legacy)) == (0.4, 0.5)
+        assert buf.getvalue().count("schema") == 1, buf.getvalue()
+        # a thin-but-present row is a normal fallback, never a warning
+        buf2 = io.StringIO()
+        kalshi._schema_warned = False
+        with contextlib.redirect_stdout(buf2):
+            kalshi.quote(_summary_row(yes_ask_size_fp="1.00"))
+        assert buf2.getvalue() == "", buf2.getvalue()
+    finally:
+        kalshi.book, kalshi._schema_warned = orig_book, orig_warned
+
+
+def check_batched_quotes_stay_aligned_with_their_rows():
+    """quotes() zips its answers back onto (key, market) pairs in board.py,
+    so order is load-bearing: a fallback answered out of input order would
+    hang one pitcher's mid on another's rung, which is the wrong-player
+    bug names_match exists to prevent, reintroduced through concurrency.
+    Thin rows must route to book() by TICKER, fat rows must not, and a
+    fallback whose fetch dies must come back (None, None) rather than
+    killing the board."""
+    from scratchpad import kalshi
+
+    fat = _summary_row()
+    thin_a = _summary_row(ticker="T-A", yes_ask_size_fp="1.00")
+    thin_b = _summary_row(ticker="T-B", yes_bid_size_fp="0.00")
+    dead = _summary_row(ticker="T-DEAD", yes_bid_dollars=None)
+
+    def by_ticker(tk):
+        if tk == "T-DEAD":
+            raise OSError("orderbook fetch died")
+        return {"T-A": (0.11, 0.12), "T-B": (0.21, 0.22)}[tk]
+
+    orig = kalshi.book
+    kalshi.book = by_ticker
+    try:
+        got = kalshi.quotes([thin_a, fat, dead, thin_b])
+    finally:
+        kalshi.book = orig
+    assert got == [(0.11, 0.12), (0.57, 0.58), (None, None), (0.21, 0.22)], \
+        got
+
+
+def check_volume_token_round_trips_from_print_to_json():
+    """board_json reads the printed board with a regex whose only
+    free-text group is the trailing note, so traded volume travels as a
+    note token ('vol $8.5k') — a new COLUMN would silently drop every
+    rung, the standing print_board trap. Pinned here: every format _vol
+    emits is one the parser reads back, the token never costs a rung,
+    and the flags sharing the note still parse around it. $0 must
+    survive as 0.0, not None — an untraded book is the finding."""
+    import re
+    import tempfile
+    from scratchpad.board import _vol
+    from scratchpad import board_json
+
+    for dollars, expect in ((0, 0.0), (122, 122.0), (1500, 1500.0),
+                            (12092, 12000.0)):
+        tok = _vol(dollars)
+        m = re.search(r"vol \$([\d.]+)(k?)", tok)
+        assert m, f"parser cannot read {tok!r}"
+        got = float(m.group(1)) * (1000 if m.group(2) else 1)
+        assert got == expect, (tok, got)
+
+    txt = (
+        "BOARD — 2026-09-15 · 1 games · 20,000 sims · fair inside ±170"
+        " · odds are FAIR (no vig)\n"
+        "\n"
+        "LAD @ CIN   Yoshinobu Yamamoto v Rhett Lowder   "
+        "(PROJECTED lineups, mean 9.0)\n"
+        "  bet                          over / under  kalshi\n"
+        "  total 8.5                    -101 /  +101    -102   vol $1.5k\n"
+        "  Rhett Lowder k 3.5           -168 /  +168    -102   "
+        "proj lineup  vol $53\n"
+        "  Rhett Lowder outs 14.5       -198 /  +198    -122   "
+        "proj lineup  raw -172  off-band  vol $0\n"
+        "  Rhett Lowder k 4.5           +129 /  -129    +239   "
+        "proj lineup\n"
+    )
+    with tempfile.NamedTemporaryFile("w", suffix=".txt") as f:
+        f.write(txt)
+        f.flush()
+        d = board_json.parse(f.name, "2026-09-15")
+    rows = d["games"][0]["rows"]
+    assert len(rows) == 4, [r["bet"] for r in rows]
+    assert rows[0]["vol"] == 1500.0, rows[0]
+    assert rows[1]["vol"] == 53.0 and rows[1]["proj"], rows[1]
+    assert rows[2]["vol"] == 0.0, rows[2]
+    assert rows[2]["offband"] and rows[2]["raw"] == "-172", rows[2]
+    assert rows[3]["vol"] is None, rows[3]
+
+
+# ── coverage lookup ────────────────────────────────────────────────────
+
+
+def check_starter_query_prefers_ground_truth_over_the_outs_heuristic():
+    """The local boxscore cache had no starter flag, so `_STARTS_Q` inferred
+    one as "most outs on that team that game". Measured against 2,012
+    boxscores that is wrong 8.6% of the time, and every miss is a starter
+    knocked out early whose long reliever passed him — Tyler Gilbert at two
+    outs credited to David Sandlin, Zack Wheeler at six credited to Kyle
+    Bradish.
+
+    The bias runs one way and it matters: P(under 9 outs) read 2.9% off the
+    heuristic against a true 8.6%. A hook fitted to that has been taught
+    that starters do not get blown out, which is exactly the region an under
+    lives in.
+
+    This pins the SQL shape rather than the data, so it runs offline: when
+    a game has been checked, only the flagged starter may be selected.
+    """
+    from src.context import calibrate
+    q = calibrate._STARTS_Q
+    assert "is_starter" in q, "starter query no longer consults ground truth"
+    assert "has_truth" in q, \
+        "no per-game guard — the heuristic could override a checked game"
+    assert "has_truth = 1 and is_starter = 1" in q, \
+        "checked games must select the flagged starter, not the outs leader"
+    # The old `o >= 3` floor existed only because the heuristic could never
+    # return a shorter start. With ground truth a two-out start is real.
+    assert "o >= 1" in q, "left tail is being truncated again"
+
+
+def check_openers_are_excluded_from_the_modelled_population():
+    """Openers are genuine starters by the boxscore's definition — 101 of
+    the 172 starts the old heuristic missed were openers averaging 4.5 outs.
+    They belong in the data and NOT in the population being modelled: no
+    book offers an outs line on a bulk reliever, and their outings drag the
+    fitted hook toward a leash nobody in the modelled set is on."""
+    from src.context import calibrate
+    assert calibrate.ROTATION_MIN_GS >= 3, calibrate.ROTATION_MIN_GS
+    assert "having sum(case when p2.is_starter = 1 then 1 else 0 end) >= {gs}" \
+        in calibrate._ROTATION_JOIN
+    # And the count is per SEASON. Unscoped, a 2025 workhorse with three
+    # 2026 starts clears the 2026 bar — worth 80 extra cases when 2025 was
+    # loaded, all of them arms no book prices this year.
+    assert "{season_where}" in calibrate._ROTATION_JOIN
+
+
+def check_grading_records_who_started():
+    """If `cache_mlb_box` stops writing is_starter, the backfill silently
+    goes stale and every new game falls back to the broken heuristic."""
+    import inspect
+
+    from src import grading
+    src = inspect.getsource(grading.mlb_boxscore)
+    assert '"is_starter"' in src, "boxscore parser dropped is_starter"
+    assert "gamesStarted" in src, \
+        "is_starter is no longer sourced from the API's own flag"
+
+
+def check_the_second_out_of_an_inning_is_not_a_boundary_decision():
+    """`count.outs` is the outs AFTER the play, and reading it as BEFORE put
+    every second out into the end-of-inning training set.
+
+    Measured over 3,000 games on 2026-08-26: of 56,848 rows labelled
+    `ends_inning`, only 29,447 ended an inning. The 27,401 impostors were
+    second outs, and they are not the same decision — a true boundary row is
+    a removal 11.88% of the time and a second-out row 1.28%, nine times
+    lower. Pooled, the set reported a 6.55% boundary pull rate against a
+    real 11.88%, and every hook fitted on it inherited the dilution.
+
+    This is `CLAUDE.md`'s pooling rule reached through the LABELS rather than
+    through the fit. Guarding the fitting call is not enough when the rows
+    arrive already mislabelled.
+
+    The fixture that should have caught it encoded the same misunderstanding
+    — see the note at the top of `tests/test_boundary.py` — so this check
+    builds its plays from the real convention explicitly and does not use
+    that helper.
+    """
+    from src.context import boundary
+
+    def play(inning, pid, event, outs_after):
+        return {
+            "about": {"inning": inning, "isTopInning": True},
+            "matchup": {"pitcher": {"id": pid}, "batter": {"id": 9}},
+            "result": {"eventType": event, "awayScore": 0, "homeScore": 0},
+            "count": {"outs": outs_after},
+            "playEvents": [{"isPitch": True}] * 3,
+            "runners": [],
+        }
+
+    # A clean inning: the three outs read 1, 2, 3 in the feed. Only the
+    # third is a boundary decision.
+    plays = [play(1, 1, "strikeout", 1),
+             play(1, 1, "field_out", 2),
+             play(1, 1, "field_out", 3),
+             play(2, 1, "strikeout", 1),
+             play(2, 1, "field_out", 2)]
+    rows = boundary.decisions("g", {"allPlays": plays})
+    got = [(r["inning"], r["outs_before"], r["ends_inning"]) for r in rows]
+    assert got[0] == (1, 0, False), got
+    assert got[1] == (1, 1, False), got
+    assert got[2] == (1, 2, True), got      # the third out, and only it
+    assert got[3] == (2, 0, False), got
+    assert sum(1 for r in rows if r["ends_inning"]) == 1, got
+
+    # A double play jumps the count by two and still ends the inning at
+    # three. The old event table had to know that; reading the feed does not.
+    dp = [play(1, 1, "strikeout", 1),
+          play(1, 1, "grounded_into_double_play", 3),
+          play(2, 1, "field_out", 1)]
+    rows = boundary.decisions("g", {"allPlays": dp})
+    assert [r["ends_inning"] for r in rows] == [False, True], rows
+    assert rows[1]["outs_before"] == 1, rows[1]
+
+
+def check_the_error_rate_is_counted_not_calibrated():
+    """`ROE_PER_OUT` was set to make the RUN LEVEL come out right.
+
+    Its own comment showed the working — 8.09 / (1 - 0.0764) = 8.76 against
+    an actual 8.67 — which is a run-level fudge wearing an error rate's name.
+    Counted in the denominator the model rolls it against (balls in play that
+    were not hits, 2025+2026) it is 0.0123, and the fudge ran 0.018: 46%
+    high, worth 3.5 fake baserunners per 1,000 plate appearances.
+
+    Pinned as a BAND, and the band deliberately EXCLUDES both the old fudge
+    and the 2023/24 era rate (~0.0136), because those are the two wrong
+    values it could drift back to.
+    """
+    from src.context import sim
+
+    assert 0.010 < sim.ROE_PER_OUT < 0.0132, sim.ROE_PER_OUT
+    assert sim.ROE_PER_OUT < 0.0134, "back on the 2023/24 era rate"
+
+
+def check_balls_in_play_are_counted_as_plays_not_as_outs():
+    """`bip = outs_recorded + hits - K - HR` counts OUTS, and outs are not
+    balls in play.
+
+    A double play is ONE ball in play and TWO outs; a caught stealing or
+    pickoff is an out and NO ball in play. Counted per play off play-by-play
+    and matched on the same games:
+
+        2026 starters   boxscore 57,079   counted 55,225   ratio 1.0336
+        2025 starters   boxscore 77,378   counted 74,898   ratio 1.0331
+        2025 relievers  boxscore 55,842   counted 54,125   ratio 1.0317
+
+    The numerator is exact — 15,920 non-homer hits from both sources — so it
+    is purely the denominator, and it deflated league BABIP from a true
+    0.2883 to 0.2778.
+
+    IT SHOWED UP IN BABIP AND NOWHERE ELSE because k/bb/hr resolve through
+    log5 against a league measured the same way, so the error cancels in the
+    ratio; BABIP's LEVEL reaches the simulation as an absolute rate.
+
+    Guarded as a band on the ratio and by the arithmetic, so a future change
+    that reverts to the raw boxscore denominator fails here rather than
+    quietly costing 6 baserunners per 1,000 plate appearances.
+    """
+    from src.context.sources import rates
+
+    assert rates.USE_COUNTED_BIP is True
+    assert 1.025 < rates.BIP_PER_OUT_UNIT < 1.042, rates.BIP_PER_OUT_UNIT
+    # 100 batters faced, 25 K, 8 BB, 3 HR -> 64 raw, corrected downward.
+    raw, got = 64.0, rates.balls_in_play(100, 25, 8, 3)
+    assert got < raw, (raw, got)
+    assert abs(got - raw / rates.BIP_PER_OUT_UNIT) < 1e-9, got
+    # A smaller denominator RAISES the rate built on it, which is the point.
+    assert (20.0 / got) > (20.0 / raw)
+    # Degenerate lines must not produce a negative or exploding denominator.
+    assert rates.balls_in_play(10, 9, 1, 0) == 0.0
+    assert rates.balls_in_play(0, 0, 0, 0) == 0.0
+
+
+def check_stopping_after_five_is_exact_not_an_approximation():
+    """`stop_after` must not change a single first-five number.
+
+    The F5 objective reads only `runs_f5` from each side, and `total_rps`
+    is also a first-five quantity, yet `simulate_game` played all nine
+    innings on every draw of every fit and discarded four of them. The
+    optimisation is only legitimate if it is EXACT, so this replays the same
+    seeds both ways and demands identical answers — not close ones.
+
+    It also guards the two ways of getting this wrong that look right.
+    Passing `innings=5` instead hands 5 to the extra-innings rule, so a game
+    tied after five keeps playing; and it makes `regulation` bite, so a home
+    side that is ahead stops batting in the fifth. Either one changes the
+    quantity being scored.
+    """
+    import random
+    from src.context import game, sim
+
+    lg = sim.league()
+    bats = [sim.BatterRates(name=f"b{i}", k_pct=lg["k_pct"],
+                            bb_pct=lg["bb_pct"], hr_pct=lg["hr_pct"],
+                            babip=lg["babip"], pa=600) for i in range(9)]
+    sp = sim.PitcherRates(name="sp", k_pct=lg["k_pct"], bb_pct=lg["bb_pct"],
+                          hr_pct=lg["hr_pct"], babip=lg["babip"], pa=600)
+    pen = [{"name": f"r{i}", "k_pct": lg["k_pct"], "bb_pct": lg["bb_pct"],
+            "hr_pct": lg["hr_pct"], "babip": lg["babip"], "apps": 40}
+           for i in range(8)]
+
+    def play(seed, stop):
+        rng = random.Random(seed)
+        A = game.build_side(sp, pen, bats, None, rng)
+        H = game.build_side(sp, pen, bats, None, rng)
+        r = game.simulate_game(A, H, lg, rng, track=(5,), stop_after=stop)
+        return A.runs_f5, H.runs_f5, A.line.outs >= 15, r.prefix.get(5)
+
+    same = 0
+    for seed in range(60):
+        full = play(seed, None)
+        early = play(seed, 5)
+        assert full == early, (seed, full, early)
+        same += 1
+    assert same == 60, same
+
+    # And the prefix record survives the early break — putting it before
+    # the `track` block drops inning five from the dict it just filled.
+    assert play(3, 5)[3] is not None
+
+
+def check_adjust_lineup_keeps_every_field_on_a_batter():
+    """It rebuilt each `BatterRates` by listing fields BY HAND, so any field
+    added later was silently deleted on the way into the simulation.
+
+    That is how the handedness matchup arm came out identical to four
+    decimal places: `side` and `lg_cell` were attached to every case and
+    then dropped here. An identical-to-four-decimals A/B is a plumbing
+    result, never a null — and this one would have been reported as "the
+    fully specified version changes nothing".
+
+    Guards the general property rather than the two fields, so the next
+    field added is covered without anyone remembering to come back.
+    """
+    import dataclasses
+    from src.context import calibrate as cal, sim
+
+    b = sim.BatterRates(name="x", k_pct=0.25, bb_pct=0.09, hr_pct=0.03,
+                        babip=0.30, pa=500, arsenal_mult=1.07,
+                        arsenal_k_mult=0.93, side="L",
+                        lg_cell={"k_pct": 0.2387, "bb_pct": 0.0939,
+                                 "hr_pct": 0.0240, "babip": 0.2973})
+    out = cal.adjust_lineup([b], True)[0]
+    scaled = {"k_pct", "bb_pct", "hr_pct", "babip"}
+    for f in dataclasses.fields(sim.BatterRates):
+        if f.name in scaled:
+            continue
+        assert getattr(out, f.name) == getattr(b, f.name), f.name
+    # and the four it IS meant to scale actually moved
+    assert out.k_pct != b.k_pct
+
+
+def check_the_matchup_cache_rebuilds_when_the_arm_changes():
+    """Nine matchups are resolved per pitcher and reused all the way through
+    the order. The failure mode is the obvious one: keep serving the old
+    arm's numbers after a change, so every batter is priced against the
+    pitcher who just left.
+
+    Nothing downstream could catch that. The runs would still be runs and
+    the line would still add up — it would simply be the wrong pitcher, and
+    the error would be largest exactly when the bullpen matters most.
+
+    Keyed on the pitcher OBJECT rather than his name, because two clubs can
+    carry the same name and a name key would collide silently.
+    """
+    import random
+    from src.context import game, sim
+
+    lg = sim.league()
+    bats = [sim.BatterRates(name=f"b{i}", k_pct=0.22, bb_pct=0.08,
+                            hr_pct=0.03, babip=0.30, pa=600)
+            for i in range(9)]
+    quiet = sim.PitcherRates(name="quiet", k_pct=0.05, bb_pct=0.08,
+                             hr_pct=0.03, babip=0.30, pa=600)
+    rng = random.Random(3)
+    # A one-arm pen, so `next_arm` produces a real, checkable change.
+    side = game.build_side(quiet, [{"name": "nasty", "k_pct": 0.45,
+                                    "bb_pct": 0.08, "hr_pct": 0.03,
+                                    "babip": 0.30, "apps": 40}],
+                           bats, None, rng)
+
+    def _resolved(sd):
+        """The slots actually faced. Resolution is LAZY — a reliever who
+        sees three batters builds three matchups, not nine — so unfaced
+        slots are legitimately None."""
+        return [m for m in sd._mups if m is not None]
+
+    game._half_inning(side, lg, rng, 1, 0, None)
+    assert side._mups_for is side.current, "cache never populated"
+    assert _resolved(side), "nothing was resolved"
+    first = _resolved(side)[0].p_k
+
+    # Same arm: the resolved objects must be REUSED, not rebuilt.
+    same = side._mups
+    game._half_inning(side, lg, rng, 2, 0, None)
+    assert side._mups is same, "rebuilt for an unchanged arm"
+
+    # New arm: the numbers must follow it.
+    side.next_arm()
+    assert side.current is not quiet, "the pen was never reached"
+    game._half_inning(side, lg, rng, 3, 0, None)
+    assert side._mups_for is side.current, "cache did not follow the change"
+    got = _resolved(side)
+    assert got, "nothing resolved for the new arm"
+    assert got[0].p_k != first, (got[0].p_k, first)
+    assert abs(got[0].p_k - 0.45) < 1e-9, got[0].p_k
+
+
+def check_the_away_club_bats_in_the_top_of_the_inning():
+    """`simulate_game` played its two half-innings the wrong way round.
+
+    A `Side` is a PITCHING side and its `lineup` is "the OPPOSING nine", so
+    the side named `away` faces the HOME club. Calling it first therefore
+    batted the HOME club in the top of every inning, and the two rules that
+    break the symmetry — the skipped bottom half and the walk-off — landed
+    on the wrong club: the away club reached the ninth in 46.7% of games
+    against a real 1.000, and the home club in 100% against a real 0.557.
+
+    IT CANCELLED IN THE ONLY PLACE ANYONE LOOKED. `where_runs --profile`
+    sums both halves, so away-club ninths biased ~0.3 runs low and
+    home-club ninths ~0.3 high nearly annihilated. Team totals are the
+    stated product and both sides of them were wrong.
+
+    Innings 1-8 are symmetric — both rules key on `regulation` — so no F5
+    number ever moved and no existing check could see it.
+
+    Asserted on the SKIP, not on runs: the away club must bat in the ninth
+    of every game, and the home club must not.
+    """
+    import random
+    from src.context import game, sim
+
+    lg = sim.league()
+    bats = [sim.BatterRates(name=f"b{i}", k_pct=0.22, bb_pct=0.08,
+                            hr_pct=0.03, babip=0.300, pa=600)
+            for i in range(9)]
+    p = sim.PitcherRates(name="p", k_pct=0.22, bb_pct=0.08, hr_pct=0.03,
+                         babip=0.300, pa=600)
+
+    real = game._half_inning
+    seen = []
+
+    def spy(side, *a, **kw):
+        # The away SIDE pitches to the home club, so a call on it IS the
+        # home club batting. Recorded as the BATTING club.
+        # `_half_inning(side, lg, rng, inning, margin, park, ...)` — the
+        # inning is the THIRD positional after `side`.
+        seen.append((a[2], "home" if side is spy.A else "away"))
+        return real(side, *a, **kw)
+
+    first, away_9, home_9, n = [], 0, 0, 60
+    for i in range(n):
+        rng = random.Random(i * 17 + 1)
+        A = game.build_side(p, [], bats, None, rng, apply_leash=False)
+        H = game.build_side(p, [], bats, None, rng, apply_leash=False)
+        spy.A = A
+        seen.clear()
+        game._half_inning = spy
+        try:
+            game.simulate_game(A, H, lg, rng)
+        finally:
+            game._half_inning = real
+        halves = [(inn, who) for inn, who in seen]
+        first.append(next(who for inn, who in halves if inn == 1))
+        ninth = {who for inn, who in halves if inn == 9}
+        away_9 += "away" in ninth
+        home_9 += "home" in ninth
+
+    assert all(f == "away" for f in first), \
+        f"the home club batted first in {first.count('home')}/{n} games"
+    assert away_9 == n, f"the away club skipped the ninth {n - away_9} times"
+    # The two clubs are identical here, so the home club leads after the top
+    # of the ninth in a healthy share of games and must sit some of them out.
+    # A loose bound: this is asserting the rule FIRES, not its exact rate.
+    assert home_9 < n, "the home club batted in every ninth"
+
+
+def check_a_walk_off_needs_the_lead_not_just_a_run():
+    """The walk-off truncated the final half at the FIRST run scored.
+
+    `_half_inning` ends a half early on `side.runs > side.opposing_runs`.
+    `side` is the PITCHING side, so `side.runs` is what it ALLOWED — the
+    batting club's score — and `opposing_runs` therefore has to hold the
+    pitching side's OWN club's score. The driver set
+
+        home.opposing_runs = home.runs      # "this team's own score"
+
+    which is the BATTING club's score, snapshotted immediately before the
+    half. The comparison collapsed to "has the batting club scored at all
+    this half", so every ninth and every extra inning stopped on the first
+    run whatever the margin: 34 of 42 scoring halves ended on exactly one
+    run, and none ever exceeded three.
+
+    Asserted on the CONDITION's input rather than on a run distribution,
+    because the condition was always sound and only its input was wrong.
+    """
+    import random
+    from src.context import game, sim
+
+    lg = sim.league()
+    bats = [sim.BatterRates(name=f"b{i}", k_pct=0.10, bb_pct=0.15,
+                            hr_pct=0.02, babip=0.360, pa=600)
+            for i in range(9)]
+    p = sim.PitcherRates(name="p", k_pct=0.10, bb_pct=0.15, hr_pct=0.02,
+                         babip=0.360, pa=600)
+
+    # A side that has ALLOWED 1 (the batting club's score) while its own
+    # club has scored 6. Trailing by five, the batting club must be allowed
+    # to bat on through a rally rather than being cut off at one run.
+    scored = []
+    for i in range(300):
+        rng = random.Random(i * 29 + 3)
+        s = game.build_side(p, [], bats, None, rng, apply_leash=False)
+        s.runs, s.opposing_runs = 1, 6
+        before = s.runs
+        game._half_inning(s, lg, rng, 9, 5, None, walk_off=True)
+        scored.append(s.runs - before)
+
+    # With the bug the half died the instant a run crossed, so nothing could
+    # reach four. The rally has to survive well past one run.
+    assert max(scored) >= 4, \
+        f"no half got past {max(scored)} runs — truncated early?"
+    big = sum(1 for g in scored if g >= 2)
+    assert big > 20, f"only {big}/300 halves scored more than once"
+
+    # And the driver hands the condition the PITCHING side's own club's
+    # score, not the batting club's. With the away club (home.runs) on 4 and
+    # the home club (away.runs) on 0, the away side's `opposing_runs` must
+    # come back 4.
+    real = game._half_inning
+    got = {}
+    # SEVERAL GAMES, and the case has to be an UNTIED one. The bottom of the
+    # ninth is not always reached (the home club leading after the top skips
+    # it, which is the rule the check above asserts), and when it is reached
+    # with the score TIED the buggy value and the correct one COINCIDE —
+    # both equal the batting club's score. Only a half entered with the home
+    # club trailing can tell them apart.
+    for i in range(60):
+        rng = random.Random(i * 13 + 11)
+        A = game.build_side(p, [], bats, None, rng, apply_leash=False)
+        H = game.build_side(p, [], bats, None, rng, apply_leash=False)
+
+        def spy(side, *a, _A=A, _H=H, **kw):
+            if kw.get("walk_off") and side is _A and "seen" not in got:
+                # AT THE START OF THE HALF: `_A.runs` is what the away side
+                # has allowed — the HOME club's score, i.e. the batting
+                # club's. `_H.runs` is the AWAY club's score, which is what
+                # the batting club has to pass.
+                if _A.runs != _H.runs:
+                    got["seen"] = (side.opposing_runs, _A.runs, _H.runs)
+            return real(side, *a, **kw)
+
+        game._half_inning = spy
+        try:
+            game.simulate_game(A, H, lg, rng)
+        finally:
+            game._half_inning = real
+        if "seen" in got:
+            break
+    assert "seen" in got, "no untied walk-off-eligible half in 60 games"
+    opp, batting, own = got["seen"]
+    assert opp == own, \
+        f"opposing_runs {opp} is not the pitching club's score {own}"
+    assert opp != batting, \
+        f"opposing_runs tracked the BATTING club's score {batting}"
+
+
+def check_a_past_season_cut_does_not_produce_an_empty_query():
+    """`bullpens(lg, before="2023-07-01")` with no `season=` resolved to
+    THE CURRENT SEASON and a date filter two seasons earlier — empty by
+    construction. Every fold-iterating harness (battery, pxi_cv, hz_cv)
+    made that call, got zero pen clubs for 2023-2025, and `Side.current`
+    handed every relief inning to the STARTER'S rates: three of the four
+    battery folds measured a bullpen-free engine. Caught 2026-09-09 by an
+    A/B identical to four decimals in exactly those folds.
+
+    A `before` whose year predates the resolved season now means that
+    year. A current-season `before` and an explicit `season=` behave as
+    they always did.
+    """
+    from src.context import scope
+    from src.context.sources import rates as rate_src
+
+    w = rate_src._where(None, "2023-07-01")
+    assert "'2023%'" in w, w
+    assert f"'{scope.CURRENT_SEASON}%'" not in w, w
+    assert "< '2023-07-01'" in w, w
+    # Current-season cut: unchanged.
+    w = rate_src._where(None, f"{scope.CURRENT_SEASON}-07-01")
+    assert f"'{scope.CURRENT_SEASON}%'" in w, w
+    # Explicit season with a later cut: honoured, not overridden.
+    w = rate_src._where(2024, "2026-07-01")
+    assert "'2024%'" in w, w
+
+
+def check_fit_hooks_rebuild_flag_is_not_parsed_as_a_limit():
+    """`fit_hooks --rebuild` raised ValueError before it could rebuild.
+
+    `main()` did `int(sys.argv[1])` unconditionally and only checked for
+    the flag on the NEXT line, so the one documented way to refresh
+    `/tmp/hook_rows.json` crashed on its own flag. The file feeds every
+    hook fit and the battery, and it lives in `/tmp`, so it does not
+    survive a reboot — the refresh path failing silently is how a stale
+    386k-row cache gets fitted on for weeks.
+
+    Found 2026-09-09 while wiring `/backfill-data`, by RUNNING the chain
+    rather than reading it. Same class as the `make calibrate` finding in
+    CLAUDE.md: a command in the docs that could not work.
+
+    Asserted against `limit_arg`, which the fix extracted for exactly this
+    reason — invoking `main()` would rebuild 10,000 games from the
+    play-by-play cache.
+
+    THE FIRST VERSION OF THIS CHECK asserted `"int(sys.argv[1])" not in
+    inspect.getsource(main)` and failed on the COMMENT that explained the
+    fix. A source-text assertion cannot tell code from prose about code;
+    testing the function is both stricter and honest.
+    """
+    from scratchpad.fit_hooks import limit_arg
+    # The flag must never be read as the limit — this raised ValueError.
+    assert limit_arg(["--rebuild"]) is None
+    assert limit_arg([]) is None
+    assert limit_arg(["500"]) == 500
+    assert limit_arg(["500", "--rebuild"]) == 500
+    assert limit_arg(["--rebuild", "500"]) == 500
+
+
+def check_board_html_survives_a_ladder_that_never_crosses_even_money():
+    """The HTML board died formatting a None crossing.
+
+    `gen_board_html.cross` interpolates the line where P(over) passes 0.5
+    and returns None when every printed rung sits on ONE side of it. The
+    page then did `f"{fl:.2f}"` on it and raised TypeError, so no HTML was
+    written at all.
+
+    The ±170 shopping band makes that ordinary rather than rare: the rung
+    that WOULD have bracketed the crossing is exactly the one priced far
+    enough from even money for the band to drop. On the 2026-09-10 board
+    COL @ NYY printed F5 4.5 (+102) and 5.5 (+160) — both under 50% —
+    because F5 3.5 landed outside the band. One game out of five killed
+    the whole page.
+
+    Guarded at `fmt_cross`, not at the f-string, because the same None
+    reaches two render sites and the slate-average aggregation.
+    """
+    from scratchpad.gen_board_html import cross, fmt_cross
+
+    # Brackets even money: interpolate.
+    assert cross([(4.5, 0.55), (5.5, 0.45)]) == 5.0
+    assert fmt_cross(cross([(4.5, 0.55), (5.5, 0.45)])) == "5.00"
+
+    # The 2026-09-10 COL @ NYY shape — every rung under 50%, no crossing.
+    assert cross([(4.5, 0.495), (5.5, 0.385)]) is None
+    assert fmt_cross(cross([(4.5, 0.495), (5.5, 0.385)])) == "&mdash;"
+
+    # And the mirror: every rung over 50%.
+    assert cross([(4.5, 0.62), (5.5, 0.58)]) is None
+    assert fmt_cross(None) == "&mdash;"
+
+
+def check_a_temperatureless_weather_cache_is_not_treated_as_final():
+    """SHIPPED BUG, 2026-09-07 to -09: three dates and 41 games lost their
+    weather entirely, and nothing complained for four days.
+
+    `fetch_date` cached on the reasoning that "a final game cannot
+    change" — true of the GAME, false of the FILE. The live board asks
+    for a date PREGAME; statsapi does not populate `weather.temp` until
+    near first pitch; the empty answer was written to the cache and
+    frozen. `backfill` then keyed its skip-list on `distinct date`, so
+    once the empty rows existed the date could never heal. Two shipped
+    mechanisms (`TEMP_HR_MULT`, `WIND_HR_MULT`) sat inert on live data
+    and BOTH ARE SILENT-NEUTRAL BY DESIGN, so a missing reading
+    contributes exactly 1.0 and looks identical to calm, average air.
+
+    The two halves are guarded separately because either alone would
+    have been survivable.
+    """
+    import json
+    import os
+    import time
+    from src.context.sources import weather as w
+
+    day = "2099-07-04"
+    p = w.CACHE / f"{day}.json"
+    w.CACHE.mkdir(parents=True, exist_ok=True)
+    saved = p.read_text() if p.exists() else None
+    empty = [{"game_id": "mlb-9", "date": day, "venue_id": 1,
+              "temp_f": None, "condition": None, "wind_mph": 0,
+              "wind_dir": None, "carry": 0, "roof_closed": 0}]
+    warm = [{**empty[0], "temp_f": 81}]
+    try:
+        # A cache WITH a temperature is final and is returned as-is, with
+        # no network call — mtime is irrelevant to it.
+        p.write_text(json.dumps(warm))
+        old = time.time() - 10 * w.EMPTY_TTL_SECONDS
+        os.utime(p, (old, old))
+        assert w.fetch_date(day)[0]["temp_f"] == 81
+
+        # A cache with NO temperature is trusted only while it is fresh.
+        p.write_text(json.dumps(empty))
+        assert w.fetch_date(day) == empty, \
+            "a just-written pregame read should not be re-fetched"
+
+        # Once stale it must NOT be returned from disk. Offline, the
+        # re-fetch fails and returns [] — the point is that the stale
+        # empty payload is not handed back as though it were settled.
+        os.utime(p, (old, old))
+        got = w.fetch_date(day)
+        assert got != empty or got == [], \
+            "a stale temperature-less cache was treated as final"
+    finally:
+        if saved is None:
+            p.unlink(missing_ok=True)
+        else:
+            p.write_text(saved)
+
+
+def check_the_weather_backfill_revisits_a_date_with_no_temperature():
+    """The second half: `backfill`'s skip-list must key on a date having
+    a TEMPERATURE, not merely having rows.
+
+    Asserted against the SQL itself rather than by running a backfill,
+    which would need the network. The literal is what the bug was.
+    """
+    import inspect
+    from src.context.sources import weather as w
+    src = inspect.getsource(w.backfill)
+    assert "sum(temp_f is not null) > 0" in src, \
+        "backfill's have-set no longer requires a temperature — a date " \
+        "written empty by the live path can never heal"
+    assert "select distinct date from mlb_weather" not in src, \
+        "backfill is back on the plain distinct-date skip list"

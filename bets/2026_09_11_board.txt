@@ -1,0 +1,328 @@
+BOARD — 2026-09-11 · 12 games · 20,000 sims · fair inside ±170 · odds are FAIR (no vig)
+
+COL @ DET   Mason Adams v Framber Valdez   (PROJECTED lineups, mean 8.2)
+  bet                          over / under  kalshi
+  total 7.5                    -103 /  +103    -117   [Mason Adams: only 63 batters faced]
+  total 8                      +114 /  -114       -   [Mason Adams: only 63 batters faced]
+  total 8.5                    +132 /  -132    +115   [Mason Adams: only 63 batters faced]
+  COL total 2.5                -167 /  +167    -163   [Mason Adams: only 63 batters faced]
+  COL total 3.5                +107 /  -107    +113   [Mason Adams: only 63 batters faced]
+  DET total 3.5                -128 /  +128    -160   [Mason Adams: only 63 batters faced]
+  DET total 4.5                +136 /  -136    +113   [Mason Adams: only 63 batters faced]
+  F5 total 3.5                 -126 /  +126    -163   [Mason Adams: only 63 batters faced]
+  F5 total 4.5                 +132 /  -132    +108   [Mason Adams: only 63 batters faced]
+  Mason Adams k 4.5            -129 /  +129       -   proj lineup  THIN  [only 63 batters faced]  
+  Mason Adams k 5.5            +155 /  -155       -   proj lineup  THIN  [only 63 batters faced]  
+  Mason Adams outs 15.5        -102 /  +102       -   proj lineup  THIN  [only 63 batters faced]  raw -102
+  Mason Adams outs 16.5        +124 /  -124       -   proj lineup  THIN  [only 63 batters faced]  raw +120
+  Framber Valdez k 4.5         -121 /  +121       -   proj lineup  
+  Framber Valdez outs 17.5     -130 /  +130       -   proj lineup  raw -135
+
+LAA @ WSH   Yusei Kikuchi v Cade Cavalli   (PROJECTED lineups, mean 8.3)
+  bet                          over / under  kalshi
+  total 7.5                    -107 /  +107    -125   
+  total 8                      +111 /  -111       -   
+  total 8.5                    +130 /  -130    +111   
+  LAA total 2.5                -166 /  +166    -186   
+  LAA total 3.5                +108 /  -108    -104   
+  WSH total 3.5                -134 /  +134    -153   
+  WSH total 4.5                +132 /  -132    +115   
+  F5 total 3.5                 -125 /  +125    -147   
+  F5 total 4.5                 +138 /  -138    +115   
+  Yusei Kikuchi k 2.5          -430 /  +430   -1076   proj lineup  off-band
+  Yusei Kikuchi k 3.5          -196 /  +196    -456   proj lineup  off-band
+  Yusei Kikuchi k 4.5          +107 /  -107    -186   proj lineup  
+  Yusei Kikuchi k 5.5          +219 /  -219    -102   proj lineup  off-band
+  Yusei Kikuchi k 6.5          +452 /  -452    +194   proj lineup  off-band
+  Yusei Kikuchi k 7.5          +984 /  -984    +400   proj lineup  off-band
+  Yusei Kikuchi k 8.5         +2236 / -2236    +900   proj lineup  off-band
+  Yusei Kikuchi outs 15.5      +111 /  -111       -   proj lineup  raw +111
+  Yusei Kikuchi outs 16.5      +141 /  -141       -   proj lineup  raw +137
+  Cade Cavalli k 3.5           -799 /  +799    -953   proj lineup  off-band
+  Cade Cavalli k 4.5           -382 /  +382    -441   proj lineup  off-band
+  Cade Cavalli k 5.5           -192 /  +192    -223   proj lineup  off-band
+  Cade Cavalli k 6.5           -103 /  +103    -113   proj lineup  
+  Cade Cavalli k 7.5           +180 /  -180    +178   proj lineup  off-band
+  Cade Cavalli k 8.5           +342 /  -342    +365   proj lineup  off-band
+  Cade Cavalli k 9.5           +655 /  -655    +770   proj lineup  off-band
+  Cade Cavalli outs 16.5       -126 /  +126       -   proj lineup  raw -130
+  Cade Cavalli outs 17.5       +103 /  -103       -   proj lineup  raw -100
+
+NYM @ NYY   Nolan McLean v Carlos Rodón   (PROJECTED lineups, mean 9.1)
+  bet                          over / under  kalshi
+  total 8                      -124 /  +124       -   
+  total 8.5                    -104 /  +104    +130   
+  total 9                      +120 /  -120       -   
+  NYM total 3.5                -145 /  +145    -102   
+  NYM total 4.5                +116 /  -116    +167   
+  NYY total 3.5                -129 /  +129    -127   
+  NYY total 4.5                +133 /  -133    +141   
+  F5 total 3.5                 -162 /  +162    -138   
+  F5 total 4.5                 +103 /  -103    +135   
+  Nolan McLean k 3.5           -562 /  +562    -733   proj lineup  off-band
+  Nolan McLean k 4.5           -260 /  +260    -335   proj lineup  off-band
+  Nolan McLean k 5.5           -131 /  +131    -167   proj lineup  
+  Nolan McLean k 6.5           +147 /  -147    +120   proj lineup  
+  Nolan McLean k 7.5           +283 /  -283    +233   proj lineup  off-band
+  Nolan McLean k 8.5           +557 /  -557    +471   proj lineup  off-band
+  Nolan McLean k 9.5          +1141 / -1141   +1011   proj lineup  off-band
+  Nolan McLean outs 15.5       -116 /  +116       -   proj lineup  raw -116
+  Nolan McLean outs 16.5       +108 /  -108       -   proj lineup  raw +104
+  Nolan McLean outs 17.5       +142 /  -142    +106   proj lineup  raw +137
+  Carlos Rodón k 2.5           -920 /  +920    -809   proj lineup  off-band
+  Carlos Rodón k 3.5           -397 /  +397    -344   proj lineup  off-band
+  Carlos Rodón k 4.5           -196 /  +196    -156   proj lineup  off-band
+  Carlos Rodón k 5.5           -100 /  +100    +135   proj lineup  
+  Carlos Rodón k 6.5           +194 /  -194    +270   proj lineup  off-band
+  Carlos Rodón k 7.5           +383 /  -383    +614   proj lineup  off-band
+  Carlos Rodón outs 15.5       +114 /  -114    +125   proj lineup  raw +115
+  Carlos Rodón outs 16.5       +145 /  -145       -   proj lineup  raw +140
+
+BAL @ TOR   Chris Bassitt v Max Scherzer   (PROJECTED lineups, mean 9.0)
+  bet                          over / under  kalshi
+  total 8                      -128 /  +128       -   
+  total 8.5                    -107 /  +107    +100   
+  total 9                      +119 /  -119       -   
+  BAL total 3.5                -150 /  +150    -127   
+  BAL total 4.5                +116 /  -116    +135   
+  TOR total 3.5                -133 /  +133    -141   
+  TOR total 4.5                +131 /  -131    +120   
+  F5 total 4.5                 -118 /  +118    -117   
+  F5 total 5.5                 +138 /  -138    +141   
+  Chris Bassitt k 2.5          -137 /  +137    -264   proj lineup  
+  Chris Bassitt k 3.5          +174 /  -174    -113   proj lineup  off-band
+  Chris Bassitt k 4.5          +406 /  -406    +208   proj lineup  off-band
+  Chris Bassitt k 5.5         +1032 / -1032    +456   proj lineup  off-band
+  Chris Bassitt k 6.5         +2757 / -2757   +1329   proj lineup  off-band
+  Chris Bassitt outs 15.5      +111 /  -111       -   proj lineup  raw +112
+  Chris Bassitt outs 16.5      +143 /  -143       -   proj lineup  raw +138
+  Chris Bassitt outs 17.5      +190 /  -190    +100   proj lineup  raw +182  off-band
+  Max Scherzer k 2.5           -437 /  +437    -900   proj lineup  off-band
+  Max Scherzer k 3.5           -200 /  +200    -388   proj lineup  off-band
+  Max Scherzer k 4.5           +101 /  -101    -186   proj lineup  
+  Max Scherzer k 5.5           +199 /  -199    +122   proj lineup  off-band
+  Max Scherzer k 6.5           +413 /  -413    +233   proj lineup  off-band
+  Max Scherzer k 7.5           +883 /  -883    +488   proj lineup  off-band
+  Max Scherzer k 8.5          +2110 / -2110   +1150   proj lineup  off-band
+  Max Scherzer outs 14.5       -146 /  +146       -   proj lineup  raw -128
+  Max Scherzer outs 15.5       +160 /  -160    +111   proj lineup  raw +161
+
+KC @ BOS   Seth Lugo v Sonny Gray   (PROJECTED lineups, mean 9.0)
+  bet                          over / under  kalshi
+  total 8                      -124 /  +124       -   
+  total 8.5                    -104 /  +104    +106   
+  total 9                      +122 /  -122       -   
+  KC total 3.5                 -106 /  +106    +117   
+  KC total 4.5                 +161 /  -161    +190   
+  BOS total 4.5                -100 /  +100    -106   
+  BOS total 5.5                +165 /  -165    +156   
+  F5 total 4.5                 -102 /  +102    +100   
+  F5 total 5.5                 +154 /  -154    +167   
+  Seth Lugo k 2.5              -322 /  +322    -388   proj lineup  off-band
+  Seth Lugo k 3.5              -136 /  +136    -167   proj lineup  
+  Seth Lugo k 4.5              +162 /  -162    +133   proj lineup  
+  Seth Lugo k 5.5              +351 /  -351    +285   proj lineup  off-band
+  Seth Lugo k 6.5              +773 /  -773    +641   proj lineup  off-band
+  Seth Lugo outs 15.5          -134 /  +134    +138   proj lineup  raw -134
+  Seth Lugo outs 16.5          -107 /  +107       -   proj lineup  raw -111
+  Seth Lugo outs 17.5          +124 /  -124       -   proj lineup  raw +120
+  Sonny Gray k 2.5             -762 /  +762    -953   proj lineup  off-band
+  Sonny Gray k 3.5             -324 /  +324    -388   proj lineup  off-band
+  Sonny Gray k 4.5             -151 /  +151    -174   proj lineup  
+  Sonny Gray k 5.5             +137 /  -137    +133   proj lineup  
+  Sonny Gray k 6.5             +277 /  -277    +270   proj lineup  off-band
+  Sonny Gray k 7.5             +563 /  -563    +590   proj lineup  off-band
+  Sonny Gray k 8.5            +1227 / -1227   +1438   proj lineup  off-band
+  Sonny Gray outs 16.5         -159 /  +159       -   proj lineup  raw -164
+  Sonny Gray outs 17.5         -120 /  +120    -150   proj lineup  raw -124
+
+HOU @ TB   Miguel Ullola v Drew Rasmussen   (PROJECTED lineups, mean 8.3)
+  bet                          over / under  kalshi
+  total 7.5                    -107 /  +107    -106   [Miguel Ullola: only 1 start(s) on record]
+  total 8                      +109 /  -109       -   [Miguel Ullola: only 1 start(s) on record]
+  total 8.5                    +126 /  -126    +135   [Miguel Ullola: only 1 start(s) on record]
+  HOU total 2.5                -150 /  +150    -160   [Miguel Ullola: only 1 start(s) on record]
+  HOU total 3.5                +120 /  -120    +117   [Miguel Ullola: only 1 start(s) on record]
+  TB total 3.5                 -152 /  +152    -147   [Miguel Ullola: only 1 start(s) on record]
+  TB total 4.5                 +117 /  -117    +120   [Miguel Ullola: only 1 start(s) on record]
+  F5 total 3.5                 -134 /  +134    -141   [Miguel Ullola: only 1 start(s) on record]
+  F5 total 4.5                 +127 /  -127    +117   [Miguel Ullola: only 1 start(s) on record]
+  Miguel Ullola k 2.5          -113 /  +113       -   proj lineup  THIN  [only 1 start(s) on record]  
+  Miguel Ullola outs 12.5      +112 /  -112       -   proj lineup  THIN  [only 1 start(s) on record]  raw +120
+  Miguel Ullola outs 13.5      +127 /  -127       -   proj lineup  THIN  [only 1 start(s) on record]  raw +140
+  Drew Rasmussen k 5.5         +112 /  -112       -   proj lineup  
+  Drew Rasmussen outs 18.5     +172 /  -172       -   proj lineup  raw +149
+
+PHI @ ATL   Aaron Nola v Chris Sale   (PROJECTED lineups, mean 7.9)
+  bet                          over / under  kalshi
+  total 7                      -118 /  +118       -   
+  total 7.5                    +110 /  -110    -102   
+  total 8                      +132 /  -132       -   
+  PHI total 2.5                -134 /  +134    -147   
+  PHI total 3.5                +135 /  -135    +127   
+  ATL total 3.5                -134 /  +134    -147   
+  ATL total 4.5                +134 /  -134    +122   
+  F5 total 3.5                 -115 /  +115    -135   
+  F5 total 4.5                 +147 /  -147    +127   
+  Aaron Nola k 2.5             -653 /  +653    -852   proj lineup  off-band
+  Aaron Nola k 3.5             -291 /  +291    -365   proj lineup  off-band
+  Aaron Nola k 4.5             -139 /  +139    -174   proj lineup  
+  Aaron Nola k 5.5             +144 /  -144    +111   proj lineup  
+  Aaron Nola k 6.5             +288 /  -288    +245   proj lineup  off-band
+  Aaron Nola k 7.5             +581 /  -581    +488   proj lineup  off-band
+  Aaron Nola k 8.5            +1257 / -1257   +1233   proj lineup  off-band
+  Aaron Nola outs 15.5         +111 /  -111       -   proj lineup  raw +111
+  Aaron Nola outs 16.5         +141 /  -141       -   proj lineup  raw +137
+  Aaron Nola outs 17.5         +188 /  -188    +117   proj lineup  raw +180  off-band
+  Chris Sale k 4.5             -454 /  +454    -809   proj lineup  off-band
+  Chris Sale k 5.5             -225 /  +225    -365   proj lineup  off-band
+  Chris Sale k 6.5             -116 /  +116    -194   proj lineup  
+  Chris Sale k 7.5             +162 /  -162    -102   proj lineup  
+  Chris Sale k 8.5             +311 /  -311    +194   proj lineup  off-band
+  Chris Sale k 9.5             +599 /  -599    +388   proj lineup  off-band
+  Chris Sale outs 18.5         +182 /  -182    +144   proj lineup  raw +158
+
+CIN @ MIL   Andrew Abbott v Dustin May   (PROJECTED lineups, mean 9.1)
+  bet                          over / under  kalshi
+  total 8                      -128 /  +128       -   
+  total 8.5                    -108 /  +108    +120   
+  total 9                      +117 /  -117       -   
+  CIN total 3.5                -105 /  +105    +120   
+  CIN total 4.5                +163 /  -163    +199   
+  MIL total 4.5                -106 /  +106    +111   
+  MIL total 5.5                +157 /  -157    +186   
+  F5 total 4.5                 -111 /  +111    +122   
+  F5 total 5.5                 +143 /  -143    +199   
+  Andrew Abbott k 2.5          -330 /  +330    -335   proj lineup  off-band
+  Andrew Abbott k 3.5          -142 /  +142    -141   proj lineup  
+  Andrew Abbott k 4.5          +149 /  -149    +163   proj lineup  
+  Andrew Abbott k 5.5          +315 /  -315    +365   proj lineup  off-band
+  Andrew Abbott k 6.5          +698 /  -698    +852   proj lineup  off-band
+  Andrew Abbott k 7.5         +1615 / -1615   +1900   proj lineup  off-band
+  Andrew Abbott outs 14.5      -241 /  +241    -178   proj lineup  raw -208  off-band
+  Andrew Abbott outs 15.5      -101 /  +101       -   proj lineup  raw -101
+  Andrew Abbott outs 16.5      +126 /  -126       -   proj lineup  raw +122
+  Dustin May k 2.5            -1900 / +1900   -1011   proj lineup  off-band
+  Dustin May k 3.5             -808 /  +808    -426   proj lineup  off-band
+  Dustin May k 4.5             -374 /  +374    -208   proj lineup  off-band
+  Dustin May k 5.5             -187 /  +187    -106   proj lineup  off-band
+  Dustin May k 6.5             +101 /  -101    +213   proj lineup  
+  Dustin May k 7.5             +191 /  -191    +413   proj lineup  off-band
+  Dustin May k 8.5             +364 /  -364    +852   proj lineup  off-band
+  Dustin May outs 15.5         -153 /  +153    +106   proj lineup  raw -153
+  Dustin May outs 16.5         -124 /  +124       -   proj lineup  raw -128
+  Dustin May outs 17.5         +105 /  -105       -   proj lineup  raw +101
+
+CLE @ MIN   Parker Messick v Taj Bradley   (PROJECTED lineups, mean 8.9)
+  bet                          over / under  kalshi
+  total 8                      -117 /  +117       -   
+  total 8.5                    +101 /  -101    +135   
+  total 9                      +128 /  -128       -   
+  CLE total 3.5                -153 /  +153    -120   
+  CLE total 4.5                +109 /  -109    +138   
+  MIN total 3.5                -115 /  +115    +106   
+  MIN total 4.5                +155 /  -155    +186   
+  F5 total 3.5                 -144 /  +144    -127   
+  F5 total 4.5                 +117 /  -117    +135   
+  Parker Messick k 2.5         -711 /  +711    -900   proj lineup  off-band
+  Parker Messick k 3.5         -298 /  +298    -388   proj lineup  off-band
+  Parker Messick k 4.5         -143 /  +143    -178   proj lineup  
+  Parker Messick k 5.5         +141 /  -141    +125   proj lineup  
+  Parker Messick k 6.5         +285 /  -285    +251   proj lineup  off-band
+  Parker Messick k 7.5         +580 /  -580    +506   proj lineup  off-band
+  Parker Messick k 8.5        +1276 / -1276   +1233   proj lineup  off-band
+  Parker Messick outs 16.5     -143 /  +143       -   proj lineup  raw -148
+  Parker Messick outs 17.5     -111 /  +111    -108   proj lineup  raw -115
+  Taj Bradley k 2.5            -653 /  +653    -900   proj lineup  off-band
+  Taj Bradley k 3.5            -279 /  +279    -376   proj lineup  off-band
+  Taj Bradley k 4.5            -130 /  +130    -178   proj lineup  
+  Taj Bradley k 5.5            +154 /  -154    +120   proj lineup  
+  Taj Bradley k 6.5            +308 /  -308    +245   proj lineup  off-band
+  Taj Bradley k 7.5            +628 /  -628    +545   proj lineup  off-band
+  Taj Bradley k 8.5           +1377 / -1377   +1329   proj lineup  off-band
+  Taj Bradley outs 15.5        -122 /  +122       -   proj lineup  raw -122
+  Taj Bradley outs 16.5        +104 /  -104       -   proj lineup  raw +101
+
+CWS @ STL   Anthony Kay v Matthew Liberatore   (PROJECTED lineups, mean 8.6)
+  bet                          over / under  kalshi
+  total 7.5                    -120 /  +120    -130   
+  total 8                      -103 /  +103       -   
+  total 8.5                    +114 /  -114    +106   
+  CWS total 3.5                -117 /  +117    -133   
+  CWS total 4.5                +143 /  -143    +125   
+  STL total 3.5                -124 /  +124    -117   
+  STL total 4.5                +141 /  -141    +150   
+  F5 total 3.5                 -153 /  +153    -174   
+  F5 total 4.5                 +111 /  -111    -102   
+  Anthony Kay k 2.5            -299 /  +299    -335   proj lineup  off-band
+  Anthony Kay k 3.5            -130 /  +130    -144   proj lineup  
+  Anthony Kay k 4.5            +164 /  -164    +163   proj lineup  
+  Anthony Kay k 5.5            +345 /  -345    +355   proj lineup  off-band
+  Anthony Kay k 6.5            +767 /  -767    +852   proj lineup  off-band
+  Anthony Kay outs 15.5        -115 /  +115    +135   proj lineup  raw -115
+  Anthony Kay outs 16.5        +110 /  -110       -   proj lineup  raw +107
+  Matthew Liberatore k 2.5     -698 /  +698    -700   proj lineup  off-band
+  Matthew Liberatore k 3.5     -313 /  +313    -308   proj lineup  off-band
+  Matthew Liberatore k 4.5     -148 /  +148    -144   proj lineup  
+  Matthew Liberatore k 5.5     +137 /  -137    +120   proj lineup  
+  Matthew Liberatore k 6.5     +272 /  -272    +308   proj lineup  off-band
+  Matthew Liberatore k 7.5     +546 /  -546    +669   proj lineup  off-band
+  Matthew Liberatore k 8.5    +1125 / -1125   +1567   proj lineup  off-band
+  Matthew Liberatore outs 15.5   -115 /  +115    +117   proj lineup  raw -114
+  Matthew Liberatore outs 16.5   +111 /  -111       -   proj lineup  raw +107
+
+SEA @ ATH   George Kirby v Jeffrey Springs   (PROJECTED lineups, mean 10.1)
+  bet                          over / under  kalshi
+  total 9.5                    -104 /  +104    -120   
+  total 10                     +112 /  -112       -   
+  total 10.5                   +129 /  -129    +120   
+  SEA total 4.5                -133 /  +133    -163   
+  SEA total 5.5                +121 /  -121    -102   
+  ATH total 3.5                -144 /  +144    -144   
+  ATH total 4.5                +119 /  -119    +122   
+  F5 total 4.5                 -148 /  +148    -170   
+  F5 total 5.5                 +106 /  -106    -104   
+  George Kirby k 2.5           -332 /  +332    -669   proj lineup  off-band
+  George Kirby k 3.5           -136 /  +136    -270   proj lineup  
+  George Kirby k 4.5           +162 /  -162    -125   proj lineup  
+  George Kirby k 5.5           +351 /  -351    +170   proj lineup  off-band
+  George Kirby k 6.5           +807 /  -807    +376   proj lineup  off-band
+  George Kirby k 7.5          +1900 / -1900    +809   proj lineup  off-band
+  George Kirby outs 16.5       -149 /  +149       -   proj lineup  raw -154
+  George Kirby outs 17.5       -111 /  +111    -122   proj lineup  raw -115
+  Jeffrey Springs k 2.5        -273 /  +273    -400   proj lineup  off-band
+  Jeffrey Springs k 3.5        -119 /  +119    -174   proj lineup  
+  Jeffrey Springs k 4.5        +183 /  -183    +127   proj lineup  off-band
+  Jeffrey Springs k 5.5        +395 /  -395    +270   proj lineup  off-band
+  Jeffrey Springs k 6.5        +895 /  -895    +641   proj lineup  off-band
+  Jeffrey Springs outs 15.5    +126 /  -126    +167   proj lineup  raw +127
+  Jeffrey Springs outs 16.5    +163 /  -163       -   proj lineup  raw +158
+
+SD @ SF   Robbie Ray v Anthony Molina   (PROJECTED lineups, mean 8.4)
+  bet                          over / under  kalshi
+  total 7.5                    -113 /  +113    -115   [Anthony Molina: 4/62 appearances are starts — swingman]
+  total 8                      +105 /  -105       -   [Anthony Molina: 4/62 appearances are starts — swingman]
+  total 8.5                    +124 /  -124    +120   [Anthony Molina: 4/62 appearances are starts — swingman]
+  SD total 3.5                 -102 /  +102    -144   [Anthony Molina: 4/62 appearances are starts — swingman]
+  SD total 4.5                 +165 /  -165    +115   [Anthony Molina: 4/62 appearances are starts — swingman]
+  SF total 3.5                 -131 /  +131    +111   [Anthony Molina: 4/62 appearances are starts — swingman]
+  SF total 4.5                 +134 /  -134    +186   [Anthony Molina: 4/62 appearances are starts — swingman]
+  F5 total 3.5                 -158 /  +158    -133   [Anthony Molina: 4/62 appearances are starts — swingman]
+  F5 total 4.5                 +106 /  -106    +127   [Anthony Molina: 4/62 appearances are starts — swingman]
+  Robbie Ray k 4.5             +102 /  -102       -   proj lineup  
+  Robbie Ray outs 15.5         -106 /  +106       -   proj lineup  raw -106
+  Robbie Ray outs 16.5         +120 /  -120       -   proj lineup  raw +116
+  Anthony Molina k 3.5         -125 /  +125       -   proj lineup  THIN  [4/62 appearances are starts — swingman]  
+  Anthony Molina outs 16.5     -125 /  +125       -   proj lineup  THIN  [4/62 appearances are starts — swingman]  raw -129
+  Anthony Molina outs 17.5     +105 /  -105       -   proj lineup  THIN  [4/62 appearances are starts — swingman]  raw +101
+
+ARMS FLAGGED — priced, but not a normal starter's line:
+  COL @ DET   Mason Adams             only 63 batters faced
+  HOU @ TB    Miguel Ullola           only 1 start(s) on record
+  SD @ SF     Anthony Molina          4/62 appearances are starts — swingman
+
+outs corrected (2026-09-09); raw in note. K beats the OPEN only — bet early or not.
+Totals Jul/Aug ran ~0.15-0.20 light a side (unshipped month term); Sept unmeasured.
+Re-run after lineups post: a projected nine has cost half an edge before.
+
+wall clock: 166s total — 138s simulating, 25s fetching markets, 3s loading rates. RE-RUNNING IS CHEAP; do it when lineups post.

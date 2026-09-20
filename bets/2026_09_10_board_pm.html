@@ -1,0 +1,1130 @@
+<title>Board &mdash; Thursday 10 September 2026</title>
+<style>
+:root{
+  --bg:#E7EAED; --surface:#FAFBFC; --sunk:#EFF2F4;
+  --ink:#12171B; --ink2:#4E5A64; --ink3:#78848E;
+  --rule:#CFD6DC; --rule2:#DFE4E9;
+  --accent:#9C5F16; --accent-soft:#F0E2CE;
+  --over:#0F6154; --over-soft:#D3E5E1;
+  --under:#8A3049; --under-soft:#F0DAE0;
+  --warn:#8A5A12;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:ui-sans-serif,-apple-system,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+  --serif:ui-serif,Georgia,"Iowan Old Style","Times New Roman",serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0E1216; --surface:#161B20; --sunk:#12171B;
+    --ink:#E4E9ED; --ink2:#96A3AD; --ink3:#6B7982;
+    --rule:#283037; --rule2:#1F262C;
+    --accent:#D69A44; --accent-soft:#3A2E19;
+    --over:#4FBAA4; --over-soft:#12312D;
+    --under:#DB7B95; --under-soft:#33161F;
+    --warn:#D69A44;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1216; --surface:#161B20; --sunk:#12171B;
+  --ink:#E4E9ED; --ink2:#96A3AD; --ink3:#6B7982;
+  --rule:#283037; --rule2:#1F262C;
+  --accent:#D69A44; --accent-soft:#3A2E19;
+  --over:#4FBAA4; --over-soft:#12312D;
+  --under:#DB7B95; --under-soft:#33161F;
+  --warn:#D69A44;
+}
+:root[data-theme="light"]{
+  --bg:#E7EAED; --surface:#FAFBFC; --sunk:#EFF2F4;
+  --ink:#12171B; --ink2:#4E5A64; --ink3:#78848E;
+  --rule:#CFD6DC; --rule2:#DFE4E9;
+  --accent:#9C5F16; --accent-soft:#F0E2CE;
+  --over:#0F6154; --over-soft:#D3E5E1;
+  --under:#8A3049; --under-soft:#F0DAE0;
+  --warn:#8A5A12;
+}
+
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);
+  font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:1160px;margin:0 auto;padding:0 20px 96px;
+  display:flex;flex-direction:column;gap:52px;}
+h1,h2,h3,h4{text-wrap:balance;margin:0;}
+p{margin:0;}
+.scroll{overflow-x:auto;}
+a{color:inherit;}
+
+.masthead{padding-top:56px;display:flex;flex-direction:column;gap:18px;}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--accent);}
+.masthead h1{font-size:clamp(30px,5.5vw,52px);line-height:1.02;
+  letter-spacing:-.032em;font-weight:760;}
+.facts{display:flex;flex-wrap:wrap;gap:0;margin:2px 0 0;
+  border-top:1px solid var(--ink);border-bottom:1px solid var(--rule);}
+.facts>div{padding:11px 26px 11px 0;margin-right:26px;
+  border-right:1px solid var(--rule2);}
+.facts>div:last-child{border-right:0;}
+.facts dt{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink3);}
+.facts dd{margin:2px 0 0;font-family:var(--mono);font-size:19px;
+  font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
+.facts dd.warn{color:var(--warn);}
+.standfirst{font-family:var(--serif);font-size:17px;line-height:1.62;
+  max-width:63ch;color:var(--ink2);}
+.standfirst em{color:var(--ink);font-style:italic;}
+
+section>h2{font-size:13px;font-family:var(--mono);letter-spacing:.12em;
+  text-transform:uppercase;color:var(--accent);
+  padding-bottom:8px;border-bottom:2px solid var(--accent);
+  display:inline-block;margin-bottom:14px;}
+.sub{font-family:var(--serif);font-size:15px;line-height:1.6;
+  color:var(--ink2);max-width:76ch;margin-bottom:20px;}
+.sub em{font-style:italic;color:var(--ink);}
+.sub b{color:var(--ink);font-family:var(--sans);font-size:14px;
+  font-weight:660;}
+
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+thead th{font-family:var(--mono);font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink3);font-weight:500;
+  text-align:left;padding:0 10px 7px 0;border-bottom:1px solid var(--rule);
+  white-space:nowrap;}
+thead th.c-num,thead th.c-gap{text-align:right;}
+tbody tr{border-bottom:1px solid var(--rule2);}
+tbody tr:hover{background:var(--sunk);}
+td{padding:7px 10px 7px 0;vertical-align:middle;}
+.c-num,.c-gap{font-family:var(--mono);font-variant-numeric:tabular-nums;
+  text-align:right;white-space:nowrap;width:1%;}
+.c-ours{color:var(--ink);}
+.c-mkt{color:var(--ink2);}
+.c-none{color:var(--ink3);font-size:11px;font-style:italic;
+  font-family:var(--serif);}
+.pc{display:block;font-size:10.5px;color:var(--ink3);font-weight:400;
+  margin-top:1px;}
+.c-gap{font-weight:640;padding-right:14px;}
+.c-gap.over{color:var(--over);} .c-gap.under{color:var(--under);}
+.c-game{font-family:var(--mono);font-size:11.5px;color:var(--ink3);
+  white-space:nowrap;width:1%;padding-right:16px;}
+.c-who{font-size:13.5px;white-space:nowrap;padding-right:14px;}
+.c-bet{min-width:210px;}
+.mk{display:inline-block;min-width:38px;margin-right:9px;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink3);
+  border:1px solid var(--rule);padding:1px 5px;text-align:center;}
+.mk-f5{color:var(--accent);border-color:var(--accent);}
+.chip{display:inline-block;margin-left:7px;font-family:var(--mono);
+  font-size:9.5px;letter-spacing:.05em;padding:1px 5px;
+  color:var(--ink3);background:var(--sunk);border:1px solid var(--rule2);
+  cursor:help;}
+.chip-thin{color:var(--warn);border-color:var(--accent-soft);
+  background:var(--accent-soft);}
+.chip-bump{color:var(--accent);border-color:var(--accent-soft);}
+.chip-gate{color:var(--under);background:var(--under-soft);
+  border-color:var(--under);letter-spacing:.07em;font-weight:600;}
+
+/* ── K divergence grid ────────────────────────────────────── */
+.t-k tbody tr.big .c-who{font-weight:680;}
+.t-k thead th.hx{text-align:center;padding-right:0;}
+.hx{width:34px;text-align:center;font-family:var(--mono);font-size:11px;
+  font-variant-numeric:tabular-nums;padding:7px 0;
+  border-left:1px solid var(--bg);cursor:help;}
+.hx-over{background:color-mix(in srgb,var(--over) calc(var(--o)*46%),
+  transparent);}
+.hx-under{background:color-mix(in srgb,var(--under) calc(var(--o)*46%),
+  transparent);}
+.hx-na{background:var(--rule2);}
+
+/* ── F5 rail ──────────────────────────────────────────────── */
+.f5-grid{display:grid;gap:1px;background:var(--rule);
+  grid-template-columns:repeat(auto-fill,minmax(252px,1fr));
+  border:1px solid var(--rule);}
+.f5-card{display:flex;flex-direction:column;gap:7px;padding:13px 15px 15px;
+  background:var(--surface);text-decoration:none;color:inherit;
+  transition:background .12s;}
+.f5-card:hover{background:var(--sunk);}
+.f5-card:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;}
+.f5-top{display:flex;align-items:baseline;justify-content:space-between;
+  gap:8px;}
+.f5-mt{font-family:var(--mono);font-size:14px;font-weight:600;}
+.f5-mean{font-family:var(--mono);font-size:20px;color:var(--accent);
+  font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+.f5-arms{font-size:12px;color:var(--ink3);line-height:1.35;}
+.f5-arms .v,.g-arms .v{color:var(--rule);font-style:italic;}
+.f5-lines{display:flex;flex-direction:column;gap:3px;margin-top:2px;
+  padding-top:8px;border-top:1px solid var(--rule2);}
+.f5-line{display:flex;gap:10px;font-family:var(--mono);font-size:12px;
+  font-variant-numeric:tabular-nums;}
+.f5-n{width:24px;color:var(--ink3);}
+.f5-o{width:62px;}
+.f5-u{color:var(--ink3);font-size:11px;margin-left:auto;}
+
+/* ── per-game ─────────────────────────────────────────────── */
+.detail{display:flex;flex-direction:column;gap:0;}
+.filterline{font-size:12.5px;color:var(--ink3);margin-bottom:6px;
+  line-height:2;}
+.ctl{font:inherit;font-size:12px;padding:3px 10px;cursor:pointer;
+  background:transparent;color:var(--ink2);
+  border:1px solid var(--rule);border-radius:2px;margin:0 2px;
+  transition:background .12s,color .12s,border-color .12s;}
+.ctl:hover{border-color:var(--ink3);color:var(--ink);}
+.ctl:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.ctl.is-on{background:var(--ink);color:var(--bg);border-color:var(--ink);}
+.game{padding:22px 0 6px;border-top:1px solid var(--rule);}
+.game:first-of-type{border-top:2px solid var(--ink);}
+.g-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 18px;
+  margin-bottom:12px;}
+.g-head h3{font-family:var(--mono);font-size:19px;font-weight:640;}
+.g-head .at{color:var(--ink3);font-weight:400;}
+.g-arms{font-size:13.5px;color:var(--ink2);}
+.g-meta{margin-left:auto;display:flex;gap:14px;font-family:var(--mono);
+  font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink3);}
+.g-line{color:var(--accent);font-weight:600;cursor:help;}
+.g-mean{color:var(--ink3);cursor:help;}
+.g-proj{color:var(--warn);}
+.g-count b{font-weight:600;color:var(--ink2);}
+
+/* ── declined + rules ─────────────────────────────────────── */
+.declined ul{margin:0;padding:0;list-style:none;display:flex;
+  flex-direction:column;gap:8px;}
+.declined li{font-family:var(--mono);font-size:12.5px;color:var(--ink2);
+  padding:11px 14px;background:var(--surface);
+  border-left:3px solid var(--under);}
+.declined ul.nq li{border-left-color:var(--warn);}
+.nq b{color:var(--ink);} .nq-g{color:var(--ink3);margin-right:10px;}
+.rules{padding-top:34px;border-top:2px solid var(--ink);}
+.rulegrid{display:grid;gap:26px 34px;
+  grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+  margin-bottom:28px;}
+.rulegrid h4{font-family:var(--mono);font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink);margin-bottom:6px;}
+.rulegrid p{font-family:var(--serif);font-size:14px;line-height:1.6;
+  color:var(--ink2);}
+.colophon{font-family:var(--serif);font-size:14px;line-height:1.6;
+  color:var(--ink3);max-width:72ch;padding-top:20px;
+  border-top:1px solid var(--rule2);}
+.colophon b{color:var(--ink);font-family:var(--sans);font-size:13px;
+  font-weight:680;}
+
+.n-all-note{display:none;}
+body.show-all .n-keep-note{display:none;}
+body.show-all .n-all-note{display:inline;}
+.n-all{display:none;}
+body.show-all .n-keep{display:none;}
+body.show-all .n-all{display:inline;}
+tbody tr.hidden{display:none;}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;animation:none!important;}
+}
+@media (max-width:640px){
+  .wrap{padding:0 14px 64px;gap:40px;}
+  .facts>div{padding-right:18px;margin-right:18px;}
+  .g-meta{margin-left:0;flex-basis:100%;}
+}
+</style>
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">Simulated board &middot; fair odds, no vig</p>
+  <h1>Thursday 10 September 2026</h1>
+  <dl class="facts">
+    <div><dt>games priced</dt><dd>5</dd></div>
+    <div><dt>simulations</dt><dd>20,000</dd></div>
+    <div><dt>avg fair total</dt><dd>8.41</dd></div>
+    <div><dt>lineups posted</dt><dd class="warn">2 of 5</dd></div>
+  </dl>
+  <p class="standfirst">Every nine on this board is <em>projected</em>. Re-run once the real cards post, two to three hours before first pitch &mdash; on the 27 August board two wrong names in a projected lineup cut the largest edge in half.</p>
+</header>
+
+<section class="kdiv">
+  <h2>Strikeout model &mdash; where we diverge</h2>
+  <p class="sub">Our implied K line against the market&rsquo;s, fitted across
+  each pitcher&rsquo;s whole ladder rather than read off a single rung.
+  <b>4 of 8 arms sit 0.4 strikeouts or more from the mid;
+  3 are inside 0.1.</b> The grid is the point gap at each rung
+  &mdash; green where we price the over higher than the market does, red where
+  lower. A row leaning one way throughout is a disagreement about the pitcher;
+  the two ends disagreeing is a disagreement about the shape of his
+  distribution.</p>
+  <div class="scroll"><table class="t-k">
+  <thead><tr><th>pitcher</th><th>game</th>
+    <th class="c-num">our K line</th><th class="c-num">market</th>
+    <th class="c-gap">diff</th><th class="hx">2.5</th><th class="hx">3.5</th><th class="hx">4.5</th><th class="hx">5.5</th><th class="hx">6.5</th><th class="hx">7.5</th><th class="hx">8.5</th><th class="hx">9.5</th></tr></thead>
+  <tbody><tr class="big">
+  <td class="c-who">Max Fried</td>
+  <td class="c-game"><a href="#g-COL-NYY">COL @ NYY</a></td>
+  <td class="c-num">6.08</td>
+  <td class="c-num c-mkt">5.31</td>
+  <td class="c-gap over">+0.78</td>
+  <td class="hx hx-over" style="--o:0.21" title="K 2.5: ours 3.7 points above the mid">+4</td><td class="hx hx-over" style="--o:0.47" title="K 3.5: ours 8.4 points above the mid">+8</td><td class="hx hx-over" style="--o:0.58" title="K 4.5: ours 10.5 points above the mid">+10</td><td class="hx hx-over" style="--o:0.73" title="K 5.5: ours 13.2 points above the mid">+13</td><td class="hx hx-over" style="--o:0.67" title="K 6.5: ours 12.1 points above the mid">+12</td><td class="hx hx-over" style="--o:0.65" title="K 7.5: ours 11.7 points above the mid">+12</td><td class="hx hx-over" style="--o:0.62" title="K 8.5: ours 11.1 points above the mid">+11</td><td class="hx hx-na"></td>
+</tr><tr class="big">
+  <td class="c-who">Jared Jones</td>
+  <td class="c-game"><a href="#g-PIT-CWS">PIT @ CWS</a></td>
+  <td class="c-num">5.42</td>
+  <td class="c-num c-mkt">6.00</td>
+  <td class="c-gap under">-0.58</td>
+  <td class="hx hx-under" style="--o:0.21" title="K 2.5: ours 3.8 points below the mid">-4</td><td class="hx hx-under" style="--o:0.39" title="K 3.5: ours 7.1 points below the mid">-7</td><td class="hx hx-under" style="--o:0.45" title="K 4.5: ours 8.1 points below the mid">-8</td><td class="hx hx-under" style="--o:0.59" title="K 5.5: ours 10.7 points below the mid">-11</td><td class="hx hx-under" style="--o:0.42" title="K 6.5: ours 7.5 points below the mid">-8</td><td class="hx hx-under" style="--o:0.31" title="K 7.5: ours 5.5 points below the mid">-6</td><td class="hx hx-over" style="--o:0.02" title="K 8.5: ours 0.4 points above the mid">+0</td><td class="hx hx-over" style="--o:0.06" title="K 9.5: ours 1.0 points above the mid">+1</td>
+</tr><tr class="big">
+  <td class="c-who">Ryan Feltner</td>
+  <td class="c-game"><a href="#g-COL-NYY">COL @ NYY</a></td>
+  <td class="c-num">3.88</td>
+  <td class="c-num c-mkt">4.36</td>
+  <td class="c-gap under">-0.48</td>
+  <td class="hx hx-under" style="--o:0.31" title="K 2.5: ours 5.6 points below the mid">-6</td><td class="hx hx-under" style="--o:0.52" title="K 3.5: ours 9.3 points below the mid">-9</td><td class="hx hx-under" style="--o:0.51" title="K 4.5: ours 9.2 points below the mid">-9</td><td class="hx hx-under" style="--o:0.36" title="K 5.5: ours 6.4 points below the mid">-6</td><td class="hx hx-under" style="--o:0.27" title="K 6.5: ours 4.9 points below the mid">-5</td><td class="hx hx-under" style="--o:0.18" title="K 7.5: ours 3.2 points below the mid">-3</td><td class="hx hx-na"></td><td class="hx hx-na"></td>
+</tr><tr class="big">
+  <td class="c-who">Martín Pérez</td>
+  <td class="c-game"><a href="#g-TB-ATL">TB @ ATL</a></td>
+  <td class="c-num">3.26</td>
+  <td class="c-num c-mkt">2.82</td>
+  <td class="c-gap over">+0.43</td>
+  <td class="hx hx-over" style="--o:0.48" title="K 2.5: ours 8.7 points above the mid">+9</td><td class="hx hx-over" style="--o:0.58" title="K 3.5: ours 10.4 points above the mid">+10</td><td class="hx hx-over" style="--o:0.53" title="K 4.5: ours 9.5 points above the mid">+10</td><td class="hx hx-over" style="--o:0.38" title="K 5.5: ours 6.9 points above the mid">+7</td><td class="hx hx-over" style="--o:0.08" title="K 6.5: ours 1.5 points above the mid">+2</td><td class="hx hx-na"></td><td class="hx hx-na"></td><td class="hx hx-na"></td>
+</tr><tr class="">
+  <td class="c-who">Zack Wheeler</td>
+  <td class="c-game"><a href="#g-HOU-PHI">HOU @ PHI</a></td>
+  <td class="c-num">6.41</td>
+  <td class="c-num c-mkt">6.64</td>
+  <td class="c-gap under">-0.23</td>
+  <td class="hx hx-na"></td><td class="hx hx-under" style="--o:0.08" title="K 3.5: ours 1.5 points below the mid">-2</td><td class="hx hx-under" style="--o:0.10" title="K 4.5: ours 1.8 points below the mid">-2</td><td class="hx hx-under" style="--o:0.17" title="K 5.5: ours 3.0 points below the mid">-3</td><td class="hx hx-under" style="--o:0.23" title="K 6.5: ours 4.1 points below the mid">-4</td><td class="hx hx-over" style="--o:0.01" title="K 7.5: ours 0.1 points above the mid">+0</td><td class="hx hx-over" style="--o:0.09" title="K 8.5: ours 1.6 points above the mid">+2</td><td class="hx hx-over" style="--o:0.08" title="K 9.5: ours 1.4 points above the mid">+1</td>
+</tr><tr class="">
+  <td class="c-who">Cristian Javier</td>
+  <td class="c-game"><a href="#g-HOU-PHI">HOU @ PHI</a></td>
+  <td class="c-num">3.92</td>
+  <td class="c-num c-mkt">3.83</td>
+  <td class="c-gap over">+0.09</td>
+  <td class="hx hx-under" style="--o:0.00" title="K 2.5: ours 0.0 points below the mid">+0</td><td class="hx hx-over" style="--o:0.08" title="K 3.5: ours 1.5 points above the mid">+2</td><td class="hx hx-over" style="--o:0.13" title="K 4.5: ours 2.4 points above the mid">+2</td><td class="hx hx-over" style="--o:0.11" title="K 5.5: ours 2.0 points above the mid">+2</td><td class="hx hx-over" style="--o:0.08" title="K 6.5: ours 1.5 points above the mid">+2</td><td class="hx hx-over" style="--o:0.08" title="K 7.5: ours 1.5 points above the mid">+2</td><td class="hx hx-na"></td><td class="hx hx-na"></td>
+</tr><tr class="">
+  <td class="c-who">Logan Gilbert</td>
+  <td class="c-game"><a href="#g-TEX-SEA">TEX @ SEA</a></td>
+  <td class="c-num">6.98</td>
+  <td class="c-num c-mkt">6.89</td>
+  <td class="c-gap over">+0.09</td>
+  <td class="hx hx-na"></td><td class="hx hx-over" style="--o:0.03" title="K 3.5: ours 0.5 points above the mid">+0</td><td class="hx hx-over" style="--o:0.03" title="K 4.5: ours 0.5 points above the mid">+0</td><td class="hx hx-over" style="--o:0.02" title="K 5.5: ours 0.4 points above the mid">+0</td><td class="hx hx-over" style="--o:0.06" title="K 6.5: ours 1.1 points above the mid">+1</td><td class="hx hx-over" style="--o:0.10" title="K 7.5: ours 1.8 points above the mid">+2</td><td class="hx hx-over" style="--o:0.26" title="K 8.5: ours 4.6 points above the mid">+5</td><td class="hx hx-over" style="--o:0.28" title="K 9.5: ours 5.0 points above the mid">+5</td>
+</tr><tr class="">
+  <td class="c-who">Jacob deGrom</td>
+  <td class="c-game"><a href="#g-TEX-SEA">TEX @ SEA</a></td>
+  <td class="c-num">6.45</td>
+  <td class="c-num c-mkt">6.53</td>
+  <td class="c-gap under">-0.08</td>
+  <td class="hx hx-na"></td><td class="hx hx-under" style="--o:0.06" title="K 3.5: ours 1.0 points below the mid">-1</td><td class="hx hx-under" style="--o:0.16" title="K 4.5: ours 2.8 points below the mid">-3</td><td class="hx hx-under" style="--o:0.13" title="K 5.5: ours 2.3 points below the mid">-2</td><td class="hx hx-under" style="--o:0.07" title="K 6.5: ours 1.2 points below the mid">-1</td><td class="hx hx-under" style="--o:0.06" title="K 7.5: ours 1.0 points below the mid">-1</td><td class="hx hx-over" style="--o:0.08" title="K 8.5: ours 1.5 points above the mid">+2</td><td class="hx hx-over" style="--o:0.16" title="K 9.5: ours 2.8 points above the mid">+3</td>
+</tr></tbody></table></div>
+</section>
+
+<section class="lead">
+  <h2>Largest disagreements, all markets</h2>
+  <p class="sub">Ranked by gap weighted toward even money &mdash; a 12-point gap
+  on a longshot is worth less than a 9-point gap at a coin flip. <b>Edge is our
+  P(over) minus the mid&rsquo;s</b>, so a positive number means we price the over
+  higher than Kalshi and a negative one means we price it lower.</p>
+  <div class="scroll"><table class="t-lead"><thead><tr><th>game</th><th>market</th><th class="c-num">our over</th><th class="c-num">our under</th><th class="c-num">kalshi over</th><th class="c-num">kalshi under</th><th class="c-gap">edge</th></tr></thead>
+    <tbody>
+<tr class="r-outs" data-keep="1">
+  <td class="c-game">HOU @ PHI</td><td class="c-bet"><span class="mk mk-outs">outs</span> Cristian Javier outs 14.5<span class="chip chip-raw" title="The displayed price carries the 2026-09-05 outs correction; this is the uncorrected number.">raw -167</span></td>
+  <td class="c-num c-ours">-192<span class="pc">65.8%</span></td><td class="c-num c-ours">+192<span class="pc">34.2%</span></td><td class="c-num c-mkt">-102<span class="pc">50.5%</span></td><td class="c-num c-mkt">+102<span class="pc">49.5%</span></td>
+  <td class="c-gap over">+15.3</td>
+</tr>
+<tr class="r-k" data-keep="1">
+  <td class="c-game">COL @ NYY</td><td class="c-bet"><span class="mk mk-k">K</span> Max Fried k 5.5</td>
+  <td class="c-num c-ours">-148<span class="pc">59.7%</span></td><td class="c-num c-ours">+148<span class="pc">40.3%</span></td><td class="c-num c-mkt">+115<span class="pc">46.5%</span></td><td class="c-num c-mkt">-115<span class="pc">53.5%</span></td>
+  <td class="c-gap over">+13.2</td>
+</tr>
+<tr class="r-total" data-keep="1">
+  <td class="c-game">TEX @ SEA</td><td class="c-bet"><span class="mk mk-total">game</span> total 7.5</td>
+  <td class="c-num c-ours">+106<span class="pc">48.5%</span></td><td class="c-num c-ours">-106<span class="pc">51.5%</span></td><td class="c-num c-mkt">+174<span class="pc">36.5%</span></td><td class="c-num c-mkt">-174<span class="pc">63.5%</span></td>
+  <td class="c-gap over">+12.0</td>
+</tr>
+<tr class="r-k" data-keep="1">
+  <td class="c-game">COL @ NYY</td><td class="c-bet"><span class="mk mk-k">K</span> Max Fried k 6.5</td>
+  <td class="c-num c-ours">+132<span class="pc">43.1%</span></td><td class="c-num c-ours">-132<span class="pc">56.9%</span></td><td class="c-num c-mkt">+223<span class="pc">31.0%</span></td><td class="c-num c-mkt">-223<span class="pc">69.0%</span></td>
+  <td class="c-gap over">+12.1</td>
+</tr>
+<tr class="r-k" data-keep="1">
+  <td class="c-game">PIT @ CWS</td><td class="c-bet"><span class="mk mk-k">K</span> Jared Jones k 5.5</td>
+  <td class="c-num c-ours">+105<span class="pc">48.8%</span></td><td class="c-num c-ours">-105<span class="pc">51.2%</span></td><td class="c-num c-mkt">-147<span class="pc">59.5%</span></td><td class="c-num c-mkt">+147<span class="pc">40.5%</span></td>
+  <td class="c-gap under">-10.7</td>
+</tr>
+<tr class="r-outs" data-keep="1">
+  <td class="c-game">TB @ ATL</td><td class="c-bet"><span class="mk mk-outs">outs</span> Martín Pérez outs 15.5<span class="chip chip-raw" title="The displayed price carries the 2026-09-05 outs correction; this is the uncorrected number.">raw -114</span></td>
+  <td class="c-num c-ours">-114<span class="pc">53.3%</span></td><td class="c-num c-ours">+114<span class="pc">46.7%</span></td><td class="c-num c-mkt">+133<span class="pc">42.9%</span></td><td class="c-num c-mkt">-133<span class="pc">57.1%</span></td>
+  <td class="c-gap over">+10.4</td>
+</tr>
+<tr class="r-k" data-keep="1">
+  <td class="c-game">TB @ ATL</td><td class="c-bet"><span class="mk mk-k">K</span> Martín Pérez k 3.5</td>
+  <td class="c-num c-ours">+123<span class="pc">44.8%</span></td><td class="c-num c-ours">-123<span class="pc">55.2%</span></td><td class="c-num c-mkt">+190<span class="pc">34.5%</span></td><td class="c-num c-mkt">-190<span class="pc">65.5%</span></td>
+  <td class="c-gap over">+10.4</td>
+</tr>
+<tr class="r-k" data-keep="1">
+  <td class="c-game">COL @ NYY</td><td class="c-bet"><span class="mk mk-k">K</span> Ryan Feltner k 4.5</td>
+  <td class="c-num c-ours">+162<span class="pc">38.2%</span></td><td class="c-num c-ours">-162<span class="pc">61.8%</span></td><td class="c-num c-mkt">+111<span class="pc">47.4%</span></td><td class="c-num c-mkt">-111<span class="pc">52.6%</span></td>
+  <td class="c-gap under">-9.2</td>
+</tr>
+<tr class="r-k" data-keep="1">
+  <td class="c-game">COL @ NYY</td><td class="c-bet"><span class="mk mk-k">K</span> Ryan Feltner k 3.5</td>
+  <td class="c-num c-ours">-134<span class="pc">57.3%</span></td><td class="c-num c-ours">+134<span class="pc">42.7%</span></td><td class="c-num c-mkt">-199<span class="pc">66.6%</span></td><td class="c-num c-mkt">+199<span class="pc">33.4%</span></td>
+  <td class="c-gap under">-9.3</td>
+</tr>
+<tr class="r-f5" data-keep="1">
+  <td class="c-game">TEX @ SEA</td><td class="c-bet"><span class="mk mk-f5">F5</span> F5 total 3.5</td>
+  <td class="c-num c-ours">-122<span class="pc">54.9%</span></td><td class="c-num c-ours">+122<span class="pc">45.1%</span></td><td class="c-num c-mkt">+115<span class="pc">46.5%</span></td><td class="c-num c-mkt">-115<span class="pc">53.5%</span></td>
+  <td class="c-gap over">+8.4</td>
+</tr>
+<tr class="r-team" data-keep="1">
+  <td class="c-game">TEX @ SEA</td><td class="c-bet"><span class="mk mk-team">team</span> SEA total 3.5</td>
+  <td class="c-num c-ours">-110<span class="pc">52.4%</span></td><td class="c-num c-ours">+110<span class="pc">47.6%</span></td><td class="c-num c-mkt">+125<span class="pc">44.4%</span></td><td class="c-num c-mkt">-125<span class="pc">55.6%</span></td>
+  <td class="c-gap over">+7.9</td>
+</tr>
+<tr class="r-f5" data-keep="1">
+  <td class="c-game">TEX @ SEA</td><td class="c-bet"><span class="mk mk-f5">F5</span> F5 total 4.5</td>
+  <td class="c-num c-ours">+141<span class="pc">41.5%</span></td><td class="c-num c-ours">-141<span class="pc">58.5%</span></td><td class="c-num c-mkt">+199<span class="pc">33.4%</span></td><td class="c-num c-mkt">-199<span class="pc">66.6%</span></td>
+  <td class="c-gap over">+8.0</td>
+</tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="f5">
+  <h2>First five &mdash; the product</h2>
+  <p class="sub">The only market here that has ever beaten a settled price on
+  outcomes: 0.1890 Brier against Kalshi&rsquo;s close at 0.1919 over 455
+  contracts, unconfirmed at that sample. The large figure is the fair F5 line;
+  no ticker exists for totals, so bring your own number.</p>
+  <div class="f5-grid"><a class="f5-card" href="#g-TB-ATL"><div class="f5-top"><span class="f5-mt">TB @ ATL</span><span class="f5-mean">4.84</span></div><div class="f5-arms">Nick Martinez <span class="v">v</span> Martín Pérez</div><div class="f5-lines"><div class="f5-line"><span class="f5-n">4.5</span><span class="f5-o">o -118</span><span class="f5-o">u +118</span><span class="f5-u">54%</span></div><div class="f5-line"><span class="f5-n">5.5</span><span class="f5-o">o +138</span><span class="f5-o">u -138</span><span class="f5-u">42%</span></div></div></a><a class="f5-card" href="#g-HOU-PHI"><div class="f5-top"><span class="f5-mt">HOU @ PHI</span><span class="f5-mean">4.69</span></div><div class="f5-arms">Cristian Javier <span class="v">v</span> Zack Wheeler</div><div class="f5-lines"><div class="f5-line"><span class="f5-n">4.5</span><span class="f5-o">o -109</span><span class="f5-o">u +109</span><span class="f5-u">52%</span></div><div class="f5-line"><span class="f5-n">5.5</span><span class="f5-o">o +145</span><span class="f5-o">u -145</span><span class="f5-u">41%</span></div></div></a><a class="f5-card" href="#g-TEX-SEA"><div class="f5-top"><span class="f5-mt">TEX @ SEA</span><span class="f5-mean">3.87</span></div><div class="f5-arms">Jacob deGrom <span class="v">v</span> Logan Gilbert</div><div class="f5-lines"><div class="f5-line"><span class="f5-n">3.5</span><span class="f5-o">o -122</span><span class="f5-o">u +122</span><span class="f5-u">55%</span></div><div class="f5-line"><span class="f5-n">4.5</span><span class="f5-o">o +141</span><span class="f5-o">u -141</span><span class="f5-u">41%</span></div></div></a><a class="f5-card" href="#g-COL-NYY"><div class="f5-top"><span class="f5-mt">COL @ NYY</span><span class="f5-mean">&mdash;</span></div><div class="f5-arms">Ryan Feltner <span class="v">v</span> Max Fried</div><div class="f5-lines"><div class="f5-line"><span class="f5-n">4.5</span><span class="f5-o">o +102</span><span class="f5-o">u -102</span><span class="f5-u">50%</span></div><div class="f5-line"><span class="f5-n">5.5</span><span class="f5-o">o +160</span><span class="f5-o">u -160</span><span class="f5-u">38%</span></div></div></a><a class="f5-card" href="#g-PIT-CWS"><div class="f5-top"><span class="f5-mt">PIT @ CWS</span><span class="f5-mean">4.59</span></div><div class="f5-arms">Jared Jones <span class="v">v</span> Hagen Smith</div><div class="f5-lines"><div class="f5-line"><span class="f5-n">4.5</span><span class="f5-o">o -104</span><span class="f5-o">u +104</span><span class="f5-u">51%</span></div><div class="f5-line"><span class="f5-n">5.5</span><span class="f5-o">o +152</span><span class="f5-o">u -152</span><span class="f5-u">40%</span></div></div></a></div>
+</section>
+
+<section class="detail">
+  <h2>Every game</h2>
+  <p class="filterline">Showing
+    <button type="button" class="ctl is-on" id="btn-keep"
+      aria-pressed="true">actionable rungs</button>
+    <button type="button" class="ctl" id="btn-all"
+      aria-pressed="false">everything priced</button>
+    <span class="n-keep-note">&mdash; hiding rungs outside the &plusmn;170
+    band, rungs with no Kalshi mid, and anything inside 3 points of
+    the mid. Totals and F5 always stay.</span><span class="n-all-note">&mdash;
+    every rung priced, off-band longshots included.</span></p>
+  <section class="game" id="g-TB-ATL">
+  <header class="g-head">
+    <h3>TB <span class="at">@</span> ATL</h3>
+    <p class="g-arms">Nick Martinez <span class="v">v</span> Martín Pérez</p>
+    <p class="g-meta"><span class="g-line" title="Where our over/under crosses even money — the number comparable to a posted total.">fair total 8.77</span><span class="g-mean" title="The simulated average. Right skew puts it about half a run above the line; the league's own gap is +0.50.">mean 9.2</span><span class="g-proj">projected lineups</span><span class="g-count"><b class="n-keep">12</b><b class="n-all">23</b> rungs</span></p>
+  </header>
+  <div class="scroll"><table><thead><tr><th>market</th><th class="c-num">our over</th><th class="c-num">our under</th><th class="c-num">kalshi over</th><th class="c-num">kalshi under</th><th class="c-gap">edge</th></tr></thead>
+    <tbody>
+<tr class="r-total" data-keep="1">
+  <td class="c-bet"><span class="mk mk-total">game</span> total 8<span class="chip chip-gate" title="Fails the starter gate &mdash; Nick Martinez: 81/177 appearances are starts — swingman. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">swingman</span></td>
+  <td class="c-num c-ours">-135<span class="pc">57.5%</span></td><td class="c-num c-ours">+135<span class="pc">42.5%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+<tr class="r-total" data-keep="1">
+  <td class="c-bet"><span class="mk mk-total">game</span> total 8.5<span class="chip chip-gate" title="Fails the starter gate &mdash; Nick Martinez: 81/177 appearances are starts — swingman. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">swingman</span></td>
+  <td class="c-num c-ours">-113<span class="pc">53.0%</span></td><td class="c-num c-ours">+113<span class="pc">47.0%</span></td><td class="c-num c-mkt">+102<span class="pc">49.5%</span></td><td class="c-num c-mkt">-102<span class="pc">50.5%</span></td>
+  <td class="c-gap over">+3.5</td>
+</tr>
+<tr class="r-total" data-keep="1">
+  <td class="c-bet"><span class="mk mk-total">game</span> total 9<span class="chip chip-gate" title="Fails the starter gate &mdash; Nick Martinez: 81/177 appearances are starts — swingman. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">swingman</span></td>
+  <td class="c-num c-ours">+111<span class="pc">47.4%</span></td><td class="c-num c-ours">-111<span class="pc">52.6%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+<tr class="r-team" data-keep="1">
+  <td class="c-bet"><span class="mk mk-team">team</span> TB total 3.5<span class="chip chip-gate" title="Fails the starter gate &mdash; Nick Martinez: 81/177 appearances are starts — swingman. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">swingman</span></td>
+  <td class="c-num c-ours">-155<span class="pc">60.8%</span></td><td class="c-num c-ours">+155<span class="pc">39.2%</span></td><td class="c-num c-mkt">-122<span class="pc">54.9%</span></td><td class="c-num c-mkt">+122<span class="pc">45.1%</span></td>
+  <td class="c-gap over">+5.8</td>
+</tr>
+<tr class="r-team" data-keep="1">
+  <td class="c-bet"><span class="mk mk-team">team</span> TB total 4.5<span class="chip chip-gate" title="Fails the starter gate &mdash; Nick Martinez: 81/177 appearances are starts — swingman. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">swingman</span></td>
+  <td class="c-num c-ours">+108<span class="pc">48.1%</span></td><td class="c-num c-ours">-108<span class="pc">51.9%</span></td><td class="c-num c-mkt">+135<span class="pc">42.5%</span></td><td class="c-num c-mkt">-135<span class="pc">57.5%</span></td>
+  <td class="c-gap over">+5.5</td>
+</tr>
+<tr class="r-team" data-keep="1">
+  <td class="c-bet"><span class="mk mk-team">team</span> ATL total 3.5<span class="chip chip-gate" title="Fails the starter gate &mdash; Nick Martinez: 81/177 appearances are starts — swingman. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">swingman</span></td>
+  <td class="c-num c-ours">-139<span class="pc">58.2%</span></td><td class="c-num c-ours">+139<span class="pc">41.8%</span></td><td class="c-num c-mkt">-133<span class="pc">57.1%</span></td><td class="c-num c-mkt">+133<span class="pc">42.9%</span></td>
+  <td class="c-gap over">+1.1</td>
+</tr>
+<tr class="r-team" data-keep="1">
+  <td class="c-bet"><span class="mk mk-team">team</span> ATL total 4.5<span class="chip chip-gate" title="Fails the starter gate &mdash; Nick Martinez: 81/177 appearances are starts — swingman. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">swingman</span></td>
+  <td class="c-num c-ours">+129<span class="pc">43.7%</span></td><td class="c-num c-ours">-129<span class="pc">56.3%</span></td><td class="c-num c-mkt">+130<span class="pc">43.5%</span></td><td class="c-num c-mkt">-130<span class="pc">56.5%</span></td>
+  <td class="c-gap over">+0.2</td>
+</tr>
+<tr class="r-f5" data-keep="1">
+  <td class="c-bet"><span class="mk mk-f5">F5</span> F5 total 4.5<span class="chip chip-gate" title="Fails the starter gate &mdash; Nick Martinez: 81/177 appearances are starts — swingman. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">swingman</span></td>
+  <td class="c-num c-ours">-118<span class="pc">54.1%</span></td><td class="c-num c-ours">+118<span class="pc">45.9%</span></td><td class="c-num c-mkt">-106<span class="pc">51.5%</span></td><td class="c-num c-mkt">+106<span class="pc">48.5%</span></td>
+  <td class="c-gap over">+2.7</td>
+</tr>
+<tr class="r-f5" data-keep="1">
+  <td class="c-bet"><span class="mk mk-f5">F5</span> F5 total 5.5<span class="chip chip-gate" title="Fails the starter gate &mdash; Nick Martinez: 81/177 appearances are starts — swingman. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">swingman</span></td>
+  <td class="c-num c-ours">+138<span class="pc">42.0%</span></td><td class="c-num c-ours">-138<span class="pc">58.0%</span></td><td class="c-num c-mkt">+153<span class="pc">39.5%</span></td><td class="c-num c-mkt">-153<span class="pc">60.5%</span></td>
+  <td class="c-gap over">+2.5</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Nick Martinez k 2.5<span class="chip chip-gate" title="Fails the starter gate &mdash; 81/177 appearances are starts — swingman. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">swingman</span></td>
+  <td class="c-num c-ours">-233<span class="pc">70.0%</span></td><td class="c-num c-ours">+233<span class="pc">30.0%</span></td><td class="c-num c-mkt">-217<span class="pc">68.5%</span></td><td class="c-num c-mkt">+217<span class="pc">31.6%</span></td>
+  <td class="c-gap over">+1.5</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Nick Martinez k 3.5<span class="chip chip-gate" title="Fails the starter gate &mdash; 81/177 appearances are starts — swingman. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">swingman</span></td>
+  <td class="c-num c-ours">+102<span class="pc">49.5%</span></td><td class="c-num c-ours">-102<span class="pc">50.5%</span></td><td class="c-num c-mkt">+111<span class="pc">47.4%</span></td><td class="c-num c-mkt">-111<span class="pc">52.6%</span></td>
+  <td class="c-gap over">+2.1</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Nick Martinez k 4.5<span class="chip chip-gate" title="Fails the starter gate &mdash; 81/177 appearances are starts — swingman. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">swingman</span></td>
+  <td class="c-num c-ours">+232<span class="pc">30.1%</span></td><td class="c-num c-ours">-232<span class="pc">69.9%</span></td><td class="c-num c-mkt">+264<span class="pc">27.5%</span></td><td class="c-num c-mkt">-264<span class="pc">72.5%</span></td>
+  <td class="c-gap over">+2.6</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Nick Martinez k 5.5<span class="chip chip-gate" title="Fails the starter gate &mdash; 81/177 appearances are starts — swingman. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">swingman</span></td>
+  <td class="c-num c-ours">+541<span class="pc">15.6%</span></td><td class="c-num c-ours">-541<span class="pc">84.4%</span></td><td class="c-num c-mkt">+614<span class="pc">14.0%</span></td><td class="c-num c-mkt">-614<span class="pc">86.0%</span></td>
+  <td class="c-gap over">+1.6</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Nick Martinez k 6.5<span class="chip chip-gate" title="Fails the starter gate &mdash; 81/177 appearances are starts — swingman. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">swingman</span></td>
+  <td class="c-num c-ours">+1337<span class="pc">7.0%</span></td><td class="c-num c-ours">-1337<span class="pc">93.0%</span></td><td class="c-num c-mkt">+2122<span class="pc">4.5%</span></td><td class="c-num c-mkt">-2122<span class="pc">95.5%</span></td>
+  <td class="c-gap over">+2.5</td>
+</tr>
+<tr class="r-outs" data-keep="0">
+  <td class="c-bet"><span class="mk mk-outs">outs</span> Nick Martinez outs 16.5<span class="chip chip-gate" title="Fails the starter gate &mdash; 81/177 appearances are starts — swingman. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">swingman</span><span class="chip chip-raw" title="The displayed price carries the 2026-09-05 outs correction; this is the uncorrected number.">raw -161</span></td>
+  <td class="c-num c-ours">-156<span class="pc">60.9%</span></td><td class="c-num c-ours">+156<span class="pc">39.1%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+<tr class="r-outs" data-keep="1">
+  <td class="c-bet"><span class="mk mk-outs">outs</span> Nick Martinez outs 17.5<span class="chip chip-gate" title="Fails the starter gate &mdash; 81/177 appearances are starts — swingman. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">swingman</span><span class="chip chip-raw" title="The displayed price carries the 2026-09-05 outs correction; this is the uncorrected number.">raw -123</span></td>
+  <td class="c-num c-ours">-119<span class="pc">54.3%</span></td><td class="c-num c-ours">+119<span class="pc">45.7%</span></td><td class="c-num c-mkt">+113<span class="pc">46.9%</span></td><td class="c-num c-mkt">-113<span class="pc">53.0%</span></td>
+  <td class="c-gap over">+7.4</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Martín Pérez k 2.5</td>
+  <td class="c-num c-ours">-195<span class="pc">66.1%</span></td><td class="c-num c-ours">+195<span class="pc">33.9%</span></td><td class="c-num c-mkt">-135<span class="pc">57.5%</span></td><td class="c-num c-mkt">+135<span class="pc">42.5%</span></td>
+  <td class="c-gap over">+8.7</td>
+</tr>
+<tr class="r-k" data-keep="1">
+  <td class="c-bet"><span class="mk mk-k">K</span> Martín Pérez k 3.5</td>
+  <td class="c-num c-ours">+123<span class="pc">44.8%</span></td><td class="c-num c-ours">-123<span class="pc">55.2%</span></td><td class="c-num c-mkt">+190<span class="pc">34.5%</span></td><td class="c-num c-mkt">-190<span class="pc">65.5%</span></td>
+  <td class="c-gap over">+10.4</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Martín Pérez k 4.5</td>
+  <td class="c-num c-ours">+285<span class="pc">26.0%</span></td><td class="c-num c-ours">-285<span class="pc">74.0%</span></td><td class="c-num c-mkt">+506<span class="pc">16.5%</span></td><td class="c-num c-mkt">-506<span class="pc">83.5%</span></td>
+  <td class="c-gap over">+9.5</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Martín Pérez k 5.5</td>
+  <td class="c-num c-ours">+673<span class="pc">12.9%</span></td><td class="c-num c-ours">-673<span class="pc">87.1%</span></td><td class="c-num c-mkt">+1567<span class="pc">6.0%</span></td><td class="c-num c-mkt">-1567<span class="pc">94.0%</span></td>
+  <td class="c-gap over">+6.9</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Martín Pérez k 6.5</td>
+  <td class="c-num c-ours">+1712<span class="pc">5.5%</span></td><td class="c-num c-ours">-1712<span class="pc">94.5%</span></td><td class="c-num c-mkt">+2400<span class="pc">4.0%</span></td><td class="c-num c-mkt">-2400<span class="pc">96.0%</span></td>
+  <td class="c-gap over">+1.5</td>
+</tr>
+<tr class="r-outs" data-keep="1">
+  <td class="c-bet"><span class="mk mk-outs">outs</span> Martín Pérez outs 15.5<span class="chip chip-raw" title="The displayed price carries the 2026-09-05 outs correction; this is the uncorrected number.">raw -114</span></td>
+  <td class="c-num c-ours">-114<span class="pc">53.3%</span></td><td class="c-num c-ours">+114<span class="pc">46.7%</span></td><td class="c-num c-mkt">+133<span class="pc">42.9%</span></td><td class="c-num c-mkt">-133<span class="pc">57.1%</span></td>
+  <td class="c-gap over">+10.4</td>
+</tr>
+<tr class="r-outs" data-keep="0">
+  <td class="c-bet"><span class="mk mk-outs">outs</span> Martín Pérez outs 16.5<span class="chip chip-raw" title="The displayed price carries the 2026-09-05 outs correction; this is the uncorrected number.">raw +109</span></td>
+  <td class="c-num c-ours">+112<span class="pc">47.2%</span></td><td class="c-num c-ours">-112<span class="pc">52.8%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+    </tbody>
+  </table></div>
+</section><section class="game" id="g-HOU-PHI">
+  <header class="g-head">
+    <h3>HOU <span class="at">@</span> PHI</h3>
+    <p class="g-arms">Cristian Javier <span class="v">v</span> Zack Wheeler</p>
+    <p class="g-meta"><span class="g-line" title="Where our over/under crosses even money — the number comparable to a posted total.">fair total 8.69</span><span class="g-mean" title="The simulated average. Right skew puts it about half a run above the line; the league's own gap is +0.50.">mean 9.1</span><span class="g-proj">projected lineups</span><span class="g-count"><b class="n-keep">11</b><b class="n-all">26</b> rungs</span></p>
+  </header>
+  <div class="scroll"><table><thead><tr><th>market</th><th class="c-num">our over</th><th class="c-num">our under</th><th class="c-num">kalshi over</th><th class="c-num">kalshi under</th><th class="c-gap">edge</th></tr></thead>
+    <tbody>
+<tr class="r-total" data-keep="1">
+  <td class="c-bet"><span class="mk mk-total">game</span> total 8</td>
+  <td class="c-num c-ours">-130<span class="pc">56.5%</span></td><td class="c-num c-ours">+130<span class="pc">43.5%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+<tr class="r-total" data-keep="1">
+  <td class="c-bet"><span class="mk mk-total">game</span> total 8.5</td>
+  <td class="c-num c-ours">-109<span class="pc">52.1%</span></td><td class="c-num c-ours">+109<span class="pc">47.9%</span></td><td class="c-num c-mkt">+102<span class="pc">49.5%</span></td><td class="c-num c-mkt">-102<span class="pc">50.5%</span></td>
+  <td class="c-gap over">+2.6</td>
+</tr>
+<tr class="r-total" data-keep="1">
+  <td class="c-bet"><span class="mk mk-total">game</span> total 9</td>
+  <td class="c-num c-ours">+115<span class="pc">46.5%</span></td><td class="c-num c-ours">-115<span class="pc">53.5%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+<tr class="r-team" data-keep="1">
+  <td class="c-bet"><span class="mk mk-team">team</span> HOU total 3.5</td>
+  <td class="c-num c-ours">-121<span class="pc">54.8%</span></td><td class="c-num c-ours">+121<span class="pc">45.2%</span></td><td class="c-num c-mkt">+104<span class="pc">49.0%</span></td><td class="c-num c-mkt">-104<span class="pc">51.0%</span></td>
+  <td class="c-gap over">+5.7</td>
+</tr>
+<tr class="r-team" data-keep="1">
+  <td class="c-bet"><span class="mk mk-team">team</span> HOU total 4.5</td>
+  <td class="c-num c-ours">+140<span class="pc">41.7%</span></td><td class="c-num c-ours">-140<span class="pc">58.3%</span></td><td class="c-num c-mkt">+178<span class="pc">36.0%</span></td><td class="c-num c-mkt">-178<span class="pc">64.0%</span></td>
+  <td class="c-gap over">+5.7</td>
+</tr>
+<tr class="r-team" data-keep="1">
+  <td class="c-bet"><span class="mk mk-team">team</span> PHI total 4.5</td>
+  <td class="c-num c-ours">+103<span class="pc">49.3%</span></td><td class="c-num c-ours">-103<span class="pc">50.7%</span></td><td class="c-num c-mkt">-102<span class="pc">50.5%</span></td><td class="c-num c-mkt">+102<span class="pc">49.5%</span></td>
+  <td class="c-gap under">-1.2</td>
+</tr>
+<tr class="r-f5" data-keep="1">
+  <td class="c-bet"><span class="mk mk-f5">F5</span> F5 total 4.5</td>
+  <td class="c-num c-ours">-109<span class="pc">52.1%</span></td><td class="c-num c-ours">+109<span class="pc">47.9%</span></td><td class="c-num c-mkt">+106<span class="pc">48.5%</span></td><td class="c-num c-mkt">-106<span class="pc">51.5%</span></td>
+  <td class="c-gap over">+3.6</td>
+</tr>
+<tr class="r-f5" data-keep="1">
+  <td class="c-bet"><span class="mk mk-f5">F5</span> F5 total 5.5</td>
+  <td class="c-num c-ours">+145<span class="pc">40.8%</span></td><td class="c-num c-ours">-145<span class="pc">59.2%</span></td><td class="c-num c-mkt">+174<span class="pc">36.5%</span></td><td class="c-num c-mkt">-174<span class="pc">63.5%</span></td>
+  <td class="c-gap over">+4.3</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Cristian Javier k 2.5</td>
+  <td class="c-num c-ours">-317<span class="pc">76.0%</span></td><td class="c-num c-ours">+317<span class="pc">24.0%</span></td><td class="c-num c-mkt">-317<span class="pc">76.0%</span></td><td class="c-num c-mkt">+317<span class="pc">24.0%</span></td>
+  <td class="c-gap under">+0.0</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Cristian Javier k 3.5</td>
+  <td class="c-num c-ours">-138<span class="pc">58.0%</span></td><td class="c-num c-ours">+138<span class="pc">42.0%</span></td><td class="c-num c-mkt">-130<span class="pc">56.5%</span></td><td class="c-num c-mkt">+130<span class="pc">43.5%</span></td>
+  <td class="c-gap over">+1.5</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Cristian Javier k 4.5</td>
+  <td class="c-num c-ours">+157<span class="pc">38.9%</span></td><td class="c-num c-ours">-157<span class="pc">61.1%</span></td><td class="c-num c-mkt">+174<span class="pc">36.5%</span></td><td class="c-num c-mkt">-174<span class="pc">63.5%</span></td>
+  <td class="c-gap over">+2.4</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Cristian Javier k 5.5</td>
+  <td class="c-num c-ours">+334<span class="pc">23.0%</span></td><td class="c-num c-ours">-334<span class="pc">77.0%</span></td><td class="c-num c-mkt">+376<span class="pc">21.0%</span></td><td class="c-num c-mkt">-376<span class="pc">79.0%</span></td>
+  <td class="c-gap over">+2.0</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Cristian Javier k 6.5</td>
+  <td class="c-num c-ours">+731<span class="pc">12.0%</span></td><td class="c-num c-ours">-731<span class="pc">88.0%</span></td><td class="c-num c-mkt">+852<span class="pc">10.5%</span></td><td class="c-num c-mkt">-852<span class="pc">89.5%</span></td>
+  <td class="c-gap over">+1.5</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Cristian Javier k 7.5</td>
+  <td class="c-num c-ours">+1732<span class="pc">5.5%</span></td><td class="c-num c-ours">-1732<span class="pc">94.5%</span></td><td class="c-num c-mkt">+2400<span class="pc">4.0%</span></td><td class="c-num c-mkt">-2400<span class="pc">96.0%</span></td>
+  <td class="c-gap over">+1.5</td>
+</tr>
+<tr class="r-outs" data-keep="1">
+  <td class="c-bet"><span class="mk mk-outs">outs</span> Cristian Javier outs 14.5<span class="chip chip-raw" title="The displayed price carries the 2026-09-05 outs correction; this is the uncorrected number.">raw -167</span></td>
+  <td class="c-num c-ours">-192<span class="pc">65.8%</span></td><td class="c-num c-ours">+192<span class="pc">34.2%</span></td><td class="c-num c-mkt">-102<span class="pc">50.5%</span></td><td class="c-num c-mkt">+102<span class="pc">49.5%</span></td>
+  <td class="c-gap over">+15.3</td>
+</tr>
+<tr class="r-outs" data-keep="0">
+  <td class="c-bet"><span class="mk mk-outs">outs</span> Cristian Javier outs 15.5<span class="chip chip-raw" title="The displayed price carries the 2026-09-05 outs correction; this is the uncorrected number.">raw +119</span></td>
+  <td class="c-num c-ours">+119<span class="pc">45.7%</span></td><td class="c-num c-ours">-119<span class="pc">54.3%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+<tr class="r-outs" data-keep="0">
+  <td class="c-bet"><span class="mk mk-outs">outs</span> Cristian Javier outs 16.5<span class="chip chip-raw" title="The displayed price carries the 2026-09-05 outs correction; this is the uncorrected number.">raw +148</span></td>
+  <td class="c-num c-ours">+153<span class="pc">39.5%</span></td><td class="c-num c-ours">-153<span class="pc">60.5%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Zack Wheeler k 3.5</td>
+  <td class="c-num c-ours">-810<span class="pc">89.0%</span></td><td class="c-num c-ours">+810<span class="pc">11.0%</span></td><td class="c-num c-mkt">-953<span class="pc">90.5%</span></td><td class="c-num c-mkt">+953<span class="pc">9.5%</span></td>
+  <td class="c-gap under">-1.5</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Zack Wheeler k 4.5</td>
+  <td class="c-num c-ours">-370<span class="pc">78.7%</span></td><td class="c-num c-ours">+370<span class="pc">21.3%</span></td><td class="c-num c-mkt">-413<span class="pc">80.5%</span></td><td class="c-num c-mkt">+413<span class="pc">19.5%</span></td>
+  <td class="c-gap under">-1.8</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Zack Wheeler k 5.5</td>
+  <td class="c-num c-ours">-182<span class="pc">64.5%</span></td><td class="c-num c-ours">+182<span class="pc">35.5%</span></td><td class="c-num c-mkt">-208<span class="pc">67.5%</span></td><td class="c-num c-mkt">+208<span class="pc">32.5%</span></td>
+  <td class="c-gap under">-3.0</td>
+</tr>
+<tr class="r-k" data-keep="1">
+  <td class="c-bet"><span class="mk mk-k">K</span> Zack Wheeler k 6.5</td>
+  <td class="c-num c-ours">+106<span class="pc">48.5%</span></td><td class="c-num c-ours">-106<span class="pc">51.5%</span></td><td class="c-num c-mkt">-111<span class="pc">52.6%</span></td><td class="c-num c-mkt">+111<span class="pc">47.4%</span></td>
+  <td class="c-gap under">-4.1</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Zack Wheeler k 7.5</td>
+  <td class="c-num c-ours">+198<span class="pc">33.6%</span></td><td class="c-num c-ours">-198<span class="pc">66.4%</span></td><td class="c-num c-mkt">+199<span class="pc">33.4%</span></td><td class="c-num c-mkt">-199<span class="pc">66.6%</span></td>
+  <td class="c-gap over">+0.1</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Zack Wheeler k 8.5<span class="chip chip-bump" title="K 8.5 and up: the model prices a high-K over at ~78% of its true probability. Two points already added.">tail +2</span></td>
+  <td class="c-num c-ours">+333<span class="pc">23.1%</span></td><td class="c-num c-ours">-333<span class="pc">76.9%</span></td><td class="c-num c-mkt">+365<span class="pc">21.5%</span></td><td class="c-num c-mkt">-365<span class="pc">78.5%</span></td>
+  <td class="c-gap over">+1.6</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Zack Wheeler k 9.5<span class="chip chip-bump" title="K 8.5 and up: the model prices a high-K over at ~78% of its true probability. Two points already added.">tail +2</span></td>
+  <td class="c-num c-ours">+620<span class="pc">13.9%</span></td><td class="c-num c-ours">-620<span class="pc">86.1%</span></td><td class="c-num c-mkt">+700<span class="pc">12.5%</span></td><td class="c-num c-mkt">-700<span class="pc">87.5%</span></td>
+  <td class="c-gap over">+1.4</td>
+</tr>
+<tr class="r-outs" data-keep="0">
+  <td class="c-bet"><span class="mk mk-outs">outs</span> Zack Wheeler outs 16.5<span class="chip chip-raw" title="The displayed price carries the 2026-09-05 outs correction; this is the uncorrected number.">raw -162</span></td>
+  <td class="c-num c-ours">-157<span class="pc">61.1%</span></td><td class="c-num c-ours">+157<span class="pc">38.9%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+<tr class="r-outs" data-keep="1">
+  <td class="c-bet"><span class="mk mk-outs">outs</span> Zack Wheeler outs 17.5<span class="chip chip-raw" title="The displayed price carries the 2026-09-05 outs correction; this is the uncorrected number.">raw -126</span></td>
+  <td class="c-num c-ours">-122<span class="pc">54.9%</span></td><td class="c-num c-ours">+122<span class="pc">45.1%</span></td><td class="c-num c-mkt">-141<span class="pc">58.5%</span></td><td class="c-num c-mkt">+141<span class="pc">41.5%</span></td>
+  <td class="c-gap under">-3.6</td>
+</tr>
+    </tbody>
+  </table></div>
+</section><section class="game" id="g-TEX-SEA">
+  <header class="g-head">
+    <h3>TEX <span class="at">@</span> SEA</h3>
+    <p class="g-arms">Jacob deGrom <span class="v">v</span> Logan Gilbert</p>
+    <p class="g-meta"><span class="g-line" title="Where our over/under crosses even money — the number comparable to a posted total.">fair total 7.39</span><span class="g-mean" title="The simulated average. Right skew puts it about half a run above the line; the league's own gap is +0.50.">mean 8.0</span><span class="g-proj">projected lineups</span><span class="g-count"><b class="n-keep">9</b><b class="n-all">25</b> rungs</span></p>
+  </header>
+  <div class="scroll"><table><thead><tr><th>market</th><th class="c-num">our over</th><th class="c-num">our under</th><th class="c-num">kalshi over</th><th class="c-num">kalshi under</th><th class="c-gap">edge</th></tr></thead>
+    <tbody>
+<tr class="r-total" data-keep="1">
+  <td class="c-bet"><span class="mk mk-total">game</span> total 7</td>
+  <td class="c-num c-ours">-123<span class="pc">55.2%</span></td><td class="c-num c-ours">+123<span class="pc">44.8%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+<tr class="r-total" data-keep="1">
+  <td class="c-bet"><span class="mk mk-total">game</span> total 7.5</td>
+  <td class="c-num c-ours">+106<span class="pc">48.5%</span></td><td class="c-num c-ours">-106<span class="pc">51.5%</span></td><td class="c-num c-mkt">+174<span class="pc">36.5%</span></td><td class="c-num c-mkt">-174<span class="pc">63.5%</span></td>
+  <td class="c-gap over">+12.0</td>
+</tr>
+<tr class="r-total" data-keep="1">
+  <td class="c-bet"><span class="mk mk-total">game</span> total 8</td>
+  <td class="c-num c-ours">+128<span class="pc">43.9%</span></td><td class="c-num c-ours">-128<span class="pc">56.1%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+<tr class="r-team" data-keep="1">
+  <td class="c-bet"><span class="mk mk-team">team</span> TEX total 3.5</td>
+  <td class="c-num c-ours">+104<span class="pc">49.0%</span></td><td class="c-num c-ours">-104<span class="pc">51.0%</span></td><td class="c-num c-mkt">+141<span class="pc">41.5%</span></td><td class="c-num c-mkt">-141<span class="pc">58.5%</span></td>
+  <td class="c-gap over">+7.5</td>
+</tr>
+<tr class="r-team" data-keep="1">
+  <td class="c-bet"><span class="mk mk-team">team</span> SEA total 3.5</td>
+  <td class="c-num c-ours">-110<span class="pc">52.4%</span></td><td class="c-num c-ours">+110<span class="pc">47.6%</span></td><td class="c-num c-mkt">+125<span class="pc">44.4%</span></td><td class="c-num c-mkt">-125<span class="pc">55.6%</span></td>
+  <td class="c-gap over">+7.9</td>
+</tr>
+<tr class="r-team" data-keep="1">
+  <td class="c-bet"><span class="mk mk-team">team</span> SEA total 4.5</td>
+  <td class="c-num c-ours">+160<span class="pc">38.5%</span></td><td class="c-num c-ours">-160<span class="pc">61.5%</span></td><td class="c-num c-mkt">+217<span class="pc">31.6%</span></td><td class="c-num c-mkt">-217<span class="pc">68.5%</span></td>
+  <td class="c-gap over">+6.9</td>
+</tr>
+<tr class="r-f5" data-keep="1">
+  <td class="c-bet"><span class="mk mk-f5">F5</span> F5 total 3.5</td>
+  <td class="c-num c-ours">-122<span class="pc">54.9%</span></td><td class="c-num c-ours">+122<span class="pc">45.1%</span></td><td class="c-num c-mkt">+115<span class="pc">46.5%</span></td><td class="c-num c-mkt">-115<span class="pc">53.5%</span></td>
+  <td class="c-gap over">+8.4</td>
+</tr>
+<tr class="r-f5" data-keep="1">
+  <td class="c-bet"><span class="mk mk-f5">F5</span> F5 total 4.5</td>
+  <td class="c-num c-ours">+141<span class="pc">41.5%</span></td><td class="c-num c-ours">-141<span class="pc">58.5%</span></td><td class="c-num c-mkt">+199<span class="pc">33.4%</span></td><td class="c-num c-mkt">-199<span class="pc">66.6%</span></td>
+  <td class="c-gap over">+8.0</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Jacob deGrom k 3.5</td>
+  <td class="c-num c-ours">-773<span class="pc">88.5%</span></td><td class="c-num c-ours">+773<span class="pc">11.5%</span></td><td class="c-num c-mkt">-852<span class="pc">89.5%</span></td><td class="c-num c-mkt">+852<span class="pc">10.5%</span></td>
+  <td class="c-gap under">-1.0</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Jacob deGrom k 4.5</td>
+  <td class="c-num c-ours">-370<span class="pc">78.7%</span></td><td class="c-num c-ours">+370<span class="pc">21.3%</span></td><td class="c-num c-mkt">-441<span class="pc">81.5%</span></td><td class="c-num c-mkt">+441<span class="pc">18.5%</span></td>
+  <td class="c-gap under">-2.8</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Jacob deGrom k 5.5</td>
+  <td class="c-num c-ours">-188<span class="pc">65.3%</span></td><td class="c-num c-ours">+188<span class="pc">34.7%</span></td><td class="c-num c-mkt">-208<span class="pc">67.5%</span></td><td class="c-num c-mkt">+208<span class="pc">32.5%</span></td>
+  <td class="c-gap under">-2.3</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Jacob deGrom k 6.5</td>
+  <td class="c-num c-ours">+103<span class="pc">49.3%</span></td><td class="c-num c-ours">-103<span class="pc">50.7%</span></td><td class="c-num c-mkt">-102<span class="pc">50.5%</span></td><td class="c-num c-mkt">+102<span class="pc">49.5%</span></td>
+  <td class="c-gap under">-1.2</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Jacob deGrom k 7.5</td>
+  <td class="c-num c-ours">+194<span class="pc">34.0%</span></td><td class="c-num c-ours">-194<span class="pc">66.0%</span></td><td class="c-num c-mkt">+186<span class="pc">35.0%</span></td><td class="c-num c-mkt">-186<span class="pc">65.0%</span></td>
+  <td class="c-gap under">-1.0</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Jacob deGrom k 8.5<span class="chip chip-bump" title="K 8.5 and up: the model prices a high-K over at ~78% of its true probability. Two points already added.">tail +2</span></td>
+  <td class="c-num c-ours">+336<span class="pc">23.0%</span></td><td class="c-num c-ours">-336<span class="pc">77.0%</span></td><td class="c-num c-mkt">+365<span class="pc">21.5%</span></td><td class="c-num c-mkt">-365<span class="pc">78.5%</span></td>
+  <td class="c-gap over">+1.5</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Jacob deGrom k 9.5<span class="chip chip-bump" title="K 8.5 and up: the model prices a high-K over at ~78% of its true probability. Two points already added.">tail +2</span></td>
+  <td class="c-num c-ours">+624<span class="pc">13.8%</span></td><td class="c-num c-ours">-624<span class="pc">86.2%</span></td><td class="c-num c-mkt">+809<span class="pc">11.0%</span></td><td class="c-num c-mkt">-809<span class="pc">89.0%</span></td>
+  <td class="c-gap over">+2.8</td>
+</tr>
+<tr class="r-outs" data-keep="1">
+  <td class="c-bet"><span class="mk mk-outs">outs</span> Jacob deGrom outs 16.5<span class="chip chip-raw" title="The displayed price carries the 2026-09-05 outs correction; this is the uncorrected number.">raw -126</span></td>
+  <td class="c-num c-ours">-122<span class="pc">54.9%</span></td><td class="c-num c-ours">+122<span class="pc">45.1%</span></td><td class="c-num c-mkt">-108<span class="pc">51.9%</span></td><td class="c-num c-mkt">+108<span class="pc">48.1%</span></td>
+  <td class="c-gap over">+3.0</td>
+</tr>
+<tr class="r-outs" data-keep="0">
+  <td class="c-bet"><span class="mk mk-outs">outs</span> Jacob deGrom outs 17.5<span class="chip chip-raw" title="The displayed price carries the 2026-09-05 outs correction; this is the uncorrected number.">raw +104</span></td>
+  <td class="c-num c-ours">+108<span class="pc">48.1%</span></td><td class="c-num c-ours">-108<span class="pc">51.9%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Logan Gilbert k 3.5</td>
+  <td class="c-num c-ours">-1152<span class="pc">92.0%</span></td><td class="c-num c-ours">+1152<span class="pc">8.0%</span></td><td class="c-num c-mkt">-1076<span class="pc">91.5%</span></td><td class="c-num c-mkt">+1076<span class="pc">8.5%</span></td>
+  <td class="c-gap over">+0.5</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Logan Gilbert k 4.5</td>
+  <td class="c-num c-ours">-524<span class="pc">84.0%</span></td><td class="c-num c-ours">+524<span class="pc">16.0%</span></td><td class="c-num c-mkt">-506<span class="pc">83.5%</span></td><td class="c-num c-mkt">+506<span class="pc">16.5%</span></td>
+  <td class="c-gap over">+0.5</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Logan Gilbert k 5.5</td>
+  <td class="c-num c-ours">-262<span class="pc">72.4%</span></td><td class="c-num c-ours">+262<span class="pc">27.6%</span></td><td class="c-num c-mkt">-257<span class="pc">72.0%</span></td><td class="c-num c-mkt">+257<span class="pc">28.0%</span></td>
+  <td class="c-gap over">+0.4</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Logan Gilbert k 6.5</td>
+  <td class="c-num c-ours">-136<span class="pc">57.6%</span></td><td class="c-num c-ours">+136<span class="pc">42.4%</span></td><td class="c-num c-mkt">-130<span class="pc">56.5%</span></td><td class="c-num c-mkt">+130<span class="pc">43.5%</span></td>
+  <td class="c-gap over">+1.1</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Logan Gilbert k 7.5</td>
+  <td class="c-num c-ours">+139<span class="pc">41.8%</span></td><td class="c-num c-ours">-139<span class="pc">58.2%</span></td><td class="c-num c-mkt">+150<span class="pc">40.0%</span></td><td class="c-num c-mkt">-150<span class="pc">60.0%</span></td>
+  <td class="c-gap over">+1.8</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Logan Gilbert k 8.5<span class="chip chip-bump" title="K 8.5 and up: the model prices a high-K over at ~78% of its true probability. Two points already added.">tail +2</span></td>
+  <td class="c-num c-ours">+238<span class="pc">29.6%</span></td><td class="c-num c-ours">-238<span class="pc">70.4%</span></td><td class="c-num c-mkt">+300<span class="pc">25.0%</span></td><td class="c-num c-mkt">-300<span class="pc">75.0%</span></td>
+  <td class="c-gap over">+4.6</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Logan Gilbert k 9.5<span class="chip chip-bump" title="K 8.5 and up: the model prices a high-K over at ~78% of its true probability. Two points already added.">tail +2</span></td>
+  <td class="c-num c-ours">+441<span class="pc">18.5%</span></td><td class="c-num c-ours">-441<span class="pc">81.5%</span></td><td class="c-num c-mkt">+641<span class="pc">13.5%</span></td><td class="c-num c-mkt">-641<span class="pc">86.5%</span></td>
+  <td class="c-gap over">+5.0</td>
+</tr>
+<tr class="r-outs" data-keep="0">
+  <td class="c-bet"><span class="mk mk-outs">outs</span> Logan Gilbert outs 17.5<span class="chip chip-raw" title="The displayed price carries the 2026-09-05 outs correction; this is the uncorrected number.">raw -140</span></td>
+  <td class="c-num c-ours">-135<span class="pc">57.5%</span></td><td class="c-num c-ours">+135<span class="pc">42.5%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+    </tbody>
+  </table></div>
+</section><section class="game" id="g-COL-NYY">
+  <header class="g-head">
+    <h3>COL <span class="at">@</span> NYY</h3>
+    <p class="g-arms">Ryan Feltner <span class="v">v</span> Max Fried</p>
+    <p class="g-meta"><span class="g-line" title="Where our over/under crosses even money — the number comparable to a posted total.">fair total 8.54</span><span class="g-mean" title="The simulated average. Right skew puts it about half a run above the line; the league's own gap is +0.50.">mean 9.0</span><span class="g-proj">projected lineups</span><span class="g-count"><b class="n-keep">14</b><b class="n-all">26</b> rungs</span></p>
+  </header>
+  <div class="scroll"><table><thead><tr><th>market</th><th class="c-num">our over</th><th class="c-num">our under</th><th class="c-num">kalshi over</th><th class="c-num">kalshi under</th><th class="c-gap">edge</th></tr></thead>
+    <tbody>
+<tr class="r-total" data-keep="1">
+  <td class="c-bet"><span class="mk mk-total">game</span> total 8</td>
+  <td class="c-num c-ours">-122<span class="pc">54.9%</span></td><td class="c-num c-ours">+122<span class="pc">45.1%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+<tr class="r-total" data-keep="1">
+  <td class="c-bet"><span class="mk mk-total">game</span> total 8.5</td>
+  <td class="c-num c-ours">-102<span class="pc">50.5%</span></td><td class="c-num c-ours">+102<span class="pc">49.5%</span></td><td class="c-num c-mkt">-102<span class="pc">50.5%</span></td><td class="c-num c-mkt">+102<span class="pc">49.5%</span></td>
+  <td class="c-gap under">+0.0</td>
+</tr>
+<tr class="r-total" data-keep="1">
+  <td class="c-bet"><span class="mk mk-total">game</span> total 9</td>
+  <td class="c-num c-ours">+124<span class="pc">44.6%</span></td><td class="c-num c-ours">-124<span class="pc">55.4%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+<tr class="r-team" data-keep="1">
+  <td class="c-bet"><span class="mk mk-team">team</span> COL total 2.5</td>
+  <td class="c-num c-ours">-160<span class="pc">61.5%</span></td><td class="c-num c-ours">+160<span class="pc">38.5%</span></td><td class="c-num c-mkt">-130<span class="pc">56.5%</span></td><td class="c-num c-mkt">+130<span class="pc">43.5%</span></td>
+  <td class="c-gap over">+5.0</td>
+</tr>
+<tr class="r-team" data-keep="1">
+  <td class="c-bet"><span class="mk mk-team">team</span> COL total 3.5</td>
+  <td class="c-num c-ours">+112<span class="pc">47.2%</span></td><td class="c-num c-ours">-112<span class="pc">52.8%</span></td><td class="c-num c-mkt">+147<span class="pc">40.5%</span></td><td class="c-num c-mkt">-147<span class="pc">59.5%</span></td>
+  <td class="c-gap over">+6.7</td>
+</tr>
+<tr class="r-team" data-keep="1">
+  <td class="c-bet"><span class="mk mk-team">team</span> NYY total 4.5</td>
+  <td class="c-num c-ours">-116<span class="pc">53.7%</span></td><td class="c-num c-ours">+116<span class="pc">46.3%</span></td><td class="c-num c-mkt">-133<span class="pc">57.1%</span></td><td class="c-num c-mkt">+133<span class="pc">42.9%</span></td>
+  <td class="c-gap under">-3.4</td>
+</tr>
+<tr class="r-team" data-keep="1">
+  <td class="c-bet"><span class="mk mk-team">team</span> NYY total 5.5</td>
+  <td class="c-num c-ours">+145<span class="pc">40.8%</span></td><td class="c-num c-ours">-145<span class="pc">59.2%</span></td><td class="c-num c-mkt">+127<span class="pc">44.0%</span></td><td class="c-num c-mkt">-127<span class="pc">56.0%</span></td>
+  <td class="c-gap under">-3.2</td>
+</tr>
+<tr class="r-f5" data-keep="1">
+  <td class="c-bet"><span class="mk mk-f5">F5</span> F5 total 4.5</td>
+  <td class="c-num c-ours">+102<span class="pc">49.5%</span></td><td class="c-num c-ours">-102<span class="pc">50.5%</span></td><td class="c-num c-mkt">-104<span class="pc">51.0%</span></td><td class="c-num c-mkt">+104<span class="pc">49.0%</span></td>
+  <td class="c-gap under">-1.5</td>
+</tr>
+<tr class="r-f5" data-keep="1">
+  <td class="c-bet"><span class="mk mk-f5">F5</span> F5 total 5.5</td>
+  <td class="c-num c-ours">+160<span class="pc">38.5%</span></td><td class="c-num c-ours">-160<span class="pc">61.5%</span></td><td class="c-num c-mkt">+153<span class="pc">39.5%</span></td><td class="c-num c-mkt">-153<span class="pc">60.5%</span></td>
+  <td class="c-gap under">-1.1</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Ryan Feltner k 2.5</td>
+  <td class="c-num c-ours">-307<span class="pc">75.4%</span></td><td class="c-num c-ours">+307<span class="pc">24.6%</span></td><td class="c-num c-mkt">-426<span class="pc">81.0%</span></td><td class="c-num c-mkt">+426<span class="pc">19.0%</span></td>
+  <td class="c-gap under">-5.6</td>
+</tr>
+<tr class="r-k" data-keep="1">
+  <td class="c-bet"><span class="mk mk-k">K</span> Ryan Feltner k 3.5</td>
+  <td class="c-num c-ours">-134<span class="pc">57.3%</span></td><td class="c-num c-ours">+134<span class="pc">42.7%</span></td><td class="c-num c-mkt">-199<span class="pc">66.6%</span></td><td class="c-num c-mkt">+199<span class="pc">33.4%</span></td>
+  <td class="c-gap under">-9.3</td>
+</tr>
+<tr class="r-k" data-keep="1">
+  <td class="c-bet"><span class="mk mk-k">K</span> Ryan Feltner k 4.5</td>
+  <td class="c-num c-ours">+162<span class="pc">38.2%</span></td><td class="c-num c-ours">-162<span class="pc">61.8%</span></td><td class="c-num c-mkt">+111<span class="pc">47.4%</span></td><td class="c-num c-mkt">-111<span class="pc">52.6%</span></td>
+  <td class="c-gap under">-9.2</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Ryan Feltner k 5.5</td>
+  <td class="c-num c-ours">+352<span class="pc">22.1%</span></td><td class="c-num c-ours">-352<span class="pc">77.9%</span></td><td class="c-num c-mkt">+251<span class="pc">28.5%</span></td><td class="c-num c-mkt">-251<span class="pc">71.5%</span></td>
+  <td class="c-gap under">-6.4</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Ryan Feltner k 6.5</td>
+  <td class="c-num c-ours">+761<span class="pc">11.6%</span></td><td class="c-num c-ours">-761<span class="pc">88.4%</span></td><td class="c-num c-mkt">+506<span class="pc">16.5%</span></td><td class="c-num c-mkt">-506<span class="pc">83.5%</span></td>
+  <td class="c-gap under">-4.9</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Ryan Feltner k 7.5</td>
+  <td class="c-num c-ours">+1790<span class="pc">5.3%</span></td><td class="c-num c-ours">-1790<span class="pc">94.7%</span></td><td class="c-num c-mkt">+1076<span class="pc">8.5%</span></td><td class="c-num c-mkt">-1076<span class="pc">91.5%</span></td>
+  <td class="c-gap under">-3.2</td>
+</tr>
+<tr class="r-outs" data-keep="0">
+  <td class="c-bet"><span class="mk mk-outs">outs</span> Ryan Feltner outs 14.5<span class="chip chip-raw" title="The displayed price carries the 2026-09-05 outs correction; this is the uncorrected number.">raw -137</span></td>
+  <td class="c-num c-ours">-156<span class="pc">60.9%</span></td><td class="c-num c-ours">+156<span class="pc">39.1%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+<tr class="r-outs" data-keep="1">
+  <td class="c-bet"><span class="mk mk-outs">outs</span> Ryan Feltner outs 15.5<span class="chip chip-raw" title="The displayed price carries the 2026-09-05 outs correction; this is the uncorrected number.">raw +151</span></td>
+  <td class="c-num c-ours">+151<span class="pc">39.8%</span></td><td class="c-num c-ours">-151<span class="pc">60.2%</span></td><td class="c-num c-mkt">+125<span class="pc">44.4%</span></td><td class="c-num c-mkt">-125<span class="pc">55.6%</span></td>
+  <td class="c-gap under">-4.6</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Max Fried k 2.5</td>
+  <td class="c-num c-ours">-1630<span class="pc">94.2%</span></td><td class="c-num c-ours">+1630<span class="pc">5.8%</span></td><td class="c-num c-mkt">-953<span class="pc">90.5%</span></td><td class="c-num c-mkt">+953<span class="pc">9.5%</span></td>
+  <td class="c-gap over">+3.7</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Max Fried k 3.5</td>
+  <td class="c-num c-ours">-662<span class="pc">86.9%</span></td><td class="c-num c-ours">+662<span class="pc">13.1%</span></td><td class="c-num c-mkt">-365<span class="pc">78.5%</span></td><td class="c-num c-mkt">+365<span class="pc">21.5%</span></td>
+  <td class="c-gap over">+8.4</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Max Fried k 4.5</td>
+  <td class="c-num c-ours">-300<span class="pc">75.0%</span></td><td class="c-num c-ours">+300<span class="pc">25.0%</span></td><td class="c-num c-mkt">-182<span class="pc">64.5%</span></td><td class="c-num c-mkt">+182<span class="pc">35.5%</span></td>
+  <td class="c-gap over">+10.5</td>
+</tr>
+<tr class="r-k" data-keep="1">
+  <td class="c-bet"><span class="mk mk-k">K</span> Max Fried k 5.5</td>
+  <td class="c-num c-ours">-148<span class="pc">59.7%</span></td><td class="c-num c-ours">+148<span class="pc">40.3%</span></td><td class="c-num c-mkt">+115<span class="pc">46.5%</span></td><td class="c-num c-mkt">-115<span class="pc">53.5%</span></td>
+  <td class="c-gap over">+13.2</td>
+</tr>
+<tr class="r-k" data-keep="1">
+  <td class="c-bet"><span class="mk mk-k">K</span> Max Fried k 6.5</td>
+  <td class="c-num c-ours">+132<span class="pc">43.1%</span></td><td class="c-num c-ours">-132<span class="pc">56.9%</span></td><td class="c-num c-mkt">+223<span class="pc">31.0%</span></td><td class="c-num c-mkt">-223<span class="pc">69.0%</span></td>
+  <td class="c-gap over">+12.1</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Max Fried k 7.5</td>
+  <td class="c-num c-ours">+255<span class="pc">28.2%</span></td><td class="c-num c-ours">-255<span class="pc">71.8%</span></td><td class="c-num c-mkt">+506<span class="pc">16.5%</span></td><td class="c-num c-mkt">-506<span class="pc">83.5%</span></td>
+  <td class="c-gap over">+11.7</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Max Fried k 8.5<span class="chip chip-bump" title="K 8.5 and up: the model prices a high-K over at ~78% of its true probability. Two points already added.">tail +2</span></td>
+  <td class="c-num c-ours">+438<span class="pc">18.6%</span></td><td class="c-num c-ours">-438<span class="pc">81.4%</span></td><td class="c-num c-mkt">+1233<span class="pc">7.5%</span></td><td class="c-num c-mkt">-1233<span class="pc">92.5%</span></td>
+  <td class="c-gap over">+11.1</td>
+</tr>
+<tr class="r-outs" data-keep="0">
+  <td class="c-bet"><span class="mk mk-outs">outs</span> Max Fried outs 16.5<span class="chip chip-raw" title="The displayed price carries the 2026-09-05 outs correction; this is the uncorrected number.">raw -204</span></td>
+  <td class="c-num c-ours">-197<span class="pc">66.3%</span></td><td class="c-num c-ours">+197<span class="pc">33.7%</span></td><td class="c-num c-mkt">-106<span class="pc">51.5%</span></td><td class="c-num c-mkt">+106<span class="pc">48.5%</span></td>
+  <td class="c-gap over">+14.9</td>
+</tr>
+<tr class="r-outs" data-keep="0">
+  <td class="c-bet"><span class="mk mk-outs">outs</span> Max Fried outs 17.5<span class="chip chip-raw" title="The displayed price carries the 2026-09-05 outs correction; this is the uncorrected number.">raw -157</span></td>
+  <td class="c-num c-ours">-151<span class="pc">60.2%</span></td><td class="c-num c-ours">+151<span class="pc">39.8%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+    </tbody>
+  </table></div>
+</section><section class="game" id="g-PIT-CWS">
+  <header class="g-head">
+    <h3>PIT <span class="at">@</span> CWS</h3>
+    <p class="g-arms">Jared Jones <span class="v">v</span> Hagen Smith</p>
+    <p class="g-meta"><span class="g-line" title="Where our over/under crosses even money — the number comparable to a posted total.">fair total 8.66</span><span class="g-mean" title="The simulated average. Right skew puts it about half a run above the line; the league's own gap is +0.50.">mean 9.1</span><span class="g-proj">projected lineups</span><span class="g-count"><b class="n-keep">10</b><b class="n-all">23</b> rungs</span></p>
+  </header>
+  <div class="scroll"><table><thead><tr><th>market</th><th class="c-num">our over</th><th class="c-num">our under</th><th class="c-num">kalshi over</th><th class="c-num">kalshi under</th><th class="c-gap">edge</th></tr></thead>
+    <tbody>
+<tr class="r-total" data-keep="1">
+  <td class="c-bet"><span class="mk mk-total">game</span> total 8<span class="chip chip-gate" title="Fails the starter gate &mdash; Hagen Smith: only 1 start(s) on record. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">thin record</span></td>
+  <td class="c-num c-ours">-129<span class="pc">56.3%</span></td><td class="c-num c-ours">+129<span class="pc">43.7%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+<tr class="r-total" data-keep="1">
+  <td class="c-bet"><span class="mk mk-total">game</span> total 8.5<span class="chip chip-gate" title="Fails the starter gate &mdash; Hagen Smith: only 1 start(s) on record. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">thin record</span></td>
+  <td class="c-num c-ours">-107<span class="pc">51.7%</span></td><td class="c-num c-ours">+107<span class="pc">48.3%</span></td><td class="c-num c-mkt">+130<span class="pc">43.5%</span></td><td class="c-num c-mkt">-130<span class="pc">56.5%</span></td>
+  <td class="c-gap over">+8.2</td>
+</tr>
+<tr class="r-total" data-keep="1">
+  <td class="c-bet"><span class="mk mk-total">game</span> total 9<span class="chip chip-gate" title="Fails the starter gate &mdash; Hagen Smith: only 1 start(s) on record. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">thin record</span></td>
+  <td class="c-num c-ours">+116<span class="pc">46.3%</span></td><td class="c-num c-ours">-116<span class="pc">53.7%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+<tr class="r-team" data-keep="1">
+  <td class="c-bet"><span class="mk mk-team">team</span> PIT total 3.5<span class="chip chip-gate" title="Fails the starter gate &mdash; Hagen Smith: only 1 start(s) on record. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">thin record</span></td>
+  <td class="c-num c-ours">-133<span class="pc">57.1%</span></td><td class="c-num c-ours">+133<span class="pc">42.9%</span></td><td class="c-num c-mkt">-106<span class="pc">51.5%</span></td><td class="c-num c-mkt">+106<span class="pc">48.5%</span></td>
+  <td class="c-gap over">+5.6</td>
+</tr>
+<tr class="r-team" data-keep="1">
+  <td class="c-bet"><span class="mk mk-team">team</span> PIT total 4.5<span class="chip chip-gate" title="Fails the starter gate &mdash; Hagen Smith: only 1 start(s) on record. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">thin record</span></td>
+  <td class="c-num c-ours">+124<span class="pc">44.6%</span></td><td class="c-num c-ours">-124<span class="pc">55.4%</span></td><td class="c-num c-mkt">+144<span class="pc">41.0%</span></td><td class="c-num c-mkt">-144<span class="pc">59.0%</span></td>
+  <td class="c-gap over">+3.7</td>
+</tr>
+<tr class="r-team" data-keep="1">
+  <td class="c-bet"><span class="mk mk-team">team</span> CWS total 3.5<span class="chip chip-gate" title="Fails the starter gate &mdash; Hagen Smith: only 1 start(s) on record. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">thin record</span></td>
+  <td class="c-num c-ours">-144<span class="pc">59.0%</span></td><td class="c-num c-ours">+144<span class="pc">41.0%</span></td><td class="c-num c-mkt">-102<span class="pc">50.5%</span></td><td class="c-num c-mkt">+102<span class="pc">49.5%</span></td>
+  <td class="c-gap over">+8.5</td>
+</tr>
+<tr class="r-team" data-keep="1">
+  <td class="c-bet"><span class="mk mk-team">team</span> CWS total 4.5<span class="chip chip-gate" title="Fails the starter gate &mdash; Hagen Smith: only 1 start(s) on record. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">thin record</span></td>
+  <td class="c-num c-ours">+120<span class="pc">45.5%</span></td><td class="c-num c-ours">-120<span class="pc">54.5%</span></td><td class="c-num c-mkt">+167<span class="pc">37.5%</span></td><td class="c-num c-mkt">-167<span class="pc">62.5%</span></td>
+  <td class="c-gap over">+8.0</td>
+</tr>
+<tr class="r-f5" data-keep="1">
+  <td class="c-bet"><span class="mk mk-f5">F5</span> F5 total 4.5<span class="chip chip-gate" title="Fails the starter gate &mdash; Hagen Smith: only 1 start(s) on record. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">thin record</span></td>
+  <td class="c-num c-ours">-104<span class="pc">51.0%</span></td><td class="c-num c-ours">+104<span class="pc">49.0%</span></td><td class="c-num c-mkt">+122<span class="pc">45.1%</span></td><td class="c-num c-mkt">-122<span class="pc">54.9%</span></td>
+  <td class="c-gap over">+5.9</td>
+</tr>
+<tr class="r-f5" data-keep="1">
+  <td class="c-bet"><span class="mk mk-f5">F5</span> F5 total 5.5<span class="chip chip-gate" title="Fails the starter gate &mdash; Hagen Smith: only 1 start(s) on record. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">thin record</span></td>
+  <td class="c-num c-ours">+152<span class="pc">39.7%</span></td><td class="c-num c-ours">-152<span class="pc">60.3%</span></td><td class="c-num c-mkt">+194<span class="pc">34.0%</span></td><td class="c-num c-mkt">-194<span class="pc">66.0%</span></td>
+  <td class="c-gap over">+5.7</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Jared Jones k 2.5</td>
+  <td class="c-num c-ours">-788<span class="pc">88.7%</span></td><td class="c-num c-ours">+788<span class="pc">11.3%</span></td><td class="c-num c-mkt">-1233<span class="pc">92.5%</span></td><td class="c-num c-mkt">+1233<span class="pc">7.5%</span></td>
+  <td class="c-gap under">-3.8</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Jared Jones k 3.5</td>
+  <td class="c-num c-ours">-363<span class="pc">78.4%</span></td><td class="c-num c-ours">+363<span class="pc">21.6%</span></td><td class="c-num c-mkt">-590<span class="pc">85.5%</span></td><td class="c-num c-mkt">+590<span class="pc">14.5%</span></td>
+  <td class="c-gap under">-7.1</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Jared Jones k 4.5</td>
+  <td class="c-num c-ours">-181<span class="pc">64.4%</span></td><td class="c-num c-ours">+181<span class="pc">35.6%</span></td><td class="c-num c-mkt">-264<span class="pc">72.5%</span></td><td class="c-num c-mkt">+264<span class="pc">27.5%</span></td>
+  <td class="c-gap under">-8.1</td>
+</tr>
+<tr class="r-k" data-keep="1">
+  <td class="c-bet"><span class="mk mk-k">K</span> Jared Jones k 5.5</td>
+  <td class="c-num c-ours">+105<span class="pc">48.8%</span></td><td class="c-num c-ours">-105<span class="pc">51.2%</span></td><td class="c-num c-mkt">-147<span class="pc">59.5%</span></td><td class="c-num c-mkt">+147<span class="pc">40.5%</span></td>
+  <td class="c-gap under">-10.7</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Jared Jones k 6.5</td>
+  <td class="c-num c-ours">+203<span class="pc">33.0%</span></td><td class="c-num c-ours">-203<span class="pc">67.0%</span></td><td class="c-num c-mkt">+147<span class="pc">40.5%</span></td><td class="c-num c-mkt">-147<span class="pc">59.5%</span></td>
+  <td class="c-gap under">-7.5</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Jared Jones k 7.5</td>
+  <td class="c-num c-ours">+389<span class="pc">20.4%</span></td><td class="c-num c-ours">-389<span class="pc">79.5%</span></td><td class="c-num c-mkt">+285<span class="pc">26.0%</span></td><td class="c-num c-mkt">-285<span class="pc">74.0%</span></td>
+  <td class="c-gap under">-5.5</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Jared Jones k 8.5<span class="chip chip-bump" title="K 8.5 and up: the model prices a high-K over at ~78% of its true probability. Two points already added.">tail +2</span></td>
+  <td class="c-num c-ours">+645<span class="pc">13.4%</span></td><td class="c-num c-ours">-645<span class="pc">86.6%</span></td><td class="c-num c-mkt">+669<span class="pc">13.0%</span></td><td class="c-num c-mkt">-669<span class="pc">87.0%</span></td>
+  <td class="c-gap over">+0.4</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Jared Jones k 9.5<span class="chip chip-bump" title="K 8.5 and up: the model prices a high-K over at ~78% of its true probability. Two points already added.">tail +2</span></td>
+  <td class="c-num c-ours">+1235<span class="pc">7.5%</span></td><td class="c-num c-ours">-1235<span class="pc">92.5%</span></td><td class="c-num c-mkt">+1438<span class="pc">6.5%</span></td><td class="c-num c-mkt">-1438<span class="pc">93.5%</span></td>
+  <td class="c-gap over">+1.0</td>
+</tr>
+<tr class="r-outs" data-keep="0">
+  <td class="c-bet"><span class="mk mk-outs">outs</span> Jared Jones outs 14.5<span class="chip chip-raw" title="The displayed price carries the 2026-09-05 outs correction; this is the uncorrected number.">raw -144</span></td>
+  <td class="c-num c-ours">-165<span class="pc">62.3%</span></td><td class="c-num c-ours">+165<span class="pc">37.7%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+<tr class="r-outs" data-keep="0">
+  <td class="c-bet"><span class="mk mk-outs">outs</span> Jared Jones outs 15.5<span class="chip chip-raw" title="The displayed price carries the 2026-09-05 outs correction; this is the uncorrected number.">raw +149</span></td>
+  <td class="c-num c-ours">+149<span class="pc">40.2%</span></td><td class="c-num c-ours">-149<span class="pc">59.8%</span></td><td class="c-num c-mkt">+135<span class="pc">42.5%</span></td><td class="c-num c-mkt">-135<span class="pc">57.5%</span></td>
+  <td class="c-gap under">-2.4</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Hagen Smith k 5.5<span class="chip chip-thin" title="Under 60% of this arm&rsquo;s priced rate is his own record &mdash; a gap here can be our shrinkage rather than his talent.">THIN</span><span class="chip chip-gate" title="Fails the starter gate &mdash; only 1 start(s) on record. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">thin record</span></td>
+  <td class="c-num c-ours">-131<span class="pc">56.7%</span></td><td class="c-num c-ours">+131<span class="pc">43.3%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+<tr class="r-k" data-keep="0">
+  <td class="c-bet"><span class="mk mk-k">K</span> Hagen Smith k 6.5<span class="chip chip-thin" title="Under 60% of this arm&rsquo;s priced rate is his own record &mdash; a gap here can be our shrinkage rather than his talent.">THIN</span><span class="chip chip-gate" title="Fails the starter gate &mdash; only 1 start(s) on record. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">thin record</span></td>
+  <td class="c-num c-ours">+144<span class="pc">41.0%</span></td><td class="c-num c-ours">-144<span class="pc">59.0%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+<tr class="r-outs" data-keep="0">
+  <td class="c-bet"><span class="mk mk-outs">outs</span> Hagen Smith outs 14.5<span class="chip chip-thin" title="Under 60% of this arm&rsquo;s priced rate is his own record &mdash; a gap here can be our shrinkage rather than his talent.">THIN</span><span class="chip chip-gate" title="Fails the starter gate &mdash; only 1 start(s) on record. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">thin record</span><span class="chip chip-raw" title="The displayed price carries the 2026-09-05 outs correction; this is the uncorrected number.">raw -152</span></td>
+  <td class="c-num c-ours">-174<span class="pc">63.5%</span></td><td class="c-num c-ours">+174<span class="pc">36.5%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+<tr class="r-outs" data-keep="0">
+  <td class="c-bet"><span class="mk mk-outs">outs</span> Hagen Smith outs 15.5<span class="chip chip-thin" title="Under 60% of this arm&rsquo;s priced rate is his own record &mdash; a gap here can be our shrinkage rather than his talent.">THIN</span><span class="chip chip-gate" title="Fails the starter gate &mdash; only 1 start(s) on record. The model still gives him a full starter&rsquo;s leash, so a large gap on his rows is more likely our error than the market&rsquo;s.">thin record</span><span class="chip chip-raw" title="The displayed price carries the 2026-09-05 outs correction; this is the uncorrected number.">raw +144</span></td>
+  <td class="c-num c-ours">+144<span class="pc">41.0%</span></td><td class="c-num c-ours">-144<span class="pc">59.0%</span></td><td class="c-num c-mkt c-none">&mdash;</td><td class="c-num c-mkt c-none">&mdash;</td>
+  <td class="c-gap c-none">no book</td>
+</tr>
+    </tbody>
+  </table></div>
+</section>
+</section>
+
+<section class="declined">
+  <h2>Arms not quoted</h2>
+  <p class="sub">The game is priced; these pitchers are not. An opener or a
+  swingman given a starter&rsquo;s leash produces a confident number with nothing
+  behind it &mdash; <b>this gate was dead from 5 to 9 September</b>, having lived in
+  the deleted betting layer, and it is why the 8 September board carried rows on
+  four arms it should not have.</p>
+  <ul class="nq"><li>none &mdash; every quoted arm cleared the gate</li></ul>
+</section>
+
+<section class="declined">
+  <h2>Declined</h2>
+  <p class="sub">Both starters or neither. A missing arm is never filled with a
+  league-average stand-in &mdash; inventing the other club invents the score, and
+  the score is what the hook, the bullpen and the margin are conditioned on.</p>
+  <ul><li>none &mdash; both starters posted in every game priced</li></ul>
+</section>
+
+<footer class="rules">
+  <h2>What the numbers carry</h2>
+  <div class="rulegrid">
+    <div><h4>Comparing to a sportsbook</h4><p>Kalshi&rsquo;s two sides are one
+    contract, so they mirror exactly. A book&rsquo;s two sides carry its hold, so
+    de-vig before comparing: an under at &minus;124 alone implies 55.4%, but with
+    the over near +103 on the same book its true under is about 53%.</p></div>
+    <div><h4>Strikeouts</h4><p>Usable as printed from 4.5 to 7.5. At 8.5 and up
+    the tail is light and two points are already added to those overs. Against a
+    closing price the K model adds nothing &mdash; its whole measured value is
+    being early.</p></div>
+    <div><h4>Totals</h4><p>July and August ran roughly 0.15 to 0.20 runs light a
+    side; September is unmeasured. The engine over-weights three-to-six run
+    games, so a low-total under lean is bias, not a read.</p></div>
+    <div><h4>Not here at all</h4><p>Moneyline and run line have never been scored
+    against outcomes in this repo. Batter props print elsewhere and are
+    audit-only until something grades them.</p></div>
+  </div>
+  <p class="colophon">Read off one shared set of draws per matchup, so a
+  strikeout rung and the total its start sits inside cannot contradict each
+  other. <b>This is not a bet list.</b></p>
+</footer>
+
+</div>
+<script>
+(function(){
+  var body=document.body,
+      keep=document.getElementById('btn-keep'),
+      all=document.getElementById('btn-all'),
+      drop=[].slice.call(document.querySelectorAll('tbody tr'))
+              .filter(function(r){return r.dataset.keep==='0';});
+  function set(showAll){
+    body.classList.toggle('show-all',showAll);
+    keep.classList.toggle('is-on',!showAll);
+    all.classList.toggle('is-on',showAll);
+    keep.setAttribute('aria-pressed',String(!showAll));
+    all.setAttribute('aria-pressed',String(showAll));
+    drop.forEach(function(r){r.classList.toggle('hidden',!showAll);});
+  }
+  keep.addEventListener('click',function(){set(false);});
+  all.addEventListener('click',function(){set(true);});
+  set(false);
+})();
+</script>

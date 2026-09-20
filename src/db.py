@@ -147,6 +147,24 @@ CREATE TABLE IF NOT EXISTS video_queue (
 CREATE INDEX IF NOT EXISTS idx_queue_pending
     ON video_queue(slate_date, processed_at);
 
+-- Who worked the plate, per game. Accumulated rather than fetched on demand:
+-- an umpire profile is only meaningful across a season of games, and the
+-- assignment for a single game is one row of a payload we already pull.
+-- Joined against mlb_pitching to derive tendencies, so this table stays a
+-- record of fact and the interpretation lives in code.
+CREATE TABLE IF NOT EXISTS game_officials (
+    game_id TEXT PRIMARY KEY REFERENCES games(game_id),
+    date TEXT NOT NULL,
+    plate_ump TEXT,
+    plate_ump_id INTEGER,
+    first_ump TEXT,
+    second_ump TEXT,
+    third_ump TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_officials_ump
+    ON game_officials(plate_ump_id);
+CREATE INDEX IF NOT EXISTS idx_officials_date ON game_officials(date);
+
 -- One row per digest actually sent, so a manual `make morning` and the
 -- scheduled run cannot both mail the same day's card.
 CREATE TABLE IF NOT EXISTS digests (
@@ -219,6 +237,31 @@ def init() -> None:
                 "ALTER TABLE bets ADD COLUMN period TEXT "
                 "NOT NULL DEFAULT 'full'"
             )
+        # Ground truth for who started, from the boxscore. The local cache
+        # otherwise carries no such flag, so callers were inferring it as
+        # "most outs on that team that game" — right 91.7% of the time, and
+        # wrong precisely on the short starts, which truncates the left tail
+        # of every distribution built on it. NULL means "not yet checked",
+        # 0 means "checked, did not start"; see context/sources/starters.py.
+        # Which ballpark, by id. home_team is not a substitute: MLB plays
+        # neutral-site games and Mexico City is one of the most extreme run
+        # environments anywhere. See context/sources/venues.py.
+        gcols = {r[1] for r in conn.execute("PRAGMA table_info(games)")}
+        if "venue_id" not in gcols:
+            conn.execute("ALTER TABLE games ADD COLUMN venue_id INTEGER")
+        # MLB's own day/night classification, not inferred from the clock:
+        # a 5pm first pitch is a day game in one park and a night game in
+        # another, and the league is the authority on which.
+        if "day_night" not in gcols:
+            conn.execute("ALTER TABLE games ADD COLUMN day_night TEXT")
+        if "start_utc" not in gcols:
+            conn.execute("ALTER TABLE games ADD COLUMN start_utc TEXT")
+
+        pcols = {r[1] for r in conn.execute("PRAGMA table_info(mlb_pitching)")}
+        if "is_starter" not in pcols:
+            conn.execute(
+                "ALTER TABLE mlb_pitching ADD COLUMN is_starter INTEGER")
+
         if "stated_line" not in cols:
             conn.execute("ALTER TABLE bets ADD COLUMN stated_line REAL")
             # Backfill history: before the prop backfill existed, `line` was

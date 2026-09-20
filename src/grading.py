@@ -214,6 +214,15 @@ def mlb_boxscore(game_id: str) -> dict:
                     "bb": pit.get("baseOnBalls", 0),
                     "hr": pit.get("homeRuns", 0),
                     "decision": decision,
+                    # The API's own flag, not an inference. Without it the
+                    # only way to identify a starter from the local cache is
+                    # "most outs on that team", which is wrong 8.6% of the
+                    # time and wrong specifically on short starts — the
+                    # starter knocked out in the second gets passed by the
+                    # long reliever behind him. That truncates the left tail
+                    # of every distribution built on the cache; measured,
+                    # P(under 9 outs) reads 2.9% instead of 8.6%.
+                    "is_starter": 1 if pit.get("gamesStarted") else 0,
                 })
     return {"batting": batting, "pitching": pitching}
 
@@ -1300,86 +1309,6 @@ def fill_missing_lines(conn: sqlite3.Connection, date_str: str) -> int:
         )
         updated += 1
     return updated
-
-
-def fill_missing_prop_lines(
-    conn: sqlite3.Connection, date_str: str,
-) -> tuple[int, int]:
-    """Fill prop lines and prices the source never stated, from Kalshi.
-
-    fill_missing_lines() covers game totals and runlines off ESPN consensus,
-    but ESPN publishes nothing at prop level, so a prop a capper read off a
-    screen ("Castillo under in outs") kept line=NULL from ingest all the way
-    through grading and scored UNGRADABLE. Calling Our Shot alone has 26 of
-    those, a third of its pitcher-outs picks.
-
-    Two rules keep this honest:
-      * A line is only ever *filled*, never overwritten, and is flagged with
-        line_inferred=1 exactly as the consensus fill does.
-      * An existing american_odds is never overwritten either — a price the
-        source actually quoted beats an exchange midpoint.
-
-    The strike is filled even from a wide book, because which contract is
-    listed is a fact about the market. The *price* is not: a wide book is
-    evidence rather than a quote, so odds only come from a `usable` one.
-
-    Returns (lines_filled, odds_filled).
-    """
-    from src import kalshi, parallel
-
-    rows = conn.execute(
-        "SELECT id, player_name, stat, side, line, american_odds FROM bets "
-        "WHERE date=? AND sport='mlb' AND bet_type IN ('prop','combo') "
-        "AND player_name IS NOT NULL "
-        "AND (line IS NULL OR american_odds IS NULL)",
-        (date_str,),
-    ).fetchall()
-    if not rows:
-        return 0, 0
-
-    # One lookup per distinct prop, not per row — the same pick from four
-    # cappers is one question for the exchange.
-    jobs: dict[tuple, list] = {}
-    for r in rows:
-        if (r["stat"] or "").lower() not in kalshi.SERIES_BY_STAT:
-            continue  # Kalshi has no series for this stat (er, decision, ...)
-        jobs.setdefault(
-            (r["player_name"], r["stat"], (r["side"] or "").lower(),
-             r["line"]), [],
-        ).append(r)
-    if not jobs:
-        return 0, 0
-
-    def _lookup(k: tuple):
-        player, stat, side, line = k
-        if line is None:
-            return kalshi.discover_prop(player, stat, side, date_str)
-        return kalshi.price_prop(player, stat, line, side)
-
-    # Network only; every UPDATE below runs on this thread.
-    found = parallel.gather(_lookup, list(jobs), workers=4)
-
-    lines = odds = 0
-    for k, got, err in found:
-        if err or not got:
-            continue
-        new_line = got.get("line")
-        price = got.get("mid_american")
-        for r in jobs[k]:
-            if r["line"] is None and new_line is not None:
-                conn.execute(
-                    "UPDATE bets SET line=?, line_inferred=1 WHERE id=?",
-                    (float(new_line), r["id"]),
-                )
-                lines += 1
-            if (r["american_odds"] is None and price is not None
-                    and got.get("usable")):
-                conn.execute(
-                    "UPDATE bets SET american_odds=? WHERE id=?",
-                    (int(price), r["id"]),
-                )
-                odds += 1
-    return lines, odds
 
 
 def resolve_canonical_matchup(

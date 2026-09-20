@@ -1,0 +1,1602 @@
+"""Do the measured mechanisms actually REACH the simulation?
+
+A mutation sweep over the shipped flags found five that nothing guarded:
+measured advancement, measured inherited runners, the hard pitch cap,
+measured relief-outing length, and the mid-inning relief hook. Every one
+could be switched off and the whole 307-check suite still passed.
+
+The existing modules are well tested — `test_advance` has 16 checks,
+`test_relief` 10, `test_inherit` 8 — but they test the MEASUREMENT: that the
+counting code counts correctly. Nobody tested that the simulator uses the
+numbers. That is exactly the gap two real bugs fell through in one day: the
+boundary hook was never called at all, and the early branch was fitted on
+baserunners ALLOWED this inning then wired to bases OCCUPIED.
+
+So these are integration checks, and each is written the same way: flip the
+flag, simulate, and assert the OUTPUT moves. Asserting the flag's value
+alone would guard the default and not the wiring.
+"""
+import random
+
+from src.context import calibrate as cal
+from src.context import game, relief, sim
+from tests import fixtures as fx
+
+LG = sim.league()
+
+
+def _pitcher(k=0.22, bb=0.08):
+    return sim.PitcherRates(name="p", k_pct=k, bb_pct=bb, hr_pct=0.03,
+                            babip=0.29, pa=600)
+
+
+def _nine():
+    return [sim.BatterRates(name=f"b{i}", k_pct=0.22, bb_pct=0.08,
+                            hr_pct=0.03, babip=0.29, pa=500)
+            for i in range(9)]
+
+
+def _pen(n=8):
+    return [{"name": f"r{i}", "k_pct": 0.23, "bb_pct": 0.09, "hr_pct": 0.03,
+             "babip": 0.29, "pa": 200, "apps": 40} for i in range(n)]
+
+
+def _games(n=400, seed=5, **flags):
+    """Simulate `n` games with `flags` applied to `game`, then restore."""
+    prev = {k: getattr(game, k) for k in flags}
+    try:
+        for k, v in flags.items():
+            setattr(game, k, v)
+        out = []
+        for i in range(n):
+            rng = random.Random(seed + i)
+            a = game.build_side(_pitcher(), _pen(), _nine(), None, rng)
+            h = game.build_side(_pitcher(), _pen(), _nine(), None, rng)
+            out.append((game.simulate_game(a, h, dict(LG), rng), a, h))
+        return out
+    finally:
+        for k, v in prev.items():
+            setattr(game, k, v)
+
+
+def _starts(n=600, seed=3, hook=None, **flags):
+    prev = {k: getattr(sim, k) for k in flags}
+    try:
+        for k, v in flags.items():
+            setattr(sim, k, v)
+        rng = random.Random(seed)
+        return [fx.one_side(_pitcher(), _nine(), dict(LG),
+                            hook or sim.Hook(), rng)
+                for _ in range(n)]
+    finally:
+        for k, v in prev.items():
+            setattr(sim, k, v)
+
+
+def check_measured_advancement_reaches_the_simulated_inning():
+    """`USE_MEASURED_ADVANCEMENT` was one of the five unguarded flags. It
+    replaced imported advancement tables with rates counted on this league.
+
+    THIS CHECK USED TO ASSERT ON THE RUN LEVEL AND WAS PASSING ON LUCK.
+    Measured properly, the flag is worth about 0.05 runs a start (2.4040 on
+    against 2.4550 off over 3,000 starts), and runs per start have an sd
+    near 2.0 — so at the n=600 it could afford, the standard error on the
+    difference was twice the effect. It read 2.3817 against 2.3800 and
+    failed, having passed on the previous draw. Runs per baserunner is no
+    better here: across n = 400 / 600 / 1000 it came out -3.8% / +0.1% /
+    +4.3%, sign and all.
+
+    So the aggregate cannot carry this check at any n the suite can afford,
+    and the two halves are asserted separately instead — the same shape
+    `check_errors_raise_the_run_level` was forced into.
+
+      1. THE ENGINE CONSULTS `_advance`. Counted by instrumenting it and
+         playing one real game. A flag wired to a function nothing calls is
+         exactly the failure this file exists for.
+      2. THE FLAG CHANGES WHAT `_advance` DOES. At 20,000 rolls of a single
+         base-out state, where the measured and published tables differ by
+         14% and the noise does not.
+    """
+    import random
+
+    lg = dict(LG)
+    calls = [0]
+    real = sim._advance
+
+    def counted(*a, **kw):
+        calls[0] += 1
+        return real(*a, **kw)
+
+    sim._advance = counted
+    try:
+        rng = random.Random(21)
+        a = game.build_side(_pitcher(), _pen(), _nine(), None, rng)
+        h = game.build_side(_pitcher(), _pen(), _nine(), None, rng)
+        game.simulate_game(a, h, lg, rng)
+    finally:
+        sim._advance = real
+    assert calls[0] > 20, f"the engine barely consulted _advance ({calls[0]})"
+
+    # A man on second, one out, and a single. Measured .542 against a
+    # published .620 — a difference no 20,000-roll sample confuses.
+    def scores(flag, n=20000):
+        prev = sim.USE_MEASURED_ADVANCEMENT
+        sim.USE_MEASURED_ADVANCEMENT = flag
+        try:
+            rng = random.Random(7)
+            return sum(sim._advance([None, True, None],
+                                    sim.B1, rng, 1)[0]
+                       for _ in range(n)) / n
+        finally:
+            sim.USE_MEASURED_ADVANCEMENT = prev
+
+    on, off = scores(True), scores(False)
+    assert 0.52 < on < 0.57, on
+    assert 0.60 < off < 0.64, off
+    assert off - on > 0.04, (on, off)
+
+
+def check_inherited_runners_are_played_out_not_settled_by_a_flag():
+    """`USE_MEASURED_INHERITED` was one of the five unguarded flags, and it
+    is GONE rather than guarded.
+
+    It only ever reached `sim.simulate_start`, which stopped the instant the
+    hook fired and so had to settle a departing starter's stranded runners
+    with a coin flip. Asserted against `simulate_game` the flag made no
+    difference at all — exactly zero, 8.56 against 8.56 — because the full
+    game hands the base-out state to the reliever and plays those runners
+    out for real. So it retired with the one-sided engine.
+
+    That is why this check inverts: it asserts the fudge is absent AND that
+    the mechanism it stood in for is present. A reliever entering with the
+    bases loaded must allow more runs than one entering clean, or inherited
+    runners are not being played out at all and the deleted constant would
+    have been covering for it.
+    """
+    assert not hasattr(sim, "USE_MEASURED_INHERITED")
+    assert not hasattr(sim, "INHERITED_SCORE_RATE")
+
+    def runs_after_handover(bases):
+        tot = 0
+        for i in range(400):
+            rng = random.Random(70 + i)
+            fr = sim.Frame(bases=list(bases), outs=1)
+            side = game.Side(starter=_pitcher(), pen=[_pitcher()],
+                             lineup=_nine())
+            side.next_arm(fr.outs)          # the reliever walks into `fr`
+            before = side.cur_line.runs
+            while fr.outs < 3:
+                b = side.lineup[side.idx % 9]
+                side.idx += 1
+                o = sim.pa_outcome(b, side.current, dict(LG), rng)
+                sim.apply_pa(o, side.cur_line, fr, rng)
+                if fr.outs >= 3:
+                    break
+                sim.baserunning(side.cur_line, fr, rng)
+            tot += side.cur_line.runs - before
+        return tot / 400
+
+    loaded = runs_after_handover([True, True, True])
+    clean = runs_after_handover([False, False, False])
+    assert loaded > clean + 0.4, (loaded, clean)
+
+
+def check_the_hard_pitch_cap_actually_caps():
+    """Unguarded, and it is the only thing bounding a start from above. With
+    a never-firing hook the cap is the ONLY exit, so removing it has to let
+    starters run past it."""
+    never = sim.Hook(intercept=-99.0, mid_intercept=-99.0)
+    capped = _starts(n=300, hook=sim.Hook(**{**never.__dict__,
+                                             "hard_pitch_cap": 90}))
+    assert max(r.pitches for r in capped) < 130, \
+        max(r.pitches for r in capped)
+    loose = _starts(n=300, hook=sim.Hook(**{**never.__dict__,
+                                            "hard_pitch_cap": 100000}))
+    assert max(r.pitches for r in loose) > max(r.pitches for r in capped), \
+        (max(r.pitches for r in capped), max(r.pitches for r in loose))
+
+
+def check_measured_relief_length_reaches_the_bullpen():
+    """`USE_MEASURED_RELIEF_LENGTH` was unguarded. Off, every relief outing
+    is one inning and a game burns more arms; on, outings run to the length
+    measured over 13,248 of them."""
+    on = _games(USE_MEASURED_RELIEF_LENGTH=True)
+    off = _games(USE_MEASURED_RELIEF_LENGTH=False)
+    a_on = sum(a.pen_i + h.pen_i for _, a, h in on) / len(on)
+    a_off = sum(a.pen_i + h.pen_i for _, a, h in off) / len(off)
+    assert a_on < a_off, (a_on, a_off)
+
+
+def check_the_relief_mid_inning_hook_reaches_the_bullpen():
+    """`USE_MEASURED_RELIEF_HOOK` was unguarded. Off, only a STARTER's hook
+    can produce a mid-inning handover, which caps the model at 41.8% of the
+    real ones. On, relievers are pulled mid-inning too — so more arms per
+    game."""
+    on = _games(USE_MEASURED_RELIEF_HOOK=True)
+    off = _games(USE_MEASURED_RELIEF_HOOK=False)
+    a_on = sum(a.pen_i + h.pen_i for _, a, h in on) / len(on)
+    a_off = sum(a.pen_i + h.pen_i for _, a, h in off) / len(off)
+    assert a_on > a_off, (a_on, a_off)
+
+
+def check_the_mid_inning_relief_hook_reads_intent():
+    """`relief.MID_INTENT`: the per-plate-appearance hook is conditioned on
+    WHY the arm is out there, not just on what he has done.
+
+    THE DEFECT (TODO 15 / item B). `RELIEF_MID_REMOVAL` was counted over
+    every in-inning relief plate appearance — a population of one-inning
+    arms — and applied to every arm, at 7-10% a batter once he is past his
+    third. Survivable facing four men, fatal facing twenty, and it was the
+    BINDING CONSTRAINT on the arm behind an opener: he came out at 5.00
+    outs against a real 7.39, and switching the hook off entirely gave
+    7.03. An arm entering in innings 1-3 is really pulled about a third as
+    often through the 4-12 batter range.
+
+    Both halves are checked because the table being right buys nothing if
+    `game` never passes the dimension — which is the mutation that would
+    otherwise pass every existing relief check.
+    """
+    # THE TABLE. A bulk arm and a late arm in the identical state.
+    early = relief.mid_removal(0, 6, entry_inning=2)
+    late = relief.mid_removal(0, 6, entry_inning=8)
+    assert early < late / 2, (early, late)
+
+    # THE FALLBACK, and it must land on the MARGINAL rather than the flat
+    # table: (0, 2, 0) has 88 rows and is deliberately absent from
+    # MID_INTENT, so a thin cell degrades to something still counted on
+    # intent. Falling through to the flat table instead would silently
+    # restore the defect for exactly the thinnest cells.
+    assert (0, 2, 0) not in relief.MID_INTENT
+    assert relief.mid_removal(2, 1, entry_inning=2) == \
+        relief.MID_INTENT_DEPTH[(0, 0)]
+
+    # OFF IS THE FLAT TABLE, exactly.
+    prev = relief.USE_MID_INTENT
+    try:
+        relief.USE_MID_INTENT = False
+        assert (relief.mid_removal(0, 6, entry_inning=2)
+                == relief.mid_removal(0, 6)
+                == relief.RELIEF_MID_REMOVAL[0][2])
+    finally:
+        relief.USE_MID_INTENT = prev
+
+    # THE WIRING. `game` must hand the entry inning over; without it the
+    # table above is unreachable and every other check still passes.
+    seen = []
+    orig = relief.mid_removal
+
+    def spy(runs, batters, entry_inning=None):
+        seen.append(entry_inning)
+        return orig(runs, batters, entry_inning)
+
+    relief.mid_removal = spy
+    try:
+        _games(USE_MEASURED_RELIEF_HOOK=True)
+    finally:
+        relief.mid_removal = orig
+    assert seen, "the relief hook never fired"
+    assert any(e is not None for e in seen), \
+        "game.py calls mid_removal without the intent dimension"
+
+
+def check_the_measured_mechanisms_are_switched_on_by_default():
+    """The checks above set each flag THEMSELVES, in both directions, so
+    they prove the mechanism works and say nothing about which way it ships.
+    A mutation sweep flipping the shipped defaults left all 313 of them
+    green — the mechanism checks override the very thing being mutated.
+
+    So the default is pinned separately. Both halves are needed and neither
+    substitutes for the other: this one catches a flag being flipped, the
+    ones above catch the wiring rotting behind a flag that still reads True.
+
+    Every value here is a MEASURED quantity that replaced an imported guess,
+    which is the work this project is made of. Flipping one back silently is
+    the cheapest way to lose it.
+    """
+    assert sim.USE_MEASURED_ADVANCEMENT is True
+    assert sim.USE_TTO is True
+    assert game.USE_MEASURED_RELIEF_LENGTH is True
+    assert game.USE_MEASURED_RELIEF_HOOK is True
+    assert game.USE_RELIEF_INTENT is True
+    # item B, 2026-09-09: intent on the per-plate-appearance relief hook,
+    # counted on 9,254 pre-holdout games. The check above sets this flag
+    # itself, so without this line only the mechanism is guarded.
+    assert relief.USE_MID_INTENT is True
+    # ADDED 2026-09-06 after a sweep flipped four shipped flags with all
+    # 448 checks green. Every one HAD a wiring check; each of those sets
+    # the flag itself (the house pattern above), so the mechanism checks
+    # override the very thing being mutated and only the default was
+    # unguarded. This list is the other half, and it drifted eight
+    # mechanisms behind what ships.
+    assert sim.USE_PLATOON is True
+    assert sim.USE_FIELD_STATE is True
+    # item E, shipped 2026-09-07: +3.1 sigma paired per-start K CRPS on
+    # the holdout; pooled battery rows sub-1-se by design (leash
+    # precedent — discrimination terms are invisible to pooled shape).
+    assert sim.USE_VELO_K is True
+    # the zone->bb companion, shipped 2026-09-07 from the same screen:
+    # -4.9 sigma on train rows, survives the box-score walk drift.
+    assert sim.USE_ZONE_BB is True
+    assert sim.USE_PEN_STATE is True
+    assert game.USE_ROLE_HBP is True
+    assert sim.USE_GB_DP is True
+    assert sim.USE_GB_HITMIX is True
+    # shipped 2026-09-10: the pitcher's air-ball share into the home run
+    # channel, counted as observed-over-expected because unlike the two
+    # GB tables above this channel already carries a per-player rate.
+    assert sim.USE_AIR_HR is True
+    assert sim.USE_TEMP_HR is True
+    assert sim.USE_WIND_HR is True
+    assert sim.USE_UMP_KBB is True
+    assert sim.USE_NIGHT_SIGMA is True
+    assert sim.USE_GIDP_ADVANCE is True
+    assert sim.USE_MEASURED_GIDP is True
+    assert sim.USE_STEAL_TABLE is True
+    assert sim.USE_LEASH is True
+    assert sim.USE_LAYOFF is True
+    assert sim.USE_START_SHARPNESS is True
+    assert sim.USE_PITCH_HAZARD is True
+    assert game.USE_PEN_ROLES is True
+    assert game.USE_AUTO_RUNNER is True
+    # Deliberately OFF, each for a recorded reason — the learned hook was
+    # shipped on a false premise, and the early branches buy the disaster
+    # tail with spread. Pinned so a flip is a decision, not a drift.
+    assert game.USE_LEARNED_HOOK is False
+    assert sim.Hook().early_innings == 0
+    assert sim.Hook().mid_per_inning_run == 0.0
+    # A start has to be bounded from above by something.
+    assert 95 <= sim.Hook().hard_pitch_cap <= 130, sim.Hook().hard_pitch_cap
+    from src.context.sources import rates as rate_src
+    assert rate_src.USE_PRIOR_SEASON is True
+    assert rate_src.PRIOR_SEASONS == 3, rate_src.PRIOR_SEASONS
+
+
+def check_the_holdout_has_one_source_of_truth():
+    """`HOLDOUT` was a string literal in ~47 scratchpads under three
+    names (`HOLDOUT`, `HOLDOUT_CUT`, `CUT`), four of them carrying a
+    DIFFERENT date — two cutoffs is how one drifts. The live fitters now
+    import `src/context/holdout.py`; the historical scratchpads keep
+    their literals because they are records of what was run. This keeps
+    the NEXT fitter honest. MUTATION: define `train_only` in any
+    scratchpad, or assign a holdout date literal under `src/`, and this
+    fails."""
+    import pathlib
+    import re
+    from src.context.holdout import HOLDOUT, train_only
+    assert HOLDOUT == "2026-07-01"
+    assert train_only([{"date": "2026-06-30"}, {"date": "2026-07-01"}]) \
+        == [{"date": "2026-06-30"}], "strictly before"
+    root = pathlib.Path(__file__).resolve().parent.parent
+    bad = []
+    files = (sorted((root / "scratchpad").glob("*.py"))
+             + sorted((root / "src").rglob("*.py")))
+    for f in files:
+        if f.name == "holdout.py":
+            continue
+        if "def train_only" in f.read_text():
+            bad.append(f"{f.name}: local train_only")
+    for f in sorted((root / "src").rglob("*.py")):
+        if f.name == "holdout.py":
+            continue
+        if re.search(r'^\s*\w*(HOLDOUT|CUT)\w*\s*=\s*"20\d\d-',
+                     f.read_text(), re.M):
+            bad.append(f"{f.name}: holdout literal in src/")
+    assert not bad, bad
+
+
+def check_the_prior_season_reaches_a_thin_pitchers_rate():
+    """THE FLAG DOES NOTHING ON ITS OWN, and that is the point of this check.
+
+    `_PRIOR` is a module global that only the experiment ever populated, so
+    `USE_PRIOR_SEASON = True` without the lazy load in `_ensure_prior` leaves
+    it empty and every rate shrinks to the league exactly as before. A flag
+    that is switched on and reaches nothing is the failure mode this file was
+    created for, and it has now happened three times in this project.
+
+    Asserted on a THIN line, because that is the only place a shrink target
+    can show: a pitcher with a full season of his own barely moves whatever
+    he is shrunk toward.
+    """
+    from src.context.sources import rates as rate_src
+    was, prior, for_ = (rate_src.USE_PRIOR_SEASON, dict(rate_src._PRIOR),
+                        rate_src._PRIOR_FOR)
+    thin = [{"name": "A", "o": 30, "h": 12, "bb": 6, "k": 8, "hr": 2,
+             "apps": 4}]
+    lg = {"k_pct": 0.22, "bb_pct": 0.08, "hr_pct": 0.03, "babip": 0.29}
+    # A prior with a strikeout rate nothing like the league's, so the two
+    # targets cannot be confused for one another.
+    fake = {"A": {"name": "A", "pa": 700, "k_pct": 0.40, "bb_pct": 0.08,
+                  "hr_pct": 0.03, "babip": 0.29}}
+    try:
+        rate_src.USE_PRIOR_SEASON = False
+        rate_src._PRIOR, rate_src._PRIOR_FOR = {}, None
+        off = rate_src.pitcher_rates(lg, 2026, conn=_FakeConn(thin))
+        rate_src.USE_PRIOR_SEASON = True
+        rate_src._PRIOR, rate_src._PRIOR_FOR = fake, 2026
+        on = rate_src.pitcher_rates(lg, 2026, conn=_FakeConn(thin))
+    finally:
+        rate_src.USE_PRIOR_SEASON = was
+        rate_src._PRIOR, rate_src._PRIOR_FOR = prior, for_
+    assert on["A"]["k_pct"] > off["A"]["k_pct"] + 0.01, (off, on)
+
+
+def check_the_prior_is_loaded_without_anyone_calling_set_prior():
+    """The half the check above does NOT cover, and it took a mutation to
+    see that: it populates `_PRIOR` by hand, so it passes with the lazy load
+    torn out and the flag reaching nothing.
+
+    In production NOTHING calls `set_prior` — only the memory experiment
+    ever did — so `pitcher_rates` has to load it itself on first use. This
+    asserts the trigger fires, and that it fires for the RIGHT season: the
+    prior for 2026 is built from 2025 back, and an off-by-one here would
+    quietly shrink this season toward itself.
+    """
+    from src.context.sources import rates as rate_src
+    was, prior, for_ = (rate_src.USE_PRIOR_SEASON, dict(rate_src._PRIOR),
+                        rate_src._PRIOR_FOR)
+    real = rate_src.set_prior
+    called = []
+
+    def fake_set_prior(season, lg_now=None, seasons=None):
+        called.append(season)
+        rate_src._PRIOR = {"A": {"name": "A", "pa": 700, "k_pct": 0.40,
+                                 "bb_pct": 0.08, "hr_pct": 0.03,
+                                 "babip": 0.29}}
+        return 1
+
+    rows = [{"name": "A", "o": 30, "h": 12, "bb": 6, "k": 8, "hr": 2,
+             "apps": 4}]
+    lg = {"k_pct": 0.22, "bb_pct": 0.08, "hr_pct": 0.03, "babip": 0.29}
+    try:
+        rate_src.set_prior = fake_set_prior
+        rate_src.USE_PRIOR_SEASON = True
+        rate_src._PRIOR, rate_src._PRIOR_FOR = {}, None
+        got = rate_src.pitcher_rates(lg, 2026, conn=_FakeConn(rows))
+    finally:
+        rate_src.set_prior = real
+        rate_src.USE_PRIOR_SEASON = was
+        rate_src._PRIOR, rate_src._PRIOR_FOR = prior, for_
+    assert called == [2025], called
+    assert got["A"]["k_pct"] > 0.23, got["A"]
+
+
+def check_building_the_prior_does_not_recurse_into_the_prior():
+    """`set_prior` builds the prior by calling `pitcher_rates`, which is the
+    function that asks for one. Without the re-entrancy guard that is either
+    infinite or, worse, finite and wrong — each season's rates shrunk toward
+    the seasons behind it before being blended, compounding three seasons
+    into nine.
+    """
+    from src.context.sources import rates as rate_src
+    was, prior, for_ = (rate_src.USE_PRIOR_SEASON, dict(rate_src._PRIOR),
+                        rate_src._PRIOR_FOR)
+    seen = []
+    rows = [{"name": "A", "o": 30, "h": 12, "bb": 6, "k": 8, "hr": 2,
+             "apps": 4}]
+    lg = {"k_pct": 0.22, "bb_pct": 0.08, "hr_pct": 0.03, "babip": 0.29}
+    try:
+        rate_src.USE_PRIOR_SEASON = True
+        rate_src._PRIOR, rate_src._PRIOR_FOR = {}, None
+        rate_src._LOADING = True
+        seen.append(rate_src._ensure_prior(2026))
+    finally:
+        rate_src._LOADING = False
+        rate_src.USE_PRIOR_SEASON = was
+        rate_src._PRIOR, rate_src._PRIOR_FOR = prior, for_
+    assert seen == [{}], seen
+    assert lg and rows
+
+
+class _FakeConn:
+    """Just enough connection to feed `pitcher_rates` its rows offline."""
+
+    def __init__(self, rows):
+        self._rows = rows
+
+    def execute(self, *a, **k):
+        return self
+
+    def fetchall(self):
+        return self._rows
+
+
+def check_the_leash_reaches_a_full_game_and_not_only_a_start():
+    """THE GAP THIS FILE EXISTS FOR, found again on 2026-08-25.
+
+    Every `build_side` caller passes `hook=None`, and until this was fixed
+    that fell through to a bare league `Hook()` — so `sim.for_start`, and
+    with it the whole per-pitcher leash, reached the start-level loop and
+    never reached `game.simulate_game`. That loop was the one `calibrate`,
+    `quote`, `price` and `f5` used, so the mechanism measured correctly
+    there while the engine that produces TEAM TOTALS, which is the stated
+    product, ran without it. Both the gap and the second engine are gone.
+
+    It surfaced as a paired prefix ladder printing EXACTLY +0.0000 at F1,
+    F3, F5 and F7 over 1,615 games. Read that as a plumbing failure, never
+    as a null: two model states that agree to four decimals on 1,615 games
+    are the same model.
+    """
+    saved = sim._LEASH
+    sim._LEASH = {"p": -1.5}
+    try:
+        def mean_outs(apply_leash):
+            tot = 0
+            for i in range(120):
+                rng = random.Random(11 + i)
+                a = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                                    apply_leash=apply_leash)
+                h = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                                    apply_leash=apply_leash)
+                r = game.simulate_game(a, h, dict(LG), rng)
+                tot += r.away_sp.outs + r.home_sp.outs
+            return tot / 240
+        on, off = mean_outs(True), mean_outs(False)
+    finally:
+        sim._LEASH = saved
+    # -1.5 is worth about +2.3 outs on the measured sweep; a full game caps
+    # a starter at 27 outs so require a clear move rather than the exact one
+    assert on - off > 1.0, (on, off)
+
+
+def check_a_tuner_can_switch_the_leash_off_at_the_side():
+    """`calibrate.run(flat=True)` fits global hook parameters with everyone
+    on the league curve, because searching them while per-pitcher offsets
+    absorb the error drives them somewhere meaningless. The full-game
+    engine needs the same escape hatch or every tuner that moved to it
+    silently fits against a leashed model."""
+    saved = sim._LEASH
+    sim._LEASH = {"p": -2.0}
+    try:
+        rng = random.Random(1)
+        side = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                               apply_leash=False)
+        assert side.hook.team_offset == 0.0, side.hook.team_offset
+        rng = random.Random(1)
+        side = game.build_side(_pitcher(), _pen(), _nine(), None, rng)
+        assert side.hook.team_offset == -2.0, side.hook.team_offset
+    finally:
+        sim._LEASH = saved
+
+
+def check_nothing_prices_through_the_fixtures():
+    """`tests/fixtures.py` mirrors the pitching side against ITSELF.
+
+    That is a legitimate fixture and an illegitimate slate_src. A mirror invents
+    the opposing club, and inventing the opponent invents the score — which
+    is what the hook, the bullpen and the margin are all conditioned on.
+    `slate_src.simulate_slate_game` DECLINES instead, the same posture the module
+    already takes on openers and games in progress.
+
+    So the boundary is one-way and this pins it: `tests/` may import `src/`,
+    and nothing under `src/` may import `tests/`. Without the guard the
+    cheapest fix for a missing opposing starter is to reach for the mirror,
+    and it would price a real bet against a pitcher who is not in the game.
+    """
+    import ast
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent / "src"
+    bad = []
+    for f in sorted(root.rglob("*.py")):
+        for node in ast.walk(ast.parse(f.read_text())):
+            mods = []
+            if isinstance(node, ast.Import):
+                mods = [a.name for a in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                mods = [node.module or ""]
+            if any(m.split(".")[0] == "tests" for m in mods):
+                bad.append(str(f.relative_to(root.parent)))
+    assert not bad, bad
+
+
+def check_every_build_side_call_passes_team_and_date():
+    """Both arguments feed lookups whose MISSING VALUE IS NEUTRAL.
+
+    `sim.pen_state` returns the league baseline without a date and
+    `rate_src.defence_delta` returns nothing without a team, so omitting
+    either does not raise — it silently switches off a shipped mechanism and
+    leaves a plausible number behind. Measured 2026-08-30: bullpen
+    availability is live on both hook curves in `slate_src.py` and was
+    contributing EXACTLY ZERO in `ladder`, `fitf5`, `f5_market`,
+    `team_market`, `total_market` and `marginals`, which between them
+    include the instruments the F5 claims rest on.
+
+    That is the same failure mode as `pitcher_rates` returning league
+    average for an unknown arm: a fallback designed to be safe makes an
+    absent input indistinguishable from a present one. The difference is
+    that this one is checkable from the source, so it is checked here rather
+    than rediscovered by a flat A/B.
+
+    STRUCTURAL ON PURPOSE. A behavioural check would have to know what each
+    caller's number should be; this only has to know that the argument was
+    passed, which is exactly the property that was violated.
+    """
+    import ast
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent / "src"
+    bad = []
+    for f in sorted(root.rglob("*.py")):
+        for node in ast.walk(ast.parse(f.read_text())):
+            if not isinstance(node, ast.Call):
+                continue
+            fn = node.func
+            name = (fn.attr if isinstance(fn, ast.Attribute)
+                    else getattr(fn, "id", None))
+            if name != "build_side":
+                continue
+            kw = {k.arg for k in node.keywords}
+            for want in ("team", "date"):
+                if want not in kw:
+                    bad.append(f"{f.relative_to(root.parent)}:"
+                               f"{node.lineno} missing {want}=")
+    assert not bad, bad
+
+
+def check_the_hook_argument_reaches_the_replayed_game():
+    """`calibrate.run(hook=...)` must actually use the hook it is given.
+
+    THE BUG THIS EXISTS FOR. `run` accepted a `hook` argument, documented it,
+    and passed it nowhere: `replay` did not take one, so both sides were
+    built with `hook=None` and fell through to a bare league `Hook()`. Every
+    candidate `calibrate.tune` scored was therefore the SAME hook, and a full
+    coordinate descent over ten parameters returned "nothing improves
+    anything" with the loss identical to five decimal places.
+
+    That is the recorded diagnostic, third time it has paid: an
+    identical-to-many-decimals A/B is a plumbing result, never a null. The
+    proof was cruder than the loss — a never-pull hook and a
+    pull-immediately hook both returned 15.54 mean outs.
+
+    Asserted with hooks whose effect is enormous rather than realistic, so
+    the check tests the WIRING and cannot fail for a tuning reason.
+    """
+    never = sim.Hook(intercept=-99.0, mid_intercept=-99.0,
+                     hard_pitch_cap=100000)
+    quick = sim.Hook(intercept=9.0, mid_intercept=9.0)
+
+    def mean_outs(h):
+        res = cal.run(n_sims=2, max_starts=40, hook=h, seed=0)
+        o = [r.outs for r in res["sim"]]
+        return sum(o) / len(o)
+
+    a, b = mean_outs(never), mean_outs(quick)
+    assert a > b + 10, (a, b)
+
+
+def check_the_early_exit_mixture_is_off_by_default():
+    """Built on day eleven, UNSCORED, and inert until it is.
+
+    Its fitting script (`scratchpad/fit_survivors.py`) ran on the mislabelled
+    boundary rows and has to be re-run before any of it means anything, so
+    the mechanism ships switched off rather than half-trusted.
+    """
+    h = sim.Hook()
+    assert h.early_exit_p == 0.0, h.early_exit_p
+    assert h.early_exit_floor == 0, h.early_exit_floor
+    assert sim.EARLY_EXIT_DIST == {}, sim.EARLY_EXIT_DIST
+
+
+def check_the_early_exit_mixture_reaches_a_simulated_start():
+    """Both halves: the forced exit fires, and the floor suppresses the hook.
+
+    The floor is the half that is easy to get wrong and invisible if you do —
+    without it the hook keeps making its own short starts on top of the lump
+    and the mixture produces more early exits than the league does.
+    """
+    was = dict(sim.EARLY_EXIT_DIST)
+    try:
+        sim.EARLY_EXIT_DIST.clear()
+        sim.EARLY_EXIT_DIST[7] = 1          # every early exit lands on 7
+        # p=1.0: every start is an early exit, so every starter must stop at
+        # 7 outs however well he is pitching.
+        hook = sim.Hook(early_exit_p=1.0, early_exit_floor=12)
+        outs = []
+        for seed in range(6):
+            rng = random.Random(seed)
+            side = game.build_side(_pitcher(), _pen(), _nine(), hook, rng,
+                                   apply_leash=False)
+            assert side.forced_exit_outs == 7, side.forced_exit_outs
+            other = game.build_side(_pitcher(), _pen(), _nine(), hook, rng,
+                                    apply_leash=False)
+            game.simulate_game(side, other, LG, rng)
+            outs.append(side.line.outs)
+        assert all(7 <= o <= 9 for o in outs), outs
+
+        # p=0.0 with a floor: no start is drawn as an early exit, and the
+        # hook may not pull anybody before the floor.
+        hook = sim.Hook(early_exit_p=0.0, early_exit_floor=12)
+        outs = []
+        for seed in range(8):
+            rng = random.Random(100 + seed)
+            side = game.build_side(_pitcher(), _pen(), _nine(), hook, rng,
+                                   apply_leash=False)
+            assert side.forced_exit_outs is None
+            other = game.build_side(_pitcher(), _pen(), _nine(), hook, rng,
+                                    apply_leash=False)
+            game.simulate_game(side, other, LG, rng)
+            outs.append(side.line.outs)
+        assert min(outs) >= 12, outs
+    finally:
+        sim.EARLY_EXIT_DIST.clear()
+        sim.EARLY_EXIT_DIST.update(was)
+
+
+def check_a_flagged_opener_exits_on_his_own_record():
+    """TODO 15: a short-yardage starter is priced off HIS outs record.
+
+    The leash clamp tops out around +/-3.3 outs and an opener averaging 3.4
+    needs ~-12, so before this the engine handed him a generic starter's
+    ~16 outs and every reliever behind him entered a fictional late state.
+    The forced-exit machinery already existed; this checks the flagged
+    arm's exit is drawn from his own starts, and that an ordinary starter
+    is untouched.
+    """
+    was = game._OPENER_STARTS
+    try:
+        # An opener's log: 3s and 4s, average 3.5, well inside the gate.
+        log = [3, 4, 3, 4, 3, 4, 3, 4]
+        game._OPENER_STARTS = {"p": [(f"2026-0{m}-01", o)
+                                     for m, o in zip(range(1, 9), log)]}
+        outs = []
+        for seed in range(12):
+            rng = random.Random(seed)
+            side = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                                   apply_leash=False, date="2026-09-01")
+            assert side.forced_exit_outs in (3, 4), side.forced_exit_outs
+            other = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                                    apply_leash=False)
+            game.simulate_game(side, other, LG, rng)
+            outs.append(side.line.outs)
+        # He may run past the drawn total only to the end of the plate
+        # appearance in progress; he must never pitch on like a starter.
+        assert all(3 <= o <= 6 for o in outs), outs
+        assert sum(outs) / len(outs) < 6, outs
+
+        # Only starts BEFORE the game date count: on a date before any of
+        # the record exists the arm has no evidence and keeps the hook.
+        rng = random.Random(0)
+        side = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                               apply_leash=False, date="2026-01-01")
+        assert side.forced_exit_outs is None, side.forced_exit_outs
+
+        # An ordinary rotation starter — same plumbing, average over the
+        # gate — is not touched.
+        game._OPENER_STARTS = {"p": [("2026-01-01", 18), ("2026-02-01", 15),
+                                     ("2026-03-01", 17)]}
+        rng = random.Random(0)
+        side = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                               apply_leash=False, date="2026-09-01")
+        assert side.forced_exit_outs is None, side.forced_exit_outs
+
+        # And the flag is an A/B: off restores the hook without unseeding
+        # the record.
+        game._OPENER_STARTS = {"p": [("2026-01-01", 3), ("2026-02-01", 4)]}
+        prev = game.USE_OPENER_EXIT
+        game.USE_OPENER_EXIT = False
+        try:
+            rng = random.Random(0)
+            side = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                                   apply_leash=False, date="2026-09-01")
+            assert side.forced_exit_outs is None, side.forced_exit_outs
+        finally:
+            game.USE_OPENER_EXIT = prev
+    finally:
+        game._OPENER_STARTS = was
+
+
+def check_a_first_time_opener_is_identified_by_his_relief_usage():
+    """The no-record fallback: a career late-inning reliever making his
+    first start gets the POOLED opener exit curve, not the full hook.
+
+    333 such starts over four seasons averaged 6.16 outs while the engine
+    handed them ~15 — the shipped gate needs two prior starts and cannot
+    see them. And the CONTRADICTED-record case must stay untouched: a
+    demoted starter opening tonight really goes ~12.8 outs against his
+    record's 13.4, so his record wins and no fallback fires.
+    """
+    was_starts, was_roles = game._OPENER_STARTS, game._OPENER_ROLES
+    try:
+        # 30 late relief entries, no starts on record: a closer, opening.
+        game._OPENER_STARTS = {}
+        game._OPENER_ROLES = {"p": (
+            [f"2026-{m:02d}-{d:02d}" for m in range(1, 7) for d in
+             (3, 9, 15, 21, 27)],
+            [(False, 8)] * 30)}
+        rng = random.Random(0)
+        side = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                               apply_leash=False, date="2026-09-01")
+        assert side.forced_exit_outs in game.OPENER_POOL_DIST, \
+            side.forced_exit_outs
+
+        # Same usage but a real start record averaging over the gate: the
+        # record wins, no fallback, no forced exit.
+        game._OPENER_STARTS = {"p": [("2026-01-01", 13), ("2026-02-01", 14)]}
+        rng = random.Random(0)
+        side = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                               apply_leash=False, date="2026-09-01")
+        assert side.forced_exit_outs is None, side.forced_exit_outs
+
+        # An arm whose relief entries come EARLY is a long man, not an
+        # opener — mean 11.99 outs, a different animal. No fallback.
+        game._OPENER_STARTS = {}
+        game._OPENER_ROLES = {"p": (
+            [f"2026-{m:02d}-{d:02d}" for m in range(1, 7) for d in
+             (3, 9, 15, 21, 27)],
+            [(False, 2)] * 30)}
+        rng = random.Random(0)
+        side = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                               apply_leash=False, date="2026-09-01")
+        assert side.forced_exit_outs is None, side.forced_exit_outs
+    finally:
+        game._OPENER_STARTS = was_starts
+        game._OPENER_ROLES = was_roles
+
+
+def check_the_opener_draw_keeps_the_ab_streams_paired():
+    """`USE_OPENER_EXIT` on and off must consume the SAME random stream.
+
+    The rule is written at both hook call sites: a switch that consumes a
+    different number of random numbers is not an A/B — every event after
+    it lands on a different draw and the two arms stop being the same
+    game. The bootstrap is therefore drawn whether or not the flag uses
+    it, and this fails if anyone moves it inside the flag.
+    """
+    was = game._OPENER_STARTS
+    was_roles = game._OPENER_ROLES
+    prev = game.USE_OPENER_EXIT
+    prev_pool = game.USE_OPENER_POOL
+    try:
+        game._OPENER_STARTS = {"p": [("2026-01-01", 3), ("2026-02-01", 4)]}
+        after = {}
+        for state in (True, False):
+            game.USE_OPENER_EXIT = state
+            rng = random.Random(7)
+            game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                            apply_leash=False, date="2026-09-01")
+            after[state] = rng.random()
+        assert after[True] == after[False], after
+
+        # And across the POOL flag, on a usage-identified no-record arm.
+        game.USE_OPENER_EXIT = True
+        game._OPENER_STARTS = {}
+        game._OPENER_ROLES = {"p": ([f"2026-01-{d:02d}" for d in
+                                     range(1, 31)], [(False, 8)] * 30)}
+        for state in (True, False):
+            game.USE_OPENER_POOL = state
+            rng = random.Random(7)
+            game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                            apply_leash=False, date="2026-09-01")
+            after[state] = rng.random()
+        assert after[True] == after[False], after
+    finally:
+        game.USE_OPENER_EXIT = prev
+        game.USE_OPENER_POOL = prev_pool
+        game._OPENER_STARTS = was
+        game._OPENER_ROLES = was_roles
+
+
+def check_a_stale_outs_record_cannot_hide_a_role_change():
+    """`OPENER_HALF_LIFE_DAYS`: the gate weights recent starts more.
+
+    A flat mean over four seasons is blind to a role change in BOTH
+    directions, and both were costing (`scratchpad/opener_decay.py`, item
+    A). The two arms below are the two failures, and each is checked
+    against the flag so a regression to the flat mean fails here rather
+    than quietly widening the population the engine mis-prices.
+
+      * CONVERTED TO AN OPENER — two seasons of eighteen-out starts and a
+        recent month of threes. Flat mean 14.6, so the shipped gate stayed
+        silent and he got a generic starter's sixteen outs. This is 36.4%
+        of real opener starts on the four-season count.
+      * CONVERTED BACK TO THE ROTATION — the reverse, and the reason
+        23.3% of the starts the gate fired on went fifteen outs or more:
+        an ordinary starter handed an opener's exit draw.
+    """
+    was = game._OPENER_STARTS
+    prev = game.USE_OPENER_DECAY
+    try:
+        stale = [(f"2024-05-{d:02d}", 18) for d in range(1, 25)]
+        fresh_short = [(f"2026-08-{d:02d}", 3) for d in range(1, 8)]
+        recent_long = [(f"2026-08-{d:02d}", 17) for d in range(1, 8)]
+        old_short = [(f"2024-05-{d:02d}", 3) for d in range(1, 25)]
+
+        game._OPENER_STARTS = {"p": stale + fresh_short}
+        assert game.opener_record("p", "2026-09-09") is not None, \
+            "a converted opener must trip the gate"
+        game._OPENER_STARTS = {"p": old_short + recent_long}
+        assert game.opener_record("p", "2026-09-09") is None, \
+            "an arm back in the rotation must not keep an opener's exit"
+
+        # OFF IS THE FLAT MEAN, and the flat mean gets BOTH backwards —
+        # which is the mutation this check exists to catch.
+        game.USE_OPENER_DECAY = False
+        game._OPENER_STARTS = {"p": stale + fresh_short}
+        assert game.opener_record("p", "2026-09-09") is None
+        game._OPENER_STARTS = {"p": old_short + recent_long}
+        assert game.opener_record("p", "2026-09-09") is not None
+
+        # The weights must be a DECAY, not a window: an arm who has been an
+        # opener throughout reads the same either way, so a change here
+        # cannot leak into the population that was already handled.
+        game.USE_OPENER_DECAY = True
+        steady = [(f"2026-0{m}-01", 4) for m in range(1, 9)]
+        game._OPENER_STARTS = {"p": steady}
+        on = game._record_mean(steady, "2026-09-09")
+        game.USE_OPENER_DECAY = False
+        assert abs(on - game._record_mean(steady, "2026-09-09")) < 0.01, on
+    finally:
+        game.USE_OPENER_DECAY = prev
+        game._OPENER_STARTS = was
+
+
+def check_the_bullpen_gets_the_same_shrink_target_as_the_rotation():
+    """`bullpens` CARRIED A COPY of the rate block with `lg[stat]` hardcoded.
+
+    Every improvement to the shrink target therefore reached starters only —
+    including the multi-season prior shipped on 2026-08-26 — and reached them
+    in the population where the target matters least. A reliever's median
+    line is 106 batters faced against a starter's 480, so 38% of a reliever's
+    strikeout rate IS the target against 11% of a starter's.
+
+    Both call `rates.shrink_target` now. This asserts the reliever path
+    actually consults it, because two code paths for one concept is the
+    failure this whole file exists for.
+    """
+    from src.context.sources import rates as rate_src
+
+    rows = [{"name": "Elite Arm", "team": "NYY", "o": 90, "h": 20, "bb": 10,
+             "k": 30, "hr": 3, "apps": 40}]
+    lg = {"k_pct": 0.22, "bb_pct": 0.08, "hr_pct": 0.03, "babip": 0.29}
+    # A prior nothing like the league, so the two targets cannot be confused.
+    fake = {"Elite Arm": {"name": "Elite Arm", "pa": 700, "k_pct": 0.42,
+                          "bb_pct": 0.08, "hr_pct": 0.03, "babip": 0.29}}
+    was, prior, for_ = (rate_src.USE_PRIOR_SEASON, dict(rate_src._PRIOR),
+                        rate_src._PRIOR_FOR)
+    try:
+        rate_src.USE_PRIOR_SEASON = False
+        rate_src._PRIOR, rate_src._PRIOR_FOR = {}, None
+        off = rate_src.bullpens(lg, conn=_FakeConn(rows))
+        rate_src.USE_PRIOR_SEASON = True
+        rate_src._PRIOR, rate_src._PRIOR_FOR = fake, 2026
+        on = rate_src.bullpens(lg, conn=_FakeConn(rows))
+    finally:
+        rate_src.USE_PRIOR_SEASON = was
+        rate_src._PRIOR, rate_src._PRIOR_FOR = prior, for_
+    a = off["NYY"][0]["k_pct"]
+    b = on["NYY"][0]["k_pct"]
+    assert b > a + 0.01, (a, b)
+
+
+def check_defence_is_neutralised_out_and_applied_back_once():
+    """Defence belongs to the SIDE IN THE FIELD, not to the pitcher.
+
+    `rates` removes his own club's gloves from his observed BABIP to recover
+    what he would allow behind an average defence; `build_side` puts
+    TONIGHT'S club back on, for every arm that takes the mound. Two opposite
+    uses of one number.
+
+    Getting this wrong in the obvious way — applying without neutralising —
+    counts defence twice, which is exactly what `NEUTRALISE_PARK` being off
+    did to park factors. Getting it wrong the other way silently drops the
+    mechanism.
+
+    A round trip therefore has to return the original: neutralise, apply,
+    and a pitcher who stays with his own club is unchanged.
+    """
+    from src.context.sources import rates as rate_src
+
+    was = rate_src.USE_TEAM_DEFENCE
+    real = rate_src._defence_targets
+    try:
+        rate_src.USE_TEAM_DEFENCE = True
+        rate_src._defence_targets = lambda season=None: {"NYY": 0.012}
+        d = rate_src.defence_delta("NYY")
+        assert abs(d - 0.012) < 1e-9, d
+        observed = 0.280
+        neutral = observed + d          # what `rates` stores
+        tonight = neutral - d           # what `build_side` puts back
+        assert abs(tonight - observed) < 1e-12, (neutral, tonight)
+        # A club with no OAA row gets league-neutral, never a neighbour's.
+        assert rate_src.defence_delta("ZZZ") == 0.0
+        assert rate_src.defence_delta(None) == 0.0
+        # And the flag genuinely gates it.
+        rate_src.USE_TEAM_DEFENCE = False
+        assert rate_src.defence_delta("NYY") == 0.0
+    finally:
+        rate_src.USE_TEAM_DEFENCE = was
+        rate_src._defence_targets = real
+
+
+def check_the_rates_neutralise_defence_out_of_the_observed_babip():
+    """THE HALF A MUTATION FOUND UNGUARDED, and it is the expensive half.
+
+    Deleting the neutralisation leaves `build_side` applying a defence on top
+    of a rate that already contains one — counted twice, silently, exactly as
+    `NEUTRALISE_PARK` being off counted park 1.5x. Every check still passed.
+
+    Asserted on the STORED rate: two arms with identical counting lines, one
+    on a good defence and one on an unmapped club, must NOT come out equal.
+    The good-defence arm stores a HIGHER BABIP, because those gloves are
+    being removed to recover what he would allow behind an average one.
+    """
+    from src.context.sources import rates as rate_src
+
+    def rows(team):
+        return [{"name": "A", "team": team, "o": 90, "h": 20, "bb": 10,
+                 "k": 30, "hr": 3, "apps": 40}]
+
+    lg = {"k_pct": 0.22, "bb_pct": 0.08, "hr_pct": 0.03, "babip": 0.29}
+    was, real = rate_src.USE_TEAM_DEFENCE, rate_src._defence_targets
+    try:
+        rate_src.USE_TEAM_DEFENCE = True
+        rate_src._defence_targets = lambda season=None: {"NYY": 0.020}
+        good = rate_src.bullpens(lg, conn=_FakeConn(rows("NYY")))
+        none = rate_src.bullpens(lg, conn=_FakeConn(rows("ZZZ")))
+    finally:
+        rate_src.USE_TEAM_DEFENCE = was
+        rate_src._defence_targets = real
+    a = good["NYY"][0]["babip"]
+    b = none["ZZZ"][0]["babip"]
+    # THE EXPECTED GAP IS DERIVED, NOT HARDCODED. It was `> 0.002`, which
+    # was implicitly calibrated to a babip shrinkage constant of 500 and was
+    # only just clearing its own bar; raising the constant to the measured
+    # 3068 dropped the real gap to 0.0005 and failed a check whose mechanism
+    # was working perfectly. The neutralisation enters the OBSERVED rate, so
+    # what survives into the stored one is the delta times the shrink
+    # weight — pin that, and the check stops depending on a constant it is
+    # not about.
+    bip = rate_src.balls_in_play(90 + 20 + 10, 30, 10, 3)
+    k = (rate_src.STABILISE_MEASURED["pit"]["babip"]
+         if rate_src.USE_MEASURED_STABILISE else rate_src.STABILISE["babip"])
+    want = 0.020 * bip / (bip + k)
+    assert abs((a - b) - want) < 1e-9, (a, b, a - b, want)
+
+
+def check_the_side_applies_defence_to_the_bullpen_too():
+    """THE POINT OF MOVING IT. A defence attached to each pitcher's rates has
+    to be applied once per code path and was therefore applied to starters
+    only. Attached to the SIDE it reaches every arm for free.
+    """
+    from src.context.sources import rates as rate_src
+
+    was = rate_src.USE_TEAM_DEFENCE
+    real = rate_src._defence_targets
+    try:
+        rate_src.USE_TEAM_DEFENCE = True
+        rate_src._defence_targets = lambda season=None: {"NYY": 0.020}
+        rng = random.Random(4)
+        good = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                               team="NYY", apply_leash=False)
+        rng = random.Random(4)
+        neutral = game.build_side(_pitcher(), _pen(), _nine(), None, rng,
+                                  team="ZZZ", apply_leash=False)
+    finally:
+        rate_src.USE_TEAM_DEFENCE = was
+        rate_src._defence_targets = real
+    assert good.starter.babip < neutral.starter.babip - 0.01, (
+        good.starter.babip, neutral.starter.babip)
+    assert good.pen and len(good.pen) == len(neutral.pen)
+    for a, b in zip(good.pen, neutral.pen):
+        assert a.babip < b.babip - 0.01, (a.babip, b.babip)
+
+
+def check_relievers_shrink_toward_the_reliever_league():
+    """A reliever is not a starter and the shrink target dominates him.
+
+    Counted on 2026: relievers allow 12% FEWER home runs (0.0280 against
+    0.0319) and walk 18% MORE (0.0972 against 0.0823). The pitcher home-run
+    shrink constant is 934 against a reliever's median 106 batters faced, so
+    ~90% of his home-run rate IS the target — and it was the rotation's.
+
+    `_starter_league` stays the log5 ANCHOR; only what a thin line is pulled
+    toward moves. Both halves are asserted, because swapping the anchor
+    instead would be a much larger change wearing the same name.
+    """
+    from src.context.sources import rates as rate_src
+
+    assert rate_src.USE_RELIEVER_LEAGUE is True
+    pen = rate_src.reliever_league(2026)
+    assert pen, "the reliever league did not load"
+    assert pen["hr_pct"] < 0.031, pen
+    assert pen["bb_pct"] > 0.090, pen
+    # The rotation baseline must be UNCHANGED — it is still the anchor.
+    lg = sim.league(2026)
+    assert lg["hr_pct"] > 0.031, lg
+    assert lg["bb_pct"] < 0.090, lg
+
+
+def check_the_handedness_flag_stays_off_because_it_makes_things_worse():
+    """MEASURED 2026-08-27, and this is not the usual "it does nothing".
+
+    The shipped `batter_rates_by_hand` shrinks each split toward the
+    hitter's OWN OVERALL RATE, so a thin split regresses to no platoon
+    effect at all — the one answer known to be false. Scored leak-free on
+    the starters' own lines it costs +2.9 sd on strikeouts and +9.9 sd on
+    walks against handedness off.
+
+    Pinned rather than deleted because the flag is one line and the instinct
+    to flip it is correct-sounding. The correct prior is the LEAGUE platoon
+    cell for the side he bats from, and even that scores flat, because the
+    lineup card is already the adjustment.
+    """
+    from src.context import calibrate as cal
+    from src.context.sources import rates as rate_src
+
+    assert cal.USE_HANDEDNESS is False
+    # The constant that defines the broken prior. If someone rebuilds the
+    # split path, this name should go with it.
+    assert rate_src.SPLIT_STABILISE == 120, rate_src.SPLIT_STABILISE
+    doc = cal.__doc__ or ""
+    import inspect
+    src = inspect.getsource(cal)
+    i = src.index("USE_HANDEDNESS = False")
+    assert "MAKES THE MODEL WORSE" in src[:i], \
+        "the measurement must stay next to the flag"
+
+
+def check_the_raw_prior_flag_reaches_the_prior():
+    """A flag that changes nothing is the failure mode this file exists for.
+
+    `USE_RAW_PRIOR` ships OFF after losing on F5, and an inert switch and a
+    switch with a measured negative look identical from the outside. The
+    prior's home-run spread is the quantity it moves, and it moves it by a
+    factor of thirty — double-shrinking flattens a pitcher's multi-season
+    record to almost nothing.
+    """
+    import statistics as st
+    from src.context import sim
+    from src.context.sources import rates as rate_src
+
+    was = rate_src.USE_RAW_PRIOR
+    lg = sim.league()
+    try:
+        out = {}
+        for flag in (False, True):
+            rate_src.USE_RAW_PRIOR = flag
+            rate_src._PRIOR, rate_src._PRIOR_FOR = {}, None
+            p = rate_src._ensure_prior(2026)
+            out[flag] = st.pstdev([v["hr_pct"] for v in p.values()])
+        assert out[True] > out[False] * 5, out
+    finally:
+        rate_src.USE_RAW_PRIOR = was
+        rate_src._PRIOR, rate_src._PRIOR_FOR = {}, None
+
+
+def check_the_slate_simulation_tracks_the_first_five():
+    """F5 TEAM TOTALS ARE THE STATED PRODUCT and the live path lost them.
+
+    `simulate_slate_game` called `simulate_game` with no `track`, so
+    `prefix_side` came back empty for every game and `scratchpad/tonight.py`
+    printed the first-five total as 0.00 across the whole board. Nothing
+    failed; the one number this project exists to produce was simply absent
+    from the only tool that shows a live slate.
+    """
+    import inspect
+    from src.context import slate as slate_src
+
+    sig = inspect.signature(slate_src.simulate_slate_game)
+    assert "track" in sig.parameters, sorted(sig.parameters)
+    assert sig.parameters["track"].default == (5,), \
+        sig.parameters["track"].default
+    src = inspect.getsource(slate_src.simulate_slate_game)
+    assert "track=track" in src, "track must reach simulate_game"
+
+
+def check_an_operator_plan_reaches_build_side_on_the_live_path():
+    """The whole reason `plans.py` exists: a club announcing "Burns goes
+    three, Williamson in bulk" the morning of is invisible to the
+    historical opener gate, and on 2026-09-18 the board priced Burns as a
+    full starter while $24k of Kalshi volume priced the short start. The
+    plan lookup, the bulk arm's OWN hook, and all three build_side
+    arguments have to survive in the live path — any one silently dropped
+    prices the board unplanned with no warning anywhere.
+
+    Source-level like the `track=track` check above, because the function
+    needs a live schedule row and a weather fetch to run. MUTATION: remove
+    the `plan_by_side` block or any of the three kwargs and the matching
+    assertion fails.
+    """
+    import inspect
+    from src.context import slate as slate_src
+
+    src = inspect.getsource(slate_src.simulate_slate_game)
+    assert "plans.for_team" in src, "the plan lookup is gone"
+    for kw in ("bulk=", "bulk_hook=", "planned_exit="):
+        assert kw in src, f"{kw} does not reach build_side"
+    assert "for_start(sim.Hook(), g[side]['abbr'], b_name)" in \
+        src.replace('"', "'"), "the bulk arm's own hook is not built"
+
+
+def check_both_hook_curves_read_the_counted_pitch_hazard():
+    """Both backbones are the counted table.
+
+    RENAMED AND REVERSED ON 2026-09-09, from
+    `check_the_mid_curve_reads_the_counted_hazard_and_the_boundary_does_not`.
+    That check pinned the 2026-08-31 ship — counted MID, parametric
+    BOUNDARY — and the boundary half of it was pinning a defect rather
+    than a decision. The boundary table was solved conditional on REAL
+    game states and applied to OURS, which are calmer, so it missed its
+    own buckets when it ran. Re-solved against the model's own states
+    (TODO 7a, `scratchpad/hz_iter.py`) it is the best of the four
+    configurations on holdout cell error: parametric 0.0303, counted
+    as-solved 0.0282, re-solved 0.0176.
+
+    Mutation-verified, and it takes BOTH assertions to do it: turning
+    `USE_PITCH_HAZARD` off fails the mid half, and turning
+    `USE_PITCH_HAZARD_BND` off fails the boundary half. Neither
+    assertion covers the other's flag.
+    """
+    h = sim.Hook()
+    # A pitch count where the counted table and the parametric curve
+    # disagree by a lot: the table was built because the curve pulls about
+    # twice too many men through here.
+    mid = h.mid_removal_p(78, 0, 0, inning=5)
+    expected = sim._sigmoid(
+        h.mid_intercept - sim.PITCH_HAZARD_MID_ANCHOR
+        + sim.pitch_hazard(78, sim.PITCH_HAZARD_MID))
+    assert abs(mid - expected) < 1e-9, (mid, expected)
+
+    bnd = h.removal_p(78, 0, 5)
+    table_bnd = sim._sigmoid(
+        h.intercept - sim.PITCH_HAZARD_BND_ANCHOR
+        + sim.pitch_hazard(78, sim.PITCH_HAZARD_BND)
+        + h.per_inning * 5)
+    assert abs(bnd - table_bnd) < 1e-9, (bnd, table_bnd)
+
+
+def check_the_counted_boundary_table_replaces_the_parametric_backbone():
+    """With the table on, four boundary parameters stop being read.
+
+    `pitch_center`, `pitch_scale`, `per_pitch_over` and `high_pitch_bnd`
+    are the parametric backbone, and `removal_p` swaps the whole
+    expression for the counted table rather than adding to it. So they are
+    INERT while `USE_PITCH_HAZARD_BND` ships True — which is a fact that
+    needs pinning, because a dead parameter and a live one look identical
+    from the outside and this project has a recorded case of someone
+    tuning one that could not move (`early_innings`, day seven).
+
+    The companion claim — that they are LIVE on the parametric branch —
+    is `check_the_boundary_knee_is_wired_and_ships_inert`, which scopes
+    itself to that branch for exactly this reason.
+
+    Mutation-verified: make `removal_p` ADD the table to the parametric
+    expression instead of replacing it and this check fails.
+    """
+    base = sim.Hook().removal_p(88, 1, 5, 3)
+    for field, value in (("pitch_center", 20.0), ("pitch_scale", 40.0),
+                         ("per_pitch_over", 0.5), ("high_pitch_bnd", 3.0)):
+        moved = sim.Hook(**{field: value}).removal_p(88, 1, 5, 3)
+        assert abs(moved - base) < 1e-12, (field, moved, base)
+    # The terms that DO still ride on top of the counted backbone, so the
+    # assertion above is about the backbone and not about a dead curve.
+    for field, value in (("per_run", 0.9), ("per_baserunner", 0.9),
+                         ("per_inning", 0.9), ("team_offset", 1.5)):
+        moved = sim.Hook(**{field: value}).removal_p(88, 1, 5, 3)
+        assert abs(moved - base) > 1e-6, (field, moved, base)
+
+
+def check_every_simulate_game_call_passes_a_park():
+    """Every `simulate_game` call in src/ names `park=`.
+
+    THE SAME FAILURE MODE AS TEAM AND DATE, one argument later: park's
+    missing value is NEUTRAL, so an instrument that omits it does not
+    raise — it silently scores a different engine from the one production
+    runs. Found live on 2026-09-05 while threading item 1 of
+    PLAN-baseball-logic: `slate.py` applied park to a priced game while
+    `fitf5.py` and `ladder.py` — the instruments the F5 and run-level
+    claims rest on — built the same games without one. With `USE_PARK`
+    off nothing differs; the day it flips, an unthreaded caller quietly
+    measures the flag as dead.
+
+    STRUCTURAL, like the build_side check above: it asserts the argument
+    is present, not what it holds — presence is exactly the property that
+    was violated. Callers decide the value (None when the flag is off).
+    """
+    import ast
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent / "src"
+    bad = []
+    for f in sorted(root.rglob("*.py")):
+        for node in ast.walk(ast.parse(f.read_text())):
+            if not isinstance(node, ast.Call):
+                continue
+            fn = node.func
+            name = (fn.attr if isinstance(fn, ast.Attribute)
+                    else getattr(fn, "id", None))
+            if name != "simulate_game":
+                continue
+            if "park" not in {k.arg for k in node.keywords}:
+                bad.append(f"{f.relative_to(root.parent)}:"
+                           f"{node.lineno} missing park=")
+    assert not bad, bad
+
+
+def check_the_rate_builders_honor_park_neutralisation():
+    """`NEUTRALISE_PARK` must act INSIDE `pitcher_rates`/`batter_rates`.
+
+    THE BUG THIS EXISTS FOR, found the morning after park shipped: the
+    neutralise step lived in `calibrate.build_cases`, so the REPLAY path
+    scored on neutral rates while the LIVE path — `outs_adjust` and the
+    board tools handing raw `rate_src` output to `slate.py` — applied
+    tonight's park to raw rates. That is the home-park double-count on
+    the one path that prices real games, and no aggregate could see it:
+    the replay numbers, where everything is measured, were correct.
+
+    Asserted with an injected exposure of exactly 1.1 on K so the check
+    tests the WIRING arithmetic (a divide, in the builder, behind the
+    flag) and cannot fail for a data reason.
+    """
+    from src.context import calibrate as cal, sim
+    from src.context.sources import rates as rate_src
+
+    lg = sim.league()
+    orig_exp = rate_src.park_exposure
+    orig_flag = cal.NEUTRALISE_PARK
+    try:
+        cal.NEUTRALISE_PARK = False
+        pr0 = rate_src.pitcher_rates(lg)
+        nm = next(n for n, v in pr0.items() if v["pa"] >= 200)
+        rate_src.park_exposure = lambda side, season=None, before=None, \
+            conn=None: {nm: {"k_pct": 1.1}}
+        cal.NEUTRALISE_PARK = True
+        pr1 = rate_src.pitcher_rates(lg)
+        assert abs(pr1[nm]["k_pct"] * 1.1 - pr0[nm]["k_pct"]) < 1e-12, \
+            "NEUTRALISE_PARK did not reach the rate builder"
+        # And the flag off means untouched — the neutral path is the
+        # default and must stay bit-identical.
+        cal.NEUTRALISE_PARK = False
+        pr2 = rate_src.pitcher_rates(lg)
+        assert pr2[nm]["k_pct"] == pr0[nm]["k_pct"]
+    finally:
+        rate_src.park_exposure = orig_exp
+        cal.NEUTRALISE_PARK = orig_flag
+
+
+def check_the_engine_passes_the_matchup_to_apply_pa():
+    """Every `apply_pa` call in `src/` must pass `mu=` — the DP roll
+    reads the matchup's GB odds through it, and a dropped keyword is a
+    silent flag-off (the battery's logging wrapper had exactly this bug
+    in review: it swallowed the kwarg and the mechanism died only inside
+    battery runs). Presence, not value — callers own the value."""
+    import ast
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent / "src"
+    bad = []
+    for f in sorted(root.rglob("*.py")):
+        for node in ast.walk(ast.parse(f.read_text())):
+            if not isinstance(node, ast.Call):
+                continue
+            fn = node.func
+            name = (fn.attr if isinstance(fn, ast.Attribute)
+                    else getattr(fn, "id", None))
+            if name != "apply_pa":
+                continue
+            if "mu" not in {k.arg for k in node.keywords}:
+                bad.append(f"{f.relative_to(root.parent)}:"
+                           f"{node.lineno} missing mu=")
+    assert not bad, bad
+
+
+def check_the_base_out_state_multiplier_is_live_and_not_flat():
+    """`USE_FIELD_STATE` off survived the same sweep. `state_mult` returning
+    None is the no-op path, so the check has to pin BOTH that a real state
+    returns a table and that the table is not all ones — a flattened
+    STATE_MULT is the same defect wearing a different hat."""
+    key = (1, 1) if (1, 1) in sim.STATE_MULT else next(iter(sim.STATE_MULT))
+    m = sim.state_mult(key)
+    assert m is not None, "a real base-out state got no multiplier"
+    assert any(abs(v - 1.0) > 1e-6 for v in m.values()), "table is flat"
+    orig = sim.USE_FIELD_STATE
+    sim.USE_FIELD_STATE = False
+    try:
+        assert sim.state_mult(key) is None, "the flag does not gate it"
+    finally:
+        sim.USE_FIELD_STATE = orig
+
+
+    assert sim.USE_FIELD_STATE is True, "ships ON"
+
+def check_pen_state_returns_the_cached_reading_not_only_the_baseline():
+    """The existing pen_state checks assert the BASELINE fallback — which
+    is exactly what the switched-off path returns, so `USE_PEN_STATE = False`
+    walked through all of them. This pins the other half: a club WITH a
+    cached reading must get that reading, and must stop getting it when the
+    flag is off."""
+    orig_flag, orig_tbl = sim.USE_PEN_STATE, sim._PENSTATE
+    sim._PENSTATE = {"ZZZ|2026-05-01": (0.1, 2.9)}
+    try:
+        assert sim.pen_state("ZZZ", "2026-05-01") == (0.1, 2.9)
+        sim.USE_PEN_STATE = False
+        assert sim.pen_state("ZZZ", "2026-05-01") == (
+            sim.PEN_BACK2_BASELINE, sim.PEN_REST_BASELINE), \
+            "the flag does not gate the lookup"
+    finally:
+        sim.USE_PEN_STATE, sim._PENSTATE = orig_flag, orig_tbl
+
+
+    assert sim.USE_PEN_STATE is True, "ships ON"
+
+def check_the_role_decides_its_own_hit_by_pitch_rate():
+    """`USE_ROLE_HBP` off survived the sweep. HBP_RATE was measured on
+    STARTERS and applied to every arm; relievers hit batters 21-34% more
+    often in every season on file. `build_side` is the only place that knows
+    which arm is the starter, so this is where it can rot unseen."""
+    assert sim.HBP_RATE_RP > sim.HBP_RATE_SP, "the counted gap is signed"
+    pool = [{"name": "r1", "k_pct": 0.24, "bb_pct": 0.08, "hr_pct": 0.03,
+             "babip": 0.29, "pa": 200, "appearances": 60}]
+    side = game.build_side(_pitcher(), pool, [], None, random.Random(3),
+                           apply_leash=False)
+    assert side.starter.hbp_rate == sim.HBP_RATE_SP
+    assert side.pen and all(a.hbp_rate == sim.HBP_RATE_RP for a in side.pen)
+    orig = game.USE_ROLE_HBP
+    game.USE_ROLE_HBP = False
+    try:
+        off = game.build_side(_pitcher(), pool, [], None, random.Random(3),
+                              apply_leash=False)
+        assert off.starter.hbp_rate != sim.HBP_RATE_SP, \
+            "the flag does not gate the role rates"
+    finally:
+        game.USE_ROLE_HBP = orig
+
+    assert game.USE_ROLE_HBP is True, "ships ON"
+
+
+def check_relief_intent_reaches_the_game():
+    """`USE_RELIEF_INTENT`: the continuation hazard conditions on the
+    inning the arm ENTERED at. The observable is the opener shape — force
+    the starter out at three outs and the first reliever is the bulk man,
+    who really continues at ~76% per inning (9.50 outs a follower) where
+    the pooled table cut everyone to ~20% (3.96). With intent on, that
+    side must burn measurably fewer arms; with it off, the flag is
+    decoration and this check is what catches the wiring rotting."""
+    def _pen_arms(use_intent, n=300, seed=11):
+        prev = game.USE_RELIEF_INTENT
+        game.USE_RELIEF_INTENT = use_intent
+        try:
+            used = []
+            for i in range(n):
+                rng = random.Random(seed + i)
+                a = game.build_side(_pitcher(), _pen(), _nine(), None, rng)
+                h = game.build_side(_pitcher(), _pen(), _nine(), None, rng)
+                a.forced_exit_outs = 3
+                game.simulate_game(a, h, dict(LG), rng)
+                used.append(a.pen_i)
+            return sum(used) / len(used)
+        finally:
+            game.USE_RELIEF_INTENT = prev
+    on, off = _pen_arms(True), _pen_arms(False)
+    assert on < off - 0.5, (on, off)
+
+
+def check_pregame_ids_and_matchups_name_the_same_games():
+    """`pregame_game_ids` must select exactly what `pregame_matchups`
+    does, differing only in the key it returns.
+
+    WHY BOTH EXIST. The name-keyed version is unusable from the slate
+    path, which holds abbreviations and a `game_id` — rebuilding
+    "Away Name @ Home Name" to match on is the 'Arizona Diamondbacks'
+    against 'D-backs' failure that cost a club four fields. The risk of
+    a second selector is that the two drift apart and one of them starts
+    quietly pricing live games, so they are pinned to each other here
+    rather than each tested alone.
+
+    Offline: a stub feed, injected through the module's TTL cache, so no
+    network is touched and the states are the ones being asserted about.
+    """
+    import time
+    from src.context import gamestate as gs
+    feed = {
+        "Away A @ Home A": {"game_id": "mlb-1", "status": "Preview",
+                            "detailed": "Scheduled"},
+        "Away B @ Home B": {"game_id": "mlb-2", "status": "Live",
+                            "detailed": "In Progress"},
+        "Away C @ Home C": {"game_id": "mlb-3", "status": "Final",
+                            "detailed": "Final"},
+        "Away D @ Home D": {"game_id": None, "status": "Preview",
+                            "detailed": "Scheduled"},
+    }
+    key = "2099-01-01"
+    saved = gs._cache.get(key)
+    gs._cache[key] = (time.time(), feed)
+    try:
+        ids = gs.pregame_game_ids(key)
+        names = gs.pregame_matchups(key)
+        assert ids == {"mlb-1"}, ids
+        # Same games, both directions — the pinning that stops a drift.
+        want = {feed[m]["game_id"] for m in names if feed[m]["game_id"]}
+        assert ids == want, (ids, want)
+        assert "mlb-2" not in ids and "mlb-3" not in ids, \
+            "a live or final game reached the pregame set"
+        # A game with no id is dropped rather than admitted as None,
+        # which would compare equal to a slate row's missing game_id.
+        assert None not in ids
+    finally:
+        if saved is None:
+            gs._cache.pop(key, None)
+        else:
+            gs._cache[key] = saved
+
+
+def check_a_manual_probable_fills_a_missing_starter_but_never_beats_the_feed():
+    """`probables` is a side channel for a name the API has not posted yet.
+
+    Three guarantees, each one a way this could silently go wrong: it fills
+    a None, it does NOT overwrite a name the feed carries (a stale manual
+    entry must not re-write a real probable after a rotation shuffle), and
+    it reports every fill — the failure it was written for was a filter
+    that dropped games without saying so.
+    """
+    import json
+    import tempfile
+    from pathlib import Path
+    from src.context import probables as pb
+
+    with tempfile.TemporaryDirectory() as tmp:
+        p = Path(tmp) / "probables.json"
+        p.write_text(json.dumps({
+            "2026-09-11": {
+                "TEX@AZ": {"away": "Kumar Rocker", "home": "Merrill Kelly"},
+                "LAD@MIA": {"away": "Blake Snell"},
+                "PIT@CHC": {"away": "Somebody Else"},
+            }}))
+
+        def row(a, h, asp, hsp):
+            return {"away": {"abbr": a, "starter": asp, "starter_id": 1},
+                    "home": {"abbr": h, "starter": hsp, "starter_id": 2}}
+
+        games = [row("TEX", "AZ", None, None),
+                 row("LAD", "MIA", None, "Ryan Gusto"),
+                 row("PIT", "CHC", "Wilber Dotel", "Shota Imanaga"),
+                 row("NYM", "NYY", None, "Carlos Rodón")]
+        notes = pb.apply(games, "2026-09-11", path=p)
+
+        # 1. Both sides of a wholly unlisted game get filled.
+        assert games[0]["away"]["starter"] == "Kumar Rocker", games[0]
+        assert games[0]["home"]["starter"] == "Merrill Kelly", games[0]
+        # 2. A half-filled game keeps the feed's name and gains the other.
+        assert games[1]["away"]["starter"] == "Blake Snell", games[1]
+        assert games[1]["home"]["starter"] == "Ryan Gusto", games[1]
+        # 3. THE API ALWAYS WINS — the feed's name survives a contradiction.
+        assert games[2]["away"]["starter"] == "Wilber Dotel", \
+            "a manual entry overwrote a probable the feed already carried"
+        # 4. A game with no entry is untouched, still declining on its own.
+        assert games[3]["away"]["starter"] is None, games[3]
+        # 5. An injected id is None rather than a guess inherited from the row.
+        assert games[0]["away"]["starter_id"] is None, games[0]
+
+        # 6. NOTHING HAPPENS SILENTLY: three fills and one contradiction.
+        assert len(notes) == 4, notes
+        assert sum("USING THE FEED" in n for n in notes) == 1, notes
+        assert any("Kumar Rocker" in n for n in notes), notes
+
+        # 7. An absent file is the normal case and must be a clean no-op,
+        #    not an exception on every board that has no override.
+        blank = [{"away": {"abbr": "TEX", "starter": None},
+                  "home": {"abbr": "AZ", "starter": None}}]
+        assert pb.apply(blank, "2026-09-11", path=p.parent / "gone.json") == []
+        assert blank[0]["away"]["starter"] is None
+
+        # 8. A date with no entry is likewise untouched.
+        assert pb.apply(blank, "2026-09-12", path=p) == []
+
+
+def check_the_board_reports_a_game_it_drops_for_a_missing_probable():
+    """The drop is correct; doing it silently is not.
+
+    On 2026-09-11 three of fifteen games had no probable when the board ran.
+    They were filtered by a bare comprehension BEFORE `declined` existed, so
+    the header said 12 games and the DECLINED section printed nothing. An
+    operator had no way to see that three games were missing, let alone that
+    supplying a name would recover two of them.
+    """
+    import inspect
+    from scratchpad import board
+
+    src = inspect.getsource(board.build)
+    assert "no_probable" in src, \
+        "the missing-probable drop is not being collected"
+    assert "declined = list(no_probable)" in inspect.getsource(board.build), \
+        "dropped games are not reaching the DECLINED list"
+
+    # The footer has to be willing to print them.
+    printed = inspect.getsource(board.print_board)
+    assert "DECLINED" in printed and "MANUAL PROBABLES" in printed, printed

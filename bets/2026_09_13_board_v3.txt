@@ -1,0 +1,440 @@
+BOARD — 2026-09-13 · 15 games · 20,000 sims · fair inside ±170 · odds are FAIR (no vig)
+
+COL @ DET   Gabriel Hughes v Jackson Jobe   (lineups posted, mean 9.5)
+  bet                          over / under  kalshi
+  total 8.5                    -123 /  +123    -120   
+  total 9                      -100 /  +100       -   
+  total 9.5                    +123 /  -123    +130   
+  COL total 3.5                -150 /  +150    -113   
+  COL total 4.5                +114 /  -114    +153   
+  DET total 3.5                -159 /  +159    -194   
+  DET total 4.5                +109 /  -109    -113   
+  F5 total 4.5                 -120 /  +120    -120   
+  F5 total 5.5                 +135 /  -135    +135   
+  Gabriel Hughes k 2.5         -446 /  +446    -308   THIN  off-band
+  Gabriel Hughes k 3.5         -194 /  +194    -120   THIN  off-band
+  Gabriel Hughes k 4.5         +108 /  -108    +178   THIN  
+  Gabriel Hughes k 5.5         +223 /  -223    +426   THIN  off-band
+  Gabriel Hughes k 6.5         +465 /  -465    +953   THIN  off-band
+  Gabriel Hughes k 7.5        +1045 / -1045   +2122   THIN  off-band
+  Gabriel Hughes outs 14.5     -223 /  +223    -147   THIN  raw -193  off-band
+  Gabriel Hughes outs 15.5     +107 /  -107       -   THIN  raw +108
+  Gabriel Hughes outs 16.5     +137 /  -137       -   THIN  raw +133
+  Jackson Jobe k 2.5           -416 /  +416    -355   THIN  off-band
+  Jackson Jobe k 3.5           -180 /  +180    -147   THIN  off-band
+  Jackson Jobe k 4.5           +115 /  -115    +147   THIN  
+  Jackson Jobe k 5.5           +236 /  -236    +344   THIN  off-band
+  Jackson Jobe k 6.5           +507 /  -507    +770   THIN  off-band
+  Jackson Jobe k 7.5          +1148 / -1148   +1567   THIN  off-band
+  Jackson Jobe outs 15.5       +110 /  -110    +113   THIN  raw +111
+  Jackson Jobe outs 16.5       +142 /  -142       -   THIN  raw +138
+
+LAA @ WSH   Grayson Rodriguez v Jake Irvin   (lineups posted, mean 10.0)
+  bet                          over / under  kalshi
+  total 9                      -120 /  +120       -   
+  total 9.5                    +104 /  -104    +115   
+  total 10                     +122 /  -122       -   
+  LAA total 3.5                -154 /  +154    -150   
+  LAA total 4.5                +109 /  -109    +113   
+  WSH total 4.5                -115 /  +115    +102   
+  WSH total 5.5                +143 /  -143    +160   
+  F5 total 4.5                 -142 /  +142    -130   
+  F5 total 5.5                 +112 /  -112    +122   
+  Grayson Rodriguez k 2.5      -357 /  +357    -590   off-band
+  Grayson Rodriguez k 3.5      -157 /  +157    -251   
+  Grayson Rodriguez k 4.5      +130 /  -130    -115   
+  Grayson Rodriguez k 5.5      +268 /  -268    +186   off-band
+  Grayson Rodriguez k 6.5      +563 /  -563    +388   off-band
+  Grayson Rodriguez k 7.5     +1229 / -1229    +770   off-band
+  Grayson Rodriguez k 8.5     +2972 / -2972   +1718   off-band
+  Grayson Rodriguez outs 13.5   -179 /  +179       -   raw -161
+  Grayson Rodriguez outs 14.5   -134 /  +134       -   raw -118
+  Grayson Rodriguez outs 15.5   +173 /  -173    +106   raw +174  off-band
+  Jake Irvin k 4.5             -137 /  +137       -   
+  Jake Irvin k 5.5             +145 /  -145       -   
+  Jake Irvin outs 15.5         +129 /  -129       -   raw +129
+  Jake Irvin outs 16.5         +164 /  -164       -   raw +158
+
+PHI @ ATL   Andrew Painter v Grant Holmes   (lineups posted, mean 9.5)
+  bet                          over / under  kalshi
+  total 8.5                    -120 /  +120    -135   
+  total 9                      +103 /  -103       -   
+  total 9.5                    +126 /  -126    +111   
+  PHI total 3.5                -150 /  +150    -147   
+  PHI total 4.5                +113 /  -113    +108   
+  ATL total 3.5                -160 /  +160    -178   
+  ATL total 4.5                +109 /  -109    -102   
+  F5 total 4.5                 -126 /  +126    -141   
+  F5 total 5.5                 +128 /  -128    +115   
+  Andrew Painter k 2.5         -375 /  +375    -471   off-band
+  Andrew Painter k 3.5         -162 /  +162    -182   
+  Andrew Painter k 4.5         +130 /  -130    +111   
+  Andrew Painter k 5.5         +274 /  -274    +251   off-band
+  Andrew Painter k 6.5         +586 /  -586    +545   off-band
+  Andrew Painter k 7.5        +1358 / -1358   +1329   off-band
+  Andrew Painter outs 15.5     +103 /  -103       -   raw +104
+  Andrew Painter outs 16.5     +132 /  -132    +106   raw +128
+  Grant Holmes k 2.5           -311 /  +311    -228   off-band
+  Grant Holmes k 3.5           -132 /  +132    +102   
+  Grant Holmes k 4.5           +165 /  -165    +245   
+  Grant Holmes k 5.5           +366 /  -366    +545   off-band
+  Grant Holmes k 6.5           +812 /  -812   +1233   off-band
+  Grant Holmes outs 14.5       -236 /  +236    -141   raw -204  off-band
+  Grant Holmes outs 15.5       -101 /  +101       -   raw -101
+  Grant Holmes outs 16.5       +126 /  -126       -   raw +122
+
+NYM @ NYY   Christian Scott v Cam Schlittler   (lineups posted, mean 9.5)
+  bet                          over / under  kalshi
+  total 8.5                    -125 /  +125    +125   
+  total 9                      -102 /  +102       -   
+  total 9.5                    +121 /  -121    +190   
+  NYM total 3.5                -122 /  +122    +125   
+  NYM total 4.5                +136 /  -136    +199   
+  NYY total 4.5                -113 /  +113    +120   
+  NYY total 5.5                +147 /  -147    +190   
+  F5 total 4.5                 -115 /  +115    +130   
+  F5 total 5.5                 +139 /  -139    +217   
+  Christian Scott k 2.5        -903 /  +903   -1150   off-band
+  Christian Scott k 3.5        -409 /  +409    -506   off-band
+  Christian Scott k 4.5        -203 /  +203    -245   off-band
+  Christian Scott k 5.5        -105 /  +105    -106   
+  Christian Scott k 6.5        +181 /  -181    +174   off-band
+  Christian Scott k 7.5        +350 /  -350    +365   off-band
+  Christian Scott k 8.5        +688 /  -688    +669   off-band
+  Christian Scott k 9.5       +1462 / -1462   +1567   off-band
+  Christian Scott outs 13.5    -185 /  +185       -   raw -167
+  Christian Scott outs 14.5    -135 /  +135    -170   raw -118
+  Cam Schlittler k 3.5         -889 /  +889   -1076   off-band
+  Cam Schlittler k 4.5         -422 /  +422    -590   off-band
+  Cam Schlittler k 5.5         -211 /  +211    -277   off-band
+  Cam Schlittler k 6.5         -111 /  +111    -135   
+  Cam Schlittler k 7.5         +167 /  -167    +147   
+  Cam Schlittler k 8.5         +315 /  -315    +257   off-band
+  Cam Schlittler k 9.5         +609 /  -609    +545   off-band
+  Cam Schlittler outs 16.5     -121 /  +121       -   raw -125
+  Cam Schlittler outs 17.5     +108 /  -108    -120   raw +104
+
+BAL @ TOR   Trevor Rogers v Dylan Cease   (lineups posted, mean 7.6)
+  bet                          over / under  kalshi
+  total 6.5                    -133 /  +133    -147   
+  total 7                      -104 /  +104       -   
+  total 7.5                    +124 /  -124    +111   
+  BAL total 2.5                -158 /  +158    -150   
+  BAL total 3.5                +115 /  -115    +120   
+  TOR total 3.5                +101 /  -101    -115   
+  F5 total 3.5                 -102 /  +102    -111   
+  F5 total 4.5                 +164 /  -164    +156   
+  Trevor Rogers k 2.5          -364 /  +364    -525   off-band
+  Trevor Rogers k 3.5          -154 /  +154    -233   
+  Trevor Rogers k 4.5          +138 /  -138    -106   
+  Trevor Rogers k 5.5          +288 /  -288    +203   off-band
+  Trevor Rogers k 6.5          +626 /  -626    +413   off-band
+  Trevor Rogers k 7.5         +1427 / -1427    +852   off-band
+  Trevor Rogers k 8.5         +3710 / -3710   +2122   off-band
+  Trevor Rogers outs 16.5      -116 /  +116       -   raw -120
+  Trevor Rogers outs 17.5      +113 /  -113       -   raw +109
+  Trevor Rogers outs 18.5      +345 /  -345    +178   raw +286  off-band
+  Dylan Cease k 4.5            -837 /  +837   -1076   off-band
+  Dylan Cease k 5.5            -416 /  +416    -545   off-band
+  Dylan Cease k 6.5            -221 /  +221    -264   off-band
+  Dylan Cease k 7.5            -123 /  +123    -153   
+  Dylan Cease k 8.5            +145 /  -145    +133   
+  Dylan Cease k 9.5            +268 /  -268    +245   off-band
+  Dylan Cease outs 16.5        -103 /  +103       -   raw -107
+  Dylan Cease outs 17.5        +126 /  -126    -147   raw +121
+
+HOU @ TB   Hayden Wesneski v Freddy Peralta   (PROJECTED lineups, mean 8.9)
+  bet                          over / under  kalshi
+  total 8                      -116 /  +116       -   [Hayden Wesneski: 34/80 appearances are starts — swingman]
+  total 8.5                    +102 /  -102    +127   [Hayden Wesneski: 34/80 appearances are starts — swingman]
+  total 9                      +129 /  -129       -   [Hayden Wesneski: 34/80 appearances are starts — swingman]
+  HOU total 3.5                -128 /  +128    -104   [Hayden Wesneski: 34/80 appearances are starts — swingman]
+  HOU total 4.5                +138 /  -138    +150   [Hayden Wesneski: 34/80 appearances are starts — swingman]
+  TB total 3.5                 -139 /  +139    -122   [Hayden Wesneski: 34/80 appearances are starts — swingman]
+  TB total 4.5                 +125 /  -125    +144   [Hayden Wesneski: 34/80 appearances are starts — swingman]
+  F5 total 4.5                 -101 /  +101    +111   [Hayden Wesneski: 34/80 appearances are starts — swingman]
+  F5 total 5.5                 +159 /  -159    +174   [Hayden Wesneski: 34/80 appearances are starts — swingman]
+  Hayden Wesneski k 2.5        -191 /  +191    -199   THIN  [34/80 appearances are starts — swingman]  off-band
+  Hayden Wesneski k 3.5        +122 /  -122    +125   THIN  [34/80 appearances are starts — swingman]  
+  Hayden Wesneski k 4.5        +274 /  -274    +292   THIN  [34/80 appearances are starts — swingman]  off-band
+  Hayden Wesneski k 5.5        +640 /  -640    +669   THIN  [34/80 appearances are starts — swingman]  off-band
+  Hayden Wesneski k 6.5       +1581 / -1581   +1900   THIN  [34/80 appearances are starts — swingman]  off-band
+  Hayden Wesneski outs 15.5    -120 /  +120    +104   THIN  [34/80 appearances are starts — swingman]  raw -120
+  Hayden Wesneski outs 16.5    +105 /  -105       -   THIN  [34/80 appearances are starts — swingman]  raw +102
+  Freddy Peralta k 2.5         -711 /  +711    -733   proj lineup  off-band
+  Freddy Peralta k 3.5         -297 /  +297    -285   proj lineup  off-band
+  Freddy Peralta k 4.5         -140 /  +140    -130   proj lineup  
+  Freddy Peralta k 5.5         +147 /  -147    +170   proj lineup  
+  Freddy Peralta k 6.5         +302 /  -302    +326   proj lineup  off-band
+  Freddy Peralta k 7.5         +624 /  -624    +733   proj lineup  off-band
+  Freddy Peralta k 8.5        +1371 / -1371   +1718   proj lineup  off-band
+  Freddy Peralta outs 16.5     -146 /  +146    +108   proj lineup  raw -151
+  Freddy Peralta outs 17.5     -112 /  +112       -   proj lineup  raw -116
+
+LAD @ MIA   Emmet Sheehan v Eury Pérez   (PROJECTED lineups, mean 8.7)
+  bet                          over / under  kalshi
+  total 7.5                    -124 /  +124    -130   
+  total 8                      -107 /  +107       -   
+  total 8.5                    +110 /  -110    +106   
+  LAD total 3.5                -138 /  +138    -156   
+  LAD total 4.5                +121 /  -121    +108   
+  MIA total 3.5                -112 /  +112    +100   
+  MIA total 4.5                +159 /  -159    +174   
+  F5 total 3.5                 -156 /  +156    -147   
+  F5 total 4.5                 +107 /  -107    +115   
+  Emmet Sheehan k 2.5          -858 /  +858    -900   proj lineup  off-band
+  Emmet Sheehan k 3.5          -383 /  +383    -400   proj lineup  off-band
+  Emmet Sheehan k 4.5          -186 /  +186    -199   proj lineup  off-band
+  Emmet Sheehan k 5.5          +106 /  -106    -102   proj lineup  
+  Emmet Sheehan k 6.5          +210 /  -210    +217   proj lineup  off-band
+  Emmet Sheehan k 7.5          +407 /  -407    +426   proj lineup  off-band
+  Emmet Sheehan k 8.5          +826 /  -826    +770   proj lineup  off-band
+  Emmet Sheehan outs 15.5      +104 /  -104    +122   proj lineup  raw +104
+  Emmet Sheehan outs 16.5      +132 /  -132       -   proj lineup  raw +128
+  Eury Pérez k 2.5             -487 /  +487    -809   off-band
+  Eury Pérez k 3.5             -217 /  +217    -344   off-band
+  Eury Pérez k 4.5             -104 /  +104    -153   
+  Eury Pérez k 5.5             +194 /  -194    +125   off-band
+  Eury Pérez k 6.5             +399 /  -399    +285   off-band
+  Eury Pérez k 7.5             +824 /  -824    +567   off-band
+  Eury Pérez k 8.5            +1894 / -1894   +1438   off-band
+  Eury Pérez outs 15.5         +117 /  -117    +115   raw +117
+  Eury Pérez outs 16.5         +150 /  -150       -   raw +145
+
+CLE @ MIN   Tanner Bibee v Joe Ryan   (lineups posted, mean 9.5)
+  bet                          over / under  kalshi
+  total 8.5                    -121 /  +121    +125   
+  total 9                      +102 /  -102       -   
+  total 9.5                    +126 /  -126    +190   
+  CLE total 3.5                -135 /  +135    -106   
+  CLE total 4.5                +126 /  -126    +156   
+  MIN total 4.5                -103 /  +103    +144   
+  MIN total 5.5                +167 /  -167    +239   
+  F5 total 4.5                 -120 /  +120    +115   
+  F5 total 5.5                 +133 /  -133    +190   
+  Tanner Bibee k 2.5           -214 /  +214    -308   off-band
+  Tanner Bibee k 3.5           +109 /  -109    -130   
+  Tanner Bibee k 4.5           +247 /  -247    +167   off-band
+  Tanner Bibee k 5.5           +566 /  -566    +344   off-band
+  Tanner Bibee k 6.5          +1347 / -1347    +809   off-band
+  Tanner Bibee k 7.5          +3563 / -3563   +1900   off-band
+  Tanner Bibee outs 15.5       -122 /  +122       -   raw -122
+  Tanner Bibee outs 16.5       +105 /  -105    +106   raw +102
+  Joe Ryan k 4.5               -162 /  +162       -   
+  Joe Ryan k 5.5               +124 /  -124       -   
+  Joe Ryan outs 16.5           -137 /  +137       -   raw -142
+  Joe Ryan outs 17.5           -106 /  +106       -   raw -110
+
+CIN @ MIL   Chase Burns v Robert Gasser   (lineups posted, mean 8.4)
+  bet                          over / under  kalshi
+  total 7.5                    -114 /  +114    -115   
+  total 8                      +103 /  -103       -   
+  total 8.5                    +121 /  -121    +120   
+  CIN total 3.5                -109 /  +109    +120   
+  CIN total 4.5                +157 /  -157    +203   
+  MIL total 3.5                -128 /  +128    -163   
+  MIL total 4.5                +138 /  -138    +106   
+  F5 total 3.5                 -137 /  +137    -150   
+  F5 total 4.5                 +124 /  -124    +113   
+  Chase Burns k 2.5           -1823 / +1823    -326   off-band
+  Chase Burns k 3.5            -787 /  +787    -135   off-band
+  Chase Burns k 4.5            -384 /  +384    +167   off-band
+  Chase Burns k 5.5            -192 /  +192    +355   off-band
+  Chase Burns k 6.5            -101 /  +101    +641   
+  Chase Burns outs 15.5        -116 /  +116       -   raw -116
+  Chase Burns outs 16.5        +108 /  -108       -   raw +105
+  Robert Gasser k 2.5         -1414 / +1414    -700   off-band
+  Robert Gasser k 3.5          -630 /  +630    -285   off-band
+  Robert Gasser k 4.5          -301 /  +301    -130   off-band
+  Robert Gasser k 5.5          -153 /  +153    +160   
+  Robert Gasser k 6.5          +123 /  -123    +344   
+  Robert Gasser k 7.5          +235 /  -235    +700   off-band
+  Robert Gasser k 8.5          +466 /  -466   +2400   off-band
+  Robert Gasser outs 15.5      -129 /  +129    +153   raw -128
+  Robert Gasser outs 16.5      -102 /  +102       -   raw -105
+  Robert Gasser outs 17.5      +131 /  -131       -   raw +126
+
+CWS @ STL   David Sandlin v Michael McGreevy   (lineups posted, mean 8.7)
+  bet                          over / under  kalshi
+  total 7.5                    -128 /  +128    -141   [David Sandlin: only 2 start(s) on record]
+  total 8                      -110 /  +110       -   [David Sandlin: only 2 start(s) on record]
+  total 8.5                    +108 /  -108    -106   [David Sandlin: only 2 start(s) on record]
+  CWS total 3.5                -119 /  +119    -156   [David Sandlin: only 2 start(s) on record]
+  CWS total 4.5                +145 /  -145    +111   [David Sandlin: only 2 start(s) on record]
+  STL total 3.5                -138 /  +138    -122   [David Sandlin: only 2 start(s) on record]
+  STL total 4.5                +125 /  -125    +147   [David Sandlin: only 2 start(s) on record]
+  F5 total 3.5                 -165 /  +165    -174   [David Sandlin: only 2 start(s) on record]
+  F5 total 4.5                 +104 /  -104    -111   [David Sandlin: only 2 start(s) on record]
+  David Sandlin k 2.5          -166 /  +166       -   THIN  [only 2 start(s) on record]  
+  David Sandlin k 3.5          +129 /  -129       -   THIN  [only 2 start(s) on record]  
+  David Sandlin outs 12.5      +114 /  -114       -   THIN  [only 2 start(s) on record]  raw +122
+  David Sandlin outs 13.5      +129 /  -129       -   THIN  [only 2 start(s) on record]  raw +142
+  Michael McGreevy k 2.5       -410 /  +410    -326   off-band
+  Michael McGreevy k 3.5       -172 /  +172    -135   off-band
+  Michael McGreevy k 4.5       +123 /  -123    +163   
+  Michael McGreevy k 5.5       +264 /  -264    +355   off-band
+  Michael McGreevy k 6.5       +592 /  -592    +770   off-band
+  Michael McGreevy k 7.5      +1384 / -1384   +2122   off-band
+  Michael McGreevy outs 16.5   -116 /  +116       -   raw -120
+  Michael McGreevy outs 17.5   +114 /  -114    +138   raw +110
+
+PIT @ CHC   Bubba Chandler v Matthew Boyd   (PROJECTED lineups, mean 9.4)
+  bet                          over / under  kalshi
+  total 8.5                    -118 /  +118    +190   
+  total 9                      +105 /  -105       -   
+  total 9.5                    +128 /  -128    +292   
+  PIT total 3.5                -134 /  +134    +138   
+  PIT total 4.5                +124 /  -124    +245   
+  CHC total 3.5                -167 /  +167    +100   
+  CHC total 4.5                +103 /  -103    +170   
+  F5 total 4.5                 -120 /  +120    +153   
+  F5 total 5.5                 +134 /  -134    +251   
+  Bubba Chandler k 2.5         -398 /  +398    -426   off-band
+  Bubba Chandler k 3.5         -172 /  +172    -182   off-band
+  Bubba Chandler k 4.5         +123 /  -123    +130   
+  Bubba Chandler k 5.5         +258 /  -258    +285   off-band
+  Bubba Chandler k 6.5         +551 /  -551    +669   off-band
+  Bubba Chandler k 7.5        +1276 / -1276   +1329   off-band
+  Bubba Chandler outs 14.5     -171 /  +171       -   raw -150
+  Bubba Chandler outs 15.5     +138 /  -138    +104   raw +139
+  Matthew Boyd k 2.5           -571 /  +571   -1011   proj lineup  off-band
+  Matthew Boyd k 3.5           -251 /  +251    -426   proj lineup  off-band
+  Matthew Boyd k 4.5           -121 /  +121    -190   proj lineup  
+  Matthew Boyd k 5.5           +167 /  -167    +111   proj lineup  
+  Matthew Boyd k 6.5           +340 /  -340    +223   proj lineup  off-band
+  Matthew Boyd k 7.5           +718 /  -718    +441   proj lineup  off-band
+  Matthew Boyd k 8.5          +1657 / -1657   +1011   proj lineup  off-band
+  Matthew Boyd k 9.5          +4192 / -4192   +2400   proj lineup  off-band
+  Matthew Boyd outs 15.5       +108 /  -108       -   proj lineup  raw +109
+  Matthew Boyd outs 16.5       +138 /  -138       -   proj lineup  raw +133
+  Matthew Boyd outs 17.5       +184 /  -184    -141   proj lineup  raw +177  off-band
+
+KC @ BOS   Noah Cameron v Payton Tolle   (PROJECTED lineups, mean 8.5)
+  bet                          over / under  kalshi
+  total 7.5                    -117 /  +117    +106   
+  total 8                      -100 /  +100       -   
+  total 8.5                    +117 /  -117    +150   
+  KC total 3.5                 -103 /  +103    +138   
+  KC total 4.5                 +165 /  -165    +233   
+  BOS total 3.5                -137 /  +137    -127   
+  BOS total 4.5                +127 /  -127    +133   
+  F5 total 3.5                 -138 /  +138    -113   
+  F5 total 4.5                 +125 /  -125    +150   
+  Noah Cameron k 2.5           -535 /  +535    -545   proj lineup  off-band
+  Noah Cameron k 3.5           -224 /  +224    -264   proj lineup  off-band
+  Noah Cameron k 4.5           -107 /  +107    -115   proj lineup  
+  Noah Cameron k 5.5           +193 /  -193    +160   proj lineup  off-band
+  Noah Cameron k 6.5           +394 /  -394    +335   proj lineup  off-band
+  Noah Cameron k 7.5           +847 /  -847    +700   proj lineup  off-band
+  Noah Cameron k 8.5          +1918 / -1918   +1718   proj lineup  off-band
+  Noah Cameron outs 15.5       -119 /  +119       -   proj lineup  raw -118
+  Noah Cameron outs 16.5       +107 /  -107       -   proj lineup  raw +103
+  Noah Cameron outs 17.5       +141 /  -141    +108   proj lineup  raw +136
+  Payton Tolle k 3.5           -626 /  +626    -590   proj lineup  off-band
+  Payton Tolle k 4.5           -291 /  +291    -292   proj lineup  off-band
+  Payton Tolle k 5.5           -146 /  +146    -147   proj lineup  
+  Payton Tolle k 6.5           +130 /  -130    +130   proj lineup  
+  Payton Tolle k 7.5           +249 /  -249    +257   proj lineup  off-band
+  Payton Tolle k 8.5           +487 /  -487    +488   proj lineup  off-band
+  Payton Tolle k 9.5          +1015 / -1015    +900   proj lineup  off-band
+  Payton Tolle outs 16.5       -144 /  +144       -   proj lineup  raw -148
+  Payton Tolle outs 17.5       -109 /  +109    -115   proj lineup  raw -113
+
+SEA @ ATH   Bryce Miller v Jacob Lopez   (PROJECTED lineups, mean 10.2)
+  bet                          over / under  kalshi
+  total 9.5                    -104 /  +104    +125   
+  total 10                     +111 /  -111       -   
+  total 10.5                   +127 /  -127    +160   
+  SEA total 4.5                -119 /  +119    -117   
+  SEA total 5.5                +135 /  -135    +135   
+  ATH total 4.5                -101 /  +101    +130   
+  ATH total 5.5                +167 /  -167    +217   
+  F5 total 4.5                 -156 /  +156    -122   
+  F5 total 5.5                 +102 /  -102    +135   
+  Bryce Miller k 2.5           -416 /  +416    -456   proj lineup  off-band
+  Bryce Miller k 3.5           -177 /  +177    -194   proj lineup  off-band
+  Bryce Miller k 4.5           +120 /  -120    +115   proj lineup  
+  Bryce Miller k 5.5           +251 /  -251    +251   proj lineup  off-band
+  Bryce Miller k 6.5           +533 /  -533    +488   proj lineup  off-band
+  Bryce Miller k 7.5          +1202 / -1202   +1233   proj lineup  off-band
+  Bryce Miller outs 15.5       -105 /  +105    +106   proj lineup  raw -104
+  Bryce Miller outs 16.5       +122 /  -122       -   proj lineup  raw +118
+  Jacob Lopez k 2.5            -354 /  +354    -669   proj lineup  off-band
+  Jacob Lopez k 3.5            -155 /  +155    -270   proj lineup  
+  Jacob Lopez k 4.5            +134 /  -134    -125   proj lineup  
+  Jacob Lopez k 5.5            +281 /  -281    +160   proj lineup  off-band
+  Jacob Lopez k 6.5            +588 /  -588    +308   proj lineup  off-band
+  Jacob Lopez k 7.5           +1357 / -1357    +590   proj lineup  off-band
+  Jacob Lopez k 8.5           +3397 / -3397   +1233   proj lineup  off-band
+  Jacob Lopez outs 14.5        -155 /  +155       -   proj lineup  raw -136
+  Jacob Lopez outs 15.5        +150 /  -150       -   proj lineup  raw +150
+  Jacob Lopez outs 16.5        +196 /  -196    +113   proj lineup  raw +189  off-band
+
+TEX @ AZ   Cal Quantrill v Eduardo Rodriguez   (PROJECTED lineups, mean 9.7)
+  bet                          over / under  kalshi
+  total 8.5                    -133 /  +133    +111   
+  total 9                      -108 /  +108       -   
+  total 9.5                    +115 /  -115    +174   
+  TEX total 3.5                -154 /  +154    -111   
+  TEX total 4.5                +110 /  -110    +150   
+  AZ total 4.5                 +101 /  -101    +122   
+  AZ total 5.5                 +168 /  -168    +217   
+  F5 total 4.5                 -125 /  +125    -104   
+  F5 total 5.5                 +128 /  -128    +153   
+  Cal Quantrill k 2.5          -155 /  +155    -239   proj lineup  
+  Cal Quantrill k 3.5          +156 /  -156    +102   proj lineup  
+  Cal Quantrill k 4.5          +370 /  -370    +208   proj lineup  off-band
+  Cal Quantrill k 5.5          +896 /  -896    +488   proj lineup  off-band
+  Cal Quantrill k 6.5         +2388 / -2388   +1233   proj lineup  off-band
+  Cal Quantrill outs 15.5      -103 /  +103       -   proj lineup  raw -103
+  Cal Quantrill outs 16.5      +124 /  -124       -   proj lineup  raw +120
+  Cal Quantrill outs 17.5      +165 /  -165    +153   proj lineup  raw +159
+  Eduardo Rodriguez k 2.5      -419 /  +419    -590   proj lineup  off-band
+  Eduardo Rodriguez k 3.5      -174 /  +174    -251   proj lineup  off-band
+  Eduardo Rodriguez k 4.5      +126 /  -126    -115   proj lineup  
+  Eduardo Rodriguez k 5.5      +267 /  -267    +178   proj lineup  off-band
+  Eduardo Rodriguez k 6.5      +579 /  -579    +376   proj lineup  off-band
+  Eduardo Rodriguez k 7.5     +1352 / -1352    +809   proj lineup  off-band
+  Eduardo Rodriguez k 8.5     +3301 / -3301   +2122   proj lineup  off-band
+  Eduardo Rodriguez outs 16.5   -145 /  +145       -   proj lineup  raw -150
+  Eduardo Rodriguez outs 17.5   -109 /  +109    -120   proj lineup  raw -113
+
+SD @ SF   Nick Pivetta v Logan Webb   (PROJECTED lineups, mean 7.8)
+  bet                          over / under  kalshi
+  total 7                      -113 /  +113       -   
+  total 7.5                    +115 /  -115    +106   
+  total 8                      +140 /  -140       -   
+  SD total 2.5                 -167 /  +167    -199   
+  SD total 3.5                 +109 /  -109    -117   
+  SF total 3.5                 -101 /  +101    +122   
+  F5 total 3.5                 -113 /  +113    -120   
+  F5 total 4.5                 +150 /  -150    +147   
+  Nick Pivetta k 2.5          -1003 / +1003    -590   proj lineup  THIN  off-band
+  Nick Pivetta k 3.5           -436 /  +436    -217   proj lineup  THIN  off-band
+  Nick Pivetta k 4.5           -204 /  +204    -102   proj lineup  THIN  off-band
+  Nick Pivetta k 5.5           -102 /  +102    +217   proj lineup  THIN  
+  Nick Pivetta k 6.5           +193 /  -193    +456   proj lineup  THIN  off-band
+  Nick Pivetta k 7.5           +374 /  -374   +1011   proj lineup  THIN  off-band
+  Nick Pivetta outs 14.5       -299 /  +299    -135   proj lineup  THIN  raw -254  off-band
+  Nick Pivetta outs 15.5       -120 /  +120       -   proj lineup  THIN  raw -120
+  Nick Pivetta outs 16.5       +105 /  -105       -   proj lineup  THIN  raw +101
+  Logan Webb k 2.5             -639 /  +639    -590   proj lineup  off-band
+  Logan Webb k 3.5             -268 /  +268    -245   proj lineup  off-band
+  Logan Webb k 4.5             -124 /  +124    -113   proj lineup  
+  Logan Webb k 5.5             +166 /  -166    +190   proj lineup  
+  Logan Webb k 6.5             +341 /  -341    +388   proj lineup  off-band
+  Logan Webb k 7.5             +727 /  -727    +733   proj lineup  off-band
+  Logan Webb k 8.5            +1642 / -1642   +1900   proj lineup  off-band
+  Logan Webb outs 17.5         -200 /  +200    -147   proj lineup  raw -208  off-band
+  Logan Webb outs 18.5         +153 /  -153       -   proj lineup  raw +133
+  Logan Webb outs 19.5         +176 /  -176       -   proj lineup  raw +154
+
+ARMS FLAGGED — priced, but not a normal starter's line:
+  HOU @ TB    Hayden Wesneski         34/80 appearances are starts — swingman
+  CWS @ STL   David Sandlin           only 2 start(s) on record
+
+outs corrected (2026-09-09); raw in note. K beats the OPEN only — bet early or not.
+Totals Jul/Aug ran ~0.15-0.20 light a side (unshipped month term); Sept unmeasured.
+Re-run after lineups post: a projected nine has cost half an edge before.
+
+wall clock: 204s total — 177s simulating, 24s fetching markets, 3s loading rates. RE-RUNNING IS CHEAP; do it when lineups post.

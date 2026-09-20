@@ -1,0 +1,1158 @@
+"""Does the simulator reproduce real baseball? Run before trusting a number.
+
+The first validation is against the league's own distribution, not against
+any bet. A simulator that gets the average right and the SHAPE wrong will
+price a 15.5 line correctly and a 20.5 line badly, and comparing means would
+never show it — which is the same mistake the point-estimate estimator made
+and the reason it measured AUC 0.537.
+
+Four things are checked, in the order they would break:
+
+  1. Rates. Simulated K, BB, HR and hit rates against the league's.
+  2. Runs. Nothing in the base-running model was tuned to hit 4.63 runs per
+     nine, so matching it is evidence the crude advancement rules are
+     adequate; missing it says they are not.
+  3. Outs distribution. Mean, spread, and specifically the share ending on
+     an inning boundary — 66% in the real data, and a simulator that ends
+     starts mid-inning half the time has the wrong hook no matter how good
+     its mean looks.
+  4. Hook hazard by inning, against the observed 8/20/46/70/84% curve.
+
+LEAKAGE, DELIBERATE. Player rates here are full-season, including the games
+being replayed. That is correct for asking "does the machinery produce the
+right shape" and wrong for asking "does it predict", so no claim about
+forecasting should be read off this. Pass `--before` for a clean split.
+"""
+from __future__ import annotations
+
+import random
+from collections import Counter
+
+from dataclasses import replace
+
+from src import db, roster
+from src.context import game, scope, sim
+from src.context.sources import mixture
+from src.context.sources import rates as rate_src
+
+# Real starters where the boxscore has been consulted, the most-outs
+# heuristic only where it has not. The heuristic agrees 91.7% of the time
+# and its 8.3% of misses are all short starts — a starter knocked out in the
+# second passed by the long reliever behind him — so leaning on it truncates
+# the left tail and teaches the hook that blowups do not happen.
+#
+# `o >= 1` rather than `>= 3`: with ground truth, a start that lasted two
+# outs is a real observation and belongs in the distribution. The old floor
+# existed only because the heuristic could never return one.
+_STARTS_Q = """
+with pr as (
+  select p.game_id, p.team, p.player_name, p.outs_recorded o,
+         p.k, p.bb, p.h, p.hr, p.r, p.er, g.date, p.is_starter,
+         g.venue_id, g.day_night,
+         case when p.team = g.home_team_abbr then 1 else 0 end is_home,
+         row_number() over (partition by p.game_id, p.team
+                            order by p.outs_recorded desc) rn,
+         max(case when p.is_starter is not null then 1 else 0 end)
+           over (partition by p.game_id) has_truth
+  from mlb_pitching p join games g on g.game_id = p.game_id
+  where g.sport = 'mlb' and g.status = 'Final' {where}
+)
+select pr.* from pr
+{rotation_join}
+where o >= 1
+  and ((has_truth = 1 and is_starter = 1)
+       or (has_truth = 0 and rn = 1 and o >= 3))
+  {rotation_filter}
+"""
+
+#: A pitcher needs this many starts on the season to count as a rotation
+#: arm. Openers are genuine starters by the boxscore's definition and are
+#: correctly flagged as such, but no book offers an outs line on one, and
+#: their 4.5-out outings would drag the hook toward a leash nobody in the
+#: modelled population is actually on. 101 of the 172 starts the old
+#: heuristic missed were openers; the other 71 were rotation starters
+#: knocked out early, and those DO belong.
+ROTATION_MIN_GS = 5
+
+#: SEASON-SCOPED, and it has to be. This counts "did he start five times",
+#: and with two seasons loaded an unscoped count lets a pitcher who started
+#: twenty times in 2025 and three times in 2026 through the 2026 gate. That
+#: is not a rotation arm this season. Caught by digest: loading 2025 moved
+#: the 2026 case count 3,629 -> 3,709 with no code change, through here.
+#:
+#: Deliberately NOT filtered by `before`/`since`. The gate asks a question
+#: about the whole season, and date-scoping it would shrink the bar for an
+#: April backtest to "started five times by April".
+_ROTATION_JOIN = """
+join (select p2.player_name
+      from mlb_pitching p2 join games g2 on g2.game_id = p2.game_id
+      where p2.is_starter is not null {season_where}
+      group by p2.player_name
+      having sum(case when p2.is_starter = 1 then 1 else 0 end) >= {gs}
+     ) rot on rot.player_name = pr.player_name
+"""
+
+
+def actual_starts(season=None, before=None, limit=None,
+                  since=None, rotation_only=True) -> list[dict]:
+    where = ""
+    # None means THIS SEASON — `context.scope`. Which starts are replayed
+    # has to agree with which games the rates were computed from, or a 2026
+    # start gets priced off a pitcher's pooled two-season line.
+    season = scope.resolve(season)
+    if season:
+        where += f" and g.date like '{season}%'"
+    if before:
+        where += f" and g.date < '{before}'"
+    if since:
+        where += f" and g.date >= '{since}'"
+    q = _STARTS_Q.format(
+        where=where,
+        rotation_join=(_ROTATION_JOIN.format(
+            gs=ROTATION_MIN_GS,
+            season_where=(f"and g2.date like '{season}%'" if season else ""))
+            if rotation_only else ""),
+        rotation_filter="")
+    if limit:
+        q += f" limit {limit}"
+    with db.connect() as c:
+        return [dict(r) for r in c.execute(q)]
+
+
+#: Use the REAL batting order from play-by-play instead of the at-bat
+#: proxy. ON, and it is a correction rather than a feature.
+#:
+#: The proxy sorted each club's hitters by at-bats descending and took the
+#: top nine. Against play-by-play over 574 lineups it matched exactly 0.0%
+#: of the time, missed at least one batter in 23.5%, and put the average
+#: hitter 2.30 slots from where he really batted. At-bats exclude walks, so
+#: a high-OBP leadoff man sorted below a free swinger; a club that batted
+#: around handed its leadoff man five at-bats, so the "input" was partly a
+#: function of the result.
+#:
+#: The order is not cosmetic: the simulator wraps the lineup and derives
+#: times through the order from batters faced, and TTO is a measured 19%
+#: swing in strikeout rate between the first pass and the third.
+USE_REAL_ORDER = True
+
+
+def opposing_lineups(conn=None) -> dict[tuple, list[str]]:
+    """{(game_id, pitcher_team): [the nine he FACES, in batting order]}.
+
+    Prefers `order.lineups()`, which counts the true order off play-by-play
+    and covers 97% of final games. The at-bat proxy below remains only as
+    the fallback for the 3% with no cached play-by-play — it is kept rather
+    than deleted so a missing game degrades to a worse lineup instead of
+    dropping the start entirely.
+    """
+    if USE_REAL_ORDER:
+        try:
+            from src.context import order
+            real = order.lineups()
+        except Exception:
+            real = {}
+        if real:
+            return {**_ab_proxy_lineups(conn), **real}
+    return _ab_proxy_lineups(conn)
+
+
+def _ab_proxy_lineups(conn=None) -> dict[tuple, list[str]]:
+    """The old at-bat-sorted approximation. FALLBACK ONLY — see above."""
+    q = """
+    select mb.game_id, mb.team, mb.player_name, mb.ab
+    from mlb_batting mb join games g on g.game_id = mb.game_id
+    where g.sport = 'mlb' and g.status = 'Final'
+    order by mb.game_id, mb.team, mb.ab desc
+    """
+
+    def _run(c):
+        return c.execute(q).fetchall()
+
+    rows = _run(conn) if conn is not None else _with(_run)
+
+    by_side: dict[tuple, list[str]] = {}
+    for r in rows:
+        by_side.setdefault((r["game_id"], r["team"]), []).append(
+            r["player_name"])
+    # A pitcher on team T faces the OTHER team's hitters in the same game.
+    teams_in: dict[str, list[str]] = {}
+    for gid, team in by_side:
+        teams_in.setdefault(gid, []).append(team)
+    out = {}
+    for gid, teams in teams_in.items():
+        if len(teams) != 2:
+            continue
+        a, b = teams
+        out[(gid, a)] = by_side[(gid, b)][:9]
+        out[(gid, b)] = by_side[(gid, a)][:9]
+    return out
+
+
+def _with(fn):
+    with db.connect() as c:
+        return fn(c)
+
+
+#: "whatever `season` is". Distinct from None, which now means the CURRENT
+#: season, and from `scope.ALL_SEASONS`, which means pool every one.
+_SAME_SEASON = object()
+
+
+_CASES: dict[tuple, list] = {}
+
+#: Loaded once — the Savant exports are ~4MB and the fit reads them per
+#: candidate otherwise.
+_MIX: list = [None, None, None]
+
+
+#: Use derived vs-LHP/vs-RHP batter rates instead of overall rates.
+#:
+#: OFF, because it was measured and it does nothing. The hypothesis was that
+#: handedness would supply the between-start variance the model is missing,
+#: and it does add 20.3% more between-BATTER spread in K% — but A/B'd over
+#: 1,776 starts the Brier skill deltas alternate sign between -0.23% and
+#: +0.49% on K, and -0.20% to +0.40% on outs, with AUC unchanged to three
+#: decimals on all twelve lines.
+#:
+#: Two explanations, and they point at different follow-ups. Platoon effects
+#: largely AVERAGE OUT across nine hitters, so between-batter variance is
+#: not the same thing as between-start variance. And the derivation is
+#: attenuated: crediting a batter's whole game line to the opposing
+#: starter's hand includes his plate appearances against relievers, then
+#: SPLIT_STABILISE pulls each split roughly halfway back to his overall
+#: rate. Testing statsapi's exact splits would separate the two — if those
+#: also fail, the averaging argument wins and the idea is dead.
+#:
+#: MEASURED AGAIN 2026-08-27, and the answer is worse than "it does
+#: nothing": FLIPPING THIS FLAG MAKES THE MODEL WORSE. Scored leak-free on
+#: the starters' own lines — 2026 starts, splits from 2023-25, 20 sims x 6
+#: salts paired — the shipped construction costs +2.9 sd on strikeouts and
+#: +9.9 sd on WALKS against handedness off.
+#:
+#: The reason is the shrink target, and it is a specification error rather
+#: than a fact about baseball. This shrinks each split toward the HITTER'S
+#: OWN OVERALL RATE, so a hitter with a thin split regresses to having NO
+#: platoon effect — the one answer known to be false. It keeps his personal
+#: deviation, which does not persist across seasons, and discards the
+#: structural effect, which is reliable and large: counted over 9,962 games,
+#: a left-handed bat loses 26% of its home run rate against a left-hander.
+#:
+#: Shrinking toward the LEAGUE platoon cell for the side he bats from
+#: instead repairs it — `scratchpad/platoon_fix.py` recovers -29.7% for
+#: left-handed bats where this gets -16.2% — and that version scores flat
+#: against handedness off on every channel. So the corrected mechanism is a
+#: WASH, not a gain, and the uncorrected one is a loss.
+#:
+#: Why flat rather than positive: THE LINEUP CARD IS ALREADY THE
+#: ADJUSTMENT. The manager stacked his right-handed bats against the
+#: left-hander before first pitch and `opposing_lineups` feeds the
+#: simulator the nine that actually played, so the effect is already
+#: expressed in who is batting. Applying it per hitter double counts it.
+#:
+#: Kept rather than deleted so the next person with this instinct can read
+#: the measurement instead of rebuilding it. Do not flip it.
+USE_HANDEDNESS = False
+
+#: Apply Savant park multipliers, keyed by the game's venue_id. An unrated
+#: venue resolves to neutral, never to the home club's park — the Athletics
+#: played 38 home games this season at sites Savant does not rate.
+#:
+#: ON since 2026-09-05, with `NEUTRALISE_PARK`, on the pre-registered
+#: per-venue test (PLAN item 1): the weighted mean |per-venue residual|
+#: fell in 3 of 4 folds on BOTH full and F5 team totals, the pooled ladder
+#: moved by under one se everywhere, and 10 of 671 battery rows moved past
+#: one se — every one a venue row moving toward zero, Coors in all four
+#: folds. The pooled ladder could never see this: a park effect is signed
+#: per venue and nets out across thirty of them.
+USE_PARK = True
+
+#: Apply per-matchup arsenal multipliers.
+#:
+#: OFF. Measured 9.79% mean Brier skill with and 9.79% without — dead even
+#: across 20 stat/line combinations.
+#:
+#: The structural argument for it was sound and is worth keeping on record,
+#: because it correctly predicted why handedness failed and it did NOT save
+#: this. Handedness varies by batter and nine of them average it away; an
+#: arsenal varies by PITCHER and the whole lineup faces the same one, so it
+#: survives to the start level — measured per-start mean k-multiplier sd
+#: 0.0642, range 0.864-1.180, where handedness scored about zero. The
+#: variance is genuinely there and it still bought nothing.
+#:
+#: One hint, below the noise floor and recorded so it is not mistaken for a
+#: new idea later: every HIGH K line improved on both Brier and AUC
+#: (k 7.5 +0.67pp, AUC 0.813 -> 0.822; k 6.5 +0.62pp) while the low lines
+#: and outs got slightly worse. Consistent with a whiff signal helping
+#: discriminate big strikeout games. Each delta is under the 0.5pp
+#: detection floor, and selecting the four lines that rose is how findings
+#: get manufactured — so if this is revisited, re-run at n_sims >= 400 and
+#: decide on the high-K lines BEFORE looking.
+USE_ARSENAL = False
+
+#: Resolve the strikeout matchup PER PITCH TYPE and average by usage, rather
+#: than multiplying the aggregate rate by a scalar. See
+#: `sources/mixture.py` for why the scalar version was structurally weak,
+#: and `PREREG-arsenal.md` for the decision rule fixed before this was run.
+#:
+#: OFF until the pre-registered test says otherwise.
+USE_MIXTURE = False
+
+#: The CONTACT channel of the same mixture — wOBA per pitch type, applied
+#: through `BatterRates.arsenal_mult`, which scales home runs AND BABIP by
+#: the same factor.
+#:
+#: A DIFFERENT MECHANISM, not a subset of the strikeout null. That channel
+#: was tested and is dead — +0.6 sigma the wrong way, and flat in every
+#: quartile of mixture deviation including lineups it moved 7.5-16%. Whiffs
+#: move OUTS, the half measured to carry no edge; runs come from balls in
+#: play. See PREREG-arsenal-contact.md. OFF until measured.
+USE_CONTACT_MIXTURE = False
+
+#: Divide each player's rates by the park they were accumulated in before
+#: applying tonight's. Without this a park multiplier double-counts the
+#: home side and mis-bases the road side — see rates.park_neutralise.
+#:
+#: ON with `USE_PARK`, per the same pre-registered test. Raw park scored
+#: comparably on the pooled venue number (better in two folds, worse in
+#: two) — recorded honestly, and not acted on: neutralised was the
+#: registered config and the double-count mechanism is established.
+NEUTRALISE_PARK = True
+
+#: Home/road adjustment, centred on each player's season mean.
+USE_HOME_ROAD = True
+
+# ── home / road ────────────────────────────────────────────────────────
+#
+# MEASURED, NOT TUNED. Set from the observed league split rather than fitted
+# against Brier, because two free parameters searched against the same
+# metric they are then scored on will find something whether or not anything
+# is there.
+#
+# RECOUNTED 2026-08-29 ON 679,329 PLATE APPEARANCES over 9,978 cached games
+# (`scratchpad/homeroad.py --all`), and BOTH WERE OVERSTATED. The originals
+# were right in direction and thin — z +3.49 and -2.15 — which is the same
+# story as every other constant in this project that got recounted:
+#
+#   quantity        home     away    ratio       se      z    was
+#   K per PA      0.2294   0.2180   1.0522   0.0048  +11.0  1.0692
+#   hits per PA   0.2184   0.2228   0.9804   0.0045   -4.4  0.9624
+#
+# 3.5 and 4.1 sigma from the shipped values on the constant's own scale.
+#
+# CONDITIONING MATCHES THE CODE PATH, which is the requirement for a recount
+# to be a measurement rather than a tune: `adjust_lineup` is applied once per
+# side and therefore to EVERY arm, so the recount counts every arm too. The
+# top half is the home club pitching and the bottom half is the away club, so
+# `halfInning` IS the split. Innings 1-8 only — the ninth is forfeited
+# asymmetrically and would bias a top/bottom comparison by composition.
+#
+# NOT SOLVED FOR A LEVEL, and the distinction matters because the run-level
+# number does NOT come out flattering. Real home-field advantage counted on
+# the same games is 0.306 runs (se 0.044, z +6.9) in innings 1-8; the model
+# produced 0.382 with the old constants and lands lower with these. The
+# temptation is to pick whatever reproduces 0.306 — that is exactly the
+# forbidden move, and the residual is a statement that K and CONTACT are the
+# only two channels modelled here while real home advantage also runs through
+# walks, home runs, errors and baserunning. Recorded as TODO 11d, not fitted
+# away.
+#   outs      home 16.12  vs away 15.79    +0.33   z +1.80  (not sig alone)
+#
+# Applied to the OPPOSING LINEUP, not to the pitcher: the visiting nine hit
+# worse, which is the same statement viewed from the other side and keeps
+# the pitcher's own rates meaning one thing everywhere.
+#
+# Two multipliers rather than one because a single knob cannot fit both — K
+# moves +6.8% while contact moves -3.9%, and forcing them to share a
+# parameter would split the difference and get both wrong.
+#
+# NOT CONFOUNDED WITH PARK at this level, contrary to the obvious worry:
+# every park hosts 81 home starts and 81 away starts, so park balances out
+# in the league-wide split. The confounding is real only PER PITCHER, whose
+# home starts all happen at one venue — which is why any per-pitcher home
+# term must still be fitted after park.
+# CENTRED ON THE SEASON MEAN, not applied one-sided. A player's season rate
+# already contains ~half home starts and ~half away, so giving the home
+# start the full +6.8% and the away start nothing would inflate every
+# pitcher's K rate by ~3.4% overall. Half the contrast each way leaves the
+# average untouched and only redistributes it.
+#
+# This is the same double-counting that makes PARK FACTORS useless here: a
+# Rockies pitcher's season rates already include his starts at Coors, so
+# multiplying by the park index again counts it one and a half times. Park
+# cannot help until the underlying rates are park-neutralised.
+HOME_OPP_K = 1.026
+HOME_OPP_CONTACT = 0.990
+#: WALKS GET THEIR OWN, counted in the same pass. They used to ride
+#: `HOME_OPP_CONTACT` alongside hits, home runs and babip, and they do not
+#: behave like them: 0.9493 on walks against 0.9804 on hits, so one shared
+#: knob was charging walks less than half their measured effect. It is the
+#: LARGEST home/road split of the channels here and the best measured —
+#: z -6.6 over 679,329 plate appearances — and it had no parameter at all.
+#:
+#: COUNTED ON UNINTENTIONAL WALKS ALONE, WHICH IS WHAT `bb_pct` IS. The first
+#: count bundled walks with hit-by-pitch (0.9516, z -6.8) and that does NOT
+#: match the code path: HBP is drawn OFF THE TOP on `hbp_rate`, so a combined
+#: figure applied to `bb_pct` would charge this channel for an event it does
+#: not contain. Broken out, the effect is entirely walks:
+#:
+#:     channel               home     away    ratio      se      z
+#:     unintentional walks 0.0804   0.0847   0.9493  0.0077   -6.6
+#:     hit by pitch        0.0110   0.0110   0.9992  0.0230   -0.0
+#:
+#: HIT-BY-PITCH HAS NO HOME/AWAY SPLIT AT ALL, so it correctly gets no
+#: constant. Intentional walks are excluded too — statsapi types them
+#: separately and they are a MANAGER decision, not a pitching outcome.
+#:
+#: Home runs stay on the contact constant deliberately: their own count is
+#: 0.9710 (z -2.2), which sits 0.7 sigma from what the contact constant
+#: already gives them, so splitting them out would be adding a parameter to
+#: chase noise.
+#:
+#: WHICH SIDE THIS BELONGS TO IS NOT DECIDABLE FROM THE COUNT. "Home pitchers
+#: walk fewer" and "visiting hitters walk less" are the same split read from
+#: either end, and nothing here separates them. It is applied to the LINEUP
+#: for the same reason the other two are — see the block above.
+HOME_OPP_BB = 0.974
+AWAY_OPP_K = 1.0 / HOME_OPP_K
+AWAY_OPP_CONTACT = 1.0 / HOME_OPP_CONTACT
+AWAY_OPP_BB = 1.0 / HOME_OPP_BB
+#: Extra log-odds on the hook at home. Left at zero: the outs difference
+#: does not clear 2 sigma on its own, and whatever is there should fall out
+#: of the rate effects above rather than being double-counted here.
+HOME_HOOK = 0.0
+
+
+def adjust_lineup(lineup: list, is_home: bool) -> list:
+    """The opposing nine, shifted for who is batting at home.
+
+    Applied to the LINEUP rather than to the pitcher so his own rates keep
+    meaning one thing everywhere, and centred on the season mean so the
+    league average is untouched — see the HOME_OPP_* block above.
+
+    Factored out of `per_start_probs_all` when the F5 fit needed the same
+    nine. Two copies of a centring rule is exactly how one of them ends up
+    one-sided.
+    """
+    if not USE_HOME_ROAD or HOME_OPP_K == 1.0:
+        return lineup
+    mk = HOME_OPP_K if is_home else AWAY_OPP_K
+    mc = HOME_OPP_CONTACT if is_home else AWAY_OPP_CONTACT
+    mb = HOME_OPP_BB if is_home else AWAY_OPP_BB
+    # `replace`, NOT a fresh BatterRates listing the fields by hand. The
+    # explicit version silently DROPPED every field added after it was
+    # written, which is how the handedness matchup arm came out identical
+    # to four decimal places on 2026-08-27 — `side` and `lg_cell` were set
+    # on the cases and deleted here before the simulation saw them. An
+    # identical-to-four-decimals A/B is plumbing, never a null.
+    return [replace(b, k_pct=min(0.95, b.k_pct * mk),
+                    bb_pct=b.bb_pct * mb, hr_pct=b.hr_pct * mc,
+                    babip=b.babip * mc) for b in lineup]
+
+
+_PARK_CACHE: dict = {}
+
+
+def park_for(venue_id, year: int | None = None) -> dict:
+    """Rate multipliers for a venue. Neutral when unrated or unknown.
+
+    `year` PICKS WHICH SEASON'S SAVANT INDEX ANSWERS, and a replay must
+    pass the game's own year. The index is 3-year rolling, so serving the
+    current year's table for a 2023 game hands the scorer an index that
+    knows 2024-2026 — anachronistic in exactly the folds rule 12b scores.
+    A live slate passes nothing and gets the current year, which is the
+    predictive reading: tonight's index does not contain tonight's game.
+    """
+    if not venue_id:
+        return sim.NEUTRAL_PARK
+    key = (venue_id, year)
+    if key not in _PARK_CACHE:
+        try:
+            from src.context.sources import park as park_src
+            # PINNED PER YEAR when a year is asked for. The park cache is
+            # stamped per DAY, so an explicit-year call refetched every
+            # morning and the 2026 season-to-date index drifted overnight —
+            # 11 venue indices moved between 09-05 and 09-06 and the engine
+            # fingerprint moved with them on an identical tree. A scoring
+            # replay must be reproducible; a live slate passes no year and
+            # keeps the daily-fresh table, which is what pricing wants.
+            rec = park_src.park_factors(
+                year=year,
+                as_of=f"y{year}" if year else None).get(f"id:{venue_id}")
+        except Exception:
+            rec = None
+        _PARK_CACHE[key] = sim.park_mults(rec)
+    return _PARK_CACHE[key]
+
+
+#: One simulated game per draw is ~2x the work of one simulated start, and
+#: `replay` is the only way anything in this project simulates now. That is
+#: deliberate. The deleted `sim.simulate_start` modelled ONE PITCHING SIDE,
+#: which cannot see its own team's runs — so `Hook.per_margin` and
+#: `mid_per_margin` were structurally unreachable and sat at 0.0 forever,
+#: and a "start" was a different model from a game rather than a part of
+#: one. Every measured null in the dead list (park, handedness, day/night,
+#: home field) was produced on that engine, against games that were not
+#: games.
+def paired_cases(season=None, before=None, since=None, rates_before=None,
+                 max_starts=None, handed=None,
+                 rates_season=_SAME_SEASON) -> dict:
+    """{game_id: (away_case, home_case)} for games with BOTH starters modelled.
+
+    A case is the `(start_row, PitcherRates, opposing_lineup)` triple that
+    `build_cases` yields. Games where only one side is replayable are
+    DROPPED rather than given a league-average opponent: inventing the other
+    club would invent the score, and the score is the input this whole
+    migration exists to make reachable.
+
+    Retention is about 90% of starts — the same filter `ladder` has always
+    applied, which is why the ladder's game count (1,615) has always been
+    lower than the start count (3,600).
+    """
+    by: dict = {}
+    for case in build_cases(season=season, before=before, since=since,
+                            rates_before=rates_before,
+                            max_starts=max_starts, handed=handed,
+                            rates_season=rates_season):
+        by.setdefault(case[0]["game_id"], []).append(case)
+    out = {}
+    for gid, v in by.items():
+        if len(v) != 2:
+            continue
+        home = [c for c in v if c[0]["is_home"]]
+        away = [c for c in v if not c[0]["is_home"]]
+        if len(home) != 1 or len(away) != 1:
+            continue
+        out[gid] = (away[0], home[0])
+    return out
+
+
+_WEATHER: dict | None = None
+
+
+def air_mult_for(row) -> float:
+    """The game's HR AIR multiplier — temperature and wind — from its
+    weather row.
+
+    THE SHARED LOOKUP for every historical replay path (`replay`, `fitf5`,
+    `ladder`) — the live slate reads the same feed through
+    `weather.fetch_date`, so the two paths cannot mean different things by
+    "the air" (the park lesson). Missing game or missing reading
+    contributes exactly nothing.
+    """
+    global _WEATHER
+    if not (sim.USE_TEMP_HR or sim.USE_WIND_HR):
+        return 1.0
+    if _WEATHER is None:
+        from src.context.sources import weather
+        _WEATHER = weather.by_game()
+    w = _WEATHER.get(row.get("game_id")) or {}
+    return sim.air_hr_mult(w.get("temp_f"), w.get("carry"),
+                           w.get("wind_mph"))
+
+
+_UMPS: dict | None = None
+
+
+def ump_mult_for(row) -> tuple[float, float]:
+    """The game's plate-umpire (k, bb) multipliers, from `game_officials`.
+
+    THE SHARED LOOKUP for the historical replay paths, the same shape as
+    `air_mult_for` above — the live slate resolves the same table through
+    `sim.ump_kbb_mult` so the two paths cannot mean different things by
+    "the umpire". A game with no recorded crew contributes exactly
+    (1.0, 1.0).
+    """
+    global _UMPS
+    if not sim.USE_UMP_KBB:
+        return (1.0, 1.0)
+    if _UMPS is None:
+        from src import db
+        with db.connect() as c:
+            _UMPS = {r["game_id"]: r["plate_ump_id"] for r in c.execute(
+                "select game_id, plate_ump_id from game_officials"
+                " where plate_ump_id is not null")}
+    return sim.ump_kbb_mult(_UMPS.get(row.get("game_id")))
+
+
+def replay(pair, lg, pens, rng, innings=9, track=(), apply_leash=True,
+           use_park=None, hook=None):
+    """One simulated game from a paired case. THE simulation entry point.
+
+    `hook` IS THE BASE HOOK FOR BOTH SIDES, and it was missing until
+    2026-08-26. `run` accepted a `hook` argument, documented it, and never
+    passed it anywhere — `replay` did not take one, so both sides were built
+    with `hook=None` and fell through to a bare league `Hook()`. Every
+    candidate `calibrate.tune` evaluated was therefore the SAME hook, and the
+    tuner returned "no parameter improves anything" with the loss identical
+    to five decimal places. Proven by handing `run` a never-pull hook and a
+    pull-immediately hook and getting 15.54 mean outs from both.
+
+    With `apply_leash` on, `build_side` composes this base with
+    `sim.for_start`, so a tuner sweeping global parameters and the
+    per-pitcher offsets stack rather than one silently replacing the other.
+
+    Park is applied to the GAME, not to a side — both clubs play in the same
+    building, which is the natural shape and was impossible to express while
+    each side was simulated on its own. `simulate_game` has always accepted
+    a park argument and every caller passed None, so until this existed park
+    had never once been evaluated inside a real game.
+    """
+    away, home = pair
+    # `build_cases` attaches to each start the nine that pitcher FACES, so
+    # `away[2]` is already the HOME club's batters. The away PITCHING side
+    # therefore takes `an`, not `hn`. Getting this backwards has every
+    # pitcher facing his own teammates — see
+    # `check_each_side_faces_the_opposing_lineup`.
+    hr_air = air_mult_for(home[0])
+    ump = ump_mult_for(home[0])
+    an = adjust_lineup(away[2], False)
+    hn = adjust_lineup(home[2], True)
+    park = None
+    if USE_PARK if use_park is None else use_park:
+        # The game's own season picks the index — see `park_for`.
+        d = (home[0].get("date") or "")
+        park = park_for(home[0].get("venue_id"),
+                        int(d[:4]) if d[:4].isdigit() else None)
+    A = game.build_side(away[1], pens.get((away[0]["team"] or "").upper(), []),
+                        an, hook, rng, team=away[0]["team"],
+                        apply_leash=apply_leash, date=away[0].get("date"),
+                        bulk=away[0].get("bulk"))
+    H = game.build_side(home[1], pens.get((home[0]["team"] or "").upper(), []),
+                        hn, hook, rng, team=home[0]["team"],
+                        apply_leash=apply_leash, date=home[0].get("date"),
+                        bulk=home[0].get("bulk"))
+    if HOME_HOOK:
+        H.hook = sim.Hook(**{
+            **H.hook.__dict__,
+            "team_offset": H.hook.team_offset + HOME_HOOK})
+    return game.simulate_game(A, H, lg, rng, innings=innings, park=park,
+                              track=track, hr_air=hr_air, ump_kbb=ump)
+
+
+def build_cases(season=None, before=None, max_starts=None, since=None,
+                rates_before=None, handed=None,
+                rates_season=_SAME_SEASON) -> list[tuple]:
+    """[(actual_row, PitcherRates, [BatterRates])] for every replayable start.
+
+    Split out from the simulation and memoised because the tuner evaluates
+    a hundred candidate hooks against the same cases, and rebuilding rates
+    and lineups each time made a two-minute search a twenty-minute one.
+
+    `rates_season` is to `season` what `rates_before` is to `before`: it
+    decouples WHICH SEASON the rates are measured over from which season's
+    starts are being replayed. Pass `scope.ALL_SEASONS` to score 2026 starts
+    against a pitcher whose rates remember 2025 — which is a question about
+    whether memory across a winter is worth anything, and cannot be asked
+    while one argument controls both.
+    """
+    handed = USE_HANDEDNESS if handed is None else handed
+    rs = season if rates_season is _SAME_SEASON else rates_season
+    key = (season, before, max_starts, since, rates_before, handed,
+           NEUTRALISE_PARK, USE_ARSENAL, USE_MIXTURE,
+           USE_CONTACT_MIXTURE,
+           # In the memo key, or a cross-season run silently returns the
+           # single-season cases a previous call left behind.
+           "same" if rates_season is _SAME_SEASON else rs)
+    if key in _CASES:
+        return _CASES[key]
+
+    # Rates and starts are filtered SEPARATELY so a holdout can train rates
+    # on one window and score starts in another. Tying them together is what
+    # makes an "out-of-sample" test quietly in-sample.
+    rb = rates_before if rates_before is not None else before
+    # The LEAGUE BASELINE is training data too. log5 returns the league value
+    # when both sides are average, so it anchors every simulated rate — and
+    # computing it over every cached game let the test window into a
+    # "train-only" fit. Same cutoff as the player rates.
+    lg = sim.league(rs, before=rb)
+    # Park neutralisation happens INSIDE the rate builders since
+    # 2026-09-06 — doing it here left the live slate path pricing off raw
+    # rates while the replay path priced off neutral ones. See
+    # `rates._park_neutralised`.
+    pr = rate_src.pitcher_rates(lg, rs, rb)
+    br = rate_src.batter_rates(lg, rs, rb)
+    split = rate_src.batter_rates_by_hand(lg, rs, rb) if handed else {}
+    lineups = opposing_lineups()
+    league_bats = sim.BatterRates(name="league", k_pct=lg["k_pct"],
+                                  bb_pct=lg["bb_pct"], hr_pct=lg["hr_pct"],
+                                  babip=lg["babip"])
+
+    if (USE_MIXTURE or USE_CONTACT_MIXTURE) and _MIX[0] is None:
+        d = mixture.load()
+        _MIX[0] = d
+        _MIX[1] = mixture.league_by_pitch(d) if d else {}
+        _MIX[2] = mixture.league_usage(_MIX[1]) if _MIX[1] else {}
+
+    # ARSENALS HAVE NO SOURCE ANY MORE, and that is deliberate rather than
+    # an oversight. The blob came from `panel.savant_pitcher_arsenal`, which
+    # went with the original pipeline; `USE_ARSENAL` has been False since it
+    # was measured dead (9.79% mean Brier skill with and without, across 20
+    # stat/line combinations). Re-opening it means fetching the arsenal from
+    # `sources/savant.py` directly, which is where it should always have come
+    # from — the persona pipeline was never the right owner of a model input.
+    arsenals: dict = {}
+
+    # Batter sides for the platoon cell, counted off the recorded lineups
+    # (`order.batter_sides`), and each starter's throwing hand from the
+    # roster. Unknown on either side of a pairing means NEUTRAL in
+    # `sim.resolve` — the same silent-zero rule as every other lookup —
+    # so these are populated unconditionally and cost nothing while
+    # `USE_PLATOON` is off.
+    try:
+        from src.context import order as order_src
+        sides = order_src.batter_sides()
+    except Exception:
+        sides = {}
+    # Ground-ball shares, counted under the SAME date scope as the rates —
+    # a fold's gb_pct must not know the future any more than its K% does.
+    # Inert plumbing until item 4b/4c read it; None when uncounted.
+    try:
+        from src.context.sources import battedball
+        gb_bat = battedball.gb_pct_map("bat", rs, rb)
+        gb_pit = battedball.gb_pct_map("pit", rs, rb)
+        # AIR-BALL SHARE, on the same cut for the same reason — and it
+        # matters more here than for gb_pct, because `AIR_HR_PIT` was
+        # counted on a covariate frozen strictly before the rows it bins.
+        air_pit = battedball.air_pct_map("pit", rs, rb)
+    except Exception:
+        gb_bat, gb_pit, air_pit = {}, {}, {}
+    _hand_memo: dict = {}
+
+    def _throws(nm):
+        if nm not in _hand_memo:
+            _hand_memo[nm] = roster.throws(
+                nm, rs if isinstance(rs, int) else None) or ""
+        return _hand_memo[nm]
+
+    cases = []
+    for s in actual_starts(season, before, max_starts, since):
+        p = pr.get(s["player_name"])
+        names = lineups.get((s["game_id"], s["team"]))
+        if not p or not names or len(names) < 9:
+            continue
+        # The starter's throwing hand picks each hitter's split. Unknown
+        # hand falls back to overall rates rather than guessing a side —
+        # a wrong split moves the estimate in a definite wrong direction,
+        # which is worse than no split at all.
+        hand = roster.throws(s["player_name"]) if handed else None
+        lineup = []
+        for nm in names:
+            b = br.get(nm)
+            if b is None:
+                lineup.append(league_bats)
+                continue
+            use = (split.get(nm, {}).get(hand) or b) if hand else b
+            lineup.append(
+                sim.BatterRates(name=nm, k_pct=use["k_pct"],
+                                bb_pct=use["bb_pct"], hr_pct=use["hr_pct"],
+                                babip=use["babip"], pa=b["pa"],
+                                side=sides.get(nm, ""),
+                                gb_pct=gb_bat.get(nm)))
+        if (USE_MIXTURE or USE_CONTACT_MIXTURE) and _MIX[0]:
+            data, lgp, lgu = _MIX
+            if USE_CONTACT_MIXTURE:
+                for x in lineup:
+                    cm = mixture.matchup_contact(
+                        x.name, p["name"], data, lgp,
+                        b_overall=mixture.batter_woba(x.name, data, lgu),
+                        lg_usage=lgu)
+                    if cm is not None:
+                        x.arsenal_mult = cm
+        if USE_MIXTURE and _MIX[0]:
+            data, lgp, lgu = _MIX
+            for x in lineup:
+                m = mixture.matchup_k(
+                    x.name, p["name"], data, lgp,
+                    b_overall=x.k_pct, p_overall=p["k_pct"],
+                    lg_overall=lg["k_pct"], log5=sim.log5)
+                if m is None:
+                    continue
+                agg = sim.log5(x.k_pct, p["k_pct"], lg["k_pct"])
+                # Enters through the multiplier slot that already feeds
+                # `pa_outcome`, so nothing downstream changes shape. A
+                # neutral arsenal against a batter with no per-pitch
+                # tendencies gives m == agg and a multiplier of exactly 1.
+                if agg > 0:
+                    x.arsenal_k_mult = m / agg
+        if arsenals:
+            mix = arsenals.get((s["player_name"] or "").lower().strip())
+            mm = rate_src.arsenal_mults(
+                mix, [x.name for x in lineup], arsenals, season, rb) \
+                if mix else {}
+            for x in lineup:
+                v = mm.get(x.name)
+                if v:
+                    x.arsenal_mult = v["contact"]
+                    x.arsenal_k_mult = v["k"]
+        # THE BULK ARM behind a flagged opener, attached to the row rather
+        # than to the case tuple: `(row, rates, lineup)` is unpacked
+        # positionally in a dozen places and widening it to carry an
+        # optional fourth would touch all of them. `s` is already a plain
+        # dict (`actual_starts` materialises the rows), and `replay` reads
+        # it back out. None for an ordinary start and for a pure bullpen
+        # game, which is the majority of planned openers.
+        s["bulk"] = None
+        if game.opener_record(s["player_name"], s.get("date")) is not None:
+            bn = game.bulk_follower(s.get("date"), s.get("team"))
+            bp = pr.get(bn) if bn else None
+            if bp:
+                s["bulk"] = sim.PitcherRates(
+                    name=bp["name"], k_pct=bp["k_pct"], bb_pct=bp["bb_pct"],
+                    hr_pct=bp["hr_pct"], babip=bp["babip"], pa=bp["pa"],
+                    hand=_throws(bp["name"]),
+                    gb_pct=gb_pit.get(bp["name"]),
+                    air_pct=air_pit.get(bp["name"]))
+        cases.append((s, sim.PitcherRates(
+            name=p["name"], k_pct=p["k_pct"], bb_pct=p["bb_pct"],
+            hr_pct=p["hr_pct"], babip=p["babip"], pa=p["pa"],
+            hand=_throws(p["name"]),
+            gb_pct=gb_pit.get(p["name"]),
+            air_pct=air_pit.get(p["name"])), lineup))
+    _CASES[key] = cases
+    return cases
+
+
+def run(season=None, before=None, n_sims=100, max_starts=None,
+        hook: sim.Hook | None = None, seed=0, flat=True) -> dict:
+    """Replay every start. `flat=True` uses the league hook for everyone.
+
+    The tuner needs flat: fitting the global hook while per-club and
+    per-pitcher offsets are already absorbing the error would drive the
+    global parameters somewhere meaningless.
+    """
+    lg = sim.league(season)
+    pairs = paired_cases(season=season, before=before, max_starts=max_starts)
+    pens = rate_src.bullpens(lg, before=before)
+    rng = random.Random(seed)
+    act, simd = [], []
+    for pair in pairs.values():
+        act.append(pair[0][0])
+        act.append(pair[1][0])
+        for _ in range(n_sims):
+            # `flat` keeps everyone on the league hook. The tuner needs it:
+            # fitting global parameters while per-pitcher leash offsets are
+            # already absorbing the error drives them somewhere meaningless.
+            r = replay(pair, lg, pens, rng, apply_leash=not flat, hook=hook)
+            simd.append(r.away_sp)
+            simd.append(r.home_sp)
+    return {"lg": lg, "actual": act, "sim": simd, "starts_used": len(act)}
+
+
+def _boundary(vals) -> float:
+    return sum(1 for v in vals if v % 3 == 0) / len(vals) if vals else 0.0
+
+
+def _hazard(outs_list) -> dict[int, float]:
+    out = {}
+    for inn in range(3, 9):
+        o = inn * 3
+        reached = sum(1 for v in outs_list if v >= o)
+        ended = sum(1 for v in outs_list if o <= v < o + 3)
+        if reached >= 20:
+            out[inn] = ended / reached
+    return out
+
+
+def report(res: dict) -> None:
+    act, sm = res["actual"], res["sim"]
+    a_outs = [a["o"] for a in act]
+    s_outs = [r.outs for r in sm]
+    n_a, n_s = len(a_outs), len(s_outs)
+    print(f"{res['starts_used']} real starts, {n_s} simulated\n")
+
+    def line(label, a, s, fmt="{:.2f}"):
+        d = s - a
+        flag = "  <-- off" if a and abs(d) / max(abs(a), 1e-9) > 0.10 else ""
+        print(f"  {label:<22}{fmt.format(a):>9}{fmt.format(s):>9}"
+              f"{fmt.format(d):>9}{flag}")
+
+    print(f"  {'':<22}{'actual':>9}{'sim':>9}{'diff':>9}")
+    print("  -- per start --")
+    for lbl, key, f in (("outs", "o", "{:.2f}"), ("strikeouts", "k", "{:.2f}"),
+                        ("walks", "bb", "{:.2f}"), ("hits", "h", "{:.2f}"),
+                        ("home runs", "hr", "{:.2f}"),
+                        # EARNED runs, not total: the simulation models no
+                        # errors, so every run it produces is earned by
+                        # construction. Scoring it against total runs
+                        # charges it for defence it never simulated, which
+                        # read as a 12% run deficit that was not there.
+                        ("earned runs", "er", "{:.2f}")):
+        attr = {"o": "outs", "k": "k", "bb": "bb", "h": "h", "hr": "hr",
+                "er": "earned"}[key]
+        line(lbl, sum(a[key] for a in act) / n_a,
+             sum(getattr(r, attr) for r in sm) / n_s, f)
+
+    line("earned runs/9", sum(a["er"] for a in act) * 27 / max(sum(a_outs), 1),
+         sum(r.earned for r in sm) * 27 / max(sum(s_outs), 1))
+    line("TOTAL runs/9", sum(a["r"] for a in act) * 27 / max(sum(a_outs), 1),
+         sum(r.runs for r in sm) * 27 / max(sum(s_outs), 1))
+    line("K per 9", sum(a["k"] for a in act) * 27 / max(sum(a_outs), 1),
+         sum(r.k for r in sm) * 27 / max(sum(s_outs), 1))
+
+    print("  -- shape --")
+    line("ends on boundary", _boundary(a_outs) * 100, _boundary(s_outs) * 100,
+         "{:.1f}")
+    line("P(outs >= 18)", sum(1 for v in a_outs if v >= 18) / n_a * 100,
+         sum(1 for v in s_outs if v >= 18) / n_s * 100, "{:.1f}")
+    line("P(outs < 15)", sum(1 for v in a_outs if v < 15) / n_a * 100,
+         sum(1 for v in s_outs if v < 15) / n_s * 100, "{:.1f}")
+    sd_a = (sum((v - sum(a_outs) / n_a) ** 2 for v in a_outs) / n_a) ** 0.5
+    sd_s = (sum((v - sum(s_outs) / n_s) ** 2 for v in s_outs) / n_s) ** 0.5
+    line("outs SD", sd_a, sd_s)
+
+    print("  -- hook hazard by inning --")
+    ha, hs = _hazard(a_outs), _hazard(s_outs)
+    for inn in sorted(set(ha) | set(hs)):
+        line(f"after inning {inn}", ha.get(inn, 0) * 100,
+             hs.get(inn, 0) * 100, "{:.1f}")
+
+    print("  -- outs histogram (% of starts) --")
+    ca, cs = Counter(a_outs), Counter(s_outs)
+    for o in range(6, 25):
+        pa, ps = ca.get(o, 0) / n_a * 100, cs.get(o, 0) / n_s * 100
+        if pa < 0.5 and ps < 0.5:
+            continue
+        bar_a = "#" * int(pa)
+        bar_s = "-" * int(ps)
+        print(f"  {o:>4}  act {pa:>5.1f} {bar_a:<24} sim {ps:>5.1f} {bar_s}")
+
+
+#: Lines a book actually offers, by stat. Calibration is only interesting
+#: where someone will take the other side.
+LINES = {
+    "outs": (11.5, 14.5, 15.5, 17.5, 18.5, 20.5),
+    "k": (3.5, 4.5, 5.5, 6.5, 7.5, 8.5),
+    # Every counting stat the boxscore cache carries and the simulation
+    # already emits. These are not all liquid markets — the point is
+    # DIAGNOSTIC COVERAGE. Each one isolates a different part of the model,
+    # so a defect that hides in the outs total shows up plainly somewhere
+    # else: walks test the BB path alone, hits test BABIP and the hit mix,
+    # earned runs test the base-running rules that nothing else checks.
+    "h": (3.5, 4.5, 5.5, 6.5, 7.5),
+    "bb": (0.5, 1.5, 2.5, 3.5),
+    "hr": (0.5, 1.5, 2.5),
+    "er": (1.5, 2.5, 3.5, 4.5),
+}
+
+#: Boxscore column and StartResult attribute for each stat. Earned runs, not
+#: runs: the simulation models no errors, so every run it produces is earned
+#: by construction and comparing against total runs would charge it for
+#: defence it never simulated.
+_STAT_COL = {"outs": "o", "k": "k", "h": "h", "bb": "bb", "hr": "hr",
+             "er": "er"}
+_STAT_ATTR = {"outs": "outs", "k": "k", "h": "h", "bb": "bb", "hr": "hr",
+              "er": "earned"}
+
+
+def per_start_probs_all(stat: str, lines, season=None, before=None,
+                        since=None, n_sims=300, seed=0, adjusted=True):
+    """{line: [(actual, p_over)]} — every line off ONE set of draws.
+
+    Simulating separately per line is the obvious version and it is six
+    times the work for an identical answer: the draws do not depend on the
+    threshold. It also makes the lines inconsistent with each other, since
+    independent draws can put P(over 15.5) below P(over 17.5) by noise
+    alone. Sharing the draws makes the curve monotone by construction.
+
+    This is the shape a reliability check needs, and `run()` cannot provide
+    it: that flattens every simulation into one pool, which measures whether
+    the LEAGUE distribution is right. A pool can match perfectly while every
+    individual start is priced wrong and the errors cancel.
+    """
+    lg = sim.league(season)
+    pairs = paired_cases(season=season, before=before, since=since,
+                         rates_before=before)
+    pens = rate_src.bullpens(lg, before=before)
+    key, attr = _STAT_COL[stat], _STAT_ATTR[stat]
+    out = {ln: [] for ln in lines}
+    # BOTH starters off the SAME simulated games. Previously each start was
+    # its own one-sided simulation, which could not see its team's runs, so
+    # `Hook.per_margin` was unreachable and every reliability table in the
+    # notes was measured against games that were not games.
+    for pair in pairs.values():
+        rng = random.Random(seed)
+        draws = [replay(pair, lg, pens, rng, apply_leash=adjusted)
+                 for _ in range(n_sims)]
+        for idx, side in ((0, "away_sp"), (1, "home_sp")):
+            s = pair[idx][0]
+            vals = [getattr(getattr(d, side), attr) for d in draws]
+            for ln in lines:
+                out[ln].append(
+                    (s[key], sum(1 for v in vals if v > ln) / len(vals)))
+    return out
+
+
+def per_start_probs(stat: str, line: float, **kw):
+    """Single-line convenience wrapper over `per_start_probs_all`."""
+    return per_start_probs_all(stat, [line], **kw)[line]
+
+
+def reliability(stat: str, season=None, before=None, since=None,
+                n_sims=300, bins=5, seed=0, adjusted=True) -> None:
+    """Does a simulated 60% actually win 60% of the time?
+
+    The only calibration test that matters for pricing. A model can nail the
+    league distribution and still be useless per bet, and the reverse is the
+    thing being checked here: bucket every start by what the simulation said
+    and compare to how often it actually happened.
+
+    Brier score is reported alongside. 0.25 is what a coin flip scores;
+    lower is better, and a model that beats the base rate is doing real work
+    even when its calibration is imperfect.
+    """
+    all_rows = per_start_probs_all(stat, LINES[stat], season=season,
+                                   before=before, since=since,
+                                   n_sims=n_sims, seed=seed,
+                                   adjusted=adjusted)
+    for line in LINES[stat]:
+        rows = all_rows[line]
+        if not rows:
+            print(f"  {stat} {line}: no cases")
+            continue
+        n = len(rows)
+        base = sum(1 for a, _ in rows if a > line) / n
+        brier = sum((p - (1 if a > line else 0)) ** 2 for a, p in rows) / n
+        brier_base = base * (1 - base)
+        mean_p = sum(p for _, p in rows) / n
+        print(f"\n  {stat} over {line}   n={n}  actual {base:.1%}  "
+              f"model {mean_p:.1%}  bias {mean_p - base:+.1%}")
+        print(f"    Brier {brier:.4f} vs {brier_base:.4f} "
+              f"base-rate  ({(brier_base - brier) / brier_base:+.1%})")
+        rows_sorted = sorted(rows, key=lambda r: r[1])
+        per = max(1, n // bins)
+        print(f"    {'bucket':<14}{'n':>5}{'said':>8}{'happened':>10}"
+              f"{'gap':>8}")
+        for i in range(0, n, per):
+            chunk = rows_sorted[i:i + per]
+            if len(chunk) < max(10, per // 2):
+                continue
+            said = sum(p for _, p in chunk) / len(chunk)
+            hap = sum(1 for a, _ in chunk if a > line) / len(chunk)
+            lo, hi = chunk[0][1], chunk[-1][1]
+            print(f"    {f'{lo:.2f}-{hi:.2f}':<14}{len(chunk):>5}"
+                  f"{said:>8.1%}{hap:>10.1%}{hap - said:>+8.1%}")
+
+
+def _auc(rows) -> float:
+    """Rank-based AUC. rows = [(won: bool, p: float)]."""
+    pos = [p for w, p in rows if w]
+    neg = [p for w, p in rows if not w]
+    if not pos or not neg:
+        return 0.5
+    ordered = sorted(((p, w) for w, p in rows), key=lambda x: x[0])
+    ranks, i = {}, 0
+    while i < len(ordered):
+        j = i
+        while j + 1 < len(ordered) and ordered[j + 1][0] == ordered[i][0]:
+            j += 1
+        avg = (i + j) / 2 + 1
+        for k in range(i, j + 1):
+            ranks[k] = avg
+        i = j + 1
+    rsum = sum(ranks[k] for k, (_, w) in enumerate(ordered) if w)
+    n1, n0 = len(pos), len(neg)
+    return (rsum - n1 * (n1 + 1) / 2) / (n1 * n0)
+
+
+def _prior_starts(conn, name: str, before: str, last: int = 10,
+                  stat: str = "outs") -> list[int]:
+    """A pitcher's own last `last` STARTS strictly before a date.
+
+    `is_starter = 1` matters here as much as anywhere: feeding the estimator
+    relief appearances is the Drew Anderson bug, where five starts hidden in
+    43 outings made his "last ten" read 6.5 outs.
+    """
+    col = "p.outs_recorded" if stat == "outs" else "p.k"
+    rows = conn.execute(f"""
+        select {col} v
+        from mlb_pitching p join games g on g.game_id = p.game_id
+        where p.player_name = ? and g.date < ? and g.sport = 'mlb'
+          and g.status = 'Final' and p.is_starter = 1
+        order by g.date desc limit ?""", (name, before, last)).fetchall()
+    return [r["v"] for r in rows][::-1]
+
+
+def loss(res: dict) -> float:
+    """How far the simulated hook is from the observed one.
+
+    Weighted on the hazard curve rather than on mean outs, because a
+    simulator can land the mean while getting every threshold wrong — which
+    is the failure mode that matters for pricing a 20.5 line. Boundary share
+    is included so a hook that reaches the right length by pulling everyone
+    mid-inning scores badly.
+    """
+    a_outs = [a["o"] for a in res["actual"]]
+    s_outs = [r.outs for r in res["sim"]]
+    if not a_outs or not s_outs:
+        return 1e9
+    ha, hs = _hazard(a_outs), _hazard(s_outs)
+    tot = sum((ha[i] - hs.get(i, 0.0)) ** 2 for i in ha if i <= 7) * 4.0
+
+    def share(vals, fn):
+        return sum(1 for v in vals if fn(v)) / len(vals)
+
+    for fn in (lambda v: v >= 18, lambda v: v < 15, lambda v: v >= 21):
+        tot += (share(a_outs, fn) - share(s_outs, fn)) ** 2
+    tot += (_boundary(a_outs) - _boundary(s_outs)) ** 2
+    n_a, n_s = len(a_outs), len(s_outs)
+    tot += ((sum(a_outs) / n_a - sum(s_outs) / n_s) / 10.0) ** 2
+    return tot
+
+
+def tune(season=None, starts=500, sims=30, seed=0) -> sim.Hook:
+    """SUPERSEDED. Coordinate descent over the hook parameters, POOLED.
+
+    DO NOT USE THIS TO FIT THE HOOK, and do not copy its grid. It sweeps
+    parameters that belong to two different curves against one loss over the
+    pooled outs distribution, which is the mistake day seven exists to
+    correct — the removal model is a BOUNDARY curve and a MID-INNING curve,
+    each fitted on its own decisions. A pooled fit gave a late curve at
+    7.24% where reality is 33.80%.
+
+    ITS SHAPE IS AN ACTIVE TRAP. On 2026-08-26 this grid was copied into a
+    parallel tuner and the pooling mistake was re-made three times in one
+    session. What it optimises is also wrong: `loss` weights the hazard
+    block 4x and the boundary SHARE 1x, so it will buy hazard accuracy by
+    pushing the share off a value that was COUNTED (0.663) — trading a
+    measured quantity for a fitted one.
+
+    The live path is to fit each curve as a logistic on its own rows —
+    `scratchpad/fit_boundary.py` and `scratchpad/fit_midinning.py` — and to
+    score candidates on P(over) at the lines that carry volume, which for
+    outs is 14.5-17.5 (91.2% of the settled board).
+
+    Kept because `run(hook=...)` was dead until 2026-08-26 and anything
+    fitted through here before that date is void, which is worth being able
+    to reproduce.
+    """
+    grid = {
+        "intercept": [-7.0, -6.0, -5.2, -4.6, -4.0, -3.2, -2.4],
+        "per_inning": [0.3, 0.45, 0.6, 0.8, 1.0, 1.3],
+        "per_run": [0.1, 0.2, 0.3, 0.45, 0.6],
+        "pitch_center": [80.0, 86.0, 92.0, 98.0],
+        "pitch_scale": [8.0, 11.0, 15.0],
+        "mid_intercept": [-6.5, -5.5, -5.0, -4.4, -3.8],
+        "mid_per_run": [0.15, 0.3, 0.45],
+        "mid_per_runner": [0.25, 0.55, 0.9, 1.3],
+        "mid_per_damage": [0.0, 0.15, 0.25, 0.4],
+        "per_baserunner": [0.0, 0.1, 0.2, 0.35],
+    }
+    best = sim.Hook()
+    best_loss = loss(run(season=season, n_sims=sims, max_starts=starts,
+                         hook=best, seed=seed))
+    print(f"start loss {best_loss:.5f}  {best}")
+    for sweep in range(2):
+        for param, values in grid.items():
+            for v in values:
+                cand = sim.Hook(**{**best.__dict__, param: v})
+                if cand.__dict__ == best.__dict__:
+                    continue
+                lo = loss(run(season=season, n_sims=sims, max_starts=starts,
+                              hook=cand, seed=seed))
+                if lo < best_loss:
+                    best, best_loss = cand, lo
+                    print(f"  sweep{sweep} {param}={v} -> {lo:.5f}")
+    print(f"\nbest loss {best_loss:.5f}")
+    for k, v in best.__dict__.items():
+        print(f"  {k:<18}{v}")
+    return best

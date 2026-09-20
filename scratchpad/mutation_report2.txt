@@ -1,0 +1,5 @@
+*** SURVIVED ***  advancement reverts to imported  -- nothing guards this
+SKIP  inherited runners revert to flat: pattern not found in src/context/sim.py
+*** SURVIVED ***  no hard pitch cap  -- nothing guards this
+*** SURVIVED ***  relief outings are one inning  -- nothing guards this
+*** SURVIVED ***  relievers are never pulled mid-inning  -- nothing guards this
