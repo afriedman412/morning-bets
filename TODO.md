@@ -1965,6 +1965,16 @@ spring outs distribution; next is counting the 25-70 pitch cells of
 both curves by month on regular-season rows against the shipped pooled
 cells (falsifier: April-June cells inside 1 se of the pooled value
 means the cells are not it and the width is the per-arm inputs).
+STAGES 3-4, 2026-09-21: COUNTED AND SHIPPED. April-June 25-70 pitch
+boundary removals run 0.0234 against July-September 0.0323 (z −5.9),
+shrinking with the pitch count; `sim.USE_HOOK_BAND` carries the
+three-band x four-bucket ratio table on `Hook.removal_p`. Spring bar
+passes every clause; summer's letter passes and its 50-70 cells in
+2023-24 go 1.8-2.9 se over (the ratio's reference is the pooled actual,
+the engine's baseline there is not). STILL OPEN: the WIDTH (`outs_sd`
++5 to +9 se in spring, both tails) and the proper construction, a
+month-conditioned fit of the curve's own low-pitch cells. 7e is
+superseded.
 
 
 

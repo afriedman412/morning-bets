@@ -27,11 +27,11 @@ Refreshed 2026-09-21.
         (`rates.USE_BATTER_PRIOR`, last season, pitcher algebra). Bar met
         in spring on two of three metrics, missed on summer's per-hitter
         HR rows by 1.1-1.7 se; those are item 40.
-    38  The spring outs distribution is too WIDE, both tails, widest on
-        thin records: both curves over-fire at 25-70 pitches in
-        April-June. Leash ruled out, 7e's month offset re-scored and
-        ruled out (a level, not a width). Next: count the 25-70 cells
-        by month. Spring 2026's stale anchor is item 37's story.
+    38  PARTLY SHIPPED 2026-09-21 — the boundary hook's 50-84 pitch
+        cells carry a counted calendar band (`sim.USE_HOOK_BAND`, spring
+        0.75x, September 1.87x at 50 pitches, shrinking with pitches);
+        spring bar met. Open: the WIDTH of the spring outs distribution
+        (+5 to +9 se, both tails) and a month-conditioned curve fit.
     42  The outs correction drifts on the CALENDAR, not the engine — the
         scored window went 12.2% to 25.4% September in eleven days. Give
         it a month bucket, and give the board its provenance against the
