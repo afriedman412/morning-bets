@@ -570,6 +570,18 @@ Both are `scratchpad/cron_*.sh`, both log under `logs/`, and
 `data_status` now reports them — a MISSING expected job is flagged, not
 just a returning stray.
 
+**THE WHOLE SCHEDULER IS IN THE REPO AS OF 2026-09-21, AND WAS NOT
+BEFORE.** `make install-cron` renders `scratchpad/launchd/*.plist.in`
+against the current checkout and loads them; `--dry-run` looks first and
+`make uninstall-cron` boots them out. It is idempotent and both plists
+are `RunAtLoad=false`, so installing never starts a run — the next
+calendar interval does. Until that target existed the three `cron_*.sh`
+were untracked and the two plists lived only in `~/Library/LaunchAgents`,
+so a clone had no scheduler and an `rm` in `scratchpad/` removed it with
+no undo. The plists hardcode an absolute root because launchd expands
+nothing, which is why they are templates and why the root is resolved off
+the file rather than typed.
+
 THE BACKFILL IS DAILY AND MUST STAY DAILY. It rewrites games already in
 the set, which moved the fingerprint `2fa14f8df0c6 -> 00925f199684` on
 identical code. Between hourly pulls that would move our price for a DATA
