@@ -13803,3 +13803,95 @@ FILES: `scratchpad/battery.py` (`SPRING_FOLDS`, `--spring`,
 `weather_cells`, `temp_bin`, `wet_bin`, precipitation rows),
 `tests/test_battery.py` (two checks), the four JSONs
 `battery_{,spring_}{432ed646d830,56c56687b554}.json`.
+
+## 2026-09-21 — ITEM 37, STAGES 1-3 IN ONE SITTING: THE STRIKEOUT LEVEL
+## ERROR IS THE FROZEN WINDOW, NOT ANY ARM, AND IT DOES NOT REPEAT AS A
+## SHAPE. EXPLAINED, NOT FIXABLE BY A COUNTED TABLE. (Fable)
+
+QUESTION. Pooled K/PA is off by 2-4% in a direction that flips by fold
+(spring −3.2 / +1.8 / +1.2 / +3.9 se, summer −0.9 / −3.7 / −3.2 / 0.0).
+Is that the league anchor, the prior, or per-arm rates?
+
+STAGE 1 — the pre-registered cheap check. `sim.league(season,
+before=cut)` at each of the eight cuts against the scored window's actual
+K/PA and the model's. The anchor's miss PREDICTS the model's miss:
+r = +0.91, slope +0.47 over eight folds on K; r = +0.22, slope +0.10 on
+BB — no relation. Rule 11 before reading it further: `league()` k_pct is
+ROTATION STARTERS per batter faced by design (its docstring), while the
+battery's pooled row is every arm per play, so the LEVEL difference
+between them (anchor ~10 ×1000 below the all-arms summer actual) is a
+population, not a miss. The CORRELATION is the finding.
+
+STAGE 2 — same population. Starters' K/BF strictly before the cut (the
+anchor as built) against starters' K/BF inside the scored window:
+
+  fold          anchor   window   diff ×1000    model k_mean gap (se)
+  spring 2023   0.2233   0.2176      +5.7        −0.169  (−2.7)
+  spring 2024   0.2280   0.2153     +12.7        −0.054  (−0.9)
+  spring 2025   0.2210   0.2134      +7.6        −0.094  (−1.5)
+  spring 2026   0.2315   0.2151     +16.4        +0.034  (+0.5)
+  summer 2023   0.2186   0.2210      −2.4        −0.259  (−4.5)
+  summer 2024   0.2175   0.2207      −3.1        −0.180  (−3.2)
+  summer 2025   0.2148   0.2203      −5.6        −0.166  (−2.9)
+  summer 2026   0.2177   0.2150      +2.7        −0.000  ( 0.0)
+
+  r = +0.74 with the per-start k_mean gap (which the spring outs deficit
+  also drags, item 38); the per-PA pooled row tracks it fold for fold.
+  Starters struck out 1.5-3% MORE hitters in the second half than the
+  first in 2023-25 and the same in 2026 — and the model's summer miss is
+  −0.26 / −0.18 / −0.17 / 0.00. One week of April (8-11k BF) runs 3-8%
+  hot against the quarter that follows it, and the spring anchors
+  overshoot by that. THE RATES FROZEN AT A CUT CARRY THAT WINDOW'S
+  LEVEL, EVERY PER-ARM RATE AS WELL AS THE ANCHOR, AND THE ENGINE HAS NO
+  WITHIN-SEASON TRAJECTORY. Not per arm. Not the prior's weight.
+
+STAGE 3 — is there a calendar shape to count? Starters by month, each
+month as a ratio to its season, four seasons, era-gated on the
+between-season shape correlation:
+
+  K/BF   Apr   May   Jun   Jul   Aug   Sep+     shape corr mean +0.28
+  23-25  .999  .976  .992  .990 1.000 1.044     (pairs +0.49 +0.58 −0.16
+  2026   .988 1.004 1.014 1.017  .978 1.007      +0.84 −0.22 +0.15)
+  BB/BF 1.065  .976  .977  .980  .988 1.013     shape corr mean +0.64
+  HR/BF  .909  .947 1.016 1.041 1.085 1.005     shape corr mean +0.64
+
+  THE K SHAPE FAILS THE ERA GATE. Four seasons, six pairs, mean +0.28,
+  two negative; 2026 is anti-correlated with 2025. The one recurring
+  piece is September (+1.5 / +4.1 / +7.6% in 2023-25, +0.7% in 2026),
+  which is call-ups, and even that is three for four. A counted K
+  calendar table would be one season's noise, rule 4's failure mode
+  exactly, and the September lean at four seasons is not a table.
+  BB repeats: April +6.5% in all four seasons, then flat — and the
+  spring folds already run model-HIGH on walks (+0.1 / +2.5 / +1.3 /
+  +0.3 ×1000), so the April bump is carried by the April anchor. Nothing
+  to add. HR repeats and IS the air: April −9%, August +8.5% is the
+  `TEMP_HR_MULT` curve read off the calendar. Already shipped.
+
+WHY THE K ROWS GOT WORSE WITH THE TEMPERATURE TABLES ON, resolved: the
+tables are within-venue and net of month; the second-half K RISE is the
+calendar, larger than and opposite to the heat effect on the summer
+folds. Two different things, both real, one counted.
+
+RULE-11 CONSEQUENCE FOR THE BATTERY ITSELF: part of the summer K deficit
+is the fold DESIGN. A July-1 cut carries April-June only; a live
+September board carries April-August. September against April-August
+starter K/BF: +1.8 / +4.6 / +8.6 / +0.9% by season — what the board is
+actually light by in September, and it is season-specific.
+
+CONCLUSION.
+  ESTABLISHED: the K level error is the frozen window's level against
+  the scored window's (r +0.74 to +0.91 over eight folds), not per-arm
+  and not the prior; the within-season K shape does not repeat (era
+  +0.28); the BB and HR calendar shapes repeat and are already carried.
+  NOT ESTABLISHED: whether the September rise sits with the hitters who
+  ARRIVE in September (call-ups shrunk to the league mean lose their own
+  K rate) or with the arms. That is the one lead left, and it is a
+  per-batter shrinkage question, not a calendar one.
+  NEXT (pre-registered): split September K/PA by whether the batter had
+  ≥150 PA before September 1. If the rise is in the under-150 group and
+  their prior-season or minor-league K rate would have predicted it,
+  the item becomes "the September hitter prior" under `stabilise.py`.
+  If the rise is in the established group, the item is closed as
+  season-specific drift the engine cannot know in advance. Item 37 is
+  DOWNGRADED from a level error to a measurement-design note until
+  that split is read.

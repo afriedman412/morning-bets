@@ -1856,6 +1856,21 @@ window; a league/prior anchor that is off by a season's drift does.
 That promotes (c) to the leading candidate and makes the cheap check
 above decisive either way.
 
+STAGES 1-3 RUN 2026-09-21 (full entry in `NOTES-context-layer.md`).
+ESTABLISHED: the miss is the FROZEN WINDOW'S level against the scored
+window's — anchor miss predicts model miss at r +0.91 (all arms) / +0.74
+(starters only) over eight folds; starters strike out 1.5-3% more in the
+second half in 2023-25 and the same in 2026, and the model's summer miss
+follows fold for fold. Not per-arm, not the prior's weight. The monthly
+K shape FAILS the era gate (between-season corr mean +0.28), so there is
+no calendar table to count; BB (April +6.5%) and HR (the air) repeat and
+are already carried. DOWNGRADED from a level error to a
+measurement-design note. One lead left, pre-registered: split September
+K/PA by hitters with <150 PA before September 1 — if the rise is the
+call-ups and their prior would have predicted it, this becomes a
+`stabilise.py` item; if it is the established hitters, close it as
+season-specific drift.
+
 **38. THE SPRING FOLDS' OWN DEFECTS — April-June was never scored until
 2026-09-20, and its first battery run has three rows past 3 se that
 summer does not have.** `battery_spring_432ed646d830.json`.
