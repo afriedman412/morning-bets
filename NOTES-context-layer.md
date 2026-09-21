@@ -14327,3 +14327,50 @@ ESTABLISHED: the constants counted on clean data are these, and the
 engine is indifferent to the recount at the battery's resolution.
 INFERRED: nothing. NEXT: item 38 (the April hook cells), item 40's
 positive control on the decile rows, the weather source.
+
+## 2026-09-21, EIGHTH SITTING — ITEM 38 STAGE 2: THE PARKED MONTH OFFSET
+## RE-SCORED ON THE SPRING FOLDS. A LEVEL TERM ON A WIDTH DEFECT. STAYS
+## OFF. (Fable)
+
+Item 7e's `sim.USE_HOOK_MONTH` (counted May-September boundary-hook
+offsets, parked 2026-09-10 on the summer folds) had never been scored on
+April-June, which did not exist then. Re-opened on the new data, bar
+from item 38: spring `outs_over_12.5` and `outs_mean` closer in two of
+three, summer no worse than its recorded parking result.
+`battery_e85accd7d237` / `battery_spring_e85accd7d237` against the
+`79798b8f8a82` pair.
+
+  SPRING (2024 / 2025 / 2026, gap off -> on, se ~0.1 / ~0.01)
+    outs_mean        −0.81 -> −0.75   −0.27 -> −0.20   −0.12 -> −0.06   closer 3/3, ~0.6 se each
+    outs_over_12.5   −.078 -> −.073   −.047 -> −.042   −.028 -> −.023   closer 3/3, ~0.5 se each
+    outs_over_18.5   −.008 -> −.001   +.038 -> +.045   +.040 -> +.046   WORSE 2/3 (already +3.7 / +3.8 se)
+    outs_sd          +0.63 -> +0.63   +0.63 -> +0.63   +0.38 -> +0.38   untouched (+8.4 / +9.3 / +4.7 se)
+    hook_bnd/85      −.034 -> −.052   −.040 -> −.058   −.070 -> −.087   the late under-pull deepens
+  SUMMER: `outs_mean` worse in all four (−0.51 -> −0.60, −0.20 -> −0.28,
+  −0.09 -> −0.17, +0.04 -> −0.01); the two rows past 1 se are
+  `hook_bnd/78` in 2023-24, both away from actual. The 2026-09-10
+  parking result, reproduced.
+
+  The bar's letter passes in spring (3/3 closer on both rows) and its
+  spirit does not: April resolves to 0.0 in the table, so the whole
+  spring effect is May-June eased by −0.16 / −0.08 logit, which slides
+  the entire outs distribution right by a twentieth of an out. The
+  short tail the item is about moves half an se; the long tail, already
+  3.7 se too fat, gets fatter; the width — the model's spring outs sd
+  is 0.4-0.6 outs too wide at 5-9 se — does not move at all, because a
+  uniform offset cannot move a width. Rule 2. STAYS OFF; the mechanism
+  and both JSONs are kept as the record.
+
+WHAT ITEM 38 IS, restated from the three valid spring folds with every
+mechanism now scored: the model's outs distribution in April-June is
+too WIDE, both tails, and widest in the fold with the thinnest records.
+Short tail: both curves fire too often at 25-70 pitches (stage 1). Long
+tail: the +3.7 / +3.8 se surplus at 18.5+ is the same deep-tail
+surplus summer 2025-26 carry (+3.9 / +4.5) — item 34's candidates —
+and is not spring-specific. Leash off makes the short tail worse
+(stage 1b); the month offset does not reach it. NEXT: the low-pitch
+cells themselves — count the boundary and mid-inning curves' 25-70
+pitch removal rates by month on regular-season rows and compare with
+the shipped pooled cells; if April-June rows sit below the pooled cell
+by more than their se, that is a counted, month-conditioned low-pitch
+cell, which is a different thing from 7e's level offset.

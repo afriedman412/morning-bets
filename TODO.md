@@ -486,6 +486,10 @@ they came from a double-wrapped logger in `hz_cells.py`, fixed the same day.
 **7e. BUILT, SCORED AND PARKED 2026-09-10. `sim.USE_HOOK_MONTH = False`.
 THE FALSIFIER FAILED ON BOTH CLAUSES AND THE ITEM'S PREMISE BELOW IS
 REFUTED — read this before anything under it.**
+RE-SCORED 2026-09-21 ON THE SPRING FOLDS (item 38 stage 2), the data
+it had never seen: a twentieth of an out on the spring mean, the long
+tail worse, the width untouched, summer as before. Still parked; do not
+run it a third time without a different mechanism.
 
 The term exists, counted and switchable: `sim.BND_MONTH_OFFSET` +
 `bnd_month_offset()`, `game.Side.bnd_month_offset`, both branches of
@@ -1951,6 +1955,16 @@ holding starters in late, correctly. The leash is ruled out as the cause
 of the early over-pull. THE ITEM IS THE CURVES' LOW-PITCH CELLS (25-70)
 in spring, fitted on full seasons that include build-up starts nobody
 labelled as such.
+STAGE 2 RUN 2026-09-21: 7e's parked month offset re-scored on the
+spring folds. Letter of the bar met (outs_mean and outs_over_12.5
+closer in 3/3, each ~0.5 se), spirit not: April is 0.0 in its table,
+the effect is May-June slid right by a twentieth of an out, the long
+tail (already +3.7 se) gets fatter and the width does not move. Summer
+reproduces the parking result. STAYS OFF. The item is the WIDTH of the
+spring outs distribution; next is counting the 25-70 pitch cells of
+both curves by month on regular-season rows against the shipped pooled
+cells (falsifier: April-June cells inside 1 se of the pooled value
+means the cells are not it and the width is the per-arm inputs).
 
 
 

@@ -27,10 +27,11 @@ Refreshed 2026-09-21.
         (`rates.USE_BATTER_PRIOR`, last season, pitcher algebra). Bar met
         in spring on two of three metrics, missed on summer's per-hitter
         HR rows by 1.1-1.7 se; those are item 40.
-    38  The spring folds' own defects — April-June scored for the first
-        time: starters pulled too early in 2023-24 (outs_mean −6.3 se,
-        arms_per_side +5.9), and spring 2026 under-scores every rung off
-        a stale prior-season anchor. Not weather.
+    38  The spring outs distribution is too WIDE, both tails, widest on
+        thin records: both curves over-fire at 25-70 pitches in
+        April-June. Leash ruled out, 7e's month offset re-scored and
+        ruled out (a level, not a width). Next: count the 25-70 cells
+        by month. Spring 2026's stale anchor is item 37's story.
     42  The outs correction drifts on the CALENDAR, not the engine — the
         scored window went 12.2% to 25.4% September in eleven days. Give
         it a month bucket, and give the board its provenance against the
