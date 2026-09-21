@@ -14,15 +14,33 @@ context.db-shm
 morning_bets.db-wal
 morning_bets.db-shm
 bets/*.json
-# EXCEPT the printed boards. A `_board.json` is the frozen record of what we
-# said AND what Kalshi's mid was at print time, and the mid is unrecoverable
-# once the market moves — it is the evidence TODO item 14's falsifier is
-# scored against. ~85 KB a night.
-!bets/*_board.json
+# BOARD JSONs ARE NO LONGER TRACKED — operator decision 2026-09-21, pending
+# a storage method that is not git.
+#
+# A `_board.json` IS still the frozen record of what we said and what
+# Kalshi's mid was at print time, and that mid is unrecoverable once the
+# market moves (TODO item 14's falsifier is scored against it). Nothing
+# about that changed. What changed is that git had stopped being a
+# reliable place to put it:
+#
+# THE NEGATION THAT USED TO LIVE HERE WAS `!bets/*_board.json`, and it
+# silently stopped covering most of them. `boards --next` started
+# versioning every pull on 2026-09-20 (`_board_v2.json`, `_v3`, ...), and
+# `_board_v6.json` does not match `*_board.json` — so 9 of the 11 board
+# JSONs on disk that day were IGNORED, including every post-lineup pull,
+# which is exactly where the good mids are. The rule read as if it were
+# preserving the evidence while discarding it.
+#
+# So: keep them ON DISK, out of git, until there is somewhere durable to
+# put them. THE FILES ARE THE RECORD — do not clean `bets/` out.
+# 13 older `_board.json` files are already committed and stay tracked;
+# they are history, not a pattern to continue.
+#
 # The rendered page is ~175 KB a night and rebuilds from that JSON in one
 # second, so it is a render and not a record. Same argument as
-# `scratchpad/board_*.html` below.
-bets/*_board.html
+# `scratchpad/board_*.html` below. Widened to `*_board*.html` for the same
+# versioning reason the JSON rule missed.
+bets/*_board*.html
 bets/*_graded.md
 sent.json
 .cron-config
