@@ -2037,6 +2037,34 @@ spring-training relabel), and check the spread row with the constant
 at its re-counted value on all seven folds. Bar: summer spread inside
 1.5 se in three of four with spring no worse. Do NOT search the
 constant against the spread row.
+STAGE 1 RUN 2026-09-21: the recount on clean data gives 197 against
+193 — the constant is NOT it. Remaining hypothesis: the decile rows
+select on the model's own number, so model noise reads as over-spread
+by construction. Next: a positive control — jitter the model's per-PA
+HR probability by a known sd and see the spread row widen by the
+predicted amount; if it does, the row needs a selection-free
+companion (bin hitters on PRIOR-season HR rate, not on the model).
+
+
+**41. THE EIGHT STABILISATION CONSTANTS, RE-COUNTED WITHOUT SPRING
+TRAINING.** Opened 2026-09-21. `src.context.stabilise` on regular-season
+rows: batters K 48 / BB 113 / HR 197 / BABIP 400 against the shipped
+51 / 122 / 193 / 447; starters K 122 / BB 167 / HR 2598 / BABIP 1199
+against 132 / 138 / 934 / 3068.
+
+ESTABLISHED: the shipped values were counted with ~5% exhibition rows in
+the halves; the batter K/BB/BABIP and starter K/BB/BABIP counts moved
+6-60% once those left. Starter HR is the recorded three-numbers-disagree
+case and is excluded from this item.
+NOT ESTABLISHED: that the moves survive a four-fold battery — smaller k
+means less shrinkage, and the folds' K rows are already light in
+summer 2024-25, so batter K 51 -> 48 pushes them the RIGHT way and
+starter BB 138 -> 167 pushes walks toward the league.
+PRE-REGISTERED: replace all seven at once (rule 4: measured, not
+fitted), battery on summer and spring against the current baseline
+(`5204b5f4a4e8`), bar: the pooled K/BB rows and `outs_corr` no worse
+than 1 se in any fold, `platoon/k_per_pa_*` closer in five of seven.
+Report every row that moved. Do not tune any of the seven afterwards.
 
 ## Shipped 2026-09-10 — item 24, the home run channel reads contact type
 

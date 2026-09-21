@@ -16,9 +16,13 @@ Refreshed 2026-09-21.
 
 ## READY — nothing has to be decided before starting
 
-    40  The per-hitter HR spread is too wide by July (+2.5 se) and too
-        narrow in April — the batter HR stabilisation constant, counted
-        before the spring-training relabel. Opened 2026-09-21.
+    41  The eight stabilisation constants re-counted without spring
+        training: batter K/BB/BABIP and starter K/BB/BABIP moved 6-60%.
+        Replace all seven at once and run the battery. Opened 2026-09-21.
+    40  The per-hitter HR spread is too wide by July (+2.5 se) — NOT the
+        batter HR constant (recount 197 vs 193); the decile rows select
+        on the model's own number. Needs a positive control. Opened
+        2026-09-21.
     39  SHIPPED 2026-09-21 — hitters have a prior season
         (`rates.USE_BATTER_PRIOR`, last season, pitcher algebra). Bar met
         in spring on two of three metrics, missed on summer's per-hitter

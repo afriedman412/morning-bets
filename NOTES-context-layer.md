@@ -14251,3 +14251,37 @@ failed on the summer clause, and the entry says so.
 
 NEXT: item 40 (summer per-hitter HR spread, batter HR shrinkage);
 item 38 (April hook cells); the weather source.
+
+## 2026-09-21, SIXTH SITTING — ITEM 40 STAGE 1: THE BATTER HR CONSTANT IS
+## NOT THE CAUSE. THE RECOUNT OF ALL EIGHT CONSTANTS ON CLEAN DATA IS
+## ITEM 41. (Fable)
+
+`src.context.stabilise` re-run on regular-season rows only (the shipped
+count predates the spring-training relabel; the counter filters
+`sport = 'mlb'`, so it saw the exhibitions until today):
+
+  BATTERS      k_pct   bb_pct   hr_pct   babip      (737 hitters, 475 PA a half)
+    measured      48      113      197     400
+    IN USE        51      122      193     447
+  STARTERS     k_pct   bb_pct   hr_pct   babip      (403 arms, 513 BF a half)
+    measured     122      167     2598    1199
+    IN USE       132      138      934    3068
+
+  Batter hr_pct: 193 -> 197. FLAT. The July per-hitter HR over-spread
+  (item 40) is not the shrinkage constant, and the pre-registered
+  falsifier is spent on that branch. What remains: the `hrbat` decile
+  rows select the top and bottom deciles on the MODEL's own number, so
+  any noise in the model's per-PA probability reads as over-spread by
+  construction (winner's curse) — a row property, not a rate one — and
+  the April under-spread was the thin-line half now covered by items 37
+  and 39. Item 40 stays open on the row's construction, not on the
+  constant.
+
+  THE OTHER SIX MOVED, some a lot: batter K 51 -> 48, BB 122 -> 113,
+  BABIP 447 -> 400; starter BB 138 -> 167, BABIP 3068 -> 1199. Starter
+  HR reads 2598 against the shipped 934, which is the three-numbers-
+  disagree case already recorded at `STABILISE_MEASURED` and stays
+  untouched until reconciled. These are COUNTED quantities whose count
+  changed because 5% of the rows were exhibition play; replacing them is
+  measurement, not fitting (rule 4), but it is eight constants at once
+  and gets its own battery run and write-up: ITEM 41. Not changed here.
