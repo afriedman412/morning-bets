@@ -1870,6 +1870,13 @@ K/PA by hitters with <150 PA before September 1 — if the rise is the
 call-ups and their prior would have predicted it, this becomes a
 `stabilise.py` item; if it is the established hitters, close it as
 season-specific drift.
+STAGE 4 RUN 2026-09-21: the established hitters' own September rise
+is 91% (2024) and 107% (2025) of the total, and 2023/2026 had no rise.
+CLOSED as season-specific drift. Residue, pre-registered and small:
+call-ups strike out 15-21% more than the league in all four seasons on
+16-18% of September PA — check whether the engine gives a hitter with
+no season rates his own K rate or the league's. If the league's, that
+is a +2.5-3.5% September level and a `stabilise.py` fix.
 
 **38. THE SPRING FOLDS' OWN DEFECTS — April-June was never scored until
 2026-09-20, and its first battery run has three rows past 3 se that
@@ -1898,6 +1905,30 @@ PRE-REGISTERED: the hook rows (`hook_bnd` / `hook_mid`) in the spring
 JSON already say which curve is off — read them before building
 anything. For 2026, `sim.league(season=2026, before='2026-04-08')`
 against April-June 2026 actuals on K%, HR% and runs/9 is one query.
+
+STAGE 1 READ 2026-09-21, off `battery_spring_432ed646d830.json`: it is
+BOTH curves and it is a WIDTH, not a hook. In spring the boundary curve
+fires too often at 25-70 pitches (2023: +1.5 / +2.9 points at 60 / 70,
+z +3.6 / +3.8; 2024: +0.6 at 40, z +5.6) and the mid-inning curve too
+(25-40 pitches z +3.6 to +7.2), and BOTH fire too rarely past 85 pitches
+(−5 to −9 points, z −2 to −5.5 in 2024-26). Summer has the late
+under-pull and much less of the early over-pull. So the model's outs
+distribution is too WIDE everywhere — `outs_sd` +0.31 / +0.54 / +0.64 /
++0.41 (z +4.4 / +7.8 / +10.0 / +5.2 spring; +2.7 / +5.6 / +6.8 / +3.9
+summer) — and the spring mean deficit is the SHORT tail:
+`outs_over_12.5` −0.040 / −0.065 / −0.046 / −0.025 (z −4.3 / −7.2 /
+−5.3 / −2.5) against summer's −2.3 / −3.1 / −2.3 / −0.8. The extra arms
+(`arms_per_side`) follow from the extra short starts. Real April starts
+are short BY PLAN and the model makes them shorter still.
+NOT ESTABLISHED: which input is hot at low pitch counts in April — the
+leash (fitted on full seasons, applied to build-up starts), the
+per-arm efficiency, or the curves' own low-pitch cells. `usage_gap`
+is ruled out: it needs four prior starts and returns 0.0 in April
+(the `outs_bias_usage_lo` row is empty in every spring fold).
+NEXT: `--spring --off sim.USE_LEASH` is one battery run and answers the
+leash half; if the early over-pull survives it, the curves' low-pitch
+cells are the item. Set the bar: `outs_over_12.5` spring gap inside one
+se in three of four folds.
 
 
 ## Shipped 2026-09-10 — item 24, the home run channel reads contact type

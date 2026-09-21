@@ -20,10 +20,11 @@ Refreshed 2026-09-20.
         time: starters pulled too early in 2023-24 (outs_mean −6.3 se,
         arms_per_side +5.9), and spring 2026 under-scores every rung off
         a stale prior-season anchor. Not weather.
-    37  The strikeout level — DOWNGRADED 2026-09-21: it is the frozen
-        window's K level against the scored window's (r +0.9 over eight
-        folds), the monthly shape does not repeat (era +0.28), so no
-        table. One lead: is September's rise the call-up hitters' prior.
+    37  CLOSED 2026-09-21 — the strikeout level was the frozen window's
+        K against the scored window's (r +0.9, eight folds), a monthly
+        shape that does not repeat, and a September rise that sits with
+        the established hitters. Residue: do call-ups (K +15-21% every
+        year) get their own rate or the league's.
     34  What tells two starts apart, now that a per-arm constant is ruled
         out — outs_corr is 3.7-5.0 sigma short of the per-arm ceiling in
         all four folds. Successor to 32.

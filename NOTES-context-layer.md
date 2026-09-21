@@ -13895,3 +13895,39 @@ CONCLUSION.
   season-specific drift the engine cannot know in advance. Item 37 is
   DOWNGRADED from a level error to a measurement-design note until
   that split is read.
+
+## 2026-09-21, SECOND SITTING — ITEM 37 STAGE 4: THE SEPTEMBER RISE IS THE
+## ESTABLISHED HITTERS. CLOSED AS SEASON-SPECIFIC DRIFT, WITH ONE
+## STABLE SIDE-FINDING ABOUT CALL-UPS. (Fable)
+
+The pre-registered split, off `bets.mlb_batting` (K per AB+BB — the
+table has no HBP or sacrifice columns; the denominator is the same for
+both groups, so the ratios hold): September against April-August, hitters
+with ≥150 AB+BB before September 1 ("established") against the rest.
+
+  season  AprAug   Sep all   rise   | established, own rise  share | call-ups vs league  share
+  2023    0.2319   0.2334   +0.7%   |    −0.1%                81.7% |   +14.6%            18.3%
+  2024    0.2285   0.2397   +4.9%   |    +4.5%                84.3% |   +21.1%            15.7%
+  2025    0.2245   0.2409   +7.3%   |    +7.8%                82.8% |   +19.9%            17.2%
+  2026    0.2247   0.2281   +1.5%   |    +1.0%                82.3% |   +15.3%            17.7%
+
+  The established hitters' OWN rise explains 91% (2024) and 107% (2025)
+  of the September rise, and in 2023 and 2026 nobody rose. The falsifier
+  said: rise in the established group, close it as drift. Closed. The
+  same hitters striking out more in September 2024-25 is the PITCHING
+  they faced — expanded pens, September arms — and no hitter prior can
+  carry that.
+
+  THE SIDE-FINDING, four for four and stable: call-ups strike out 15-21%
+  more than the league, every season, on 16-18% of September plate
+  appearances. That is +2.5-3.5% on the September K rate as a LEVEL if
+  the engine hands a hitter with no rates the league mean — which
+  `stabilise.py`'s shrinkage may do. Not measured here; pre-registered
+  as a small check: what K rate does a September call-up carry in the
+  engine, his own (from where?) or the league's.
+
+ITEM 37 IS CLOSED as a level error. What it was: the frozen window's K
+level against the scored window's, moved by season-specific drift the
+engine cannot know in advance. What survives it: the call-up prior
+check above, and the rule-11 note that the battery's summer K deficit
+is partly its own July-1 cut.
