@@ -1971,6 +1971,72 @@ by `PRIOR_DECAY`, effective PA counted per stat — behind a flag; the
 falsifier is `hrbat/spread_top_minus_bottom` and `platoon/k_per_pa_*`
 on the three spring folds, bar: closer to actual in two of three with
 summer inside 1 se. Do NOT hand the hitter prior to a search.
+SHIPPED 2026-09-21 (`rates.USE_BATTER_PRIOR`, last season only, the
+pitcher two-stage algebra). Bar: spring spread 2/3 closer, k_adv 3/3,
+k_nad 1/3; summer three per-hitter HR rows moved 1.1-1.7 se, widening a
+July over-spread that predates the change — item 40. Level rows
+unchanged everywhere. Full entry in the notes.
+
+**40. THE OUTS CORRECTION DRIFTS ON THE CALENDAR, NOT THE ENGINE — give it
+a month, and give the board its provenance.** Found 2026-09-21 in a live
+pricing session, where the stale table was quoted as current and then the
+staleness turned out not to be staleness. BETTING LAYER ONLY: no engine
+constant moves, so this does not take the battery.
+
+ESTABLISHED: re-measuring `outs_adjust.MEASURED` on 1,570 holdout starts
+moved the ACTUAL column at every line from 14.5 up while the MODEL column
+sat still (0.532/0.485/0.420 -> 0.530/0.485/0.423 at 15.5/16.5/17.5), so
+the table did not go stale under a changing engine. The SCORED WINDOW'S
+MONTH MIX moved: 2026-07-01..09-08 is Jul 41.4 / Aug 46.4 / Sep 12.2, and
+eleven days later 2026-07-01..09-20 is 35.2 / 39.4 / 25.4. September's
+share DOUBLED. September starters are short — P(16+) 0.440 against 0.502
+for Apr-Aug, 3.0 sigma on 536 starts; P(18+) 0.345 against 0.375. A
+trailing "July onward" window therefore becomes more September every week
+of September. The live cost that day: the board applied -0.009 at o17.5
+where the same morning's measurement said -0.026, printing a rung at
+55.4% the current engine supports at ~53.5%.
+NOT ESTABLISHED: that a month-conditioned table beats the pooled one out
+of sample. The September-minus-pooled deltas are -0.022 (se 0.023) and
+-0.040 for Sep 11-20 (se 0.030) — 1.0 and 1.3 sigma, DIRECTIONAL ONLY.
+This item may well close as "the pooled table was fine and the drift was
+sample".
+PRE-REGISTERED: build the correction per month bucket (Sep+Oct against
+the rest is the minimum split; the shape is a step, not a ramp — see
+`sim.BND_MONTH_OFFSET`) on PRE-HOLDOUT rows only, score on the holdout
+split by month across the four folds. Bar set before running: the
+September cells land closer to actual in at least three of four folds
+AND the summer cells stay inside 1 se of the pooled table. If the
+September cell does not beat pooled ON SEPTEMBER ROWS, the drift was
+sample and the pooled table stays as it is.
+DO NOT AUTO-REFIT THE TABLE ON EVERY BOARD RUN — it smuggles in the
+parked `sim.USE_HOOK_MONTH` by the back door and it destroys the only
+signal the table carries, its 0.045 -> 0.031 -> 0.013 shrinkage across
+hook changes. Reasons written out in `scratchpad/outs_adjust`.
+THE CHEAP HALF, WORTH DOING FIRST AND INDEPENDENTLY: the board prints
+`outs corrected (2026-09-09)` in a footer nobody reads, and it cannot
+know the engine fingerprint moved underneath it. Carry the correction's
+provenance ON THE RUNG, against the FINGERPRINT rather than a date.
+
+
+**40. THE PER-HITTER HOME RUN SPREAD IS TOO WIDE BY JULY AND TOO NARROW IN
+APRIL.** `hrbat/spread_top_minus_bottom` (top decile minus bottom decile
+of the model's per-hitter HR probability, against what those hitters
+did): summer 2024-26 +1.2 / +2.5 / +2.5 se with the prior on (+1.2 /
++2.0 / +2.5 before it), spring 2026 −2.3 (−2.9 before it). Opened
+2026-09-21 by item 39's battery.
+
+ESTABLISHED: the sign flips with the depth of the record — thin lines
+in April are over-shrunk toward the target, full lines in July are
+under-shrunk away from it. That is the batter HR stabilisation
+constant (k = 193 AB+BB, `stabilise.py`) being too small for a
+full-season line, or the per-decile actual carrying selection the
+model cannot (the top decile is chosen by the MODEL's number).
+NOT ESTABLISHED: which. PRE-REGISTERED: re-count the batter HR
+stabilisation on regular-season rows (the shipped count predates the
+spring-training relabel), and check the spread row with the constant
+at its re-counted value on all seven folds. Bar: summer spread inside
+1.5 se in three of four with spring no worse. Do NOT search the
+constant against the spread row.
 
 ## Shipped 2026-09-10 — item 24, the home run channel reads contact type
 

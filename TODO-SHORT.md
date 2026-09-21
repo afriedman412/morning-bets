@@ -10,19 +10,27 @@ an index that lags is worse than none, because it is read as current.
 Numbers are never reused, so a line here always resolves against the full
 item.
 
-Refreshed 2026-09-20.
+Refreshed 2026-09-21.
 
 ---
 
 ## READY — nothing has to be decided before starting
 
-    39  Hitters have no prior season — pitchers pool prior seasons,
-        `batter_rates` shrinks toward the league on this season's line
-        only, so an April veteran is 70% league. Found 2026-09-21.
+    40  The per-hitter HR spread is too wide by July (+2.5 se) and too
+        narrow in April — the batter HR stabilisation constant, counted
+        before the spring-training relabel. Opened 2026-09-21.
+    39  SHIPPED 2026-09-21 — hitters have a prior season
+        (`rates.USE_BATTER_PRIOR`, last season, pitcher algebra). Bar met
+        in spring on two of three metrics, missed on summer's per-hitter
+        HR rows by 1.1-1.7 se; those are item 40.
     38  The spring folds' own defects — April-June scored for the first
         time: starters pulled too early in 2023-24 (outs_mean −6.3 se,
         arms_per_side +5.9), and spring 2026 under-scores every rung off
         a stale prior-season anchor. Not weather.
+    40  The outs correction drifts on the CALENDAR, not the engine — the
+        scored window went 12.2% to 25.4% September in eleven days. Give
+        it a month bucket, and give the board its provenance against the
+        fingerprint. Betting layer; no battery.
     37  CLOSED 2026-09-21 — the strikeout level was the frozen window's
         K against the scored window's, a monthly shape that does not
         repeat, and a September rise in the established hitters. The

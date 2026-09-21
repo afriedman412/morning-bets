@@ -1176,15 +1176,82 @@ def _pooled_pa(season, before: str | None, conn=None) -> dict | None:
     return {r["name"]: (r["ab"] or 0) + (r["bb"] or 0) for r in rows}
 
 
+#: THE HITTER PRIOR SEASON (item 39, 2026-09-21). Pitchers pool prior
+#: seasons through `shrink_target`; hitters shrank toward the league on
+#: this season's line only, so on April 8 a 400-PA veteran was ~20 PA of
+#: himself and 70% league. Rotation starters at that cut carry 77-86% of
+#: their full-season K spread BECAUSE of the prior; hitters carried what
+#: 20 PA say.
+#:
+#: LAST SEASON ONLY. The multi-season decay (`PRIOR_DECAY`) was counted on
+#: PITCHERS and importing it for hitters is rule 4's failure; one season
+#: at full weight needs no constant. A hitter with no last season gets no
+#: prior and the thin-record target covers him — that population is the
+#: other half of the same gap. `scratchpad/decay.py` is the instrument if
+#: the hitter decay is ever counted.
+#:
+#: THE SAME TWO-STAGE ALGEBRA AS PITCHERS, deliberately: last season's
+#: line (as `batter_rates` built it for that season, league-adjusted onto
+#: this season's run environment by `_prior_adjusted`) is shrunk toward
+#: the thin-adjusted league by its own AB+BB with the batter constant,
+#: and that is the TARGET the current line is shrunk toward. The
+#: double-shrink note on `USE_RAW_PRIOR` applies here too and is left as
+#: pitchers have it.
+USE_BATTER_PRIOR = True
+BATTER_PRIOR_SEASONS = 1
+_BAT_PRIOR: dict = {}
+_BAT_PRIOR_FOR: int | None = None
+_BAT_LOADING = False
+
+
+def _batter_prior(season, lg_now: dict, conn=None) -> dict:
+    """{name: last season's rates, league-adjusted} for `season`, cached.
+    {} while a prior is itself being built (re-entrancy), for a pooled
+    query, or when no prior season is on record."""
+    global _BAT_PRIOR, _BAT_PRIOR_FOR, _BAT_LOADING
+    if _BAT_LOADING:
+        return {}
+    resolved = scope.resolve(season)
+    if resolved is None:
+        return {}
+    if _BAT_PRIOR and _BAT_PRIOR_FOR == resolved:
+        return _BAT_PRIOR
+    from src.context import sim
+    parts = []
+    _BAT_LOADING = True
+    try:
+        for k in range(BATTER_PRIOR_SEASONS):
+            yr = resolved - 1 - k
+            try:
+                lg_prior = sim.league(yr, conn=conn)
+            except Exception:
+                continue
+            if not lg_prior:
+                continue
+            # `before` pins the thin-record key to THAT season's end —
+            # None would mean today, a rolling year that is not his.
+            raw = batter_rates(lg_prior, yr, before=f"{yr}-12-31",
+                               conn=conn)
+            if raw:
+                parts.append((k + 1, _prior_adjusted(raw, lg_prior, lg_now)))
+    finally:
+        _BAT_LOADING = False
+    _BAT_PRIOR = _blend_priors(parts)
+    _BAT_PRIOR_FOR = resolved
+    return _BAT_PRIOR
+
+
 def batter_rates(
     lg: dict, season: int | None = None, before: str | None = None,
-    conn=None,
+    conn=None, prior: dict | None = None,
 ) -> dict[str, dict]:
     """{player_name: rates} for every hitter with a line on record.
 
-    Each rate is his own, shrunk toward the league TIMES the thin-record
-    multiplier for his pooled record (`THIN_TARGET`); flag off, the
-    target is the league exactly as before.
+    Each rate is his own, shrunk toward a TARGET: his own last season
+    (`USE_BATTER_PRIOR`) shrunk toward the league times the thin-record
+    multiplier for his rolling-year record (`THIN_TARGET`). Flags off, the
+    target is the league exactly as before. `prior` overrides the cached
+    one and exists for the checks.
     """
     def _run(c):
         return c.execute(
@@ -1192,16 +1259,23 @@ def batter_rates(
 
     rows = _run(conn) if conn is not None else _with(_run)
     pooled = _pooled_pa(season, before, conn) if USE_THIN_TARGET else {}
+    if prior is None:
+        prior = _batter_prior(season, lg, conn) if USE_BATTER_PRIOR else {}
     out = {}
     for r in rows:
         pa = (r["ab"] or 0) + (r["bb"] or 0)
         if pa < 1:
             continue
-        # The target this hitter is pulled toward: the league for his
-        # population, not the league of regulars.
+        # The target this hitter is pulled toward: his own past, shrunk
+        # toward the league for his population — not the league of
+        # regulars, and not nothing.
         def tgt(stat, _n=r["name"]):
             key = None if pooled is None else pooled.get(_n, 0.0)
-            return lg[stat] * thin_mult(stat, key)
+            base = lg[stat] * thin_mult(stat, key)
+            p = prior.get(_n)
+            if not p or p.get(stat) is None:
+                return base
+            return _shrink(p[stat], base, p.get("pa", 0), stat, who="bat")
         bip = (r["ab"] or 0) - (r["so"] or 0) - (r["hr"] or 0)
         # Batters are measured per batting plate appearance; the baselines
         # are per batter faced by a rotation starter. Put them on that

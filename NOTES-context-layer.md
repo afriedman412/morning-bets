@@ -14107,3 +14107,147 @@ stale-anchor fold reading a shape row; one fold, one row.
 
 NEXT: item 39 — hitters have no prior season at all; this target is the
 thin population's half of that gap, the veteran's half is the prior.
+
+## 2026-09-21, FOURTH SITTING — THREE LIVE RUNGS, AND THE OUTS SKEPTICISM
+## AUDITED DOWN TO WHAT IS ACTUALLY MEASURED. (Opus)
+
+The operator asked for a read on three prices (Zebby Matthews o15.5 outs
+at -103, his k4.5 at -108, Shane Baz o17.5 outs at -106), then asked the
+question that turned the session: HOW MUCH OF THE DISTRUST IS NOTES, AND
+ARE THE NOTES FRESH. The audit found one of my own citations stale and
+one repo constant mis-described, and it changed the strength of the call.
+
+WHAT WAS QUOTED FROM NOTES AND WAS WRONG. `sim.Hook.pitch_center` carried
+"the simulator records ~16.0 outs against a real 15.11 — about 6% more
+outs per pitch", and I cited it as the structural cause of an over-long
+outs line. Re-measured the same day on 1,570 holdout starts: mean 15.65
+against a real 15.58, +0.07 at se 0.102. THE LEVEL ERROR IS CLOSED and
+has been for some time; the counted backbones took it. What remains is a
+TAIL and a WIDTH — o17.5 +0.026, o18.5 +0.045, o20.5 +0.036, outs_sd 4.47
+against 4.15. Right conclusion, wrong mechanism, from a docstring with no
+date on its residual. Corrected in place.
+
+THE CORRECTION TABLE'S "STALENESS" IS NOT STALENESS. Re-measuring
+`outs_adjust.MEASURED` moved the ACTUAL column at every line from 14.5 up
+while the MODEL column sat still. The cause is compositional and was
+counted the same hour: the scored window 2026-07-01..09-08 is 12.2%
+September and 2026-07-01..09-20 is 25.4% September — the share DOUBLED in
+eleven days — and September starters run 7 points short at P(16+) (0.440
+against 0.502 Apr-Aug, 3.0 sigma, 536 starts). A trailing July-onward
+window becomes more September every week of September. THE TABLE WAS
+DELIBERATELY NOT UPDATED: an auto-refit smuggles in the parked
+`USE_HOOK_MONTH` and erases the 0.045 -> 0.031 -> 0.013 shrinkage that is
+the only signal the table carries. Written into the module docstring and
+pre-registered as item 40.
+
+TWO NUMBERS THAT LOOK CONTRADICTORY AND ARE NOT (rule 11). `grade_boards`
+through 09-20 says our outs overs priced 10+ above Kalshi hit 45.6%
+against a claimed 68.0% (n=57, 48 distinct arms) — 22 points wrong. The
+same day's `shape` says the current engine is +0.026 at o17.5 — 2.6
+points wrong. Both are right: the 10+ cut CONDITIONS ON DISAGREEING WITH
+THE MARKET and therefore selects the arms the engine is worst on, while
+shape is unconditional. AND THE BOARD RECORD HAS A LIMIT WORTH STATING —
+those boards were priced by engines that no longer exist (the engine
+moved 09-11, 09-17, 09-18 and twice on 09-21), and it cannot be re-run on
+the current one, because it needs market prices paired with current-engine
+sims and only today's board has that.
+
+THE HEAD TO HEAD, EXTENDED TO 13 BOARDS (09-08..09-20), all classes now
+adverse: total +0.0073 (2.2 sd), team +0.0034 (1.6), f5 +0.0068 (2.5),
+k +0.0037 (2.2), outs +0.0173 (2.5), ALL +0.0054 over 2,887 rungs (4.4).
+BETTING.md's outs row said "beats a fitted model at 4.1 sigma" and said
+nothing about the market; it now carries both.
+
+A RE-RUN DOES NOT RE-CORRECT, which the operator spotted before I did.
+The board re-simulates and then applies a hardcoded table; v6's own
+footer prints `outs corrected (2026-09-09)` where nobody reads it. The
+cheap half of item 40 is to carry that provenance against the ENGINE
+FINGERPRINT on the rung itself.
+
+THE RELABEL MOVED A LIVE NUMBER THE WRONG WAY, recorded because it is a
+counterexample to the session's own thesis: every 09-21 board ran 12:51
+to 13:15 and the spring relabel landed 13:29 (DB at 13:34), so v1-v5 were
+priced on rates that still counted March. Re-priced as v6, Zebby's o15.5
+went -191 -> -200 (65.6% -> 66.7%) — dropping 619 exhibition games made
+the engine MORE confident he goes six, not less. Baz's raw did not move
+at all (-128 both). Kalshi's mids drifted independently.
+
+SEPTEMBER K DOES NOT HELP A K OVER THIS YEAR, checked because it was the
+one thing that could have argued for Matthews k4.5: item 37's table has
+2026 at +1.5% Apr-Aug to Sep with established hitters at +1.0%, against
++4.9/+7.3% in 2024/2025. And the temperature term is immaterial at
+Oracle's 62-63F — TEMP_K_MULT is 1.0063 in the 55-65 bin, with only
+sub-55 reaching 1.035.
+
+ALL THREE RUNGS PASSED, and two of them on the PRICE rather than the
+model: the k4.5 was offered at -108 against Kalshi's own +106, and Baz
+o17.5 at -106 against +122 — 3.4 and 6.4 points worse than the mid for
+the identical side, both larger than any edge the board claimed after
+corrections. That is now BETTING.md rule 9, because it costs nothing and
+settles more rungs than a model argument does.
+
+WHAT THE SESSION CHANGED: `sim.py` (the residual paragraph, comment
+only), `scratchpad/outs_adjust.py` (docstring; MEASURED and MEASURED_ON
+untouched on purpose), `BETTING.md` (outs row, new rule 9), TODO 40.
+No engine constant moved and no flag flipped, so no battery run.
+
+## 2026-09-21, FIFTH SITTING — ITEM 39 SHIPS: HITTERS HAVE A PRIOR SEASON.
+## `rates.USE_BATTER_PRIOR`. THE BAR WAS MET IN SPRING AND MISSED BY THREE
+## PER-HITTER ROWS IN SUMMER, AND BOTH ARE WRITTEN DOWN. (Fable)
+
+THE GAP. `batter_rates` was season-scoped: a hitter's shrink target was
+the league (now the league times his thin-record multiplier) on THIS
+season's line only. On April 8 a 400-PA veteran was 20 PA of himself
+and 70% target. Pitchers have pooled prior seasons since day ten.
+
+THE WIRE. `_batter_prior(season, lg_now)`: last season's `batter_rates`
+(thin key pinned to that season's end), re-based onto this season's
+league by `_prior_adjusted`, cached per season, `_BAT_LOADING` guard
+against walking back through every season. In `batter_rates` the target
+becomes `_shrink(prior[stat], lg × thin, prior_pa)` — the pitcher
+two-stage algebra exactly — and the current line is shrunk toward that.
+LAST SEASON ONLY: `PRIOR_DECAY` was counted on pitchers and hitters have
+not been counted (rule 4), and one season at full weight needs no
+constant. No last season -> no prior -> the thin target covers him.
+`tests/test_batter_prior.py`: same line + same record + different prior
+gives different rates, exact arithmetic, a 30-PA cameo prior sits near
+the league and a 600-PA one near itself, the build reads season−1 with
+the pinned key, league-adjusts, caches, and returns {} while loading.
+Suite 667.
+
+THE BAR, pre-registered in item 39: `hrbat/spread_top_minus_bottom` and
+`platoon/k_per_pa_*` closer to actual in two of three spring folds,
+summer inside 1 se. On vs the thin-only engine (`battery_5204b5f4a4e8`
+and `battery_spring_5204b5f4a4e8` against the `73fac566920b` pair):
+
+  SPRING (2024 / 2025 / 2026, z off -> on)
+    spread_top_minus_bottom   −0.4 -> −1.1   −0.9 -> −0.5   −2.9 -> −2.3   2 of 3 closer  PASS
+    k_per_pa_adv              +2.2 -> +2.0   +1.3 -> +1.1   +2.6 -> +2.5   3 of 3 closer  PASS
+    k_per_pa_nad              +1.7 -> +2.0   −0.1 -> −0.6   +0.5 -> +0.1   1 of 3 closer  FAIL
+    hr_per_pa_top 2026 −2.9 -> −2.1; hr_per_pa_bot 2024 −1.3 -> 0.0.
+    Level rows (F5, runs/baserunner, k_pa_all, bb_pa_all, hr_per_bip)
+    within 0.3 se of where they were.
+  SUMMER — three rows past 1 se, all per-hitter HR:
+    2024 spread −0.3 -> +1.0 (1.3 se), 2024 hr_per_pa_top −0.5 -> +0.6,
+    2026 hr_per_pa_bot +0.1 -> −1.6. FAIL on the letter of "inside 1 se".
+    2023 identical (no 2022 on record). Every level row unchanged.
+
+  WHAT THE SUMMER MISS IS. The model's per-hitter HR spread (top decile
+  minus bottom) is TOO WIDE by July in three of four summer folds
+  already (+1.2 / +2.0 / +2.5 se before this change) and too NARROW in
+  April (−2.9 in spring 2026). A prior makes a hitter more himself:
+  that closes April and widens July. The July over-spread predates this
+  and points at the batter HR shrink constant (k = 193 PA — CLAUDE.md
+  records batter rates once over-shrunk 2.2x and pitcher HR
+  under-shrunk 2.7x; the batter HR side may now be under-shrunk). That
+  is item 40, not a reason to leave veterans at 70% league in April.
+
+DECISION. SHIPPED ON. The structural argument (pitchers have it; the
+live April board runs on exactly these rates) and the spring result
+carry it; the summer rows that moved are shape rows of a pre-existing
+over-spread and are named here rather than absorbed. The bar was not
+loosened to admit it: it passed on two of three metrics in spring and
+failed on the summer clause, and the entry says so.
+
+NEXT: item 40 (summer per-hitter HR spread, batter HR shrinkage);
+item 38 (April hook cells); the weather source.
