@@ -2031,6 +2031,16 @@ THE CHEAP HALF, WORTH DOING FIRST AND INDEPENDENTLY: the board prints
 know the engine fingerprint moved underneath it. Carry the correction's
 provenance ON THE RUNG, against the FINGERPRINT rather than a date.
 
+WATCH FOR COLLISION WITH ITEM 38 (noted 2026-09-21, same day): a
+`sim.USE_HOOK_BAND` was in the working tree while this was written —
+`BND_BAND_MULT` scaling the boundary curve by calendar band, September
+at 1.87/1.70/1.40/1.27 across the 50-85 pitch cells. IF THAT SHIPS, THE
+MONTH HALF OF THIS ITEM IS LARGELY SUPERSEDED: a hook that sees the date
+removes the composition the pooled table is currently averaging over, and
+the right move is to RE-MEASURE the table on the new engine rather than
+give it a month bucket. The provenance half above stands either way.
+Check `sim.USE_HOOK_BAND` before starting this.
+
 
 **40. THE PER-HITTER HOME RUN SPREAD IS TOO WIDE BY JULY AND TOO NARROW IN
 APRIL.** `hrbat/spread_top_minus_bottom` (top decile minus bottom decile

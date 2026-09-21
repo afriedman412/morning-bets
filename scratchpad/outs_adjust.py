@@ -133,6 +133,64 @@ WHAT IT CANNOT DO. This is a POOLED correction across starts of every
 projected length. It is right on average and is NOT conditioned on the
 pitcher, so applying it to an arm whose projection sits far from the
 holdout mean (15.68 outs) is an extrapolation. Flagged per row.
+
+RE-MEASURED 2026-09-21 AND DELIBERATELY NOT UPDATED. Read this before
+"fixing" the staleness, because the obvious fix is wrong.
+
+    line     model   actual     gap      was      se
+    o12.5    0.784    0.789   -0.005   -0.015   0.010
+    o14.5    0.691    0.710   -0.018   -0.033   0.011
+    o15.5    0.530    0.516   +0.014   -0.001   0.013
+    o16.5    0.485    0.460   +0.026   +0.007   0.013
+    o17.5    0.423    0.397   +0.026   +0.010   0.012
+    o18.5    0.212    0.168   +0.045   +0.034   0.009
+    o20.5    0.152    0.117   +0.036   +0.027   0.008
+
+THE MODEL COLUMN BARELY MOVED AND THE ACTUAL COLUMN FELL EVERYWHERE —
+0.532/0.485/0.420 against 0.530/0.485/0.423 at 15.5/16.5/17.5. So this is
+not the engine drifting under the table. It is the SCORED WINDOW'S MONTH
+MIX moving, counted the same day:
+
+    holdout 2026-07-01..09-08 (when the table was measured):
+        Jul 41.4%   Aug 46.4%   Sep 12.2%
+    holdout 2026-07-01..09-20 (eleven days later):
+        Jul 35.2%   Aug 39.4%   Sep 25.4%
+
+September's share DOUBLED in eleven days, and September starters run
+~7 points short at P(16+) (2026: .440 against .502 for Apr-Aug, 3.0 sigma
+on 536 starts). A trailing "July onward" window becomes more September
+every week of September, so this table drifts on the calendar whether or
+not the engine changes.
+
+WHY NOT JUST RE-MEASURE IT ON EVERY BOARD RUN, which is the first thing
+anyone proposes. Two reasons:
+
+  * IT SMUGGLES IN THE PARKED CALENDAR TERM. An auto-refit would shade
+    harder every September and unwind every April — `sim.USE_HOOK_MONTH`
+    by the back door, with none of the scoring that parked it.
+  * IT DESTROYS THE ONLY SIGNAL THIS TABLE CARRIES. The band correction
+    has gone 0.045 -> 0.031 -> 0.013 across three hook changes, and that
+    shrinkage is the visible record of the engine absorbing its own
+    defect. An auto-refitting table reads 0.013 forever, whether the
+    engine improved or rotted — the exact failure the top of this
+    docstring warns about.
+
+WHAT THE RIGHT FIX LOOKS LIKE: condition the correction on MONTH rather
+than pooling it. That is legitimate HERE and not in the engine, because
+the calendar term was parked for a modelling reason — a level term
+against a width defect — and none of that applies to a per-line P(over)
+adjustment. Pre-registered as a TODO item rather than done here.
+
+AND THE "12 SECONDS" ABOVE IS WRONG on this machine: `shape 40` takes
+about two minutes. Cheap enough to run after an engine change, not cheap
+enough to bolt onto every board run.
+
+THE LIVE COST OF THE STALENESS, 2026-09-21: the board applied -0.009 at
+o17.5 where the day's measurement said -0.026, so Baz's rung printed
+55.4% where the current engine supports ~53.5%. The footer said
+"outs corrected (2026-09-09)" and nobody read it. A rung that carries a
+correction should carry its provenance against the ENGINE FINGERPRINT,
+not a date in a footer.
 """
 from __future__ import annotations
 

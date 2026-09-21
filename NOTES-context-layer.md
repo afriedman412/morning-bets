@@ -14374,3 +14374,62 @@ pitch removal rates by month on regular-season rows and compare with
 the shipped pooled cells; if April-June rows sit below the pooled cell
 by more than their se, that is a counted, month-conditioned low-pitch
 cell, which is a different thing from 7e's level offset.
+
+## 2026-09-21, FIFTH SITTING — THE LEASH IS NOT THE OUTS CULPRIT.
+## A HYPOTHESIS RAISED IN A PRICING SESSION, SCREENED, AND REFUTED. (Opus)
+
+RAISED because two arms on the same board (Matthews, Baz) both carried
+near-extreme long leashes — -0.738 (rank 14/177) and -0.870 (rank 6/177)
+against a file mean of -0.224 — while the board's outs overs on both sat
+far above the market. `hook_leash.json` is built `before: 2026-07-01` and
+has not been rebuilt, so the hypothesis was: the leash is a stale per-arm
+term fitted on small samples, it hands long leashes to arms whose usage
+has since changed, and the board's outs disagreements cluster there.
+
+IT IS WRONG ON BOTH CLAUSES. Screen below; positive control first.
+
+POSITIVE CONTROL (in-sample, the rows the leash was fitted on): offset
+against mean outs, 177 arms, r = -0.897 at se 0.076, 11.8 sd. Sign
+convention and join both confirmed — a MORE NEGATIVE offset means a
+longer leash and more outs.
+
+CLAUSE 1, "the leash does not hold out of sample" — REFUTED. On
+post-holdout rows it never saw, 115 arms with >=8 starts each, r = -0.417
+at se 0.094, 4.4 sd. It works. September alone is r = -0.287 at se 0.162
+(1.8 sd, n=41) — weaker, but the difference from -0.417 is well inside
+noise and the bucket is underpowered. Split by the evidence behind the
+offset: arms fitted on 10-19 starts give r = -0.463 (4.5 sd, n=98); arms
+fitted on 1-9 starts give r = -0.208 (0.8 sd, n=17). THE SMALL-SAMPLE
+BUCKET IS NOT A FINDING — se 0.267 resolves only r~0.80 at 3 sigma, and
+the between-bucket difference is 0.9 sigma. It is unproven, not broken.
+
+CLAUSE 2, "the board's outs misses cluster on long-leash arms" —
+REFUTED, and the sign runs the other way. 180 of 230 graded outs rungs
+map to an arm in the file:
+
+    leash <= -0.60 (long)    n=45 (25 arms)   ours-actual  +0.024
+    -0.60 < leash <= -0.20   n=56 (34 arms)   ours-actual  +0.025
+    leash > -0.20 (short)    n=79 (44 arms)   ours-actual  +0.076
+
+We over-state MOST on SHORT-leash arms. Inside the big over-gaps (10+
+against Kalshi) the split is +0.349 on long-leash arms (n=10) against
++0.254 on the rest (n=28) — 0.5 sigma, nothing.
+
+AND THE ARM THAT STARTED IT IS ORDINARY. Change in mean outs pre- to
+post-holdout across 115 arms: median -0.03, sd 1.78. Matthews is -2.85,
+rank 8/115, z -1.57 — with 115 arms you expect ~7 that extreme by
+chance, and he is the 8th. Baz is -1.21, z -0.64, rank 25. His 9-start
+sample regressing is the shrinkage working, not failing.
+
+WHAT SURVIVES, AND IT IS THE USEFUL PART: the outs over-statement is
+BROAD, not concentrated — every leash bucket is positive, from +0.024 to
++0.076. That is consistent with the two things already measured the same
+day and applying to everyone (the unconditional +0.026 at o17.5, and
+September's 7-point shortening), and it is inconsistent with any
+per-arm story. THE +0.279 ON BIG DISAGREEMENTS IS A SELECTION EFFECT,
+NOT A SUBPOPULATION. Stop looking for the arm class; there is not one.
+
+NO ITEM OPENED — there is nothing to do. Recorded so it is not re-run.
+I had told the operator the stale leash was "the whole story" for
+Matthews before building this screen. It was not, and the screen I
+proposed is what refuted me.
