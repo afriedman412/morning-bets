@@ -14433,3 +14433,78 @@ NO ITEM OPENED — there is nothing to do. Recorded so it is not re-run.
 I had told the operator the stale leash was "the whole story" for
 Matthews before building this screen. It was not, and the screen I
 proposed is what refuted me.
+
+## 2026-09-21, NINTH SITTING — ITEM 38 STAGES 3-4: THE BOUNDARY HOOK'S
+## LOW-PITCH CELLS ARE THE CALENDAR, COUNTED AND SHIPPED AS A BAND.
+## `sim.USE_HOOK_BAND`. SPRING PASSES ITS BAR; SUMMER PAYS IN 2023-24. (Fable)
+
+STAGE 3, THE COUNT. Boundary removal rate by pitch bucket x month on
+346,775 regular-season training decisions (`/tmp/hook_rows.json`,
+< HOLDOUT). At 25-70 pitches: April-June 0.0234 against July-September
+0.0323, z −5.9. Mid-inning: 0.0079 against 0.0089, z −2.1, left alone.
+The falsifier ("April-June cells inside 1 se of the pooled cell means
+the cells are not it") FAILS — the cells are it. And the effect
+SHRINKS WITH THE PITCH COUNT: September pulls at 50 pitches at 1.87x
+the pooled cell, at 78 pitches 1.27x; spring 0.75x at 50, 0.96x at 78.
+That is why 7e's single logit shift across 50-84 pitches moved the
+mean and gave back the middle band: wrong shape.
+
+  bucket   spring   Jul-Aug   Sep     (ratio to pooled cell; n 3,000-5,000 / 1,500-2,500 / 665-1,235)
+  50-59     0.75     1.08    1.87
+  60-69     0.79     1.09    1.70
+  70-77     0.90     1.01    1.40
+  78-84     0.96     0.96    1.27
+
+  Era gate: September 4 for 4 (1.3-2.0x at 50-70 in every season),
+  spring 3 of 4 at 50-60 (2026's May-June cells 1.27 / 1.07 at 60, the
+  mixed one), full-season shape correlations +0.54 / +0.64 / +0.77.
+
+STAGE 4, THE WIRE. `sim.BND_BAND_MULT` / `bnd_band(date)` /
+`bnd_band_mult(band, pitches)`; `Hook.removal_p` takes `band` and
+scales its probability (capped at 1.0) for 50-84 pitches;
+`game.Side.bnd_band` set from the date in `build_side`, the rail the
+month offset rides. Silent-neutral outside April-October and outside
+50-84 pitches. `USE_HOOK_MONTH` must stay off with it (September twice);
+a check holds that. Three checks, the middle one behavioural on
+`removal_p` itself. Suite 670.
+
+THE BAR, registered before the run: spring `outs_mean` and
+`outs_over_12.5` closer in 2/3 and the 50 / 60 boundary cells inside
+1 se in 2/3; summer `outs_mean` and the 18.5 / 20.5 tail no worse than
+1 se in 3/4. `battery_2b839a707f28` / `battery_spring_2b839a707f28`
+against the `79798b8f8a82` pair:
+
+  SPRING (2024 / 2025 / 2026)                                        PASS
+    outs_mean        −0.81 -> −0.76   −0.27 -> −0.22   −0.12 -> −0.07   3/3
+    outs_over_12.5   −.078 -> −.072   −.047 -> −.041   −.028 -> −.022   3/3
+    hook_bnd/50 z    +0.2 -> −1.0     +1.2 -> −0.0     +0.6 -> −0.5     3/3 inside 1 se
+    hook_bnd/60 z    +2.0 -> +0.4     +1.3 -> −0.2     −0.9 -> −2.2     2/3
+    outs_sd unchanged (+8.4 / +9.3 / +4.7); 18.5+ tail +0.3 se worse.
+    The band fixes the cells it targets and the width it does not.
+  SUMMER (2023 / 2024 / 2025 / 2026)                              PASS on its letter
+    outs_mean z      −5.1 -> −5.9     −2.0 -> −2.9     −1.0 -> −1.7     +0.4 -> −0.1   all inside 1 se, all worse
+    outs_over_18.5 z −0.4 -> −1.0     +1.4 -> +0.8     +3.9 -> +3.4     +4.5 -> +4.1   3/4 better
+    hook_bnd/60 z    +0.5 -> +2.9     +0.4 -> +2.6     −3.0 -> −1.4     −2.5 -> −1.3
+    hook_bnd/50 z    −0.6 -> +1.2     +0.1 -> +1.8     −1.1 -> +0.2     +1.8 -> +3.3
+    k_mean 0.3 se worse in every fold (fewer outs, fewer strikeouts).
+
+  THE COST, NAMED: the summer 50-70 cells in 2023 and 2024 go from on
+  actual to 1.8-2.9 se OVER, while 2025 and 2026 come in from 2.5-3.0 se
+  under to 1.3-1.8. The table is a ratio to the pooled ACTUAL cell; the
+  engine's baseline at those cells is a fitted curve plus the pitch
+  hazard plus the leash, and in 2023-24 it already sat above the pooled
+  cell on July-onward rows, so multiplying it by the September ratio
+  over-applies there. Rule 11: the multiplier's reference and the
+  engine's baseline are not the same number. The RIGHT construction is
+  a month-conditioned fit of the curve's low-pitch cells (the engine's
+  own reference), not a ratio table on top of it; that is a bigger
+  build and the follow-up. Re-scaling the table until 2023-24 land is
+  solving for a level and is not done.
+
+DECISION. SHIPPED ON: the spring bar passes on every clause, the
+summer bar on its letter, the mechanism is counted and repeats, and
+the parked 7e is superseded by the shape it lacked. The 2023-24 summer
+cell overshoot is the recorded cost and the reason for the follow-up.
+NEXT: item 38 stays open on the WIDTH (outs_sd +5 to +9 se in spring,
++3 to +7 in summer — both tails, not the hook's level) and on the
+month-conditioned curve fit.

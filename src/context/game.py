@@ -575,6 +575,9 @@ class Side:
     #: the DATE, shared by every arm, and both hook call sites are already
     #: guarded so only the starter can receive it.
     bnd_month_offset: float = 0.0
+    #: THE CALENDAR BAND on the boundary hook's low-pitch cells, from
+    #: `sim.bnd_band` — 'spring' / 'jul_aug' / 'sep' / None. Item 38.
+    bnd_band: str | None = None
     #: RESOLVED MATCHUPS, nine of them, rebuilt when the arm changes.
     #:
     #: The point of `sim.resolve` is that a plate appearance's inputs get
@@ -1192,7 +1195,8 @@ def _end_of_inning(side: Side, rng: random.Random, inning: int,
                     inning_runs=side.last_inning_runs,
                     pen=side.pen_state,
                     layoff_gap=side.layoff_gap,
-                    month_offset=side.bnd_month_offset))
+                    month_offset=side.bnd_month_offset,
+                    band=side.bnd_band))
             or ln.pitches >= side.hook.hard_pitch_cap):
         if not ln.covered_f5:
             ln.runs_f5, ln.outs_f5 = ln.runs, ln.outs
@@ -1633,6 +1637,7 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
                 pen_state=sim.pen_state(team, date),
                 layoff_gap=sim.layoff_gap(starter.name, date),
                 bnd_month_offset=sim.bnd_month_offset(date),
+                bnd_band=sim.bnd_band(date),
                 forced_exit_outs=fx,
                 bulk=bulk, bulk_hook=bh,
                 closer=cl, closer_worked=cl_worked)

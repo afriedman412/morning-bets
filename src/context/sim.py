@@ -2383,7 +2383,8 @@ class Hook:
                   inning_runs: int = 0,
                   pen: tuple[float, float] | None = None,
                   layoff_gap: int | None = None,
-                  month_offset: float = 0.0) -> float:
+                  month_offset: float = 0.0,
+                  band: str | None = None) -> float:
         """P(pulled) evaluated at the end of a completed inning.
 
         `pen` is (arms unavailable, days of club rest) from
@@ -2396,7 +2397,18 @@ class Hook:
         `month_offset` is the calendar term, from `sim.bnd_month_offset`.
         It defaults to 0.0 so every existing caller and every test that
         builds a `Hook` by hand is unaffected — TODO 7e.
+
+        `band` is the calendar band from `sim.bnd_band`; the counted
+        low-pitch multiplier `bnd_band_mult` scales the result. None is
+        exactly 1.0 — item 38.
         """
+        return min(1.0, self._removal_p(pitches, runs, innings, baserunners,
+                                        margin, inning_runs, pen, layoff_gap,
+                                        month_offset)
+                   * bnd_band_mult(band, pitches))
+
+    def _removal_p(self, pitches, runs, innings, baserunners, margin,
+                   inning_runs, pen, layoff_gap, month_offset) -> float:
         if self.early_innings and innings <= self.early_innings:
             return _sigmoid(self.intercept + self.early_bnd_offset
                             + self.team_offset
@@ -3049,6 +3061,71 @@ def bnd_month_offset(date: str | None) -> float:
         return BND_MONTH_OFFSET.get(int(str(date)[5:7]), 0.0)
     except (ValueError, IndexError):
         return 0.0
+
+
+#: THE CALENDAR ON THE BOUNDARY HOOK'S LOW-PITCH CELLS (item 38, counted
+#: 2026-09-21) — the shape 7e's uniform logit offset above did not have.
+#: Boundary removal rate by pitch bucket, as a RATIO to the pooled cell,
+#: on 346,775 regular-season training decisions (`/tmp/hook_rows.json`,
+#: date < HOLDOUT, spring training relabelled out that day):
+#:
+#:     bucket      spring (Apr-Jun)   Jul-Aug     September      n per cell
+#:     50-59            0.75           1.08         1.87        5,060 / 2,546 / 1,235
+#:     60-69            0.79           1.09         1.70        5,033 / 2,504 / 1,210
+#:     70-77            0.90           1.01         1.40        3,812 / 1,929 /   907
+#:     78-84            0.96           0.96         1.27        3,000 / 1,492 /   665
+#:
+#: A starter at 50-70 pitches at an inning boundary comes out 28% LESS
+#: often in April-June than in July-September (z −5.9) and in September
+#: nearly twice as often at 50 pitches — and the effect SHRINKS with the
+#: pitch count, which is why a single logit shift across 50-84 pitches
+#: (7e) fixed the mean and gave back the middle band. Era gate: the
+#: September step is 4 for 4 (1.3-2.0x every season), spring 3 of 4 at
+#: 50-60 pitches (2026's May-June cells are mixed), full-season shapes
+#: correlate +0.54 / +0.64 / +0.77. Mid-inning shows an 11% spring
+#: effect (z −2.1) and is NOT touched. Below 50 pitches the cells are
+#: too thin to count (0.5-0.8% removal) and resolve to 1.0; above 84 the
+#: curve is the existing pitch hazard.
+#:
+#: Applied as a multiplier on the boundary removal PROBABILITY, capped
+#: at 1.0, so at these rates (1-20%) it is the counted ratio. Silent-
+#: neutral: no date, March, a pitch count outside 50-84, is exactly 1.0.
+#: `USE_HOOK_MONTH` and this must not both be on — the September step
+#: would be counted twice; `tests/test_game.py` holds that.
+BND_BAND_EDGES = (50, 60, 70, 78, 85)
+BND_BAND_MULT = {
+    "spring": (0.75, 0.79, 0.90, 0.96),
+    "jul_aug": (1.08, 1.09, 1.01, 0.96),
+    "sep": (1.87, 1.70, 1.40, 1.27),
+}
+USE_HOOK_BAND = True
+
+
+def bnd_band(date: str | None) -> str | None:
+    """'spring' (Apr-Jun), 'jul_aug', 'sep' (Sep-Oct), or None."""
+    if not USE_HOOK_BAND or not date:
+        return None
+    try:
+        m = int(str(date)[5:7])
+    except (ValueError, IndexError):
+        return None
+    if 4 <= m <= 6:
+        return "spring"
+    if m in (7, 8):
+        return "jul_aug"
+    if m in (9, 10):
+        return "sep"
+    return None
+
+
+def bnd_band_mult(band: str | None, pitches: int) -> float:
+    """The counted multiplier for this band and pitch count, or 1.0."""
+    if not USE_HOOK_BAND or band not in BND_BAND_MULT:
+        return 1.0
+    if pitches < BND_BAND_EDGES[0] or pitches >= BND_BAND_EDGES[-1]:
+        return 1.0
+    i = sum(pitches >= e for e in BND_BAND_EDGES[1:-1])
+    return BND_BAND_MULT[band][i]
 
 
 #: PITCH COUNT x INNING. Seventy pitches in the third is not the decision

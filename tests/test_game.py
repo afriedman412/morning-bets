@@ -2231,3 +2231,64 @@ def check_replay_actually_applies_the_temperature():
     assert abs(got[0] - 14.0) < 1e-9 and abs(got[1] - 33.0) < 1e-9, (
         f"replay passed {got}, expected the umpire pair TIMES the "
         f"temperature pair (2x7, 3x11)")
+
+
+def check_the_hook_band_reads_the_counted_low_pitch_cells():
+    """Item 38: the boundary hook's 50-84 pitch cells carry a counted
+    calendar multiplier — spring below the pooled cell, September far
+    above it, shrinking with the pitch count. Outside the bands and
+    outside 50-84 pitches it is exactly 1.0, and it ships ON with 7e's
+    uniform offset OFF, because the two would count September twice."""
+    assert sim.USE_HOOK_BAND and not sim.USE_HOOK_MONTH, \
+        "the band and the month offset must not both be on"
+    assert sim.bnd_band("2026-04-08") == "spring"
+    assert sim.bnd_band("2026-06-30") == "spring"
+    assert sim.bnd_band("2026-07-01") == "jul_aug"
+    assert sim.bnd_band("2026-09-15") == "sep"
+    assert sim.bnd_band("2026-10-02") == "sep"
+    assert sim.bnd_band("2026-03-28") is None and sim.bnd_band(None) is None
+    assert sim.bnd_band("garbage") is None
+    m = sim.bnd_band_mult
+    assert m("spring", 55) == 0.75 and m("sep", 55) == 1.87
+    assert m("spring", 60) == 0.79 and m("spring", 78) == 0.96
+    assert m("sep", 84) == 1.27 and m("sep", 85) == 1.0
+    assert m("spring", 49) == 1.0 and m(None, 55) == 1.0
+    sp, se = sim.BND_BAND_MULT["spring"], sim.BND_BAND_MULT["sep"]
+    assert sp[0] < sp[1] < sp[2] < sp[3] < 1.0, sp
+    assert se[0] > se[1] > se[2] > se[3] > 1.0, se
+    orig = sim.USE_HOOK_BAND
+    sim.USE_HOOK_BAND = False
+    try:
+        assert m("sep", 55) == 1.0 and sim.bnd_band("2026-09-15") is None
+    finally:
+        sim.USE_HOOK_BAND = orig
+
+
+def check_the_band_scales_the_boundary_removal_probability():
+    """BEHAVIOURAL, on `Hook.removal_p` itself: with band='sep' at 55
+    pitches the probability is 1.87x the band-less one, with 'spring'
+    0.75x, and at 40 pitches the band changes nothing. Deleting the
+    multiply inside `removal_p` leaves every other check green and
+    fails this one."""
+    h = sim.Hook()
+    base55 = h.removal_p(55, 0, 5)
+    base40 = h.removal_p(40, 0, 4)
+    assert base55 > 0
+    assert abs(h.removal_p(55, 0, 5, band="sep") - min(1.0, base55 * 1.87)) < 1e-12
+    assert abs(h.removal_p(55, 0, 5, band="spring") - base55 * 0.75) < 1e-12
+    assert h.removal_p(40, 0, 4, band="sep") == base40
+    assert h.removal_p(55, 0, 5, band=None) == base55
+
+
+def check_the_band_reaches_the_side_from_the_date():
+    """`build_side` sets `Side.bnd_band` from the game date, the same
+    rail the month offset rides, so the replay and the live path cannot
+    differ on it."""
+    from tests.test_sim import LG, _lineup, _pitcher
+    rng = random.Random(5)
+    s = game.build_side(_pitcher(), [], _lineup(), sim.Hook(), rng,
+                        apply_leash=False, date="2026-09-15")
+    assert s.bnd_band == "sep", s.bnd_band
+    s2 = game.build_side(_pitcher(), [], _lineup(), sim.Hook(), rng,
+                         apply_leash=False, date="2026-05-15")
+    assert s2.bnd_band == "spring", s2.bnd_band
