@@ -120,8 +120,17 @@ from scratchpad.pitch_hazard import EDGES, ROWS
 #: same engine carry the same name, distinguished by the `spring_` prefix.
 FOLDS = ((2023, "2023-07-01", None), (2024, "2024-07-01", None),
          (2025, "2025-07-01", None), (2026, "2026-07-01", None))
+#: THREE SPRING FOLDS, NOT FOUR. 2023 has no prior season on record (the
+#: data starts 2023-03), so at an April 8 cut every arm is one or two
+#: starts shrunk to the league: rotation starters' K rates carry 53% of
+#: their full-season spread and correlate 0.38 with it, against 77-86% and
+#: 0.71-0.77 for 2024-26. That is not a fold the live board ever runs —
+#: it always has last season — and it read as a starter-length defect
+#: (outs −0.9, arms +0.3) that no hook flag could move (2026-09-21
+#: bisection). Until the March exhibitions were relabelled it was padded
+#: by them and looked like the others.
 SPRING_FOLDS = tuple((y, f"{y}-04-08", f"{y}-07-01")
-                     for y in (2023, 2024, 2025, 2026))
+                     for y in (2024, 2025, 2026))
 
 #: Innings tracked in the one pass. 18 is the ceiling (`max_extra=9`).
 TRACK = tuple(range(1, 19))
@@ -167,12 +176,14 @@ EV_REACH = EV_BB + ("hit_by_pitch", "field_error") + tuple(EV_HIT)
 
 
 def flags() -> dict:
-    """Every USE_* switch in the three modules, live values, plus the two
+    """Every USE_* switch in the four modules, live values, plus the two
     non-USE_ knobs that change what a run means. THE WIRING CONTRACT: a
     battery run is attributable to a configuration only if this is total,
-    and `tests/test_battery.py` holds it to that."""
+    and `tests/test_battery.py` holds it to that. `rates` joined the list
+    on 2026-09-21, the day a rate-side flag (`USE_THIN_TARGET`) went live
+    while a battery was mid-run and the header could not have said so."""
     out = {}
-    for m in (sim, game, cal):
+    for m in (sim, game, cal, rate_src):
         for k in sorted(vars(m)):
             if k.startswith("USE_"):
                 out[f"{m.__name__.rsplit('.', 1)[-1]}.{k}"] = getattr(m, k)
@@ -1865,7 +1876,7 @@ def main(argv):
     limit = None
     fold_years = [f[0] for f in FOLDS]
     diff_fp = None
-    mods = {"sim": sim, "game": game, "calibrate": cal}
+    mods = {"sim": sim, "game": game, "calibrate": cal, "rates": rate_src}
     # An option's space-separated value is CONSUMED — without this, the
     # value of `--on calibrate.USE_PARK` fell through into the positional
     # list and was parsed as the sim count.

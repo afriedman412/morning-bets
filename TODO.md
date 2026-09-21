@@ -1920,6 +1920,14 @@ summer) — and the spring mean deficit is the SHORT tail:
 −5.3 / −2.5) against summer's −2.3 / −3.1 / −2.3 / −0.8. The extra arms
 (`arms_per_side`) follow from the extra short starts. Real April starts
 are short BY PLAN and the model makes them shorter still.
+RELABEL 2026-09-21: the March exhibitions were in every rate and hook
+row this item was measured on (`sources/gametype.py`). Re-run on
+relabelled data: 2024 spring `outs_mean` −0.61 -> −0.78 and
+`outs_over_12.5` −0.065 -> −0.076, 2025-26 inside 1 se — THE ITEM
+STANDS on 2024-26. The 2023 spring rows are WITHDRAWN: 2023 has no prior
+season on record and its April 8 arms shrink to the league, which reads
+as an early hook and is not one (bisection: no flag moves it). 2023 is
+out of `SPRING_FOLDS`.
 NOT ESTABLISHED: which input is hot at low pitch counts in April — the
 leash (fitted on full seasons, applied to build-up starts), the
 per-arm efficiency, or the curves' own low-pitch cells. `usage_gap`
@@ -1929,7 +1937,35 @@ NEXT: `--spring --off sim.USE_LEASH` is one battery run and answers the
 leash half; if the early over-pull survives it, the curves' low-pitch
 cells are the item. Set the bar: `outs_over_12.5` spring gap inside one
 se in three of four folds.
+RUN 2026-09-21 (`battery_spring_ba41a761ca03.json`, diffed against the
+spring flags-on run): LEASH OFF MAKES IT WORSE. `outs_mean` 2023 −0.37 ->
+−0.52, 2024 −0.61 -> −0.78; `outs_over_12.5` −0.041 -> −0.050;
+`arms_per_side` +0.16 -> +0.19 / +0.18 -> +0.22; and the late buckets
+(85-100 pitches) of both curves move TOWARD actual, so the leash was
+holding starters in late, correctly. The leash is ruled out as the cause
+of the early over-pull. THE ITEM IS THE CURVES' LOW-PITCH CELLS (25-70)
+in spring, fitted on full seasons that include build-up starts nobody
+labelled as such.
 
+
+
+**39. HITTERS HAVE NO PRIOR SEASON. Pitchers pool prior seasons through
+`shrink_target` / `_ensure_prior`; `batter_rates` shrinks toward the
+league on the CURRENT season's line only.** Found 2026-09-21 while
+building the thin-record target (which is the other half: a thin
+population's target, not a veteran's history).
+
+ESTABLISHED: at an April 8 cut a 400-PA veteran has ~20 PA on record and
+is 70% league; `_BATTER_Q` is season-scoped by `_where`. Pitchers at the
+same cut carry 77-86% of their full-season K spread (2024-26) BECAUSE of
+the prior; hitters carry whatever 20 PA say. The spring folds' hitter
+rows (`hrbat` deciles, platoon) are scored on that.
+NOT ESTABLISHED: how much of the spring folds' run-level error is this.
+PRE-REGISTERED: mirror the pitcher construction — prior seasons decayed
+by `PRIOR_DECAY`, effective PA counted per stat — behind a flag; the
+falsifier is `hrbat/spread_top_minus_bottom` and `platoon/k_per_pa_*`
+on the three spring folds, bar: closer to actual in two of three with
+summer inside 1 se. Do NOT hand the hitter prior to a search.
 
 ## Shipped 2026-09-10 — item 24, the home run channel reads contact type
 

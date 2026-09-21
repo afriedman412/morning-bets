@@ -13931,3 +13931,97 @@ level against the scored window's, moved by season-specific drift the
 engine cannot know in advance. What survives it: the call-up prior
 check above, and the rule-11 note that the battery's summer K deficit
 is partly its own July-1 cut.
+
+## 2026-09-21, THIRD SITTING — SPRING TRAINING WAS BASEBALL TO THE ENGINE.
+## 619 EXHIBITION GAMES RELABELLED, AND WHAT THAT UNCOVERED. (Fable)
+
+FOUND while measuring the thin-hitter target: `batter_rates` at an April
+8 cut returned 1,438 hitters. A week of real games has ~450. The schedule
+ingest (`grading.mlb_schedule`) asked statsapi for `sportId=1` by date and
+took every game it got, and spring training is `sportId=1`. So 203 / 167
+/ 150 / 65 spring games (2023-26), a dozen exhibitions a year and the
+All-Star game sat in `games` as `sport='mlb'`, `status='Final'`, with
+full batting and pitching lines, cached play-by-play and 6,753 stints.
+Every rate query keys on `sport = 'mlb'`, so all of it counted:
+
+  * the April 8 league anchor sat on 22,967 PA (2024) where the real
+    week is 10,569; K% 0.2280 against 0.2247;
+  * a hitter's April line was mostly March exhibition at-bats — 1,438
+    hitters with a line, 406 real;
+  * every April starter's pitch counts, outs and hook DECISIONS carried
+    two-inning March outings, into the leash, the usage gap, the hook
+    rows and the rotation gate;
+  * the thin-hitter count I was running pooled exhibition PA into every
+    hitter's record.
+
+By July the exhibitions were a tenth of the record and invisible. The
+spring folds built the day before were the first thing that scored April
+at all, and item 38's "starters pulled too early in spring" was measured
+on this data.
+
+THE FIX. `src/context/sources/gametype.py`: the S / E / A game ids per
+season from `schedule?season=&gameType=`, cached under `.cache/gametype/`,
+and ONE reversible UPDATE — `sport` becomes `mlb-s` / `mlb-e` / `mlb-a`
+— so every `sport = 'mlb'` query excludes them without a query changing.
+`--apply` (idempotent) / `--revert`. Applied 2026-09-21: 619 games. The
+ingest maps `gameType` the same way for new games, so it cannot recur.
+The two queries that did not filter on sport (`sources/workload.py`,
+`arm.py`) got the filter. Postseason is untouched — `EXCLUDE_POSTSEASON`
+owns it by date. Spring stints deleted from `mlb_stints`; hook rows
+rebuilt (`fit_hooks --rebuild`, AUC 0.9406 on 80,444 train decisions).
+`tests/test_gametype.py`: the mapping, the ingest, apply/revert on an
+in-memory table, the cache. CLAUDE.md carries the rule.
+
+ALSO: the battery now switches and prints `rates.*` flags. It had to,
+because `USE_THIN_TARGET` went live in `rates.py` while a battery was
+mid-run and the header could not have said so — one contaminated run,
+caught by mtime against process start and thrown away.
+
+WHAT CHANGED ON THE SCORECARD (relabelled data, thin target OFF,
+against the pre-relabel temp-on runs; `battery_e4bd5bf587f1.json` and
+`battery_spring_e4bd5bf587f1.json` are the new baselines):
+
+  THE POPULATIONS MOVED, so the diffs are not like-for-like (rule 11).
+  Summer 1000/958/929/777 -> 985/916/892/785. Spring 826/791/835/726 ->
+  644/644/720/671. The spring drop is NOT the five-start rotation gate
+  (2,139 of 2,238 spring starts still pass it against 2,157 before); it
+  is the RATES gate: 107 of 252 rotation arms in 2023 had no
+  regular-season start before April 8 once March was gone, so they have
+  no line at the cut and every one of their spring games is declined
+  ("both starters or neither"). The live board does the same to a
+  season debut. Summer: no row outside 2023's starter-length rows moved
+  past 2 se; 2023 summer `outs_mean` −0.34 -> −0.50, `outs_over_*` all
+  −0.01 to −0.02, and that is the same 2023 story as below at a tenth
+  of the size.
+
+  SPRING 2023 FELL APART: `outs_mean` −0.37 -> −0.90 (−8 se),
+  `arms_per_side` +0.16 -> +0.30, `k_mean` −3.4 se, both hook curves
+  firing early. BISECTED on a 300-game dev fold: leash, usage gap, both
+  pitch hazards, night sigma, TTO, pen state, relief hook — every flag
+  off makes it slightly WORSE, none closes it. It is the RATES: 2023 has
+  no prior season on record, so an April 8 arm with one or two real
+  starts shrinks to the league. Rotation starters' K rates at the cut
+  carry 53% of their full-season spread and correlate 0.38 with it,
+  against 77-86% and 0.71-0.77 for 2024-26 (which have a prior). A
+  league-average starter gets hooked on league-average damage. Before
+  the relabel the March exhibitions padded every arm to four or five
+  starts and hid it. 2023 IS REMOVED FROM `SPRING_FOLDS` — three spring
+  folds — because no live board ever runs without last season.
+
+  SPRING 2024-26, the folds that stand: 2024 `outs_mean` −0.61 -> −0.78,
+  `outs_over_12.5` −0.065 -> −0.076; 2025 and 2026 starter rows inside
+  1 se. Item 38's early-hook finding SURVIVES the relabel on the three
+  valid folds, slightly larger. Its 2023 rows are withdrawn. 2026 spring
+  ladder went −0.19 / −0.34 / −0.35 -> −0.30 / −0.49 / −0.60 on
+  F3/F5/F7 — the stale-anchor under-scoring is bigger without the
+  exhibitions, not smaller. The K/BB temperature rows in the cold bins
+  moved under 1 se except 2023's.
+
+CONCLUSION. ESTABLISHED: ~5% of every season's "regular season" record
+was exhibition play, in every rate and every decision table, and is now
+labelled out reversibly; 2023 spring is degenerate without it and is
+dropped; items 38 and the 2026 stale anchor stand on 2024-26. INFERRED:
+the summer folds' tenth-of-a-size 2023 shift is the same no-prior
+effect fading by July. NEXT: the thin-hitter target's own runs against
+these baselines; the missing HITTER prior season (pitchers pool prior
+seasons, hitters do not — item 39).

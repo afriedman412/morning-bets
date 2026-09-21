@@ -417,6 +417,18 @@ src/context/
   sources/         one module per data source, all offline-cacheable
 ```
 
+**`sport = 'mlb'` MEANS REGULAR SEASON, and that was not true until
+2026-09-21.** The schedule ingest took every `sportId=1` game by date, so
+150-200 spring-training games a season sat in `games` as `mlb`/`Final` with
+full lines and cached play-by-play, and every rate, anchor, hitter line,
+pitch count and hook decision counted them — a hitter's April line was
+mostly March exhibitions and the April anchor sat on 23,000 PA where a week
+of real games is 10,000. `sources/gametype.py` relabels them `mlb-s` /
+`mlb-e` / `mlb-a` (reversible, cached ids, `--apply` / `--revert`) and the
+ingest applies the same mapping to new games. Every query keys on
+`sport = 'mlb'`; a new one must too, or it re-admits March. Postseason
+stays `mlb` — `rates.EXCLUDE_POSTSEASON` owns that by date.
+
 **Two databases.** `context.db` holds DERIVED tables (`mlb_stints`, rebuilt
 from the play-by-play cache in ~30s). `morning_bets.db` attaches through a
 `mode=ro` URI as the `bets` schema, so joins read `bets.games` and a stray
@@ -551,12 +563,26 @@ fails. (`make lint` likewise references tooling that is not installed.)
 
 ### The data is only as fresh as the last backfill (added 2026-09-09)
 
-**NOTHING IS SCHEDULED.** The four `com.morningbets.*` launchd jobs were
-unloaded and deleted, and `.cron-config` with them: three of the four ran
-`src.main` or `src.context.snapshot`, both removed with the betting layer,
-and had been exiting 1 daily into a log nobody read while every session
-assumed the data was fresh. `grade` worked and was retired with them by
-decision — the board runs `/backfill-data` instead.
+**TWO JOBS ARE SCHEDULED, AND NOTHING ELSE IS** (changed 2026-09-20).
+`com.morningbets.backfill` runs the whole `/backfill-data` chain at 07:30;
+`com.morningbets.hourly` pulls a versioned board every hour 08:05-23:05.
+Both are `scratchpad/cron_*.sh`, both log under `logs/`, and
+`data_status` now reports them — a MISSING expected job is flagged, not
+just a returning stray.
+
+THE BACKFILL IS DAILY AND MUST STAY DAILY. It rewrites games already in
+the set, which moved the fingerprint `2fa14f8df0c6 -> 00925f199684` on
+identical code. Between hourly pulls that would move our price for a DATA
+reason inside a series whose only purpose is to show the market moving on
+INFORMATION, and the two are indistinguishable afterwards.
+
+The four ORIGINAL `com.morningbets.*` jobs were unloaded and deleted on
+2026-09-09, and `.cron-config` with them: three ran `src.main` or
+`src.context.snapshot`, both removed with the betting layer, and had been
+exiting 1 daily into a log nobody read while every session assumed the
+data was fresh. `grade` worked and was retired with them by decision.
+That failure is why the new pair is loud rather than silent, and why
+`data_status` treats their absence as a finding.
 
 Run `venv/bin/python -m scratchpad.data_status` before any measurement. It
 reports each source's lag against the newest FINISHED GAME (not the wall

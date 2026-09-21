@@ -14,9 +14,11 @@ from scratchpad import battery
 
 
 def check_battery_header_lists_every_flag():
-    """Every USE_* in sim, game and calibrate appears in the header."""
+    """Every USE_* in sim, game, calibrate and rates appears in the header."""
     got = battery.flags()
-    for mod, name in ((sim, "sim"), (game, "game"), (cal, "calibrate")):
+    from src.context.sources import rates as rate_src
+    for mod, name in ((sim, "sim"), (game, "game"), (cal, "calibrate"),
+                      (rate_src, "rates")):
         for k in vars(mod):
             if k.startswith("USE_"):
                 assert f"{name}.{k}" in got, f"{name}.{k} missing from " \

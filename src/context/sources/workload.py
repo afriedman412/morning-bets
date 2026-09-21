@@ -73,7 +73,7 @@ def _primary_cte() -> str:
                END AS rn
         FROM mlb_pitching p
         JOIN games g ON g.game_id = p.game_id
-        WHERE p.outs_recorded IS NOT NULL
+        WHERE p.outs_recorded IS NOT NULL AND g.sport = 'mlb'
     """
 
 

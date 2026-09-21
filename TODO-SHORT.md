@@ -16,6 +16,9 @@ Refreshed 2026-09-20.
 
 ## READY — nothing has to be decided before starting
 
+    39  Hitters have no prior season — pitchers pool prior seasons,
+        `batter_rates` shrinks toward the league on this season's line
+        only, so an April veteran is 70% league. Found 2026-09-21.
     38  The spring folds' own defects — April-June scored for the first
         time: starters pulled too early in 2023-24 (outs_mean −6.3 se,
         arms_per_side +5.9), and spring 2026 under-scores every rung off

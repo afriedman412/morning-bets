@@ -83,7 +83,8 @@ def game_log(con, exact_name: str, season: str) -> list[dict]:
         "select g.date d, p.k, p.outs_recorded o, p.pitches pc,"
         "       p.is_starter st, p.h, p.bb"
         " from bets.mlb_pitching p join bets.games g on g.game_id=p.game_id"
-        " where p.player_name=? and g.date like ? order by g.date",
+        " where p.player_name=? and g.date like ? and g.sport='mlb'"
+        " order by g.date",
         (exact_name, f"{season}-%")).fetchall()
     return [dict(d=r["d"], k=r["k"], o=r["o"], pc=r["pc"], st=r["st"],
                  bf=(r["o"] or 0) + (r["h"] or 0) + (r["bb"] or 0))
@@ -97,7 +98,8 @@ def home_road(con, exact_name: str) -> dict:
         "       end s, sum(p.k) k,"
         "       sum(p.outs_recorded + p.h + p.bb) bf"
         " from bets.mlb_pitching p join bets.games g on g.game_id=p.game_id"
-        " where p.player_name=? group by s", (exact_name,)).fetchall()
+        " where p.player_name=? and g.sport='mlb' group by s",
+        (exact_name,)).fetchall()
     return {r["s"]: (r["k"] or 0, r["bf"] or 0) for r in rows}
 
 
