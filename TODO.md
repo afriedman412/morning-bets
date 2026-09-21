@@ -1877,6 +1877,11 @@ call-ups strike out 15-21% more than the league in all four seasons on
 16-18% of September PA — check whether the engine gives a hitter with
 no season rates his own K rate or the league's. If the league's, that
 is a +2.5-3.5% September level and a `stabilise.py` fix.
+DONE 2026-09-21: `rates.USE_THIN_TARGET` — the shrink target for a
+hitter is the league times a counted multiplier for his 365-day record
+(K 1.163 -> 0.923, HR 0.742 -> 1.203 across five buckets, era 0.94-0.98,
+level-neutral on every cut). Summer K rows improve in 2024-26, nothing
+outside the hitter rows moved past 1 se. ITEM 37 CLOSED IN FULL.
 
 **38. THE SPRING FOLDS' OWN DEFECTS — April-June was never scored until
 2026-09-20, and its first battery run has three rows past 3 se that

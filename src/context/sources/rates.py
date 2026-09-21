@@ -1088,21 +1088,120 @@ def pitcher_rates(
     return _park_neutralised(out, "pitcher", season, before, conn)
 
 
+#: THE THIN-RECORD TARGET (counted 2026-09-21). A hitter's rate is shrunk
+#: toward the LEAGUE, and the league is regulars: a hitter with a thin
+#: record is not a regular having a small sample, he is a different
+#: population. Counted on regular-season games only, next-window rate by
+#: the hitter's AB+BB over THE 365 DAYS BEFORE THE CUT, as a ratio to the
+#: league's own rate in the same window, cuts April 8 then the first of
+#: May through September, training rows only (date < HOLDOUT), 2024-2026:
+#:
+#:     365-day PA    <50   50-149  150-299  300-599   600+    era gate
+#:     k_pct       1.163   1.095    1.036    0.988   0.923     +0.98
+#:     bb_pct      0.914   0.933    0.955    0.975   1.122     +0.94
+#:     hr_pct      0.742   0.794    0.851    1.018   1.203     +0.94
+#:     babip       fails the gate (-0.22) and is not touched
+#:
+#: The era gate is the mean between-season correlation of the five-bucket
+#: shape over the three pairs. Thin hitters strike out 10-20% more, walk
+#: ~10% less and homer ~25% less than the league every season, on 10-11%
+#: of plate appearances; September call-ups are the visible case (the
+#: engine gave them +6% over the league where they hit +14%, item 37's
+#: residue). The multiplier moves only the TARGET — his own line is still
+#: his own — so a regular with 600 PA feels 0.923 at a 9% weight and a
+#: 30-PA call-up feels 1.163 at 70%.
+#:
+#: WHY 365 DAYS AND NOT "EVERYTHING ON RECORD" OR "THIS SEASON AND LAST".
+#: Two versions were tried the same day and both were the calendar, not
+#: the hitter. Keyed on every season in the database the bucket measured
+#: RECORD DEPTH: at the 2023 cuts every regular sat in the part-timer
+#: buckets and the league's home run target fell 13-20% (`hrbat/
+#: p_hr_level` −0.5 -> −5.1 se). Keyed on this season plus last, an
+#: April 8 hitter sat ~80 PA shallower than the same hitter at the May 1
+#: cut the table was counted on, so the April population was not
+#: level-neutral: K ×1.015, HR ×0.965 across the whole league, and the
+#: spring folds got worse on both. A rolling year is a season's worth of
+#: games on EVERY date, and the table is level-neutral on every cut's
+#: population to within 0.4% (checked April 8 through September 1).
+#: When the year before the cut reaches back past the first regular-
+#: season game on record (the database's first season) the key cannot be
+#: formed and every multiplier is 1.0 — silent-neutral, like a missing
+#: weather reading, and never the case on a live board.
+#:
+#: NOT the same gap as the missing HITTER PRIOR SEASON (pitchers pool
+#: prior seasons through `shrink_target`; hitters do not, `TODO.md`). A
+#: prior cannot help the thin population — they have no history by
+#: definition — which is why this is a target and that is a separate
+#: item.
+THIN_EDGES = (50, 150, 300, 600)
+THIN_TARGET = {
+    "k_pct": (1.163, 1.095, 1.036, 0.988, 0.923),
+    "bb_pct": (0.914, 0.933, 0.955, 0.975, 1.122),
+    "hr_pct": (0.742, 0.794, 0.851, 1.018, 1.203),
+}
+THIN_WINDOW_DAYS = 365
+USE_THIN_TARGET = True
+
+
+def thin_mult(stat: str, pooled_pa: float | None) -> float:
+    """The target multiplier for a hitter with `pooled_pa` over the year
+    before the cut. 1.0 when the flag is off, the stat has no counted
+    table, or the key cannot be formed (`pooled_pa` is None)."""
+    if not USE_THIN_TARGET or stat not in THIN_TARGET or pooled_pa is None:
+        return 1.0
+    return THIN_TARGET[stat][sum(pooled_pa >= e for e in THIN_EDGES)]
+
+
+def _pooled_pa(season, before: str | None, conn=None) -> dict | None:
+    """{name: AB+BB over the `THIN_WINDOW_DAYS` before `before`} — the
+    bucket key for `thin_mult`. `before` None means today. None when the
+    window reaches back past the first regular-season game on record (the
+    database's first season), which no live board ever sees. Regular
+    season only, like every query here (`sport = 'mlb'` is in
+    `_BATTER_Q`)."""
+    import datetime as _dt
+    end = before or _dt.date.today().isoformat()
+    start = (_dt.date.fromisoformat(end[:10])
+             - _dt.timedelta(days=THIN_WINDOW_DAYS)).isoformat()
+    where = f"and g.date >= '{start}' and g.date < '{end}'"
+    def _run(c):
+        first = c.execute("select min(date) from games where sport = 'mlb' "
+                          "and status = 'Final'").fetchone()[0]
+        if first is None or first > start:
+            return None
+        return c.execute(_BATTER_Q.format(where=where)).fetchall()
+    rows = _run(conn) if conn is not None else _with(_run)
+    if rows is None:
+        return None
+    return {r["name"]: (r["ab"] or 0) + (r["bb"] or 0) for r in rows}
+
+
 def batter_rates(
     lg: dict, season: int | None = None, before: str | None = None,
     conn=None,
 ) -> dict[str, dict]:
-    """{player_name: rates} for every hitter with a line on record."""
+    """{player_name: rates} for every hitter with a line on record.
+
+    Each rate is his own, shrunk toward the league TIMES the thin-record
+    multiplier for his pooled record (`THIN_TARGET`); flag off, the
+    target is the league exactly as before.
+    """
     def _run(c):
         return c.execute(
             _BATTER_Q.format(where=_where(season, before))).fetchall()
 
     rows = _run(conn) if conn is not None else _with(_run)
+    pooled = _pooled_pa(season, before, conn) if USE_THIN_TARGET else {}
     out = {}
     for r in rows:
         pa = (r["ab"] or 0) + (r["bb"] or 0)
         if pa < 1:
             continue
+        # The target this hitter is pulled toward: the league for his
+        # population, not the league of regulars.
+        def tgt(stat, _n=r["name"]):
+            key = None if pooled is None else pooled.get(_n, 0.0)
+            return lg[stat] * thin_mult(stat, key)
         bip = (r["ab"] or 0) - (r["so"] or 0) - (r["hr"] or 0)
         # Batters are measured per batting plate appearance; the baselines
         # are per batter faced by a rotation starter. Put them on that
@@ -1113,11 +1212,11 @@ def batter_rates(
             "pa": pa,
             "games": r["games"],
             "k_pct": _shrink((r["so"] or 0) / pa * bs.get("k_pct", 1.0),
-                             lg["k_pct"], pa, "k_pct", who="bat"),
+                             tgt("k_pct"), pa, "k_pct", who="bat"),
             "bb_pct": _shrink((r["bb"] or 0) / pa * bs.get("bb_pct", 1.0),
-                              lg["bb_pct"], pa, "bb_pct", who="bat"),
+                              tgt("bb_pct"), pa, "bb_pct", who="bat"),
             "hr_pct": _shrink((r["hr"] or 0) / pa * bs.get("hr_pct", 1.0),
-                              lg["hr_pct"], pa, "hr_pct", who="bat"),
+                              tgt("hr_pct"), pa, "hr_pct", who="bat"),
             "babip": _shrink(
                 ((((r["h"] or 0) - (r["hr"] or 0)) / bip)
                  * bs.get("babip", 1.0)) if bip > 0 else None,

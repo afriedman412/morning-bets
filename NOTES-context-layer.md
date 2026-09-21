@@ -14025,3 +14025,85 @@ the summer folds' tenth-of-a-size 2023 shift is the same no-prior
 effect fading by July. NEXT: the thin-hitter target's own runs against
 these baselines; the missing HITTER prior season (pitchers pool prior
 seasons, hitters do not — item 39).
+
+## 2026-09-21, FOURTH SITTING — THE THIN-RECORD HITTER TARGET SHIPS.
+## `rates.USE_THIN_TARGET`: A HITTER WITH A THIN RECORD IS A DIFFERENT
+## POPULATION, NOT A REGULAR WITH A SMALL SAMPLE. TWO KEYS DIED FIRST.
+## (Fable)
+
+Item 37's residue: September call-ups strike out 15-21% more than the
+league every season and the engine handed them +6% — because a hitter's
+line shrinks toward the LEAGUE, and the league is regulars.
+
+THE COUNT (rule 4). Regular-season games only (after the relabel — the
+first count pooled exhibition at-bats into every record and was thrown
+away). Every hitter's next-window K, BB, HR and BABIP as a ratio to the
+league's own rate in that window, bucketed by his AB+BB over the 365
+DAYS before the cut, cuts April 8 then the first of May to September,
+rows < HOLDOUT, 2024-2026 (2023 has no year behind it). Era gate = mean
+between-season correlation of the five-bucket shape:
+
+  365-day PA     <50   50-149  150-299  300-599   600+    era
+  k_pct        1.163   1.095    1.036    0.988   0.923   +0.98
+  bb_pct       0.914   0.933    0.955    0.975   1.122   +0.94
+  hr_pct       0.742   0.794    0.851    1.018   1.203   +0.94
+  babip        fails (−0.22) — not touched
+
+  Thin hitters strike out 10-16% more, walk 7-9% less and homer 20-25%
+  less than the league; regulars the reverse. ~14% of PA sit under 150.
+  PA-weighted over each cut's population the table is 1.000 ± 0.004 on
+  every channel from April 8 to September 1 — it moves no level, only
+  who gets it.
+
+THE WIRE. `batter_rates` shrinks each rate toward `lg[stat] ×
+thin_mult(stat, key)` instead of `lg[stat]`; his own line is unchanged,
+so a 600-PA regular feels 0.923 at ~9% weight and a 30-PA call-up
+feels 1.163 at ~70%. `_pooled_pa` builds the key from `_BATTER_Q` over
+`[before − 365d, before)`; when that reaches back past the first
+regular-season game on record it returns None and every multiplier is
+1.0 — the database's first season, never a live board. Flag
+`USE_THIN_TARGET`, on. `tests/test_thin.py`: the counted shape, the
+exact arithmetic on a synthetic table (rookie vs veteran with the same
+20-PA line), rows older than a year and spring-training rows excluded
+from the key, flag off identical, the no-prior fallback.
+
+TWO KEYS DIED ON THE BATTERY BEFORE THIS ONE, both the calendar:
+  1. "Every season on record": measured RECORD DEPTH. At the 2023 cuts
+     every regular sat in the part-timer buckets and the league's HR
+     target fell 13-20% — `hrbat/p_hr_level` −0.5 -> −5.1 se on summer
+     2023, `ladder/F7` −0.05 -> −0.38, spring 2024 the same at half
+     size. 2025-26 were fine because their records were deep.
+  2. "This season plus last": an April 8 hitter sits ~80 PA shallower
+     than the same hitter at the May 1 cut the table was counted on.
+     The April population's PA-weighted multiplier was K ×1.015, HR
+     ×0.965 — a level, across the whole league — and the spring folds
+     got WORSE on K and HR by about 1 se each (`k_pa_all` +3.5 -> +4.6,
+     `hr_per_club_game` −1.7 -> −3.0 in 2024).
+  A rolling year is a season's worth of games on every date. Checked
+  before wiring, not after: neutral on every cut.
+
+RESULT, 365-day key on vs off, relabelled data (`battery_73fac566920b`
+and `battery_spring_73fac566920b` against the `e4bd5bf587f1` pair):
+
+  SUMMER — one row past 1 se (2025 `hrbat/hr_per_pa_bot` −0.5 -> −1.5).
+    k_pa_all   2024 −4.5 -> −3.7   2025 −3.7 -> −3.0   2026 −0.5 -> +0.2
+    k_mean     2024 −4.1 -> −3.6   2025 −3.1 -> −2.8   2026 −0.4 -> −0.0
+    platoon K rows improve in all three; `p_hr_level` 2026 +3.3 -> +2.7,
+    2025 +1.5 -> +1.0; BB flat; 2023 identical (fallback).
+  SPRING — two rows past 1 se, both 2026 per-hitter HR rows, one each
+    way (`spread_top_minus_bottom` −1.6 -> −2.9, `hr_per_pa_bot` −1.3 ->
+    +1.2). Pooled K, BB, HR level rows within 0.3 se of where they were
+    — level-neutral as designed. `ladder/F5` 2024 −0.3 -> 0.0, 2025
+    −0.1 -> +0.1. `hr_per_club_game` toward actual in all three.
+
+CONCLUSION. ESTABLISHED: counted, repeats at 0.94-0.98, level-neutral
+on every cut, and the rows that can see it (K per PA, the per-hitter
+HR level) move the counted way in the summer folds where September
+call-ups live, with nothing outside the hitter rows past 1 se. SHIPPED.
+Item 37 is fully closed: the level error was the window, the September
+rise was the established hitters, and the call-up residue is now a
+counted target. INFERRED: the 2026 spring per-hitter HR spread is the
+stale-anchor fold reading a shape row; one fold, one row.
+
+NEXT: item 39 — hitters have no prior season at all; this target is the
+thin population's half of that gap, the veteran's half is the prior.
