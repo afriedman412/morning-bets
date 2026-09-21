@@ -1977,7 +1977,7 @@ k_nad 1/3; summer three per-hitter HR rows moved 1.1-1.7 se, widening a
 July over-spread that predates the change — item 40. Level rows
 unchanged everywhere. Full entry in the notes.
 
-**40. THE OUTS CORRECTION DRIFTS ON THE CALENDAR, NOT THE ENGINE — give it
+**42. THE OUTS CORRECTION DRIFTS ON THE CALENDAR, NOT THE ENGINE — give it
 a month, and give the board its provenance.** Found 2026-09-21 in a live
 pricing session, where the stale table was quoted as current and then the
 staleness turned out not to be staleness. BETTING LAYER ONLY: no engine
@@ -2065,6 +2065,11 @@ fitted), battery on summer and spring against the current baseline
 (`5204b5f4a4e8`), bar: the pooled K/BB rows and `outs_corr` no worse
 than 1 se in any fold, `platoon/k_per_pa_*` closer in five of seven.
 Report every row that moved. Do not tune any of the seven afterwards.
+SHIPPED 2026-09-21: six replaced, starter HR and starter BABIP held
+(the recount on BABIP, 1199, is inside the coin-flip range the test
+pins). Battery flat in all seven folds — no row past 1 se — and the
+dilution is quantified in the notes: two hundredths of a se on the
+pooled K rate. Measured, shipped, not claimed as an improvement.
 
 ## Shipped 2026-09-10 — item 24, the home run channel reads contact type
 

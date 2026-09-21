@@ -14285,3 +14285,45 @@ count predates the spring-training relabel; the counter filters
   changed because 5% of the rows were exhibition play; replacing them is
   measurement, not fitting (rule 4), but it is eight constants at once
   and gets its own battery run and write-up: ITEM 41. Not changed here.
+
+## 2026-09-21, SEVENTH SITTING — ITEM 41 SHIPS: SIX STABILISATION CONSTANTS
+## RE-COUNTED WITHOUT SPRING TRAINING, TWO HELD. THE BATTERY IS FLAT AND
+## THE DILUTION SAYS WHY. (Fable)
+
+`STABILISE_MEASURED` now carries the regular-season recount: batters
+K 51 -> 48, BB 122 -> 113, HR 193 -> 197, BABIP 447 -> 400; starters
+K 132 -> 122, BB 138 -> 167. HELD: starter HR at 934 (the recorded
+three-numbers-disagree case; the recount says 2598) and starter BABIP
+at 3068 (recount 1199, but one se on that split-half spans ~1,500 to
+~36,000 — `check_pitcher_babip_is_not_the_unmeasured_import` pins the
+DIPS direction, not the point, and 1199 against 3068 is the same coin
+flip). Not loosened to admit it. `check_shrink_weight_matches_the_
+constant_rates_actually_uses` pinned Snell's on-screen weight at
+85/(85+132) = 0.3917 — the copy its own docstring warns against — and
+is re-pinned at 85/(85+122) = 0.4106. `test_thin` now passes `prior={}`
+explicitly: the hitter prior had leaked into it through the league
+cache when a sibling check warmed 2024 in the same worker. Suite 667.
+
+BATTERY (`battery_79798b8f8a82` and `battery_spring_79798b8f8a82`
+against the `5204b5f4a4e8` pair): NO ROW MOVED PAST ONE SE IN ANY OF THE
+SEVEN FOLDS. Pooled K/PA and BB/PA within 0.1 se of where they were,
+`outs_corr` within 0.3, `platoon/k_per_pa_*` unchanged to four decimals.
+
+THE DILUTION, stated as the 2026-09-09 rule requires. A constant only
+moves a line it is shrinking: k 51 -> 48 changes a 100-PA hitter's
+weight on himself from 0.662 to 0.676, a 1.4-point shift applied to the
+difference between his rate and the target (~0.02 on K), on the ~10% of
+plate appearances that thin lines take — ~0.00003 on the pooled K rate
+against an se of 0.0016, two hundredths of a se. Starter BB 138 -> 167
+is the largest move (−7% weight on a 200-BF line) on a rate whose
+spread across arms is ~0.02, and reads the same way. No row in the
+battery can see a change of this size, and the row that would — a
+per-hitter K rate split by record length, before and after — is item
+39's territory and was not built for this. So: MEASURED, SHIPPED, NOT
+CLAIMED AS AN IMPROVEMENT. The bar ("no worse than 1 se anywhere") is
+met; the "closer in five of seven" clause is moot at four decimals.
+
+ESTABLISHED: the constants counted on clean data are these, and the
+engine is indifferent to the recount at the battery's resolution.
+INFERRED: nothing. NEXT: item 38 (the April hook cells), item 40's
+positive control on the decile rows, the weather source.

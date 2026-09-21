@@ -124,9 +124,20 @@ STABILISE = {
 #: do not agree, on a channel where a starter's season is ~15 events. Until
 #: they are reconciled the shipped value stands. See
 #: `scratchpad/hr_spread.py`.
+#: RE-COUNTED 2026-09-21 ON REGULAR-SEASON ROWS ONLY (item 41). The first
+#: count had ~5% spring-training rows in its halves — 619 exhibition games
+#: sat in `games` as `sport='mlb'` until that day. Seven of the eight
+#: moved: batters 51/122/193/447 -> 48/113/197/400, starters K 132 -> 122,
+#: BB 138 -> 167. Starter HR stays at 934 for the reason above, and
+#: starter BABIP stays at 3068: the recount read 1199, but one standard
+#: error on that split-half spans k from ~1,500 to ~36,000
+#: (`tests/test_stabilise.py`), so 1199 against 3068 is the same coin
+#: flip and the DIPS direction is what the test pins. Six replaced, two
+#: held. A measured value replacing a stale measurement, not a fit;
+#: scored on the battery and written up under item 41.
 STABILISE_MEASURED = {
-    "bat": {"k_pct": 51, "bb_pct": 122, "hr_pct": 193, "babip": 447},
-    "pit": {"k_pct": 132, "bb_pct": 138, "hr_pct": 934, "babip": 3068},
+    "bat": {"k_pct": 48, "bb_pct": 113, "hr_pct": 197, "babip": 400},
+    "pit": {"k_pct": 122, "bb_pct": 167, "hr_pct": 934, "babip": 3068},
 }
 
 #: Off restores the imported constants exactly, for both populations. Every

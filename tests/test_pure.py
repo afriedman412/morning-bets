@@ -109,9 +109,11 @@ def check_shrink_weight_matches_the_constant_rates_actually_uses():
     assert rates.USE_MEASURED_STABILISE, "this check reads the measured path"
     for pa in (85, 311, 428, 600):
         assert abs(slate_src.shrink_weight(pa) - pa / (pa + k)) < 1e-12, pa
-    # Snell's actual line, and the number that should have been on screen.
+    # Snell's actual line, and the number that should have been on screen:
+    # 85 / (85 + 132) = 0.3917 until the 2026-09-21 recount without spring
+    # training moved the constant to 122 (item 41), which is 0.4106.
     snell = slate_src.shrink_weight(85)
-    assert abs(snell - 0.3917) < 5e-4, snell
+    assert abs(snell - 0.4106) < 5e-4, snell
 
 
 def check_shrink_weight_is_zero_for_a_pitcher_with_no_record():

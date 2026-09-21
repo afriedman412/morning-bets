@@ -16,9 +16,9 @@ Refreshed 2026-09-21.
 
 ## READY — nothing has to be decided before starting
 
-    41  The eight stabilisation constants re-counted without spring
-        training: batter K/BB/BABIP and starter K/BB/BABIP moved 6-60%.
-        Replace all seven at once and run the battery. Opened 2026-09-21.
+    41  SHIPPED 2026-09-21 — six stabilisation constants re-counted
+        without spring training; starter HR and BABIP held. Battery
+        flat in all seven folds, dilution quantified (0.02 se).
     40  The per-hitter HR spread is too wide by July (+2.5 se) — NOT the
         batter HR constant (recount 197 vs 193); the decile rows select
         on the model's own number. Needs a positive control. Opened
@@ -31,7 +31,7 @@ Refreshed 2026-09-21.
         time: starters pulled too early in 2023-24 (outs_mean −6.3 se,
         arms_per_side +5.9), and spring 2026 under-scores every rung off
         a stale prior-season anchor. Not weather.
-    40  The outs correction drifts on the CALENDAR, not the engine — the
+    42  The outs correction drifts on the CALENDAR, not the engine — the
         scored window went 12.2% to 25.4% September in eleven days. Give
         it a month bucket, and give the board its provenance against the
         fingerprint. Betting layer; no battery.

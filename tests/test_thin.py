@@ -66,7 +66,7 @@ def check_a_thin_record_is_pulled_toward_its_own_population():
         pooled = rs._pooled_pa(2025, "2025-04-08", conn=c)
         assert pooled == {"Vet": 820, "Rook": 20}, \
             (pooled, "rows older than 365 days are outside the key")
-        got = rs.batter_rates(lg, season=2025, before="2025-04-08", conn=c)
+        got = rs.batter_rates(lg, season=2025, before="2025-04-08", conn=c, prior={})
         assert got["Rook"]["k_pct"] > got["Vet"]["k_pct"], got
         # exact: same observed, same n, targets 1.198 vs 0.963 x league
         n = 20; k = rs.stabilise_k("k_pct", "bat"); w = n / (n + k)
@@ -76,7 +76,7 @@ def check_a_thin_record_is_pulled_toward_its_own_population():
         assert abs(got["Rook"]["k_pct"] - exp_rook) < 1e-9, (got["Rook"], exp_rook)
         assert abs(got["Vet"]["k_pct"] - exp_vet) < 1e-9, (got["Vet"], exp_vet)
         rs.USE_THIN_TARGET = False
-        off = rs.batter_rates(lg, season=2025, before="2025-04-08", conn=c)
+        off = rs.batter_rates(lg, season=2025, before="2025-04-08", conn=c, prior={})
         assert abs(off["Rook"]["k_pct"] - off["Vet"]["k_pct"]) < 1e-12, off
     finally:
         rs.USE_THIN_TARGET = True
@@ -98,7 +98,7 @@ def check_no_prior_season_on_record_means_no_target():
     rs._park_neutralised = lambda out, *a, **k: out
     try:
         assert rs._pooled_pa(2023, "2023-04-08", conn=c) is None
-        got = rs.batter_rates(lg, season=2023, before="2023-04-08", conn=c)
+        got = rs.batter_rates(lg, season=2023, before="2023-04-08", conn=c, prior={})
         n = 40; k = rs.stabilise_k("k_pct", "bat"); w = n / (n + k)
         exp = w * (10 / 40) + (1 - w) * lg["k_pct"]
         assert abs(got["Vet"]["k_pct"] - exp) < 1e-9, (got["Vet"], exp)
