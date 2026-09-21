@@ -547,10 +547,17 @@ class Side:
     #: the same air, the same shape park takes. 1.0 when the game has no
     #: reading, and each half of it is silent-neutral on its own.
     hr_air: float = 1.0
-    #: The plate umpire's (k, bb) multipliers (`sim.ump_kbb_mult`), set by
-    #: `simulate_game` on BOTH sides for the same reason as `hr_air`: one
-    #: man calls the whole game for both clubs. (1.0, 1.0) when the crew
-    #: is unknown — silent-neutral like every other lookup here.
+    #: THE NIGHT'S SHARED (k, bb) MULTIPLIERS — everything both clubs
+    #: face alike, multiplied together into one pair. Set by
+    #: `simulate_game` on BOTH sides for the same reason as `hr_air`.
+    #: Two things ride it today: the plate umpire (`sim.ump_kbb_mult` —
+    #: one man calls the whole game) and the TEMPERATURE
+    #: (`sim.temp_k_mult` / `temp_bb_mult` — both clubs hit in the same
+    #: air). The name is historical; it predates the second passenger.
+    #: (1.0, 1.0) when neither is known — silent-neutral like every
+    #: other lookup here, and the common case at board time, since the
+    #: crew is rarely posted the night before and the forecast often is
+    #: not either.
     ump_kbb: tuple[float, float] = (1.0, 1.0)
     #: Days since THIS STARTER's previous start, from `sim.layoff_gap`.
     #: None means unknown, no prior start, or across a season break, and

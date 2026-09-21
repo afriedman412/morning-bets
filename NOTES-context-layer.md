@@ -13496,3 +13496,310 @@ things are changing over time" — turned out to have a sign the
 intuition did not predict and a mechanism nobody had measured: the
 record can't see the wind-down coming, but the engine couldn't see the
 wind-down that had ALREADY HAPPENED, and now it does.
+
+## 2026-09-20 — THE K/BB TEMPERATURE TABLES: RULE 15 CLOSED. THE REPLAY
+## PATH WAS A STUB, THE BATTERY HAD NO WALK ROW, AND THE HOT HALF SCORES.
+## THE COLD HALF CANNOT, ON THESE FOLDS. (Fable)
+
+Picked up from `RESUME-weather.md`, whose state warning said: K and BB
+temperature tables wired, on by default, never scored. Pre-change
+battery `432ed646d830` existed, post-change run never made.
+
+QUESTION. Does turning `USE_TEMP_K` / `USE_TEMP_BB` on move anything the
+battery can see, and does what moves go the way the count said?
+
+FIRST FINDING, BEFORE ANY MEASUREMENT: THE REPLAY PATH WAS A STUB.
+`calibrate.temp_kbb_for` returned `(1.0, 1.0)` on BOTH branches — the
+flag check and then an unconditional neutral. It never read the weather
+row. So the live board (`slate.py`) had been applying both tables while
+every scored thing — battery, ladder, fitf5 — was blind to them. This is
+EXACTLY the failure the resume note and the function's own docstring
+warned about, and the guard existed: `check_the_replay_path_sees_the_
+temperature_not_just_the_slate` and `check_the_air_and_the_kbb_
+temperature_have_separate_flags` were both RED against the stub. They
+had never been run. The engine fingerprint was 432ed646d830 with the
+flags on and with them off — identical, which is the one-line proof.
+
+  Fixed: the function now reads `_weather_row(row)["temp_f"]` through
+  `sim.temp_k_mult` / `temp_bb_mult`. Fingerprint flags-on is now
+  56c56687b554; flags-off still reproduces 432ed646d830, which also
+  settles that the DATA had not moved since the pre-change run
+  (`morning_bets.db` had an mtime four minutes after it, unexplained —
+  the reproduction is the stronger evidence). Suite 655 green.
+
+  Rule-15 lesson, for the file: a guard that is never run guards
+  nothing, same as one that guards nothing. `make test ARGS=game` is
+  ten seconds.
+
+RULE-15 DIFF ON THE ORIGINAL 884 ROWS (flags on vs the pre-change JSON):
+NO ROW MOVED BY MORE THAN ONE SE. Pre-registered before reading it: the
+folds are July-onward, so nearly every scored game sits in the 65-74,
+75-84 and 85+ bins, where the tables read 1.007 / 0.993 / 0.980 (K) and
+1.007 / 0.980 / 0.965 (BB) — a small NET REMOVAL of strikeouts and walks,
+against a model already light on strikeouts (k_mean −4.5 / −3.2 / −2.9 /
+0.0 se). And that is what happened: every K row moved DOWN by 0.10-0.46
+se in every fold, nothing else moved. Sub-se, same direction, all four
+folds. Not a null; a low-powered reading of exactly the expected sign.
+
+SECOND FINDING: THE BATTERY COULD NOT SEE THE BB TABLE AT ALL. No walk
+row existed anywhere — not pooled, not by anything. The model side of
+the PA log did not even COUNT walks (`pa["br"]` lumps them with hits and
+HBP). The K rows were fold-wide means plus the platoon split, which
+rule 2 says cannot see a shape that lives in temperature bins. Per the
+2026-09-09 addendum ("name the row that would see it; if none, build
+it"): built `battery.temp_cells` (one function, so K, BB and HR bucket on
+the same games and the same shipped edges), `pa["bb"]` on both sides,
+and rows `weather/k_pa_all`, `bb_pa_all`, `k_pa_temp_<bin>`,
+`bb_pa_temp_<bin>`. `check_the_temperature_rows_see_strikeouts_and_
+walks_not_just_homers` exercises the function on a synthetic fold.
+Baseline re-run with `--off sim.USE_TEMP_K,sim.USE_TEMP_BB`: all 884
+original rows reproduce EXACTLY (now 932 rows). The two runs are
+`battery_432ed646d830.json` (off) and `battery_56c56687b554.json` (on).
+
+POWER, stated first. Temperature coverage 100 / 100 / 100 / 97.6% by
+fold. Games per bin, <55 / 55-64 / 65-74 / 75-84 / 85+:
+    2023   2 /  48 / 415 / 395 / 140
+    2024   5 /  34 / 339 / 423 / 157
+    2025   0 /  35 / 323 / 388 / 183
+    2026   0 /  12 / 213 / 347 / 186
+THE COLD CELLS — where both tables are largest (1.035 K, 1.112 BB under
+55F) — HAVE NO GAMES. The 55-64 bin is 880-3,456 PA (se 0.008-0.014 on
+K/PA), too coarse for a 0.6% cell. What follows scores the HOT HALF of
+the tables and says nothing about the cold half. Se on a hot-bin K/PA
+row is 0.0035-0.0040 over 10,700-14,300 PA; the 85+ cell's own effect is
+−2.0% × 0.215 = 0.0043, so a single fold sees the cell at ~1 se and four
+folds combined at ~2 se. Read the combined z, not one fold's.
+
+THE LEVEL FINDING THE NEW ROWS SURFACED, before the shape. Flags off,
+`k_pa_all` (both sides, every PA):
+    2023  model 0.2269  actual 0.2282   −0.86 se   (75,882 PA)
+    2024  model 0.2235  actual 0.2292   −3.68 se
+    2025  model 0.2202  actual 0.2252   −3.18 se
+    2026  model 0.2206  actual 0.2206    0.00 se
+The model is light on strikeouts by ~2.5% of the rate fold-wide in 2024
+and 2025 — a LEVEL error, the same thing the k_mean rows were saying
+about starters, now confirmed across every arm. Rule 14: that is worth
+more than any temperature refinement and the table CANNOT fix it (a
+climate-centred table is zero-mean by construction). Every "K got worse"
+absolute reading below is this deficit with a hot-half removal added on
+top. `bb_pa_all` off: 0.00 / +1.00 / +1.36 / +1.29 se — a mild surplus
+of walks; on: −0.59 / +0.30 / +0.43 / +0.06. The BB table's net removal
+happens to land the pooled walk rate on actual in every fold.
+
+THE SHAPE, which is what the tables are for. Each bin's gap MINUS the
+fold's pooled gap — the model's temperature shape relative to its own
+level — ×1000 K/PA, and the 85+ minus 65-74 differential as the one
+number:
+
+  K            55-64   65-74   75-84    85+   hot−mild
+  2023 off     −21.2    −2.4     0.8   12.1      14.5
+       on      −19.4    −0.5    −0.1    8.5       9.0
+  2024 off       1.6    −3.2     1.3    3.2       6.3
+       on        3.0    −1.1     0.9   −0.5       0.6
+  2025 off      −3.5    −1.2    −0.4    3.6       4.7
+       on       −0.5     1.1    −0.9    0.1      −1.0
+  2026 off       7.9    −3.6     1.0    1.7       5.3
+       on       11.3    −1.0     0.6   −0.9       0.1
+
+  Flags off, the model had relatively TOO MANY strikeouts in the heat
+  in ALL FOUR FOLDS (hot−mild +14.5 / +6.3 / +4.7 / +5.3). Flags on,
+  that differential is +9.0 / +0.6 / −1.0 / +0.1: closed in three folds,
+  cut by a third in 2023, whose gradient was two to three times the
+  others' and larger than the table. Four for four in direction. The
+  table's hot−mild differential is 0.980/1.007 = −2.7% ≈ −0.006 K/PA
+  against a needed +0.0077 mean — it under-corrects if anything, which
+  is the right side to be on for a counted quantity.
+
+  BB           55-64   65-74   75-84    85+   hot−mild
+  2023 off       5.7    −2.1     0.9    2.2       4.3
+       on        7.9    −0.8    −0.0    0.1       0.9
+  2024 off      −2.5    −0.8    −0.1    3.5       4.3
+       on        0.5     0.5    −0.8    1.9       1.4
+  2025 off      −8.7     2.2    −1.3    0.5      −1.7
+       on       −5.6     3.8    −2.0   −1.2      −5.0
+  2026 off     −16.9     2.1    −0.4   −0.3      −2.4
+       on      −13.8     4.3    −0.8   −2.3      −6.5
+
+  BB is cleaner read ABSOLUTELY at the hot end and murkier as a shape.
+  The 85+ row flags off was a surplus in every fold — z +0.83 / +1.85 /
+  +0.84 / +0.52, combined +2.0 — and flags on it is centred: −0.18 /
+  +0.89 / −0.33 / −0.93, combined −0.3. The 75-84 row likewise goes from
+  +0.5ish to −0.5ish everywhere. That is the table doing what the count
+  said, on the only cells this fold design can see. The hot−mild shape
+  number worsens in 2025-26 because the 65-74 bin there carries a walk
+  SURPLUS (+2.2 / +2.1 relative, ~2 se) that the table's 1.007 nudges
+  the wrong way, and the 55-64 bin a large deficit on 880-2,657 PA
+  (−1.3 / −1.6 se). Whether that is a real mild-weather walk shape or two
+  seasons' noise is not resolvable here; it is NOT a finding against the
+  table, whose 65-74 value is 0.7% and whose 55-64 value is 2.4%.
+
+COMBINED 85+ z ACROSS FOUR FOLDS, the single number to remember:
+    K    off +1.06  ->  on −1.26
+    BB   off +2.02  ->  on −0.28
+  The K "over-shoot" is the 2024-25 level deficit reading through an
+  absolute row (relative to its own level the K hot bin is on: +8.5 /
+  −0.5 / +0.1 / −0.9). The BB centring is clean.
+
+CONCLUSION.
+  ESTABLISHED: the replay path was a stub and is now wired; the flags
+  do reach the scorecard (fingerprint moves, ten rows move). No
+  pre-existing row moved beyond one se. On the hot half of the tables,
+  the model's temperature SHAPE on strikeouts closes in 3/4 folds and
+  improves in the fourth, and the walk surplus in the 85+ bin is
+  centred in all four. The tables stay ON: counted (rule 4), scoreable
+  now (rule 15), and every row that can see them moved the counted way.
+  INFERRED, not established: that the cold half behaves as counted —
+  it cannot be scored on July-onward folds; and that the mild-bin walk
+  surplus in 2025-26 is noise.
+  A LEVEL ERROR, NEW TO THE SCORECARD: the model is ~2.5% light on
+  strikeouts fold-wide in 2024-25 (`k_pa_all`, −3.7 / −3.2 se), every
+  arm not just starters. That outranks any weather work (rule 14).
+
+STANDING RULE-11 CAVEAT, recorded so nobody "corrects" it: the tables
+are climate-centred on the full year, but a July-1-cut fold's rates
+carry APRIL-JUNE air and are scored on JULY-ONWARD games. That mismatch
+is a property of the battery's fold design, not of the table, and it
+runs the OTHER way from the K deficit above (spring rates would make the
+summer model produce too MANY strikeouts, not too few). The live board's
+season-to-date rates carry nearly the full-year climate by September, so
+the centring is right where it is served.
+
+ALSO TODAY, not weather: `com.morningbets.backfill` exited 126 at 07:30
+— the TCC sandbox refusing /bin/bash a path under ~/Documents, as
+`data_status` now diagnoses. The data was current regardless (every
+source 0d behind the newest finished game), but the scheduled job did
+not do it. Fix is in System Settings (Full Disk Access for /bin/bash),
+not in the repo.
+
+NEXT. In `RESUME-weather.md` §6, re-ordered: the K level error is not a
+weather item and goes to `TODO.md`; then the source item (Open-Meteo)
+because coverage is what keeps every table off the live board; the cold
+half of the tables needs a spring-scored fold to ever be measured.
+
+## 2026-09-20, THIRD SITTING — APRIL, MAY AND JUNE GO ON THE SCORECARD.
+## SPRING FOLDS, THE COLD CELLS, PRECIPITATION, AND WHAT THE NEW FOLDS
+## FOUND THAT IS NOT WEATHER. (Fable)
+
+Operator question: "if we only count after July, we don't count May or
+June either?" Correct — the four folds froze rates on July 1 and scored
+July onward, so a third of every season had never been on the scorecard.
+Instruction: count all the months, temperature and precipitation, don't
+overcomplicate it.
+
+WHAT WAS BUILT.
+  * `--spring` in `scratchpad/battery.py`: four more folds, rates frozen
+    APRIL 8, scored April 8 - June 30. April 8 and not opening day
+    because a club with no rated pen hands every relief inning to the
+    STARTER'S rates (`Side.current`); at April 1 that is 1 club in
+    2023-25 and 13 in 2026, at April 8 it is none at ~7 arms a club. The
+    week it costs is stated in the header. 826 / 791 / 835 / 726 paired
+    games. Output `battery_spring_<fp>.json`; the engine fingerprint is
+    still taken off the summer 2026 cases so a spring and a summer file
+    with the same engine carry the same name.
+  * `weather_cells(gids, wx, got, binner)` — one binner-driven function
+    behind the temperature rows (`temp_bin`) and the new precipitation
+    rows (`wet_bin`: Rain / Drizzle / Snow are wet, any other open-air
+    condition dry, roof or dome or no condition in neither). Rows
+    `weather/{k_pa,bb_pa,hr_bip,runs_pg}_{wet,dry}` and
+    `precip_coverage`. Two checks on the binners and the tallies.
+  * Summer baseline re-run for the new rows: all 884 original rows
+    reproduce exactly (968 rows now). Four full runs, ~5 min each.
+
+POWER, before the result. Spring <55F cells: 4-5k PA a fold (se
+0.006-0.007 on K/PA, 0.004 on BB/PA) — the cell's own effects are
++0.008 K/PA and +0.009 BB/PA, so ONE fold sees each at ~1-2 se and the
+four together at ~3. The 55-64 cells are 10-14k PA a fold, better than
+anything summer had. Wet cells: 2-12 GAMES a fold, 46 across all eight
+folds; se on K/PA 0.006, HR/BIP 0.0035, runs a game 0.47. A 20% HR
+effect is 1.3 se there. Read the eight folds combined and nothing else.
+
+RULE-6 STANDING CAVEAT: every spring game is INSIDE the tables' training
+window (all open-air games before 2026-07-01). What follows is an
+END-TO-END reproduction — does the engine, with parks, shrinkage and
+everything else, put the counted cold-air effect on the field — and not
+a validation of the values. The era gate (0.73 K, 0.95 BB season to
+season) remains the only out-of-sample evidence for the cold half.
+
+THE COLD CELLS, spring folds, gap = model − actual, ×1000, flags off ->
+on, se in the last column (the four rows that moved past 1 se in every
+fold, and nothing else did):
+
+  K/PA <55F     2023  −9.0 -> −1.8    2024 −22.3 -> −14.7   (se 5.7 / 6.8)
+                2025 −12.3 -> −6.1    2026  +9.3 -> +17.0   (se 6.1 / 6.4)
+  BB/PA <55F    2023  −5.7 -> +4.5    2024  −7.5 -> +0.7    (se 3.8 / 4.5)
+                2025  −5.1 -> +4.8    2026  −2.7 -> +7.8    (se 4.1 / 4.5)
+
+  K: flags off, the model had too FEW strikeouts under 55F in three of
+  four folds, by a mean of 8.6 — the table's own +3.5% on 0.23 is 8.0.
+  Flags on the mean is −1.4. THE COUNT REPRODUCES END TO END. The 2026
+  fold runs the other way because spring 2026 is model-HIGH on K in
+  every bin (+5 to +10 ×1000, pooled +3.9 se) — a fold-level error, see
+  below, not a cold-air one.
+  BB: flags off, too FEW walks under 55F in ALL FOUR folds (combined z
+  −2.5), mean −5.3. The table adds +11.2% ≈ +9.5, and flags on the mean
+  is +4.5, combined z +2.1: THE <55 WALK CELL OVERSHOOTS, in sample, by
+  about half its size. The count's own se on that cell is ~±0.026 on
+  1.112 and the engine wants ~1.06, so they are ~1.5 combined se
+  apart — a note, not a contradiction, and rule 5 says it is not
+  re-scaled by hand. If the tables are ever recounted (the Open-Meteo
+  item) this is the cell to watch. The 55-64 cell lands: BB −2.15 ->
+  −0.03 mean over four folds of 10-14k PA.
+  HR under 55F (first look at `TEMP_HR_MULT` in the cold; it is on in
+  both runs): gaps −3.3 / −0.7 / −2.1 / +5.7 on se ~3.5. Holds.
+
+PRECIPITATION, eight folds combined, inverse-variance, model − actual,
+flags on:
+    K/PA   wet  +1.2 ± 6.3 ×1000        dry  −1.2 ± 0.6
+    BB/PA  wet  −2.9 ± 4.4              dry  +0.5 ± 0.4
+    HR/BIP wet  +4.4 ± 3.5  (z +1.3)    dry  −0.7 ± 0.4  (z −1.7)
+    runs/g wet  +0.12 ± 0.47            dry  +0.02 ± 0.06
+  The model makes ~12% too many home runs in the rain (wet minus dry
+  +5.0 ± 3.5, z 1.4), which is the DIRECTION of the 2026-09-20 hand
+  count (HR 0.805 ± 0.063 net of temperature, 91 games) at a third of
+  its power. K, BB and runs a game are unresolvable at 46 games: the se
+  on runs a game is half a run. Not a null — the pre-registered
+  underpowered reading. Nothing ships; the continuous source (Open-Meteo
+  millimetres, every game) is what turns this into a count.
+
+WHAT THE SPRING FOLDS FOUND THAT IS NOT WEATHER — the first time
+April-June has been scored, and three rows are past 3 se where summer
+is flat:
+  * STARTERS ARE PULLED TOO EARLY IN SPRING 2023-24. `outs_mean` −0.35
+    (−3.5 se) and −0.61 (−6.3 se) against summer's −0.36 / −0.14, and the
+    model uses MORE arms a side: `arms_per_side` +0.16 (+5.5) / +0.18
+    (+5.9) / +0.03 / +0.11 (+3.5) against summer's +0.13 / −0.01 / 0.00 /
+    +0.02. Real April starters are on a build-up leash and the model
+    pulls them earlier still.
+  * SPRING 2026 UNDER-SCORES ON EVERY RUNG. Ladder F1/F3/F5/F7 −0.22 /
+    −0.19 / −0.34 / −0.36 (−3.7 / −2.1 / −2.9 / −2.5 se); K/PA pooled
+    +3.9 se (too many); `hr_per_club_game` −3.5 se (too few); summer
+    2026 is flat on all of it. Rates at an April 8 cut are almost
+    entirely the prior-season prior, and 2026 is a lower-K, and on this
+    evidence higher-HR, league than 2023-25 — THE PRIOR-SEASON ANCHOR IS
+    STALE BY A SEASON'S DRIFT. It fades by July as the season's own
+    games take over, which is why summer cannot see it.
+  * ITEM 37 GETS ITS SIGN STRUCTURE. The K level is not "light": pooled
+    K/PA z by fold is spring −3.2 / +1.8 / +1.2 / +3.9 and summer −0.9 /
+    −3.7 / −3.2 / 0.0. It flips by season and by half. Whatever sets the
+    K anchor is off by 2-4% in a direction that depends on the window,
+    which points at the league/prior target, not at any per-arm rate.
+    First check is still the cheap one: `sim.league` k_pct at each cut
+    against that fold's actual K/PA.
+
+CONCLUSION.
+  ESTABLISHED: all twelve months of the last four seasons are now
+  scored (bar the first week of April); the K cold cell reproduces the
+  count end to end; the BB <55 cell overshoots by about half its size,
+  in sample, ~2 se; the HR table holds in the cold; the only row
+  outside `weather` that moved with the flags on any of the eight folds
+  is one home-run decile at 1.04 se. The tables stay on.
+  INFERRED: rain suppresses home runs ~10-20% net of temperature (two
+  instruments, 1.3 and 3.1 se, same sign); the spring starter leash and
+  the stale prior-season anchor are the two spring-only defects.
+  NEXT: items 37 (K anchor, now with a sign structure) and 38 (the
+  spring folds' own defects) in `TODO.md`. Weather is behind both.
+
+FILES: `scratchpad/battery.py` (`SPRING_FOLDS`, `--spring`,
+`weather_cells`, `temp_bin`, `wet_bin`, precipitation rows),
+`tests/test_battery.py` (two checks), the four JSONs
+`battery_{,spring_}{432ed646d830,56c56687b554}.json`.

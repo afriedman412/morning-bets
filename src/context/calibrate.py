@@ -539,15 +539,41 @@ def air_mult_for(row) -> float:
     "the air" (the park lesson). Missing game or missing reading
     contributes exactly nothing.
     """
-    global _WEATHER
     if not (sim.USE_TEMP_HR or sim.USE_WIND_HR):
         return 1.0
+    w = _weather_row(row)
+    return sim.air_hr_mult(w.get("temp_f"), w.get("carry"),
+                           w.get("wind_mph"))
+
+
+def _weather_row(row) -> dict:
+    """This game's weather, loading the table once. {} when unknown."""
+    global _WEATHER
     if _WEATHER is None:
         from src.context.sources import weather
         _WEATHER = weather.by_game()
-    w = _WEATHER.get(row.get("game_id")) or {}
-    return sim.air_hr_mult(w.get("temp_f"), w.get("carry"),
-                           w.get("wind_mph"))
+    return _WEATHER.get(row.get("game_id")) or {}
+
+
+def temp_kbb_for(row) -> tuple[float, float]:
+    """The game's (K, BB) TEMPERATURE multipliers from the same row.
+
+    SEPARATE FROM `air_mult_for` BECAUSE THE FLAGS ARE SEPARATE: the air
+    reaches home runs, strikeouts and walks through three independently
+    counted tables, and a session turning one off to isolate it must not
+    silently take the others with it.
+
+    THIS EXISTS SO THE REPLAY PATH SEES THE MECHANISM AT ALL. Wired only
+    into `slate.py`, temperature would reach the live board and nothing
+    else — the battery, the ladder and fitf5 all come through here, so
+    the scorecard would have read flat and the change would have looked
+    inert while genuinely working in production. That failure is invisible
+    in the diff, which is why it is called out here.
+    """
+    if not (sim.USE_TEMP_K or sim.USE_TEMP_BB):
+        return 1.0, 1.0
+    t = _weather_row(row).get("temp_f")
+    return sim.temp_k_mult(t), sim.temp_bb_mult(t)
 
 
 _UMPS: dict | None = None
@@ -605,6 +631,11 @@ def replay(pair, lg, pens, rng, innings=9, track=(), apply_leash=True,
     # `check_each_side_faces_the_opposing_lineup`.
     hr_air = air_mult_for(home[0])
     ump = ump_mult_for(home[0])
+    # The night's air on the K and BB channels, onto the same shared rail
+    # the umpire rides — see `temp_kbb_for` on why this is not folded
+    # into `air_mult_for`, and `slate.py` for the live path's copy.
+    tk, tbb = temp_kbb_for(home[0])
+    ump = (ump[0] * tk, ump[1] * tbb)
     an = adjust_lineup(away[2], False)
     hn = adjust_lineup(home[2], True)
     park = None

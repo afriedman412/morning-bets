@@ -317,3 +317,69 @@ def check_usage_gap_is_per_date_and_strictly_prior():
         got[("Capped", "2026-06-05")]
     # Three prior starts is under USAGE_MIN_PRIOR: absent, never zeroed.
     assert not any(nm == "Fresh" for nm, _ in got), got.keys()
+
+
+def check_the_temperature_rows_see_strikeouts_and_walks_not_just_homers():
+    """`TEMP_K_MULT` and `TEMP_BB_MULT` shipped into a battery that had
+    NO walk row and only fold-wide strikeout means, so the change was not
+    scoreable (CLAUDE.md rule 15: name the row that would see it). The
+    bin rows come from `battery.weather_cells`, and this exercises THAT:
+    a game the binner rejects stays out of every bin and out of `n`,
+    each bin carries k, bb, pa and runs alongside hr and bip plus a game
+    count, and model and actual are tallied from their own side of the
+    pair — the arithmetic a copy in the scoring loop would silently
+    drift from.
+    """
+    from collections import Counter
+
+    def side(**kw):
+        return {"pa": Counter(kw)}
+
+    got = {
+        "cold": (side(hr=1, bip=20, k=9, bb=5, pa=40, runs=80),
+                 side(hr=2, bip=21, k=7, bb=3, pa=41, runs=6)),
+        "hot": (side(hr=3, bip=22, k=6, bb=2, pa=42, runs=120),
+                side(hr=4, bip=23, k=8, bb=4, pa=43, runs=9)),
+        "blank": (side(hr=99, bip=99, k=99, bb=99, pa=99, runs=99),
+                  side(hr=99, bip=99, k=99, bb=99, pa=99, runs=99)),
+    }
+    wx = {"cold": {"temp_f": 50}, "hot": {"temp_f": 91}, "blank": {}}
+    m, a, n = battery.temp_cells(["cold", "hot", "blank"], wx, got)
+    assert n == 2, n
+    assert m[0] == Counter(hr=1, bip=20, k=9, bb=5, pa=40, runs=80, g=1), m[0]
+    assert a[0] == Counter(hr=2, bip=21, k=7, bb=3, pa=41, runs=6, g=1), a[0]
+    assert m[4] == Counter(hr=3, bip=22, k=6, bb=2, pa=42, runs=120, g=1), m[4]
+    assert a[4] == Counter(hr=4, bip=23, k=8, bb=4, pa=43, runs=9, g=1), a[4]
+    # the blank game landed nowhere — no bin carries a 99
+    assert not any(v == 99 for acc in (m, a) for c in acc.values()
+                   for v in c.values())
+    assert set(m) == set(a) == {0, 4}, (set(m), set(a))
+    # the edges are the SHIPPED ones — 65F is the third bin, not the second
+    m2, _, _ = battery.temp_cells(["hot"], {"hot": {"temp_f": 65}}, got)
+    assert set(m2) == {2}, set(m2)
+
+
+def check_the_wet_cell_is_open_air_precipitation_only():
+    """The precipitation rows split on statsapi's condition string. Rain,
+    drizzle and snow are wet; any other open-air condition is dry; a
+    closed roof, a dome or no condition is in NEITHER cell — conditioned
+    air would dilute the dry cell with games that had no weather at all.
+    Verified by the binner, which is what the rows are built on."""
+    wet = battery.wet_bin
+    assert wet({"condition": "Rain"}) == "wet"
+    assert wet({"condition": "Drizzle"}) == "wet"
+    assert wet({"condition": "Snow"}) == "wet"
+    assert wet({"condition": "Partly Cloudy"}) == "dry"
+    assert wet({"condition": "Overcast"}) == "dry"
+    assert wet({"condition": "Dome"}) is None
+    assert wet({"condition": "Roof Closed"}) is None
+    assert wet({"condition": "Rain", "roof_closed": True}) is None
+    assert wet({"condition": None}) is None
+    assert wet({}) is None
+    # and the cells carry a game count the runs-a-game row divides by
+    from collections import Counter
+    got = {"r": ({"pa": Counter(runs=400, pa=1)}, {"pa": Counter(runs=7, pa=1)}),
+           "d": ({"pa": Counter(runs=360, pa=1)}, {"pa": Counter(runs=9, pa=1)})}
+    m, a, n = battery.wet_cells(["r", "d"], {"r": {"condition": "Rain"},
+                                             "d": {"condition": "Clear"}}, got)
+    assert n == 2 and m["wet"]["g"] == 1 and a["dry"]["runs"] == 9, (m, a)

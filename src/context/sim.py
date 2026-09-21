@@ -782,6 +782,74 @@ def temp_hr_mult(temp_f: int | None) -> float:
     return TEMP_HR_MULT[sum(temp_f >= e for e in TEMP_HR_EDGES)]
 
 
+#: TEMPERATURE INTO THE STRIKEOUT AND WALK CHANNELS — the other side of
+#: the air the home run table already reads. Counted 2026-09-20 by
+#: `scratchpad/temp_k.py` on 7,907 open-air games and 598,773 plate
+#: appearances before the holdout, by EXACTLY the method `TEMP_HR_MULT`
+#: uses: within-venue indirect standardisation, climate-centred on the
+#: prior full seasons, pre-July training rows.
+#:
+#: COUNTED ACROSS EVERY CHANNEL THE ENGINE HAS, because an effect that
+#: appears on one rate and nowhere else is usually a denominator, not
+#: physics (rule 10). Span from the coldest cell to the hottest, with
+#: the season-to-season shape correlation beside it:
+#:
+#:     bb        0.147   era 0.95     <- the biggest, and the best gate
+#:     k         0.055   era 0.73
+#:     hr        0.360   era 0.93     <- CONTROL, already shipped
+#:     hbp       0.103   era -0.03    <- REJECTED: does not repeat
+#:     h_on_bip  0.020   era 0.11     <- REJECTED: does not repeat
+#:
+#: THE HOME RUN ROW IS WHY THE OTHER TWO ARE BELIEVABLE. Recounted blind
+#: through this pipeline it lands at 0.765 -> 1.125 against the shipped
+#: table's 0.798 -> 1.115 — same direction, same size, counted
+#: independently. A pipeline that reproduces a known answer is measuring
+#: air rather than manufacturing tables.
+#:
+#: AND TWO CHANNELS WERE REJECTED ON THE ERA GATE ALONE. `hbp` spans
+#: 0.103 — larger than the strikeout effect that prompted all of this —
+#: and would have shipped on size. Its shape does not survive to the
+#: next season (-0.03), so the span is one season's noise. Size is not
+#: evidence; repeating is.
+#:
+#: NOT REDUNDANT WITH THE CALENDAR, checked before shipping rather than
+#: after: counted within venue AND month the K column reads 1.031 /
+#: 1.006 / 1.004 / 0.993 / 0.987 against 1.035 / 1.006 / 1.007 / 0.993 /
+#: 0.980 — about four fifths of the effect survives, so this is the air
+#: and not a worse-measured proxy for the month.
+#:
+#: SEPARATE FLAGS ON PURPOSE. Two mechanisms behind one flag cannot be
+#: told apart, which is the lesson `game.USE_MEASURED_RELIEF_HOOK`'s
+#: neighbours already record.
+#:
+#: COVERAGE IS THE CATCH AND IT IS NOT SMALL. statsapi backfills a
+#: temperature for essentially every FINISHED game, but the forecast
+#: lands late: on 2026-09-20 only 6 of 15 that night's games had a
+#: reading at board time, against 100% for April-August. So a backtest
+#: of this mechanism is fully powered while the live board can use it on
+#: a minority of games. Silent-neutral makes that safe rather than
+#: wrong, but do not read a holdout score as what the board will get.
+TEMP_K_EDGES = TEMP_HR_EDGES
+TEMP_K_MULT = (1.0350, 1.0063, 1.0072, 0.9931, 0.9802)
+TEMP_BB_MULT = (1.1119, 1.0243, 1.0069, 0.9804, 0.9647)
+USE_TEMP_K = True
+USE_TEMP_BB = True
+
+
+def temp_k_mult(temp_f: int | None) -> float:
+    """The K odds multiplier for one game's temperature. Silent-neutral."""
+    if not USE_TEMP_K or temp_f is None:
+        return 1.0
+    return TEMP_K_MULT[sum(temp_f >= e for e in TEMP_K_EDGES)]
+
+
+def temp_bb_mult(temp_f: int | None) -> float:
+    """The BB odds multiplier for one game's temperature. Silent-neutral."""
+    if not USE_TEMP_BB or temp_f is None:
+        return 1.0
+    return TEMP_BB_MULT[sum(temp_f >= e for e in TEMP_K_EDGES)]
+
+
 #: WIND INTO THE SAME CHANNEL — plan item 7, temperature's mirror. The
 #: feed reports wind FIELD-RELATIVE ("12 mph, Out To RF"), so
 #: `carry * wind_mph` is the signed scalar with the physics in it and no

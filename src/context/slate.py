@@ -381,6 +381,17 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
             r = c.execute("select plate_ump_id from game_officials"
                           " where game_id=?", (g["game_id"],)).fetchone()
         ump = sim.ump_kbb_mult(r["plate_ump_id"] if r else None)
+    # THE SAME AIR, ON THE PITCHER'S OTHER TWO CHANNELS. `hr_air` above
+    # reads this game's temperature for the home run rate; cold adds
+    # strikeouts and adds walks (`sim.TEMP_K_MULT` / `TEMP_BB_MULT`,
+    # counted the same way on the same rows). They ride the shared
+    # k_game/bb_game rail rather than getting one of their own, because
+    # that rail is exactly "multipliers every batter tonight shares" —
+    # which is what a night's weather is, same as the plate umpire.
+    # Silent-neutral: no reading multiplies by 1.0 and the tuple is
+    # unchanged, which is the common case at board time.
+    ump = (ump[0] * sim.temp_k_mult(w.get("temp_f")),
+           ump[1] * sim.temp_bb_mult(w.get("temp_f")))
     rng = random.Random(seed)
     out = []
     # `progress(done, total)` is called about a hundred times, not once per

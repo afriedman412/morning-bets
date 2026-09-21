@@ -2071,3 +2071,163 @@ def check_the_side_carries_the_calendar_term_to_the_starter_only():
     h = sim.Hook()
     assert (h.removal_p(90, 3, 6, 4, 0, month_offset=s.bnd_month_offset)
             == h.removal_p(90, 3, 6, 4, 0))
+
+
+def check_temp_kbb_ships_on_and_is_counted():
+    """Both flags default ON, both are silent-neutral, and the counted
+    slopes are pinned by DIRECTION not by value: cold adds strikeouts
+    and adds walks, heat removes both, each monotone. A table reset to
+    ones agrees with itself and so is not a test — the monotone claim
+    is, because it is the shape the count produced."""
+    assert sim.USE_TEMP_K and sim.USE_TEMP_BB, "both ship ON"
+    assert sim.temp_k_mult(None) == 1.0 and sim.temp_bb_mult(None) == 1.0
+    assert sim.temp_k_mult(70) == sim.TEMP_K_MULT[2]
+    assert sim.temp_bb_mult(70) == sim.TEMP_BB_MULT[2]
+    # cold > hot on BOTH channels, opposite to the home run table
+    assert sim.temp_k_mult(45) > sim.temp_k_mult(95)
+    assert sim.temp_bb_mult(45) > sim.temp_bb_mult(95)
+    assert sim.temp_hr_mult(45) < sim.temp_hr_mult(95), "HR runs the other way"
+    # walks move further than strikeouts — the counted finding, and the
+    # reason both shipped rather than just the one that prompted it
+    k_rng = max(sim.TEMP_K_MULT) - min(sim.TEMP_K_MULT)
+    bb_rng = max(sim.TEMP_BB_MULT) - min(sim.TEMP_BB_MULT)
+    assert bb_rng > 2 * k_rng, (k_rng, bb_rng)
+    assert all(a >= b for a, b in zip(sim.TEMP_BB_MULT, sim.TEMP_BB_MULT[1:]))
+    for flag, fn in (("USE_TEMP_K", sim.temp_k_mult),
+                     ("USE_TEMP_BB", sim.temp_bb_mult)):
+        orig = getattr(sim, flag)
+        setattr(sim, flag, False)
+        try:
+            assert fn(95) == 1.0, flag
+        finally:
+            setattr(sim, flag, orig)
+
+
+def check_the_temperature_reaches_the_k_and_bb_channels():
+    """The pair must land on BOTH sides' matchups as m_k and m_bb.
+
+    Neutral park and blank hands keep every other multiplier at exactly
+    1.0, so m_k IS the k_game value and a dropped wire reads 1.0.
+    """
+    def _s():
+        return game.Side(starter=sim.PitcherRates(name="sp"), pen=[],
+                         lineup=[sim.BatterRates(name=f"b{i}")
+                                 for i in range(9)])
+    a, h = _s(), _s()
+    game.simulate_game(a, h, dict(LG), random.Random(11),
+                       ump_kbb=(1.30, 0.70))
+    for s in (a, h):
+        mups = [m for m in (s._mups or []) if m is not None]
+        assert mups, "no matchup was ever resolved"
+        assert all(abs(m.m_k - 1.30) < 1e-9 for m in mups), s
+        assert all(abs(m.m_bb - 0.70) < 1e-9 for m in mups), s
+
+
+def check_the_replay_path_sees_the_temperature_not_just_the_slate():
+    """THE FAILURE THIS EXISTS FOR: wired only into `slate.py`, the
+    mechanism would reach the live board and nothing else — the battery,
+    the ladder and fitf5 all replay through `calibrate`, so the whole
+    scorecard would have read flat and the change would have been
+    reported as inert while genuinely working in production.
+
+    Testing `temp_kbb_for` alone is NOT enough and this docstring used
+    to claim it was: deleting the line in `replay` that multiplies the
+    pair in left the isolated version passing, found by mutation. So the
+    real check is `check_replay_actually_applies_the_temperature` below,
+    which intercepts `simulate_game` the way the lineup-crossing check
+    does, and for the same reason.
+    """
+    import src.context.calibrate as cal
+    orig = cal._WEATHER
+    cal._WEATHER = {"cold": {"temp_f": 40}, "hot": {"temp_f": 95},
+                    "blank": {}}
+    try:
+        ck, cbb = cal.temp_kbb_for({"game_id": "cold"})
+        hk, hbb = cal.temp_kbb_for({"game_id": "hot"})
+        assert ck > hk and cbb > hbb, (ck, hk, cbb, hbb)
+        # unknown game and a row with no reading are both exactly neutral
+        assert cal.temp_kbb_for({"game_id": "absent"}) == (1.0, 1.0)
+        assert cal.temp_kbb_for({"game_id": "blank"}) == (1.0, 1.0)
+        # and the flags gate it here too, not only in sim
+        ok, obb = sim.USE_TEMP_K, sim.USE_TEMP_BB
+        sim.USE_TEMP_K = sim.USE_TEMP_BB = False
+        try:
+            assert cal.temp_kbb_for({"game_id": "cold"}) == (1.0, 1.0)
+        finally:
+            sim.USE_TEMP_K, sim.USE_TEMP_BB = ok, obb
+    finally:
+        cal._WEATHER = orig
+
+
+def check_the_air_and_the_kbb_temperature_have_separate_flags():
+    """Turning the home run air off must NOT silently take strikeouts
+    and walks with it — three independently counted tables, three
+    flags, so a session isolating one gets one."""
+    import src.context.calibrate as cal
+    orig = cal._WEATHER
+    cal._WEATHER = {"g": {"temp_f": 40, "carry": 0, "wind_mph": 0}}
+    oh, ow = sim.USE_TEMP_HR, sim.USE_WIND_HR
+    sim.USE_TEMP_HR = sim.USE_WIND_HR = False
+    try:
+        assert cal.air_mult_for({"game_id": "g"}) == 1.0
+        k, bb = cal.temp_kbb_for({"game_id": "g"})
+        assert k > 1.0 and bb > 1.0, "the HR flag disabled the K/BB tables"
+    finally:
+        sim.USE_TEMP_HR, sim.USE_WIND_HR = oh, ow
+        cal._WEATHER = orig
+
+
+def check_replay_actually_applies_the_temperature():
+    """THE PAIR MUST REACH `simulate_game`, not merely be computed.
+
+    Intercepts `game.simulate_game` to capture the `ump_kbb` that
+    `replay` actually passes, because checking `temp_kbb_for` in
+    isolation guards nothing — the first version of the check above did
+    exactly that, and deleting the multiply inside `replay` left it
+    green. Found by mutation, which is the only thing that surfaces it.
+
+    THE PAIR IS SYNTHETIC, not `paired_cases`. A first version read the
+    real table and made the suite FLAKY: two checks pulling paired cases
+    across twelve forked workers raced on the database and threw
+    `locking protocol`, taking an unrelated check down with it. Nothing
+    here needs real rows, and the suite is fixture-based by construction.
+
+    Sentinels stand in for both tables so the assertion is exact and
+    does not move when either is re-counted.
+    """
+    from src.context import calibrate as cal
+
+    def _case(gid):
+        return ({"game_id": gid, "date": "2026-05-01", "team": "AAA",
+                 "is_home": gid == "home", "player_name": f"sp-{gid}"},
+                sim.PitcherRates(name=f"sp-{gid}"),
+                [sim.BatterRates(name=f"{gid}-b{i}") for i in range(9)])
+
+    pair = (_case("away"), _case("home"))
+    lg = dict(LG)
+
+    seen = {}
+    real = game.simulate_game
+    real_t, real_u, real_a = (cal.temp_kbb_for, cal.ump_mult_for,
+                              cal.air_mult_for)
+
+    def spy(a, h, *args, **kw):
+        seen["ump_kbb"] = kw.get("ump_kbb")
+        return real(a, h, *args, **kw)
+
+    game.simulate_game = spy
+    cal.temp_kbb_for = lambda row: (7.0, 11.0)
+    cal.ump_mult_for = lambda row: (2.0, 3.0)
+    cal.air_mult_for = lambda row: 1.0
+    try:
+        cal.replay(pair, lg, {}, random.Random(3), use_park=False)
+    finally:
+        game.simulate_game = real
+        cal.temp_kbb_for, cal.ump_mult_for = real_t, real_u
+        cal.air_mult_for = real_a
+
+    got = seen.get("ump_kbb")
+    assert got is not None, "replay never passed ump_kbb"
+    assert abs(got[0] - 14.0) < 1e-9 and abs(got[1] - 33.0) < 1e-9, (
+        f"replay passed {got}, expected the umpire pair TIMES the "
+        f"temperature pair (2x7, 3x11)")

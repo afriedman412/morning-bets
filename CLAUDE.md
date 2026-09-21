@@ -93,14 +93,21 @@ a null. This causes as much drift as the CLV rule does.
 ## THE BATTERY — every change scores against everything (added 2026-09-05)
 
 `venv/bin/python -m scratchpad.battery` — one simulation pass per fold, four
-folds (July-onward of 2023-2026, rates frozen at each cut), every table read
+folds (July-onward of 2023-2026, rates frozen at each cut) — and `--spring`
+for the OTHER four (April 8 to June 30, rates frozen April 8; added
+2026-09-20 because a third of every season had never been scored, and the
+first run found two spring-only defects, `TODO.md` 38). Every table read
 off the same games and draws: ladder, per-inning runs, per-venue residuals,
 traffic and run-mass shape, platoon, DP/sac/XBH, late-inning runs by margin,
 THE SAVE ROWS (a lead of 1-3 after eight: how often it is HELD and what
 the protecting side allows from the ninth on), THE PEN ROWS (relief outing
 length, its short and long tails, mid-inning entries and arms per side),
 both hook curves cell by cell,
-the starter's outs/K shape, the current `outs_adjust` corrections.
+the starter's outs/K shape, the current `outs_adjust` corrections, and
+THE WEATHER ROWS (HR per ball in play, K per PA and BB per PA in each
+shipped temperature bin, the pooled K and BB rates, and wet vs dry — the
+rows that can see a weather table, since a pooled mean cannot; the cold
+bins only exist under `--spring`).
 Header prints every `USE_*` flag; output is
 `scratchpad/battery_<engine-fingerprint>.json`; `--diff <fingerprint>` prints
 every row that moved by more than one se against a saved run. `--maim` is the

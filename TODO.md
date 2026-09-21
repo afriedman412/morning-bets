@@ -1815,6 +1815,76 @@ the held-out 2026 fold (usage rows z +0.3/+0.2, separation +1.40 ->
 
 ---
 
+**37. THE STRIKEOUT LEVEL — the model is ~2.5% light on strikeouts
+fold-wide in 2024 and 2025, across EVERY arm, not just starters.**
+Opened 2026-09-20 by the battery's new `weather/k_pa_all` row (built to
+score the K/BB temperature tables, found this instead).
+
+ESTABLISHED (flags off, both sides, every plate appearance):
+    2023  model 0.2269  actual 0.2282   −0.86 se   75,882 PA
+    2024  model 0.2235  actual 0.2292   −3.68 se   72,306 PA
+    2025  model 0.2202  actual 0.2252   −3.18 se   70,155 PA
+    2026  model 0.2206  actual 0.2206    0.00 se   59,050 PA
+The starter rows said the same thing (`k_mean` −4.5 / −3.2 / −2.9 / 0.0
+se) and it was read as a starter-shape defect; the pooled row says it is
+the whole staff. It is a LEVEL, so rule 14 puts it ahead of every
+refinement, and the temperature tables cannot touch it (zero-mean by
+construction — they only make the hot-half absolute K rows read worse).
+
+NOT ESTABLISHED: the cause. Candidates that are NOT the same thing and
+must be told apart before anything is counted: (a) the July-1-cut rates
+carry April-June air and league-wide K% has a within-season shape of its
+own — but spring rates would push the summer model HIGH, not low, so
+this runs the wrong way; (b) the pitcher/batter K shrinkage constants
+(`stabilise.py`) pulling every arm toward a league mean that is itself
+computed on the wrong window; (c) the 2026 fold reads 0.00 — whatever
+it is, it is absent or cancelled in 2026, which is either a data
+difference between seasons or the actual defect being season-specific.
+(c) is the first thing to check because it costs nothing: `sim.league`
+K rate per fold against the fold's actual.
+
+PRE-REGISTERED FALSIFIER: a per-fold league K rate that matches actuals
+within 0.5% in every fold kills (b) and the denominator story and leaves
+a per-arm cause. State the power before the result; the row's se is
+0.0016 on the rate.
+
+ADDED THE SAME DAY, from the spring folds: THE SIGN FLIPS. Pooled K/PA
+z by fold — spring −3.2 / +1.8 / +1.2 / +3.9, summer −0.9 / −3.7 / −3.2 /
+0.0. Spring 2026 is model-HIGH on K in every temperature bin, summer
+2024-25 model-LOW everywhere. A per-arm cause does not flip with the
+window; a league/prior anchor that is off by a season's drift does.
+That promotes (c) to the leading candidate and makes the cheap check
+above decisive either way.
+
+**38. THE SPRING FOLDS' OWN DEFECTS — April-June was never scored until
+2026-09-20, and its first battery run has three rows past 3 se that
+summer does not have.** `battery_spring_432ed646d830.json`.
+
+ESTABLISHED (flags off; summer value beside it):
+  * `shape/outs_mean`   2023 −0.35 (−3.5 se) / 2024 −0.61 (−6.3 se);
+    summer −0.36 / −0.14. Starters pulled too early in spring.
+  * `pen/arms_per_side` +0.16 (+5.5) / +0.18 (+5.9) / +0.03 / +0.11
+    (+3.5); summer +0.13 / −0.01 / 0.00 / +0.02. The model reaches for
+    a fourth and fifth arm that April managers do not.
+  * Spring 2026: ladder F1/F3/F5/F7 −0.22 / −0.19 / −0.34 / −0.36 (−3.7 /
+    −2.1 / −2.9 / −2.5 se), `hr_per_club_game` −3.5 se, K/PA +3.9 se.
+    Summer 2026 flat on every one. Rates at an April 8 cut are nearly
+    all prior-season prior; the 2026 league strikes out less and, on
+    this, homers more than 2023-25, and the anchor does not know.
+
+NOT ESTABLISHED: whether the early hook is the boundary curve, the
+mid-inning curve or the leash reading spring pitch counts (build-up
+starts are short BY PLAN, which the hook curves fitted on the full
+season cannot know); whether the 2026 spring level is the prior's
+weight (`stabilise.py`) or its content. The two are separate items
+sharing a fold; split them when one is picked up.
+
+PRE-REGISTERED: the hook rows (`hook_bnd` / `hook_mid`) in the spring
+JSON already say which curve is off — read them before building
+anything. For 2026, `sim.league(season=2026, before='2026-04-08')`
+against April-June 2026 actuals on K%, HR% and runs/9 is one query.
+
+
 ## Shipped 2026-09-10 — item 24, the home run channel reads contact type
 
 **24. SHIPPED (`sim.USE_AIR_HR`): the pitcher's air-ball share into the home

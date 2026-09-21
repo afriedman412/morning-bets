@@ -10,12 +10,19 @@ an index that lags is worse than none, because it is read as current.
 Numbers are never reused, so a line here always resolves against the full
 item.
 
-Refreshed 2026-09-17.
+Refreshed 2026-09-20.
 
 ---
 
 ## READY — nothing has to be decided before starting
 
+    38  The spring folds' own defects — April-June scored for the first
+        time: starters pulled too early in 2023-24 (outs_mean −6.3 se,
+        arms_per_side +5.9), and spring 2026 under-scores every rung off
+        a stale prior-season anchor. Not weather.
+    37  The strikeout LEVEL — the model is ~2.5% light on K fold-wide in
+        2024-25 across every arm (`weather/k_pa_all`, −3.7 / −3.2 se).
+        A level, so rule 14 puts it first. Found by the weather rows.
     34  What tells two starts apart, now that a per-arm constant is ruled
         out — outs_corr is 3.7-5.0 sigma short of the per-arm ceiling in
         all four folds. Successor to 32.
