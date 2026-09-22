@@ -1,0 +1,65 @@
+BOARD — 2026-09-21 · 2 games · 20,000 sims · fair inside ±170 · odds are FAIR (no vig)
+
+TOR @ BAL   Trey Yesavage v Shane Baz   (PROJECTED lineups, mean 8.9)
+  bet                          over / under  kalshi
+  total 8                      -118 /  +118       -   
+  total 8.5                    +100 /  -100    +147   vol $3.6k  clv -1.5c
+  total 9                      +126 /  -126       -   
+  TOR total 3.5                -130 /  +130    -111   vol $896  clv -1.5c
+  TOR total 4.5                +129 /  -129    +150   vol $239  clv -1.0c
+  BAL total 3.5                -140 /  +140    -102   vol $681  clv -3.5c
+  BAL total 4.5                +127 /  -127    +182   vol $7  clv -3.5c
+  F5 total 4.5                 -103 /  +103    +135   vol $4.5k  clv -2.5c
+  F5 total 5.5                 +158 /  -158    +208   vol $20  clv -0.5c
+  Trey Yesavage k 4.5          -117 /  +117       -   proj lineup  
+  Trey Yesavage k 5.5          +165 /  -165       -   proj lineup  
+  Trey Yesavage outs 12.5      -115 /  +115       -   proj lineup  raw -108
+  Trey Yesavage outs 13.5      +100 /  -100       -   proj lineup  raw +111
+  Shane Baz k 2.5              -289 /  +289    -292   proj lineup  off-band  vol $245  clv -2.5c
+  Shane Baz k 3.5              -122 /  +122    -125   proj lineup  vol $2.9k  clv -1.5c
+  Shane Baz k 4.5              +183 /  -183    +182   proj lineup  off-band  vol $424  clv +0.5c
+  Shane Baz k 5.5              +413 /  -413    +400   proj lineup  off-band  vol $627  clv -4.0c
+  Shane Baz k 6.5              +992 /  -992    +953   proj lineup  off-band  vol $184  clv -0.5c
+  Shane Baz outs 17.5          -126 /  +126    +113   proj lineup  raw -131  vol $774  clv -4.0c
+
+MIN @ SF   Zebby Matthews v Blade Tidwell   (PROJECTED lineups, mean 8.8)
+  bet                          over / under  kalshi
+  total 7.5                    -132 /  +132    -130   [Blade Tidwell: 10/21 appearances are starts — swingman]  vol $4.7k  clv +0.5c
+  total 8                      -114 /  +114       -   [Blade Tidwell: 10/21 appearances are starts — swingman]
+  total 8.5                    +104 /  -104    +106   [Blade Tidwell: 10/21 appearances are starts — swingman]  vol $21k  clv -0.5c
+  MIN total 3.5                -127 /  +127    -147   [Blade Tidwell: 10/21 appearances are starts — swingman]  vol $280  clv -0.5c
+  MIN total 4.5                +133 /  -133    +120   [Blade Tidwell: 10/21 appearances are starts — swingman]  vol $193  clv -0.5c
+  SF total 3.5                 -138 /  +138    -111   [Blade Tidwell: 10/21 appearances are starts — swingman]  vol $163  clv -2.5c
+  SF total 4.5                 +129 /  -129    +167   [Blade Tidwell: 10/21 appearances are starts — swingman]  vol $173  clv -2.5c
+  F5 total 4.5                 -104 /  +104    +102   [Blade Tidwell: 10/21 appearances are starts — swingman]  vol $2.3k  clv -2.5c
+  F5 total 5.5                 +155 /  -155    +160   [Blade Tidwell: 10/21 appearances are starts — swingman]  vol $399  clv +0.5c
+  Zebby Matthews k 2.5         -649 /  +649    -525   proj lineup  off-band  vol $122  clv -3.0c
+  Zebby Matthews k 3.5         -264 /  +264    -233   proj lineup  off-band  vol $178  clv +0.0c
+  Zebby Matthews k 4.5         -121 /  +121    +102   proj lineup  vol $5.1k  clv -6.5c
+  Zebby Matthews k 5.5         +171 /  -171    +194   proj lineup  off-band  vol $1.8k  clv -0.0c
+  Zebby Matthews k 6.5         +354 /  -354    +441   proj lineup  off-band  vol $386  clv -2.5c
+  Zebby Matthews k 7.5         +772 /  -772    +900   proj lineup  off-band  vol $374  clv -2.0c
+  Zebby Matthews k 8.5        +1774 / -1774   +2400   proj lineup  off-band  vol $12  clv +0.0c
+  Zebby Matthews outs 15.5     -183 /  +183    -108   proj lineup  raw -183  off-band  vol $716  clv +6.0c
+  Zebby Matthews outs 16.5     -146 /  +146       -   proj lineup  raw -150
+  Zebby Matthews outs 17.5     -111 /  +111       -   proj lineup  raw -115
+  Blade Tidwell k 2.5          -356 /  +356    -344   proj lineup  [10/21 appearances are starts — swingman]  off-band  vol $2  clv -0.5c
+  Blade Tidwell k 3.5          -155 /  +155    -147   proj lineup  [10/21 appearances are starts — swingman]  vol $3.4k  clv +0.5c
+  Blade Tidwell k 4.5          +137 /  -137    +147   proj lineup  [10/21 appearances are starts — swingman]  vol $3.8k  clv +1.5c
+  Blade Tidwell k 5.5          +283 /  -283    +344   proj lineup  [10/21 appearances are starts — swingman]  off-band  vol $2.1k  clv -0.5c
+  Blade Tidwell k 6.5          +597 /  -597    +900   proj lineup  [10/21 appearances are starts — swingman]  off-band  vol $8  clv +0.0c
+  Blade Tidwell k 7.5         +1341 / -1341   +2400   proj lineup  [10/21 appearances are starts — swingman]  off-band  vol $0
+  Blade Tidwell outs 15.5      -111 /  +111    +144   proj lineup  [10/21 appearances are starts — swingman]  raw -111  vol $90  clv -3.0c
+  Blade Tidwell outs 16.5      +114 /  -114       -   proj lineup  [10/21 appearances are starts — swingman]  raw +111
+
+ARMS FLAGGED — priced, but not a normal starter's line:
+  MIN @ SF    Blade Tidwell           10/21 appearances are starts — swingman
+
+DECLINED — never filled with a league-average arm:
+  WSH @ DET   DJ Herz / River Ryan                    no rates on record for DJ Herz
+
+outs corrected (2026-09-09); raw in note. K beats the OPEN only — bet early or not.
+Totals Jul/Aug ran ~0.15-0.20 light a side (unshipped month term); Sept unmeasured.
+Re-run after lineups post: a projected nine has cost half an edge before.
+
+wall clock: 62s total — 57s simulating, 2s fetching markets, 2s loading rates. RE-RUNNING IS CHEAP; do it when lineups post.

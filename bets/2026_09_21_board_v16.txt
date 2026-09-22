@@ -1,0 +1,12 @@
+BOARD — 2026-09-21 · 0 games · 20,000 sims · fair inside ±170 · odds are FAIR (no vig)
+
+DECLINED — never filled with a league-average arm:
+  TOR @ BAL   Trey Yesavage / Shane Baz               game is Final — never price a live one
+  WSH @ DET   DJ Herz / River Ryan                    game is Final — never price a live one
+  MIN @ SF    Zebby Matthews / Blade Tidwell          game is In Progress — never price a live one
+
+outs corrected (2026-09-09); raw in note. K beats the OPEN only — bet early or not.
+Totals Jul/Aug ran ~0.15-0.20 light a side (unshipped month term); Sept unmeasured.
+Re-run after lineups post: a projected nine has cost half an edge before.
+
+wall clock: 4s total — 0s simulating, 0s fetching markets, 4s loading rates. RE-RUNNING IS CHEAP; do it when lineups post.

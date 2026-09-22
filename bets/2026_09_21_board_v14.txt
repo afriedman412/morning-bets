@@ -1,0 +1,40 @@
+BOARD — 2026-09-21 · 1 games · 20,000 sims · fair inside ±170 · odds are FAIR (no vig)
+
+MIN @ SF   Zebby Matthews v Blade Tidwell   (lineups posted, mean 8.0)
+  bet                          over / under  kalshi
+  total 7                      -125 /  +125       -   
+  total 7.5                    +104 /  -104    -125   vol $34k  clv -0.5c
+  total 8                      +125 /  -125       -   
+  MIN total 3.5                -124 /  +124    -141   vol $5.5k  clv -1.5c
+  MIN total 4.5                +137 /  -137    +117   vol $5.7k  clv -0.0c
+  SF total 2.5                 -163 /  +163    -199   vol $6.6k  clv -3.5c
+  SF total 3.5                 +116 /  -116    -106   vol $1.1k  clv -3.5c
+  F5 total 3.5                 -136 /  +136    -167   vol $2.6k  clv -1.5c
+  F5 total 4.5                 +125 /  -125    +106   vol $9.3k  clv -3.5c
+  Zebby Matthews k 2.5         -994 /  +994    -545   off-band  vol $7.7k  clv -2.5c
+  Zebby Matthews k 3.5         -415 /  +415    -228   off-band  vol $1.1k  clv -0.5c
+  Zebby Matthews k 4.5         -194 /  +194    +102   off-band  vol $16k  clv -6.5c
+  Zebby Matthews k 5.5         +107 /  -107    +217   vol $2.4k  clv -2.5c
+  Zebby Matthews k 6.5         +214 /  -214    +441   off-band  vol $3.8k  clv -2.5c
+  Zebby Matthews k 7.5         +433 /  -433    +852   off-band  vol $1.0k  clv -1.5c
+  Zebby Matthews k 8.5         +914 /  -914   +1718   off-band  vol $720  clv +1.5c
+  Zebby Matthews outs 15.5     -211 /  +211    -115   raw -210  off-band  vol $2.5k  clv +7.5c
+  Zebby Matthews outs 17.5     -133 /  +133       -   raw -138
+  Blade Tidwell k 2.5          -290 /  +290    -365   off-band  vol $48  clv +0.5c
+  Blade Tidwell k 3.5          -128 /  +128    -141   vol $4.1k  clv -0.5c
+  Blade Tidwell k 4.5          +171 /  -171    +156   off-band  vol $4.1k  clv +0.0c
+  Blade Tidwell k 5.5          +376 /  -376    +355   off-band  vol $5.0k  clv -1.0c
+  Blade Tidwell k 6.5          +842 /  -842    +852   off-band  vol $1.2k  clv +0.5c
+  Blade Tidwell k 7.5         +2046 / -2046   +2122   off-band  vol $2  clv +0.5c
+  Blade Tidwell outs 15.5      +103 /  -103    +117   raw +104  vol $1.5k  clv +2.0c
+  Blade Tidwell outs 16.5      +130 /  -130       -   raw +125
+
+DECLINED — never filled with a league-average arm:
+  TOR @ BAL   Trey Yesavage / Shane Baz               game is In Progress — never price a live one
+  WSH @ DET   DJ Herz / River Ryan                    game is Game Over — never price a live one
+
+outs corrected (2026-09-09); raw in note. K beats the OPEN only — bet early or not.
+Totals Jul/Aug ran ~0.15-0.20 light a side (unshipped month term); Sept unmeasured.
+Re-run after lineups post: a projected nine has cost half an edge before.
+
+wall clock: 80s total — 74s simulating, 1s fetching markets, 5s loading rates. RE-RUNNING IS CHEAP; do it when lineups post.
