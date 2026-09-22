@@ -2001,6 +2001,72 @@ k_nad 1/3; summer three per-hitter HR rows moved 1.1-1.7 se, widening a
 July over-spread that predates the change — item 40. Level rows
 unchanged everywhere. Full entry in the notes.
 
+**44. `hook_penstate.json` HAS BEEN STALE SINCE 2026-08-29 AND NOTHING
+SAID SO — the shipped table's WRITER was never in the repo.** Found
+2026-09-22 while fixing the same defect in the velo table. LIVE PRICING
+DEFECT, not a modelling one: no constant changes, the table does.
+
+ESTABLISHED: the committed table's newest key is 2026-08-29 while
+`sim.USE_PEN_STATE` is True, and `sim.pen_state` is SILENT-NEUTRAL on a
+miss, so all 22 September dates fell through to `PEN_BACK2_BASELINE` /
+`PEN_REST_BASELINE`. The mechanism has been inert on every live board for
+three weeks, contributing exactly zero. This is the second instance of one
+category error, the velo table being the first: a DATED OBSERVATION TABLE
+committed into `src/context/` beside the FITTED constants, which carry a
+`before: 2026-07-01` stamp and are frozen at the holdout ON PURPOSE — so a
+stale copy of an observation table looks exactly correct and breaks no
+visible rule. `scratchpad/pen_state.py` is the research script and never
+wrote the shipped file; the writer existed only in the 2026-08-29 session.
+The note that day SAID this would happen ("LIVE SLATES CURRENTLY FALL BACK
+TO LEAGUE-NEUTRAL, AND ANYONE PRICING TONIGHT SHOULD KNOW IT"), the fix
+built a table covering THAT board, and it started drifting again the next
+morning. A snapshot shipped where a pipeline step was needed.
+DONE ALREADY: `pen_state.export()` reconstructs the writer and is
+VERIFIED — 36,828 overlapping keys against the committed table, 99.20%
+identical, and every disagreement is a late-March or opening-week date,
+which is `sources/gametype.py` correctly dropping exhibitions from a
+club's "previous two". 2,038 of the 2,094 dropped keys are March.
+PRE-REGISTERED, AND IT IS THE PART NOT DONE: replacing the table CHANGES
+ENGINE BEHAVIOUR on every fold's September rows, so it takes the battery
+(rule 15) — record the fingerprint, swap, re-run, report the diff. Expect
+`save`/`pen` rows to move and nothing else; a move in the starter's outs
+or K shape is a wiring bug, since this feeds the hook only. Then add the
+export to `cron_backfill.sh` and `data_status`, exactly as the velo table
+now is, or it silently rots again — THAT is the actual fix, not the
+rebuild.
+
+**43. A COLD STREAK IS NOT LINEAR — the bottom decile carries ~0.30 and
+the engine's velo term cannot see it.** PARKED 2026-09-22, end of season,
+by operator decision. Opened from a live board question about an arm whose
+last five starts ran 10.9% K against a season 23.2%.
+
+ESTABLISHED: `scratchpad/streak_tail.py`. The recent-5 K drift's carryover
+into the next start is ~0 through the middle eight deciles and +0.22 in the
+bottom one; on nested cold cuts it reads +0.30 / +0.32 / +0.31 (n 414 /
+142 / 41) against the pooled line's -0.0034 / -0.0042 / -0.0050 — 3.9 /
+3.0 / 1.8 se off. TRAIN-ONLY (date < HOLDOUT) holds it at +0.25 / +0.28 /
++0.29, 2.8 / 2.2 se off, so the finding is not holdout contamination.
+`streaks.py`'s pooled +0.0443 +/- 0.0305 is a correct reading of the
+AVERAGE and a wrong reading of any cold arm — the drift sd is 0.0362 and
+the rows that prompt the question sit three and four sd out. ASKING A LINE
+ABOUT THE TAIL IS EXTRAPOLATION, NOT MEASUREMENT, and it is how this
+project nearly filed a real effect as a null.
+NOT ESTABLISHED: that the velocity split inside the tail is real. Arms
+whose radar also fell >0.5 mph carry +0.48 against +0.26 for those whose
+held, same sign at both cuts, but n=61 and n=30 and the two are ~1.2 se
+apart. DIRECTIONAL ONLY.
+PRE-REGISTERED: a threshold term on deep negative drift, on top of the
+velo kick, counted on TRAIN ROWS ONLY and never fitted to a loss (rule 5 —
+the tail numbers are conditional means and must stay that way). Bar before
+running: the cold cells land closer to actual in at least three of four
+folds and the bulk stays inside 1 se.
+THE SCOREABILITY PROBLEM, RECORDED UP FRONT because it is the reason this
+is not a quick item: the term fires on ~4% of starts, so `k_pa_all`
+DIVIDES IT BY TWENTY-FIVE and cannot see it whatever it does. A battery
+row has to be BUILT first — K per PA restricted to starts whose prior-5
+drift is below the threshold — or the change is not scoreable and must not
+be reported as an improvement.
+
 **42. THE OUTS CORRECTION DRIFTS ON THE CALENDAR, NOT THE ENGINE — give it
 a month, and give the board its provenance.** Found 2026-09-21 in a live
 pricing session, where the stale table was quoted as current and then the

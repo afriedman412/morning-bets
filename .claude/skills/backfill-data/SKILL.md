@@ -55,7 +55,11 @@ venv/bin/python -m src.context.sources.weather --backfill
 venv/bin/python -m src.context.order --build            # mlb_lineups
 venv/bin/python -m src.context.sources.battedball --build   # mlb_batted
 
-# 4. The hook decision rows, LAST — built from the pbp cache plus
+# 4. The velocity table. Reads the pbp CACHE, not context.db, so it needs
+#    step 2's --backfill but not its --sync. ~1 min.
+venv/bin/python -m src.context.velo --build
+
+# 5. The hook decision rows, LAST — built from the pbp cache plus
 #    mlb_stints, so it is wrong if step 2 has not finished.
 venv/bin/python -m scratchpad.fit_hooks --rebuild
 ```
@@ -74,6 +78,15 @@ says the data arrived.
 been topped up that morning and still missed 37 of 111 finished September
 games, spread across every date. `data_status` counts the gap; the backfill's
 own output does not.
+
+**A SHIPPED INPUT CAN LIVE IN A FILE AND GO STALE IN SILENCE.** Step 4 was
+not in this chain until 2026-09-22 and `velo_starts.json` was not in
+`data_status` either, so the table sat a start behind — a pitcher's 09-16
+start was missing while every DB row in the report read 0d — and the K and
+BB kicks on the live board were priced off the previous start's radar. Worse,
+the file predated `sources/gametype.py`, so it still counted MARCH
+EXHIBITIONS in each pitcher's season mean; the first rebuild dropped ~450
+rows league-wide (19,497 -> 19,048). Both sidecars are now reported.
 
 **`/tmp/hook_rows.json` is in `/tmp`.** It does not survive a reboot, and
 every hook fit and the battery read it. If it is missing, step 4 rebuilds it

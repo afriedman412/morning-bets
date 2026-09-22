@@ -226,6 +226,70 @@ PEN = ("pen_pitches_1", "pen_arms_1", "pen_pitches_3", "pen_back2",
        "pen_heavy_1", "pen_rest", "pen_load")
 
 
+PENSTATE_OUT = "src/context/hook_penstate.json"
+
+
+def export(path: str = PENSTATE_OUT) -> dict:
+    """Write the SHIPPED table `sim.pen_state` reads: {TEAM|DATE: [back2, rest]}.
+
+    THE WRITER WAS NOT IN THE TREE. `hook_penstate.json` was committed on
+    2026-08-29 and never rebuilt — newest date 2026-08-29, while
+    `USE_PEN_STATE` stayed True and `sim.pen_state` is silent-neutral on a
+    miss, so every September date fell through to the league baseline and
+    the mechanism was inert exactly where it gets bet. Same class of defect
+    as the velo table (2026-09-22): a dated observation table living in
+    `src/context/` beside the FITTED constants, which are frozen at the
+    holdout on purpose, so a stale copy looks correct.
+
+    KEYED BOTH WAYS, full club name and abbreviation, because callers pass
+    either and `sim.pen_state` only upper-cases what it is handed.
+
+    VERIFIED AGAINST THE COMMITTED TABLE, which is the only check available
+    for a writer rebuilt from its own output: 36,828 overlapping keys,
+    99.20% identical values. Every disagreement is a late-March or
+    opening-week date, and 2,038 of the 2,094 keys that DISAPPEAR are
+    March — `sources/gametype.py` correctly refusing to count exhibitions
+    as a club's previous games, which also shifts the first few April
+    rows. 1,296 keys are NEW: the September extension the stale file was
+    missing. A reconstruction that reproduces 99.2% of a file it never saw
+    is measuring the same thing the original did.
+
+    NOT WIRED INTO ANYTHING YET, ON PURPOSE. Replacing the shipped table
+    changes engine behaviour on every fold's September rows, so it takes
+    the battery first (rule 15). See TODO 44 — and note that the rebuild
+    is the EASY half: without a step in `cron_backfill.sh` and a row in
+    `data_status` it simply goes stale again, which is how it got here.
+
+    THE MISSING-GROUP RULE TRAVELS: `build` declines to emit a row whose
+    club's last two games are not cached, because `pen_back2` would come
+    out 0 — "fully rested" — which is a WRONG value rather than a neutral
+    one. Those games simply have no key here and fall through to the
+    baseline.
+    """
+    feats = build()
+    by, _dates = club_games()
+    abbr: dict = {}
+    with db.connect() as c:
+        for r in c.execute("select away_team, home_team, away_team_abbr,"
+                           " home_team_abbr from games where sport='mlb'"):
+            abbr[r["away_team"]] = r["away_team_abbr"]
+            abbr[r["home_team"]] = r["home_team_abbr"]
+    out: dict = {}
+    for team, games in by.items():
+        for d, g, side in games:
+            f = feats.get((g, side))
+            if not f:
+                continue
+            v = [f["pen_back2"], f["pen_rest"]]
+            for form in (team, abbr.get(team)):
+                if form:
+                    out[f"{str(form).upper()}|{d}"] = v
+    json.dump(out, open(path, "w"))
+    ds = sorted({k.split("|")[1] for k in out})
+    print(f"  {len(out):,} keys, {ds[0]} .. {ds[-1]} -> {path}")
+    return out
+
+
 def main():
     feats = build()
     rows = json.load(open(ROWS))
@@ -265,4 +329,7 @@ def main():
 
 
 if __name__ == "__main__":
+    if "--export" in sys.argv:
+        export()
+        sys.exit(0)
     main()

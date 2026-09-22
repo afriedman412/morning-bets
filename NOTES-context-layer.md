@@ -14508,3 +14508,84 @@ cell overshoot is the recorded cost and the reason for the follow-up.
 NEXT: item 38 stays open on the WIDTH (outs_sd +5 to +9 se in spring,
 +3 to +7 in summer — both tails, not the hook's level) and on the
 month-conditioned curve fit.
+
+---
+
+## 2026-09-22 — two shipped inputs were rotting in plain sight, and a null that was not one
+
+Opened as a board question about one arm's strikeout line. Nothing below
+was planned; all of it came out of checking why the model disagreed with
+five straight box scores.
+
+**`velo_starts.json` WAS EIGHT DAYS STALE AND STILL COUNTED SPRING
+TRAINING.** Newest row 2026-09-12 against a newest finished game of
+09-20, so the live board was pricing every starter's K and BB kick off
+the previous start's radar. The file also predated `sources/gametype.py`,
+so 133 March exhibitions sat inside 2026 pitchers' season velocity means;
+the rebuild dropped ~450 rows league-wide (19,497 -> 19,048).
+
+THE MECHANISM OF THE FAILURE, which matters more than the file: the
+project has exactly two homes for data. DERIVED tables live in
+`context.db`, which is gitignored precisely because it rebuilds — the
+`.gitignore` comment says so. FITTED constants live in `src/context/*.json`,
+committed, and carry a `before: 2026-07-01` stamp because they are frozen
+at the holdout ON PURPOSE. `velo_starts.json` is neither: it is a raw
+observation table that must track the calendar, and it got filed with the
+fitted constants because it is the same file type in the same directory.
+Once it sits beside `hook_arm.json` and `pitch_eff.json`, A STALE COPY
+LOOKS EXACTLY CORRECT. It broke no visible rule. It shipped 2026-09-07,
+two days before `data_status` and `/backfill-data` existed, and those
+enumerate DB tables by `MAX(date)` — a file has no row to count.
+`hook_rows.json` got a hand-written special case; this did not.
+
+Fixed: reported in `data_status` (through a shared `_json_max_date`, since
+both file-sidecars had the same hole), step 4 of `/backfill-data`, and —
+the one that actually mattered — a step in `cron_backfill.sh`, since the
+07:30 job never rebuilt it and would have drifted forever with the
+scheduler perfectly healthy. New check verified by two mutations.
+
+**THE BATTERY WAS FLAT AND THE BLINDNESS IS QUANTIFIED**, per the rule
+that "nothing moved" has to be shown and never asserted. Fingerprint
+405e6c9113cf -> 96ac41ecf303 (so it reached the engine), no row past one
+se. It is NOT dilution — 3,843 of 9,426 scored starter-starts, 40.8%, had
+their kick change. It is SIZE: the mean shift is -0.00013 against a
+`k_pa_all` se of 0.0016, so 0.08 se, twelve times under resolution. Flat
+was the only available outcome. The refresh still mattered because the
+worst-affected arm moved two full points of K%, which is a live-board
+effect a pooled four-fold row averages away by construction.
+`scratchpad/velo_refresh.py` is that measurement, kept.
+
+**THE SAME CATEGORY ERROR, STILL LIVE: `hook_penstate.json`.** Newest key
+2026-08-29 with `USE_PEN_STATE` True and `sim.pen_state` silent-neutral on
+a miss, so every September date has fallen through to the league baseline
+and the mechanism has been inert on the live board for three weeks. The
+WRITER was never in the repo — `scratchpad/pen_state.py` fits and reports,
+it never wrote the file. Reconstructed as `pen_state.export()` and
+verified at 99.20% on 36,828 overlapping keys, disagreements all
+late-March. Not swapped in: it moves engine behaviour and takes the
+battery. TODO 44. The 2026-08-29 note predicted this exact failure and
+the fix that day shipped a SNAPSHOT where a pipeline step was needed.
+
+**AND THE ONE THAT IS A REAL FINDING: A COLD STREAK IS NOT LINEAR.**
+`streaks.py` reports the recent-5 K drift carrying +0.0443 +/- 0.0305
+once velocity is in the fit, 1.5 sigma, and that had been read here as "a
+streak carries nothing". It is a correct reading of the AVERAGE and a
+wrong reading of any cold arm. The drift sd is 0.0362; the rows that
+prompt the question sit three and four sd out, so the pooled slope is
+being extrapolated far past where it was fitted. Asked non-parametrically
+(`scratchpad/streak_tail.py`), carryover is ~0 through the middle eight
+deciles and +0.22 in the bottom one, and on nested cold cuts reads
++0.30 / +0.32 / +0.31 (n 414 / 142 / 41) against the line's -0.0034 /
+-0.0042 / -0.0050 — 3.9 / 3.0 / 1.8 se off. TRAIN-ONLY holds it at +0.25 /
++0.28 / +0.29. ONE TAIL AVERAGED INTO NINE FLAT BINS is how a pooled fit
+turns a real effect into a null; this is rule 7 with a specific shape, and
+the cure is to ask whether the fitted range covers the case in hand.
+
+Directional and not established: inside the tail, arms whose radar also
+fell >0.5 mph carry +0.48 against +0.26 for those whose held — same sign
+at both cuts, n=61 and n=30, ~1.2 se apart.
+
+PARKED by operator decision (end of season), TODO 43. The scoreability
+problem is recorded there and is the reason it is not quick: it fires on
+~4% of starts, so `k_pa_all` divides it by twenty-five and a battery row
+has to be built before the change is scoreable at all.

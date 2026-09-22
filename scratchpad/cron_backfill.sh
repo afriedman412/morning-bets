@@ -48,6 +48,11 @@ run "play-by-play" "$PY" -m src.context.sources.pbp --backfill --sync
 run "weather"      "$PY" -m src.context.sources.weather --backfill
 run "lineups"      "$PY" -m src.context.order --build
 run "batted ball"  "$PY" -m src.context.sources.battedball --build
+# A SHIPPED INPUT THAT IS A FILE, NOT A TABLE, AND IT WAS NOT IN THIS
+# CHAIN UNTIL 2026-09-22: every starter's K and BB kick is read off
+# velo_starts.json, nothing rebuilt it, and nothing reported it either,
+# so it drifted in silence while data_status showed every table at 0d.
+run "velocity"     "$PY" -m src.context.velo --build
 # LAST: built from the pbp cache plus mlb_stints, so it is wrong if the
 # play-by-play step has not finished. Never pipe it to `head` — it writes
 # only at the end and a SIGPIPE kills it looking like success.

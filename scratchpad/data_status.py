@@ -31,6 +31,14 @@ from src.context import store
 PBP_CACHE = pathlib.Path(".cache/pbp")
 HOOK_ROWS = "/tmp/hook_rows.json"
 
+#: The velocity table is a SHIPPED INPUT, not a derived convenience: every
+#: starter's K and BB kick is read off it, and it is a FILE rather than a
+#: table, so nothing in this report saw it until 2026-09-22. It had stopped
+#: at 2026-09-11 while `mlb_stints` read 0d, and it still carried spring
+#: training — it predated the `gametype` relabel, so every pitcher's season
+#: mean was contaminated by March. Rebuild: `-m src.context.velo --build`.
+VELO_TABLE = "src/context/velo_starts.json"
+
 #: Days a source may trail the newest finished game before it is STALE.
 #: One, not zero: a source refreshed after last night's games is current,
 #: and a game finishing near midnight UTC can legitimately land a day late.
@@ -47,8 +55,19 @@ BUDGET = 1
 #: otherwise pull data on its own schedule while every session assumed
 #: nothing did. Absent is the expected state and is reported as ok; present
 #: is what gets flagged.
-JOBS = ("com.morningbets.grade", "com.morningbets.process",
-        "com.morningbets.discover", "com.morningbets.context")
+RETIRED = ("com.morningbets.grade", "com.morningbets.process",
+           "com.morningbets.discover", "com.morningbets.context")
+
+#: AND SINCE 2026-09-20 TWO JOBS ARE SUPPOSED TO BE RUNNING, which inverts
+#: this check a second time. `backfill` at 07:30 and `hourly` every hour
+#: 08:05-23:05 feed the versioned board series. So absence is no longer
+#: uniformly correct: one of these MISSING is now its own silent failure —
+#: the boards quietly stop accumulating and the page keeps happily serving
+#: yesterday's, which is the exact shape of the drift that killed the last
+#: scheduler. A name in neither tuple is a stray and still gets flagged.
+EXPECTED = ("com.morningbets.backfill", "com.morningbets.hourly")
+
+JOBS = RETIRED + EXPECTED
 
 
 def assess(latest: str | None, ref: str, budget: int = BUDGET) -> tuple:
@@ -118,27 +137,90 @@ def pbp_gap(c, since: str) -> tuple[int, int]:
     return len(rows), miss
 
 
-def job_health() -> list[tuple[str, str]]:
-    """(job, state) for any job that is loaded — ONLY the ones present.
+def job_health() -> list[tuple[str, str, str]]:
+    """(job, state, kind) for every `com.morningbets.*` job that matters.
 
-    Returns empty off macOS, with no launchd, and in the normal case where
-    none of them exist. The report inverts the old sense deliberately: a
-    loaded job is now the exception worth printing, because nothing is
-    supposed to be running. See `JOBS`.
+    `kind` is what the caller acts on, and the three are different
+    problems, not degrees of one:
+
+      'expected'  one of EXPECTED. Reported whether loaded OR NOT — a
+                  missing one is the failure, since the board series
+                  silently stops growing and the page serves the last
+                  one it got as though it were current.
+      'retired'   one of RETIRED, deleted 2026-09-09. Present means
+                  something put it back.
+      'unknown'   a `com.morningbets.*` nobody declared. MATCHED BY
+                  PREFIX rather than by list, which the old check could
+                  not do: it compared against four literal names, so a
+                  stray under any other name was invisible — exactly the
+                  hole this guard was written to close.
+
+    Off macOS, or with no launchd, returns [] rather than claiming every
+    expected job is missing.
     """
     try:
         out = subprocess.run(["launchctl", "list"], capture_output=True,
                              text=True, timeout=10).stdout
     except Exception:
         return []
-    seen = []
+    loaded = {}
     for line in out.splitlines():
         parts = line.split("\t")
-        if len(parts) >= 3 and parts[2] in JOBS:
+        if len(parts) >= 3 and parts[2].startswith("com.morningbets."):
             pid, code = parts[0], parts[1]
-            seen.append((parts[2], "running" if pid.isdigit()
-                         else f"last exit {code}"))
+            loaded[parts[2]] = ("running" if pid.isdigit()
+                                else f"last exit {code}")
+    return _classify_jobs(loaded)
+
+
+def job_is_bad(state: str, kind: str) -> bool:
+    """Is this job row a FINDING rather than a status line?
+
+    A NON-ZERO LAST EXIT IS A FAILURE. This is the 2026-09-09 death
+    exactly: three jobs exited 1 every day into a log nobody read while
+    anything that checked only whether they existed said the pipeline was
+    fine. Loaded is not running, and running is not succeeding. Proven
+    again the hour this was written — `hourly` came back `last exit 126`,
+    macOS refusing a launchd agent access to ~/Documents, and the first
+    cut of the report printed it as though it were healthy.
+
+    Pure, and shared with the report, so the test cannot pass against a
+    copy of the rule while the printed answer says something else.
+    """
+    if kind != "expected":
+        return True                      # retired or undeclared
+    if state == "NOT LOADED":
+        return True                      # the series has stopped growing
+    return state.startswith("last exit ") and state != "last exit 0"
+
+
+def _classify_jobs(loaded: dict[str, str]) -> list[tuple[str, str, str]]:
+    """The sorting, split out PURE so it is testable without launchctl.
+
+    Every EXPECTED job appears whether or not it is loaded; everything
+    else appears only when present.
+    """
+    seen = [(j, loaded.get(j, "NOT LOADED"), "expected") for j in EXPECTED]
+    seen += [(j, s, "retired" if j in RETIRED else "unknown")
+             for j, s in sorted(loaded.items()) if j not in EXPECTED]
     return seen
+
+
+def _json_max_date(path: str) -> str | None:
+    """Newest `date` in a list-of-rows JSON sidecar, or None.
+
+    TWO SHIPPED INPUTS LIVE IN FILES RATHER THAN IN `context.db`, and a
+    file has no row this report can count. Missing and unreadable both
+    return None, which `assess` renders as the loudest status there is —
+    a sidecar nobody can parse is exactly as stale as one nobody built.
+    """
+    if not os.path.exists(path):
+        return None
+    try:
+        ds = [r.get("date") for r in json.load(open(path)) if r.get("date")]
+    except Exception:
+        return None
+    return max(ds) if ds else None
 
 
 def collect() -> dict:
@@ -158,15 +240,9 @@ def collect() -> dict:
         ]
         month = (ref or "2000-01-01")[:8] + "01"
         total, miss = pbp_gap(c, month)
-    hook = None
-    if os.path.exists(HOOK_ROWS):
-        try:
-            ds = [r.get("date") for r in json.load(open(HOOK_ROWS))
-                  if r.get("date")]
-            hook = max(ds) if ds else None
-        except Exception:
-            hook = None
+    hook = _json_max_date(HOOK_ROWS)
     srcs.append((f"{HOOK_ROWS} (hook rows)", hook))
+    srcs.append(("velo_starts.json (velo/zone)", _json_max_date(VELO_TABLE)))
     return {"ref": ref, "sources": srcs, "pbp_total": total,
             "pbp_missing": miss, "month": month,
             "pbp_cached": len(list(PBP_CACHE.glob("*.json.gz")))}
@@ -196,14 +272,28 @@ def main():
 
     jobs = job_health()
     if jobs:
-        print("\n  UNEXPECTED SCHEDULED JOBS — these were deleted "
-              "2026-09-09 and something put one back:")
-        for j, state in jobs:
-            print(f"    {j:<28}{state}")
-        print("    A job pulling on its own schedule while sessions assume "
-              "nothing does is\n    how the data drifts silently. Remove it "
-              "or account for it.")
-        stale += 1
+        print("\n  SCHEDULED JOBS")
+        for j, state, kind in jobs:
+            bad = job_is_bad(state, kind)
+            tag = {"expected": "", "retired": "  RETIRED 2026-09-09",
+                   "unknown": "  UNDECLARED"}[kind]
+            print(f"    {j:<30}{state}{tag}")
+            if bad:
+                stale += 1
+        if any(k == "expected" and s.startswith("last exit ")
+               and s != "last exit 0" for _, s, k in jobs):
+            print("    A non-zero exit means it is loaded and FAILING — "
+                  "read logs/*.log.\n    On macOS, exit 126 on a repo "
+                  "under ~/Documents is the TCC sandbox:\n    grant Full "
+                  "Disk Access to /bin/bash in System Settings.")
+        if any(s == "NOT LOADED" for _, s, k in jobs if k == "expected"):
+            print("    A missing expected job means the board series has "
+                  "stopped growing while\n    the page keeps serving the "
+                  "last one — reload it with launchctl bootstrap.")
+        if any(k != "expected" for _, _, k in jobs):
+            print("    A job pulling on its own schedule while sessions "
+                  "assume nothing does is\n    how the data drifts "
+                  "silently. Remove it or account for it.")
 
     print(f"\n  {'ALL CURRENT' if not stale else f'{stale} SOURCE(S) BEHIND'}"
           f" — `/backfill-data` refreshes everything in dependency order.\n")

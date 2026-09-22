@@ -32,6 +32,14 @@ Refreshed 2026-09-21.
         0.75x, September 1.87x at 50 pitches, shrinking with pitches);
         spring bar met. Open: the WIDTH of the spring outs distribution
         (+5 to +9 se, both tails) and a month-conditioned curve fit.
+    44  `hook_penstate.json` stale since 2026-08-29 and its WRITER was
+        never in the repo, so pen state has been league-neutral on every
+        live board for three weeks. Export reconstructed and verified
+        (99.2% on the overlap); the table swap still needs the battery.
+    43  PARKED 2026-09-22 — a cold streak is NOT linear: middle deciles
+        carry ~0, the bottom carries +0.30 (train-only +0.25 to +0.29),
+        3.9 se off the pooled line. Fires on ~4% of starts, so a battery
+        row must be built before it is scoreable.
     42  The outs correction drifts on the CALENDAR, not the engine — the
         scored window went 12.2% to 25.4% September in eleven days. Give
         it a month bucket, and give the board its provenance against the

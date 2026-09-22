@@ -47,29 +47,52 @@ def check_the_budget_is_one_day_and_it_binds():
 
 
 def check_a_returning_scheduled_job_would_be_noticed():
-    """All four jobs were deleted on 2026-09-09; the names must survive.
+    """The four deleted on 2026-09-09 must stay named, so a reinstall shows.
 
-    THE POINT IS INVERTED FROM WHAT IT WAS. There is no scheduler now, so
-    absence is correct and `job_health` reports only what is actually
-    loaded. Keeping the names is what lets the report notice one coming
-    BACK — a plist reinstalled by hand would otherwise pull data on its
-    own schedule while every session assumed nothing did, which is the
-    silent drift this module exists to break.
-
-    Emptying `JOBS` would make that undetectable and is what this guards.
+    INVERTED TWICE NOW. There was no scheduler, so absence was correct;
+    since 2026-09-20 `backfill` and `hourly` ARE supposed to run, so for
+    those two absence is the failure. A name in neither tuple is a stray.
+    Emptying either tuple makes one of the three undetectable.
     """
     for j in ("com.morningbets.grade", "com.morningbets.process",
               "com.morningbets.discover", "com.morningbets.context"):
-        assert j in ds.JOBS, j
-    # Only loaded jobs come back, and never a fabricated "not loaded" row —
-    # that distinction is what makes a returning job visible.
+        assert j in ds.RETIRED, j
+    for j in ("com.morningbets.backfill", "com.morningbets.hourly"):
+        assert j in ds.EXPECTED, j
     out = ds.job_health()
     assert isinstance(out, list)
-    for name, state in out:
-        assert name in ds.JOBS, name
+    for name, state, kind in out:
+        assert name.startswith("com.morningbets."), name
+        assert kind in ("expected", "retired", "unknown"), (name, kind)
         assert isinstance(state, str) and state, (name, state)
-        assert state != "not loaded", \
-            "job_health must report only what is loaded"
+
+
+def check_every_expected_job_is_reported_loaded_or_not():
+    """A MISSING expected job is the new silent failure and must appear.
+
+    Reporting only what is loaded — the old behaviour — would let the
+    hourly pull fall over and say nothing, while the page went on serving
+    the last board it got as though it were current.
+    """
+    named = {n for n, _, k in ds.job_health() if k == "expected"}
+    assert named == set(ds.EXPECTED), named
+
+
+def check_a_stray_job_is_flagged_even_under_an_undeclared_name():
+    """Matched by PREFIX, not against a list of four literals.
+
+    The old check compared `parts[2] in JOBS`, so a stray plist under any
+    name nobody had thought of was invisible — which is the hole the
+    guard existed to close.
+    """
+    rows = ds._classify_jobs({"com.morningbets.somethingelse": "running"})
+    kinds = {n: k for n, _, k in rows}
+    assert kinds["com.morningbets.somethingelse"] == "unknown", kinds
+    assert kinds["com.morningbets.grade"] == "retired" \
+        if "com.morningbets.grade" in kinds else True
+    # and the expected pair is still reported, here as absent
+    missing = [s for n, s, k in rows if k == "expected"]
+    assert missing == ["NOT LOADED", "NOT LOADED"], missing
 
 
 def check_a_row_without_a_reading_is_not_reported_as_current():
@@ -101,3 +124,78 @@ def check_a_row_without_a_reading_is_not_reported_as_current():
     # current on rows and is three days behind on readings.
     assert ds.assess(ds._max_date(c, "w"), "2026-09-09")[0] == "ok"
     assert ds.assess(got, "2026-09-09")[0] == "STALE"
+
+
+def check_a_loaded_job_that_exits_nonzero_is_a_failure():
+    """LOADED IS NOT RUNNING AND RUNNING IS NOT SUCCEEDING.
+
+    The 2026-09-09 death in one line: three jobs exited 1 every day into
+    a log nobody read, while anything that looked only at whether they
+    existed said the pipeline was fine. Reproduced 2026-09-20 — `hourly`
+    came back `last exit 126` (macOS refusing a launchd agent access to
+    ~/Documents) and the first cut of the report printed it as a status
+    line, not a problem.
+    """
+    rows = ds._classify_jobs({"com.morningbets.hourly": "last exit 126",
+                              "com.morningbets.backfill": "last exit 0"})
+    state = {n: s for n, s, _ in rows}
+    assert state["com.morningbets.hourly"] == "last exit 126"
+
+    # `job_is_bad` is the SHIPPED predicate, not a copy of it here — a
+    # test that reimplements the rule passes happily while the printed
+    # report says the opposite.
+    flagged = {n for n, s, k in rows if ds.job_is_bad(s, k)}
+    assert flagged == {"com.morningbets.hourly"}, flagged
+    # and a running job is not flagged just for being present
+    ok = ds._classify_jobs({"com.morningbets.hourly": "running",
+                            "com.morningbets.backfill": "last exit 0"})
+    assert not {n for n, s, k in ok if ds.job_is_bad(s, k)}
+    # a missing one, and a stray, are both findings too
+    assert ds.job_is_bad("NOT LOADED", "expected")
+    assert ds.job_is_bad("running", "unknown")
+    assert ds.job_is_bad("running", "retired")
+
+
+def check_a_file_sidecar_is_read_for_freshness_like_a_table():
+    """A SHIPPED INPUT THAT LIVES IN A FILE STILL HAS TO BE REPORTED.
+
+    Found 2026-09-22 from the other end: `velo_starts.json` had stopped
+    at a pitcher's 09-11 start while every table in the report read 0d,
+    so the K and BB kicks on the live board were a start behind and
+    nothing anywhere said so. It is not in `context.db`, so the
+    MAX(date) machinery could not see it at all.
+
+    The two sidecars go through one reader, and an unreadable file
+    returns None rather than raising — `assess(None, ...)` is already the
+    loudest status there is, and a report that dies on a corrupt JSON
+    tells you less than one that prints `(empty)`.
+    """
+    import json as _json
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as d:
+        p = f"{d}/rows.json"
+        with open(p, "w") as fh:
+            _json.dump([{"name": "A", "date": "2026-09-11"},
+                        {"name": "B", "date": "2026-09-16"},
+                        {"name": "C"}], fh)          # a row with no date
+        assert ds._json_max_date(p) == "2026-09-16"
+
+        # STALE IS THE CASE THAT BOUGHT THIS CHECK: the newest row trails
+        # the newest finished game and the report has to say so.
+        assert ds.assess("2026-09-16", "2026-09-20")[0] != "ok"
+        assert ds.assess("2026-09-20", "2026-09-20")[0] == "ok"
+
+        # missing, unparseable, and empty are all None, never a crash
+        assert ds._json_max_date(f"{d}/nope.json") is None
+        with open(f"{d}/bad.json", "w") as fh:
+            fh.write("{not json")
+        assert ds._json_max_date(f"{d}/bad.json") is None
+        with open(f"{d}/empty.json", "w") as fh:
+            _json.dump([], fh)
+        assert ds._json_max_date(f"{d}/empty.json") is None
+
+    # and the velo table is actually WIRED INTO the report — the reader
+    # existing is not the same as `collect` calling it.
+    names = [n for n, _ in ds.collect()["sources"]]
+    assert any("velo" in n for n in names), names
