@@ -1600,3 +1600,43 @@ def check_the_board_reports_a_game_it_drops_for_a_missing_probable():
     # The footer has to be willing to print them.
     printed = inspect.getsource(board.print_board)
     assert "DECLINED" in printed and "MANUAL PROBABLES" in printed, printed
+
+
+def check_a_returning_arm_is_priced_from_his_prior_season():
+    """An arm with no line THIS season is stale, not unknown.
+
+    DJ Herz was declined on 2026-09-21 — "no rates on record" — with 19
+    starts and 385 batters faced sitting in 2024, and the whole game went
+    unpriced for it under `both starters or neither`. River Ryan, the
+    opposing starter, was 2024-only too.
+
+    THE GUARD THAT MATTERS IS THE SECOND ONE. Filling these in must not
+    disturb a single arm the season-scoped map already had: the easy
+    version of this fix is `season=ALL_SEASONS`, which folds prior
+    seasons into EVERY pitcher and moves every number on every board.
+    """
+    from scratchpad import board
+    from src.context import sim
+    from src.context.sources import rates as rate_src
+    lg = sim.league()
+    base = rate_src.pitcher_rates(lg, before="2026-09-21")
+    filled, stale = board._with_prior_seasons(base, lg, "2026-09-21")
+
+    assert "DJ Herz" not in base, "fixture assumes he has no 2026 line"
+    assert "DJ Herz" in filled, "a returnee must be priceable"
+    assert stale.get("DJ Herz") == "2024", stale.get("DJ Herz")
+    # his real rate, not a league stand-in
+    assert filled["DJ Herz"]["k_pct"] > lg["k_pct"] + 0.03
+
+    # NOT ONE EXISTING ARM MOVES — identity, not equality, so a rebuilt
+    # dict with the same numbers would still fail.
+    assert all(filled[n] is base[n] for n in base), \
+        "the fallback rewrote an arm the season map already had"
+    assert set(base) <= set(filled)
+    assert not (set(stale) & set(base)), "flagged an arm that was not filled"
+
+    # STALE IS NOT UNKNOWN. An arm with no line in ANY season stays
+    # missing, so `slate.build_side` still declines him rather than
+    # pricing a name the database has never seen. Asserted here rather
+    # than in its own check so the rate maps are built once.
+    assert "Nobody McNoline" not in filled

@@ -136,9 +136,61 @@ def _vol(v: float) -> str:
     return f"vol ${v:.0f}"
 
 
-def _mids(stat: str, d: str, wanted: set) -> dict:
+def _clv(delta: float) -> str:
+    """'clv +3.2c' — how far the book has moved since its FIRST trade.
+
+    Cents because a Kalshi contract settles at a dollar, so a probability
+    point IS a cent. The sign is the OVER's: positive means the market has
+    drifted toward the over since it opened, whichever side we happen to
+    like. It rides in the note for the same reason `_vol` does — a new
+    printed column would silently drop every rung out of board_json.
+
+    NOT AN OBJECTIVE, AND THE DOCS ARE EMPHATIC. Our resolution was below
+    the OPENING price's in July and August while we still beat the open on
+    CLV, so this number can improve while the simulation gets worse. It is
+    here to be looked at, never to decide whether a mechanism helped.
+    """
+    return f"clv {delta * 100:+.1f}c"
+
+
+def _opens(tickers: dict, workers: int = 8) -> dict:
+    """{key: opening probability} from each market's first PREGAME trade.
+
+    `price_path` does the real work, including the cutoff that matters:
+    Kalshi keeps trading through the game and settles at 0 or 1, so a
+    trade after first pitch is the box score wearing a probability. Only
+    trades strictly before the start count.
+
+    A market with fewer than two pregame trades has no opening number and
+    is simply absent — blank is the honest reading for a rung nobody has
+    traded, and 695 of 2,467 markets had no volume at all on 2026-09-19.
+    One dead fetch must not cost the board, so an error is absent too.
+    """
+    from src import parallel
+    if not tickers:
+        return {}
+    keys = list(tickers)
+    out = {}
+    for i, got, err in parallel.gather(
+            lambda j: kalshi.price_path(tickers[keys[j]], "over"),
+            range(len(keys)), workers=workers):
+        if err is None and got:
+            out[keys[i]] = got["open_prob"]
+    return out
+
+
+def _mids(stat: str, d: str, wanted: set, tickers: dict | None = None) -> dict:
     """{(pitcher, line): (kalshi mid, traded $)}. Books wider than
-    MAX_SPREAD dropped."""
+    MAX_SPREAD dropped.
+
+    `tickers` is an OPTIONAL out-parameter: pass a dict and it collects
+    {("prop", stat, name, line): ticker} for every rung that priced, which
+    is what `_opens` needs to look up an opening trade. It is an
+    out-parameter rather than a third element of the tuple because
+    `reprice_openers` unpacks this two-wide and a shape change would break
+    it silently — the keys are stat-qualified because (name, line) alone
+    collides between the k and outs ladders.
+    """
     series = kalshi.SERIES_BY_STAT.get(stat)
     if not series or not wanted:
         return {}
@@ -170,12 +222,17 @@ def _mids(stat: str, d: str, wanted: set) -> dict:
         if bid is None or ask is None or (ask - bid) > kalshi.MAX_SPREAD:
             continue
         out[key] = ((bid + ask) / 2, float(m.get("volume_fp") or 0))
+        if tickers is not None:
+            tickers[("prop", stat, key[0], key[1])] = m["ticker"]
     return out
 
 
-def _game_mids(d: str, wanted: set) -> dict:
+def _game_mids(d: str, wanted: set, tickers: dict | None = None) -> dict:
     """{(game, team, line, kind): (mid, traded $)} for totals, team totals
     and F5.
+
+    `tickers` is the same optional out-parameter `_mids` takes, collecting
+    {("game", game, team, line, kind): ticker} for `_opens`.
 
     These series were listed as unmapped for weeks on the grounds that
     their subtitles do not fit the player-prop shape. They do not need to:
@@ -202,12 +259,63 @@ def _game_mids(d: str, wanted: set) -> dict:
         if (ask - bid) > kalshi.MAX_SPREAD:
             continue
         out[key] = ((bid + ask) / 2, float(m.get("volume_fp") or 0))
+        if tickers is not None:
+            tickers[("game",) + key] = m["ticker"]
     return out
+
+
+def _with_prior_seasons(pr: dict, lg: dict, d: str) -> tuple[dict, dict]:
+    """Fill in arms THIS season has never seen from their prior seasons.
+
+    -> (rates, {name: last season pitched}) for the ones filled in.
+
+    WHY IT IS A FALLBACK AND NOT A SCOPE CHANGE. Calling
+    `pitcher_rates(season=ALL_SEASONS)` outright takes the map from
+    1,065 pitchers to 2,323 and folds prior seasons into EVERY arm's
+    rates, which moves every number on every board and is a battery
+    item. This touches only names the season-scoped map does not have,
+    so no arm anyone was already pricing changes by a thousandth.
+
+    WHAT IT BUYS. DJ Herz was declined on 2026-09-21 — "no rates on
+    record" — with 19 starts and 385 batters faced sitting in 2024. The
+    whole game went unpriced for it, both starters or neither. A
+    returnee is not an unknown.
+
+    WHAT IT DOES NOT BUY, AND THE BOARD SAYS SO. There is no staleness
+    discount anywhere in the engine: recency weighting reweights a
+    pitcher's starts against EACH OTHER, so an arm whose starts are all
+    equally old gets no discount at all (measured: recency-weighted and
+    plain both give Herz 0.2769). Sample-size shrinkage moves him 6% of
+    the way to league and that is the only haircut he takes. So his
+    2024 rate is used with the SAME confidence as a rate earned this
+    August. That is a real assumption, it is the operator's to make, and
+    it is why these arms are flagged on the board rather than folded in
+    quietly. Discounting it properly means measuring what a prior season
+    predicts — the open "memory across a winter" question — not picking
+    a number here.
+
+    A genuine debutant, with no line in any season, is still missing
+    from both maps and still declines. That is correct: he is unknown,
+    not stale.
+    """
+    from src import db
+    from src.context import scope
+    prior = rate_src.pitcher_rates(lg, before=d, season=scope.ALL_SEASONS)
+    fill = {n: r for n, r in prior.items() if n not in pr}
+    if not fill:
+        return pr, {}
+    with db.connect() as c:
+        last = {r["player_name"]: r["season"] for r in c.execute(
+            "select p.player_name, max(substr(g.date,1,4)) season "
+            "from mlb_pitching p join games g on g.game_id = p.game_id "
+            "where g.date < ? group by p.player_name", (d,))}
+    return {**fill, **pr}, {n: last.get(n, "?") for n in fill}
 
 
 def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
     lg = sim.league()
     pr = rate_src.pitcher_rates(lg, before=d)  # never a start's own day
+    pr, stale_arms = _with_prior_seasons(pr, lg, d)
     # A GAME WITH NO PROBABLE USED TO VANISH HERE. This was a bare list
     # comprehension, so three of fifteen games on 2026-09-11 were dropped
     # BEFORE `declined` was assembled: the board printed "12 games", the
@@ -253,8 +361,13 @@ def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
     t_mkt = time.monotonic()
     names = {g[s]["starter"] for g, r in zip(games, out)
              if not r["why"] for s in ("away", "home")}
-    mids = {stat: _mids(stat, d, {(nm, ln) for nm in names for ln in lines})
+    # One shared ticker map across both ladders, so the opening trades go
+    # out as a single parallel batch instead of one round trip per rung.
+    tks: dict = {}
+    mids = {stat: _mids(stat, d, {(nm, ln) for nm in names for ln in lines},
+                        tickers=tks)
             for stat, lines in (("k", K_LINES), ("outs", OUTS_LINES))}
+    opens = _opens(tks)
 
     blocks, not_quoted = [], []
     declined = list(no_probable)
@@ -280,6 +393,21 @@ def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
         game_note = "  ".join(
             f"[{g[s]['starter']}: {gate[s][1]}]" for s in ("away", "home")
             if not gate[s][0])
+        # A STALE ARM RIDES THE SAME RAIL AS A FLAGGED ONE, and on the
+        # WHOLE BLOCK rather than his own rows: the total, team totals
+        # and F5 inherit a two-season-old rate exactly as they inherit a
+        # flagged arm, and those are the rows anyone actually bets. He is
+        # priced — a returnee is not an unknown — but never silently.
+        # Short on purpose: it repeats on every row of the block, and
+        # both starters can be stale at once (WSH @ DET, 2026-09-21).
+        # "not aged" is the load-bearing word — see `_with_prior_seasons`.
+        stale_note = "  ".join(
+            f"[{g[s]['starter']}: {stale_arms[g[s]['starter']]} rates, "
+            f"not aged]"
+            for s in ("away", "home") if g[s]["starter"] in stale_arms)
+        if stale_note:
+            game_note = f"{game_note}  {stale_note}" if game_note \
+                else stale_note
         # AN APPLIED PLAN IS ANNOUNCED (`plans.py`, probables rule 2) —
         # on the whole block, because the total and F5 rows inherit the
         # replanned start exactly as they inherit a flagged arm.
@@ -353,6 +481,9 @@ def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
                     mid, vol = mids[stat].get((name, ln)) or (None, None)
                     if vol is not None:
                         xtra = (xtra + "  " if xtra else "") + _vol(vol)
+                    op = opens.get(("prop", stat, name, ln))
+                    if mid is not None and op is not None:
+                        xtra = (xtra + "  " if xtra else "") + _clv(mid - op)
                     b["rows"].append(
                         (stat, name, ln, p, mid,
                          (note + "  " if note else "") + xtra
@@ -363,7 +494,9 @@ def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
     # only those orderbooks are fetched, rather than the whole ladder.
     wanted = {row[4] for b in blocks for row in b["rows"]
               if row[0] == "tot" and row[4] is not None}
-    gm = _game_mids(d, wanted)
+    g_tks: dict = {}
+    gm = _game_mids(d, wanted, tickers=g_tks)
+    g_opens = _opens(g_tks)
     t_mkt = time.monotonic() - t_mkt
     for b in blocks:
         rows = []
@@ -375,6 +508,9 @@ def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
             note = row[5]
             if vol is not None:
                 note = (note + "  " if note else "") + _vol(vol)
+            op = g_opens.get(("game",) + row[4]) if row[4] else None
+            if mid is not None and op is not None:
+                note = (note + "  " if note else "") + _clv(mid - op)
             rows.append(row[:4] + (mid, note))
         b["rows"] = rows
 

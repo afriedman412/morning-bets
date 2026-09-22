@@ -80,6 +80,12 @@ def parse(path: str, date: str) -> dict:
         vm = re.search(r"vol \$([\d.]+)(k?)", note)
         r["vol"] = (float(vm.group(1)) * (1000 if vm.group(2) else 1)
                     if vm else None)
+        # 'clv +3.2c' -> 0.032. How far the book has moved since its first
+        # PREGAME trade, on the over. None means no opening trade to diff
+        # against — an untraded rung, not a flat one, and the two must not
+        # read the same downstream.
+        cm = re.search(r"clv ([+-][\d.]+)c", note)
+        r["clv"] = round(float(cm.group(1)) / 100, 4) if cm else None
 
         if re.match(r"^total ", bet):
             r["cls"] = "total"

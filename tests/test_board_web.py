@@ -208,3 +208,148 @@ def check_server_serves_dates_versions_and_the_sidebar():
                          ).status_code == 404
         finally:
             boards.BETS_DIR = orig
+
+
+# ── the CLV column — a readout, and blank is not zero ───────────────────
+
+def check_clv_token_round_trips_through_the_printed_note():
+    """`board` prints it into the note, `board_json` reads it back.
+
+    The two live in different modules and the only thing joining them is
+    this token, so a format change in one is silent in the other.
+    """
+    import re
+    from scratchpad import board
+    for cents in (3.2, -1.0, 0.0, 12.5):
+        tok = board._clv(cents / 100)
+        m = re.search(r"clv ([+-][\d.]+)c", tok)
+        assert m, tok
+        assert abs(float(m.group(1)) - cents) < 1e-9, (tok, cents)
+
+
+def check_a_note_without_clv_parses_to_none_not_zero():
+    """An untraded rung and a rung that has not moved must not agree.
+
+    None means there was no opening trade to diff against; 0.0 means the
+    market opened here and stayed. Collapsing them would put every
+    illiquid rung into the 'market agrees with us' bucket.
+    """
+    import re
+    pat = r"clv ([+-][\d.]+)c"
+    assert re.search(pat, "vol $8.5k  THIN") is None
+    assert re.search(pat, "vol $8.5k  clv +0.0c") is not None
+
+
+def check_the_clv_cell_tells_blank_from_flat():
+    from scratchpad.gen_board_html import clv_cell
+    blank = clv_cell({"vol": 10.0})
+    flat = clv_cell({"clv": 0.0})
+    moved = clv_cell({"clv": 0.032})
+    assert "c-none" in blank and "&mdash;" in blank, blank
+    assert "c-none" not in flat and "+0.0c" in flat, flat
+    assert "+3.2c" in moved, moved
+    assert "under" in clv_cell({"clv": -0.015}), "a fall must read as under"
+
+
+def check_a_legacy_board_without_clv_still_renders():
+    """Every board JSON written before the column existed lacks the key
+    entirely, and the page must not 500 on them."""
+    p = _payload()
+    for g in p["games"]:
+        for r in g["rows"]:
+            r.pop("clv", None)
+    html = build(p)
+    n_rows = sum(len(g["rows"]) for g in p["games"])
+    assert '<th class="c-clv">clv</th>' in html
+    # A row can render in two tables (the disagreement list and its own
+    # game), so this is a floor, not an equality.
+    assert html.count("c-clv c-none") >= n_rows, html.count("c-clv c-none")
+    assert "c</td>" not in html, "a missing key rendered as a number"
+
+
+def check_opens_drops_a_market_with_no_pregame_trade():
+    """`_opens` must omit, never invent. A market that never traded
+    before first pitch has no opening number, and one dead fetch must
+    not cost the rest of the board."""
+    from scratchpad import board
+    calls = {"a": {"open_prob": 0.41, "close_prob": 0.44, "clv": 0.03},
+             "b": None}
+
+    real = board.kalshi.price_path
+    board.kalshi.price_path = lambda tk, side: (
+        calls[tk] if tk in calls else (_ for _ in ()).throw(RuntimeError("x")))
+    try:
+        got = board._opens({("prop", "k", "A", 4.5): "a",
+                            ("prop", "k", "B", 4.5): "b",
+                            ("prop", "k", "C", 4.5): "boom"}, workers=2)
+    finally:
+        board.kalshi.price_path = real
+    assert got == {("prop", "k", "A", 4.5): 0.41}, got
+
+
+# ── /board auto-versions, and grading follows the page ──────────────────
+
+def check_next_stem_never_hands_back_a_taken_name():
+    """A pull must not overwrite the pull before it: the morning number
+    IS the comparison. Numbering is off the highest version seen, so a
+    deleted middle version cannot resurrect a used name."""
+    with tempfile.TemporaryDirectory() as d:
+        def stem():
+            return os.path.basename(boards.next_stem("2026-09-20", d))
+        assert stem() == "2026_09_20_board"
+        open(os.path.join(d, "2026_09_20_board.json"), "w").close()
+        assert stem() == "2026_09_20_board_v2"
+        for v in (2, 3, 7):
+            open(os.path.join(d, f"2026_09_20_board_v{v}.json"), "w").close()
+        assert stem() == "2026_09_20_board_v8", stem()
+        os.remove(os.path.join(d, "2026_09_20_board_v3.json"))
+        assert stem() == "2026_09_20_board_v8", "reused a name that existed"
+
+        # A FAILED PULL LEAVES ONLY A .txt, AND STILL CLAIMS ITS NUMBER.
+        # Versioning off .json alone made failures invisible to the next
+        # run: 2026-09-21 fired five times, died at the board step each
+        # time and handed back `_v2` four runs running, each overwriting
+        # the last one's text. The first version of this check created
+        # only .json files and sailed past it.
+        open(os.path.join(d, "2026_09_20_board_v8.txt"), "w").close()
+        assert stem() == "2026_09_20_board_v9", stem()
+
+
+def check_next_stem_is_per_date():
+    with tempfile.TemporaryDirectory() as d:
+        open(os.path.join(d, "2026_09_20_board.json"), "w").close()
+        assert os.path.basename(
+            boards.next_stem("2026-09-21", d)) == "2026_09_21_board"
+
+
+def check_grading_and_the_page_pick_the_same_board():
+    """The silent one. `grade_boards` used to skip any tag outside its
+    VERSION_RANK list, so an auto-versioned `_v4` would render on the
+    page while grading scored a stale morning board, with no error."""
+    import time
+    from scratchpad import grade_boards
+    with tempfile.TemporaryDirectory() as d:
+        for fn in ("2026_09_19_board.json", "2026_09_19_board_v2.json",
+                   "2026_09_19_board_v4.json", "2026_09_19_board_v5.json"):
+            with open(os.path.join(d, fn), "w") as f:
+                json.dump({"date": "2026-09-19", "games": []}, f)
+            time.sleep(0.02)
+        served = boards.board_of_record("2026-09-19", d)
+        graded = grade_boards.pick_boards("2026-09-30", bets_dir=d)
+        assert os.path.basename(graded["2026-09-19"]) \
+            == os.path.basename(served) == "2026_09_19_board_v5.json", graded
+
+
+def check_a_known_tag_still_outranks_by_the_published_order():
+    """`pm` beats `v2` by the list, not by mtime — the old behaviour for
+    every stem that already existed must not change."""
+    import time
+    from scratchpad import grade_boards
+    with tempfile.TemporaryDirectory() as d:
+        for fn in ("2026_09_19_board_pm.json", "2026_09_19_board_v2.json"):
+            with open(os.path.join(d, fn), "w") as f:
+                json.dump({"date": "2026-09-19", "games": []}, f)
+            time.sleep(0.02)   # v2 is NEWER on disk, pm must still win
+        got = grade_boards.pick_boards("2026-09-30", bets_dir=d)
+        assert os.path.basename(got["2026-09-19"]) \
+            == "2026_09_19_board_pm.json", got

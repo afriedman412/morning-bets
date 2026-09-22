@@ -157,6 +157,29 @@ def vol_cell(r):
             f'{lbl}</td>')
 
 
+def clv_cell(r):
+    """How far the book has moved since its first pregame trade, in cents.
+
+    Em-dash means there was no opening trade to diff against, which is a
+    different statement from "it has not moved" — an untraded rung and a
+    flat one must not look the same. Sign is the over's.
+
+    IT IS A READOUT, NOT A SCORE. Our resolution sat below the opening
+    price's in July and August while we were still beating the open on
+    CLV, so a column full of green here is not evidence the simulation is
+    right.
+    """
+    v = r.get("clv")
+    if v is None:
+        return '<td class="c-clv c-none">&mdash;</td>'
+    d = "over" if v > 0 else "under" if v < 0 else ""
+    return (f'<td class="c-clv {d}" title="Cents the Kalshi mid has moved '
+            'toward the over since this market&rsquo;s first pregame '
+            'trade. Positive means the market drifted over; it says '
+            'nothing about whether we are right.">'
+            f'{v * 100:+.1f}c</td>')
+
+
 def price(p, cls):
     if p is None:
         return f'<td class="c-num {cls} c-none">&mdash;</td>'
@@ -181,7 +204,7 @@ def row_html(r, game=None):
 {CLS_LABEL[r['cls']]}</span> {html.escape(r['bet'])}{cs}</td>
   {price(po, 'c-ours')}{price(1 - po, 'c-ours')}\
 {price(pk, 'c-mkt')}{price(None if pk is None else 1 - pk, 'c-mkt')}
-  {vol_cell(r)}{edge}
+  {vol_cell(r)}{clv_cell(r)}{edge}
 </tr>"""
 
 
@@ -190,6 +213,7 @@ HEAD = ('<thead><tr>{g}<th>market</th>'
         '<th class="c-num">kalshi over</th>'
         '<th class="c-num">kalshi under</th>'
         '<th class="c-vol">vol</th>'
+        '<th class="c-clv">clv</th>'
         '<th class="c-gap">edge</th></tr></thead>')
 
 
@@ -596,7 +620,7 @@ thead th{font-family:var(--mono);font-size:10px;letter-spacing:.1em;
   text-transform:uppercase;color:var(--ink3);font-weight:500;
   text-align:left;padding:0 10px 7px 0;border-bottom:1px solid var(--rule);
   white-space:nowrap;}
-thead th.c-num,thead th.c-gap,thead th.c-vol{text-align:right;}
+thead th.c-num,thead th.c-gap,thead th.c-vol,thead th.c-clv{text-align:right;}
 tbody tr{border-bottom:1px solid var(--rule2);}
 tbody tr:hover{background:var(--sunk);}
 td{padding:7px 10px 7px 0;vertical-align:middle;}
@@ -614,6 +638,10 @@ td{padding:7px 10px 7px 0;vertical-align:middle;}
   text-align:right;white-space:nowrap;width:1%;font-size:11.5px;
   color:var(--ink3);cursor:help;}
 .c-vol.novol{color:var(--warn);font-style:italic;}
+.c-clv{font-family:var(--mono);font-variant-numeric:tabular-nums;
+  text-align:right;white-space:nowrap;width:1%;font-size:11.5px;
+  color:var(--ink3);cursor:help;padding-right:14px;}
+.c-clv.over{color:var(--over);} .c-clv.under{color:var(--under);}
 .c-game{font-family:var(--mono);font-size:11.5px;color:var(--ink3);
   white-space:nowrap;width:1%;padding-right:16px;}
 .c-who{font-size:13.5px;white-space:nowrap;padding-right:14px;}
