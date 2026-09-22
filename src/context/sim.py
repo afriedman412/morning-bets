@@ -1873,10 +1873,22 @@ class Hook:
     #: outs instead drives it to 74, which reproduces the out total by
     #: pretending starters throw 8 fewer pitches than they do.
     #:
-    #: THE RESIDUAL THIS EXPOSES. At the pitch count that matches reality
-    #: the simulator records ~16.0 outs against a real 15.11 — it gets about
-    #: 6% more outs per pitch than real starters. No value of this constant
-    #: fixes that, because it is the same left-skew defect below.
+    #: THE RESIDUAL THIS EXPOSED, AND IT IS CLOSED. At the pitch count that
+    #: matches reality the simulator recorded ~16.0 outs against a real
+    #: 15.11 — about 6% more outs per pitch than real starters. That is no
+    #: longer the engine: re-measured 2026-09-21 on 1,570 holdout starts
+    #: (`scratchpad/shape 40`) the mean is 15.65 against a real 15.58, +0.07
+    #: at se 0.102 — 0.7 se, dead on. The counted backbones closed it.
+    #:
+    #: WHAT REPLACED IT IS A TAIL, NOT A LEVEL, and anything reasoning from
+    #: "the sim runs long" must use these rows instead: o17.5 model 0.423
+    #: against a real 0.397 (+0.026), o18.5 0.212 against 0.168 (+0.045),
+    #: o20.5 0.152 against 0.117 (+0.036), with `outs_sd` 4.47 against 4.15.
+    #: Too many long starts AND too many short ones while the mean is right
+    #: — the width defect `USE_HOOK_MONTH` records below, not a level error.
+    #: THE STALE VERSION OF THIS PARAGRAPH WAS QUOTED AS A CURRENT
+    #: MEASUREMENT IN A LIVE PRICING SESSION on 2026-09-21 and named the
+    #: wrong mechanism for a right conclusion. State the date on a residual.
     #:
     #: KNOWN UNFIXABLE AT THIS FORM, and worth reading before tuning it
     #: again. Real starts are LEFT-SKEWED — mean 84.0, median 89 — because
@@ -1887,6 +1899,9 @@ class Hook:
     #: closest lands P(outs>=18) at 46.9% against a real 41.1%. That is the
     #: "no parameter reaches the target, so the mechanism is missing"
     #: signature: what is absent is a disaster mode, not a better constant.
+    #: (Those two figures are the SCAN's, from before the counted backbones;
+    #: the engine now runs P(outs>=18) 42.3% against a real 39.7%. The gap
+    #: narrowed by more than half and the signature still holds.)
     #:
     #: REFIT 2026-09-06 ON 38,714 TRAINING DECISIONS — 2025-01-01 to the
     #: holdout, rule 9's population: the 2026-08-26 fit used 2026 rows
