@@ -16,29 +16,48 @@ number back to the operator. This file is how to RUN the thing.
 
 ## Run it
 
+**EVERY RUN IS A NEW VERSION. Ask for the stem, never type one.**
+`boards --next` returns `bets/<date>_board` the first time and
+`_board_v2`, `_board_v3`, ... after that, so a pull can never land on a
+file that already exists.
+
 ```
+DATE=2026-09-20      # YYYY-MM-DD; filenames use underscores
+
 # 0. Freshness. Results are the input to every rate the board prices with.
 venv/bin/python -m scratchpad.data_status
 
-# 1. The board. Default is today, 20,000 sims. REDIRECT, do not pipe.
-venv/bin/python -m scratchpad.board > bets/<YYYY_MM_DD>_board.txt
+# 1. The stem for THIS pull. One answer, used by all three steps.
+STEM=$(venv/bin/python -m scratchpad.boards --next $DATE)
 
-# 2. Parse to JSON. Reads the .txt, never re-simulates.
-venv/bin/python -m scratchpad.board_json  2026-09-10
+# 2. The board. 20,000 sims. REDIRECT, do not pipe.
+venv/bin/python -m scratchpad.board $DATE > $STEM.txt
 
-# 3. Render and OPEN. Both, every time.
-venv/bin/python -m scratchpad.gen_board_html  2026-09-10
-open bets/2026_09_10_board.html
+# 3. Parse to JSON. Reads the .txt, never re-simulates.
+venv/bin/python -m scratchpad.board_json $DATE $STEM.txt $STEM.json
+
+# 4. Render and OPEN. Both, every time.
+venv/bin/python -m scratchpad.gen_board_html $DATE $STEM.json $STEM.html
+open $STEM.html
 ```
 
-The date argument is `YYYY-MM-DD`; the filenames use underscores. Steps 2
-and 3 default their paths off the date, so pass it and let them.
+**Pass `$STEM` to every step.** Steps 3 and 4 default their paths to the
+unversioned `bets/<date>_board.*` when you omit them, so a half-passed
+stem writes the new text board and then parses yesterday morning's — the
+page would render, and the numbers on it would not be the ones just
+simulated.
 
-**Re-running after lineups post writes over the morning board.** Give the
-second run its own stem — `bets/<date>_board_pm.txt` and pass the explicit
-src/out paths to steps 2 and 3 — so the morning numbers survive for
-comparison. On 2026-09-10 that comparison was the whole answer: our F5
-number moved 0.4 points on the real nines while Kalshi moved 3.4.
+If the server is already up, the new version appears on the next refresh
+and the older ones stay reachable from the sidebar's version list; there
+is nothing to restart. `/serve-board` starts it if it is not running.
+
+**The morning board IS the comparison — that is what the versioning is
+for.** On 2026-09-10 it was the whole answer: our F5 number moved 0.4
+points on the real nines while Kalshi moved 3.4. That is only visible
+because both files survived. Re-running after lineups post used to
+overwrite the morning numbers unless you remembered to invent a stem;
+since 2026-09-20 `boards --next` does it, so the old warning is now a
+guarantee. Never hand-edit a board file to "update" it.
 
 **20,000 sims is the floor before any number is compared to a price.** A
 total moved 7.34 → 7.05 between 400 and 20k, and two 1,500-sim runs of one

@@ -54,9 +54,17 @@ def pick_boards(through, since=None, bets_dir=None):
         tag = m.group(2) or m.group(3) or ""
         if date > through or (since and date < since):
             continue
-        rank = VERSION_RANK.index(tag) if tag in VERSION_RANK else -1
-        if rank < 0:
-            continue
+        # AN UNKNOWN TAG IS THE NEWEST BOARD, NOT A FILE TO IGNORE. This
+        # used to `continue` on anything outside VERSION_RANK, which was
+        # safe only while the list covered every stem anyone wrote by
+        # hand. `/board` now auto-versions — `_v4`, `_v5`, ... — so the
+        # old rule would have graded a stale morning board while the page
+        # showed the latest, with nothing anywhere saying so. Unknown tags
+        # sort after every known one, newest mtime winning, which is the
+        # answer `boards.board_of_record` already gives the server.
+        known = VERSION_RANK.index(tag) if tag in VERSION_RANK else None
+        rank = (known, 0.0) if known is not None \
+            else (len(VERSION_RANK), os.path.getmtime(path))
         if date not in by_date or rank > by_date[date][0]:
             by_date[date] = (rank, path)
     return {d: p for d, (r, p) in sorted(by_date.items())}
