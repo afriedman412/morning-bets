@@ -1,6 +1,7 @@
 """Fit the two hooks separately and score them against the shipped one.
 
     venv/bin/python -m scratchpad.fit_hooks [n_games]
+    venv/bin/python -m scratchpad.fit_hooks --rebuild [--rows-only]
 
 The comparison is like for like: the shipped single model is refit here on
 the same rows with the same holdout, so any difference is the SPLIT and the
@@ -52,38 +53,72 @@ def leashes() -> dict:
     return out
 
 
-def build(limit=None):
+#: Set in the PARENT and read by the pool's children through fork. The
+#: three maps cost a few seconds to build and tens of megabytes to hold;
+#: a spawn child would rebuild all three, which is most of what the
+#: parallelism just bought.
+_CTX: dict = {}
+
+
+def _rows_for(gid):
+    """One game's decision rows, or None if it has no play-by-play.
+
+    `boundary.decisions` reads the gzip cache and touches no database, so
+    this is pure CPU per game and the only reason `build` was ever slow.
+    """
+    if not pbp.have(gid):
+        return None
+    try:
+        rs = boundary.decisions(gid)
+    except Exception:
+        return None
+    lz, names = _CTX["lz"], _CTX["names"]
+    d = _CTX["dates"].get(gid)
+    out = []
+    for r in rs:
+        lz_ = lz.get((names.get(r["pitcher"], ""), d))
+        if not lz_:
+            continue
+        r.update(lz_, date=d)
+        out.append(r)
+    return out
+
+
+def build(limit=None, workers=None):
+    """Every hook decision in the cache.
+
+    PARALLEL SINCE 2026-09-24, and that is the whole change — the rows
+    are the same rows in the same order. This walked ~10,000 gzipped
+    games on one core and was 2m54s of a 4m06s daily backfill while
+    eleven cores sat idle; `velo.build` had used a pool over the same
+    cache for weeks. Order is preserved because `imap` yields in the
+    order of `ids`, which is what the caller's train/test split by date
+    and every saved cache already assume.
+    """
+    import multiprocessing as mp
     ids = pbp.final_games()
     if limit:
         ids = ids[:limit]
-    lz = leashes()
+    from src.context import store
     with db.connect() as c:
         dates = {r["game_id"]: r["date"] for r in
                  c.execute("select game_id, date from games where sport='mlb'")}
-    names: dict = {}
-    from src.context import store
     with store.connect() as c:
         names = {r["pitcher_id"]: r["player_name"] for r in
                  c.execute("select distinct pitcher_id, player_name "
                            "from mlb_stints")}
+    _CTX.update(lz=leashes(), dates=dates, names=names)
+
     rows, n = [], 0
-    for gid in ids:
-        if not pbp.have(gid):
-            continue
-        try:
-            rs = boundary.decisions(gid)
-        except Exception:
-            continue
-        n += 1
-        d = dates.get(gid)
-        for r in rs:
-            lz_ = lz.get((names.get(r["pitcher"], ""), d))
-            if not lz_:
+    w = workers or max(1, round((mp.cpu_count() or 2) * 2 / 3))
+    with mp.get_context("fork").Pool(w) as pool:
+        for got in pool.imap(_rows_for, ids, chunksize=16):
+            if got is None:
                 continue
-            r.update(lz_, date=d)
-            rows.append(r)
-        if n % 400 == 0:
-            print(f"  {n} games, {len(rows):,} decisions", flush=True)
+            n += 1
+            rows.extend(got)
+            if n % 400 == 0:
+                print(f"  {n} games, {len(rows):,} decisions", flush=True)
     return rows
 
 
@@ -134,6 +169,17 @@ def limit_arg(argv) -> int | None:
     return int(pos[0]) if pos else None
 
 
+def rows_only(argv) -> bool:
+    """Is this the backfill asking for the cache and nothing else?
+
+    ITS OWN FUNCTION for the same reason `limit_arg` is one — so the flag
+    can be tested without rebuilding 10,000 games. An `in sys.argv` check
+    buried in `main` is only assertable by reading the source back, and a
+    source-reading test passes on the COMMENT that explains the flag.
+    """
+    return "--rows-only" in argv
+
+
 def main():
     import json
     import os
@@ -145,6 +191,16 @@ def main():
         rows = build(lim)
         if lim is None:
             json.dump(rows, open(CACHE, "w"))
+    # THE DAILY BACKFILL WANTS THE ROWS, NOT THE RESEARCH. Everything
+    # below refits six logistic models and prints a pooled-vs-split
+    # comparison — 21s a morning into a log nobody reads, and not one
+    # consumer of the cache looks at the output. `--rows-only` writes the
+    # file and stops; the comparison is still one command away when the
+    # hook is actually being worked on.
+    if rows_only(sys.argv[1:]):
+        print(f"\n{len(rows):,} decisions cached -> {CACHE}")
+        return
+
     mid = [r for r in rows if not r["ends_inning"]]
     bnd = [r for r in rows if r["ends_inning"]]
     print(f"\n{len(rows):,} decisions: {len(mid):,} mid-inning, "

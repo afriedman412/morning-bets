@@ -56,12 +56,16 @@ venv/bin/python -m src.context.order --build            # mlb_lineups
 venv/bin/python -m src.context.sources.battedball --build   # mlb_batted
 
 # 4. The velocity table. Reads the pbp CACHE, not context.db, so it needs
-#    step 2's --backfill but not its --sync. ~1 min.
+#    step 2's --backfill but not its --sync. INCREMENTAL since
+#    2026-09-24 — it opens last night's games plus anything the backfill
+#    refetched, ~2s. `--full` reparses all four seasons (~21s) and is
+#    only needed if the cache lost games. A starter's row cannot change
+#    until he starts again, and the median gap is six days.
 venv/bin/python -m src.context.velo --build
 
 # 5. The hook decision rows, LAST — built from the pbp cache plus
 #    mlb_stints, so it is wrong if step 2 has not finished.
-venv/bin/python -m scratchpad.fit_hooks --rebuild
+venv/bin/python -m scratchpad.fit_hooks --rebuild --rows-only
 ```
 
 `make backfill` is step 1 and `make pbp` is step 2; there are no targets for
@@ -87,6 +91,11 @@ BB kicks on the live board were priced off the previous start's radar. Worse,
 the file predated `sources/gametype.py`, so it still counted MARCH
 EXHIBITIONS in each pitcher's season mean; the first rebuild dropped ~450
 rows league-wide (19,497 -> 19,048). Both sidecars are now reported.
+
+**`--rows-only` OR YOU GET THE RESEARCH TOO.** Without it this refits six
+logistic models and prints a pooled-vs-split comparison — 21s a morning into
+a log, and no consumer of the cache reads it. Drop the flag when you are
+actually working the hook.
 
 **`/tmp/hook_rows.json` is in `/tmp`.** It does not survive a reboot, and
 every hook fit and the battery read it. If it is missing, step 4 rebuilds it

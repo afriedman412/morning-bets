@@ -56,7 +56,9 @@ run "velocity"     "$PY" -m src.context.velo --build
 # LAST: built from the pbp cache plus mlb_stints, so it is wrong if the
 # play-by-play step has not finished. Never pipe it to `head` — it writes
 # only at the end and a SIGPIPE kills it looking like success.
-run "hook rows"    "$PY" -m scratchpad.fit_hooks --rebuild
+# `--rows-only` because the six logistic fits below it are research the
+# backfill has no consumer for — 21s a morning printed into this log.
+run "hook rows"    "$PY" -m scratchpad.fit_hooks --rebuild --rows-only
 
 say "-- data_status"
 "$PY" -m scratchpad.data_status 2>&1 | tee -a "$LOG"

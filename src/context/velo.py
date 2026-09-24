@@ -1,6 +1,7 @@
 """Recent fastball velocity -> tonight's strikeout rate. Item E.
 
-    venv/bin/python -m src.context.velo --build     rebuild the table
+    venv/bin/python -m src.context.velo --build     new games only
+    venv/bin/python -m src.context.velo --build --full        every game
     venv/bin/python -m src.context.velo             coverage + tonight's kicks
 
 THE FINDING (day 22, third sitting): a starter's fastball velocity over
@@ -147,25 +148,73 @@ def _one(path: str):
     return out
 
 
-def build(path: str = PATH) -> None:
+def _pk(path: str) -> str:
+    """The game's primary key from its cache filename, the one place that
+    mapping is written down — `_one` derives the same string."""
+    return path.split("/")[-1].split(".")[0]
+
+
+def to_parse(files: list[str], rows: list[dict], path: str) -> list[str]:
+    """Which cached games this build actually has to open.
+
+    A STARTER'S ROW ONLY CHANGES WHEN HE STARTS, so a full pass over
+    ~10,000 games to append the fifteen that were played last night is
+    350x the work the day needs. Two reasons to open a file:
+
+      * its game is not in the table yet, which is last night's slate;
+      * its cache file is NEWER than the table, which is the daily
+        backfill having refetched a game already in the set. That happens
+        — it is what moved the engine fingerprint on identical code — so
+        a build keyed only on "unseen game" would go stale in silence.
+
+    A game DROPPED from the cache keeps its rows until a `--full` pass;
+    nothing in this project deletes from the cache, and the alternative is
+    re-reading every file to find out.
+    """
+    if not rows or not all("game" in r for r in rows):
+        return files            # pre-`game` table: one full pass to upgrade it
+    cut = os.path.getmtime(path)
+    seen = {r["game"] for r in rows}
+    return [f for f in files
+            if _pk(f) not in seen or os.path.getmtime(f) > cut]
+
+
+def build(path: str = PATH, full: bool = False) -> None:
     from src import db
     files = sorted(glob.glob(".cache/pbp/*.json.gz"))
-    print(f"  {len(files)} cached games")
-    with mp.get_context("fork").Pool(max(mp.cpu_count() - 1, 1)) as pool:
-        got = pool.map(_one, files, chunksize=64)
+    old: list[dict] = []
+    if not full and os.path.exists(path):
+        try:
+            old = json.load(open(path))
+        except (OSError, ValueError):
+            old = []
+    todo = files if full else to_parse(files, old, path)
+    if not all("game" in r for r in old):
+        old = []                # the upgrade pass replaces the table wholesale
+    print(f"  {len(files)} cached games, {len(todo)} to parse")
+    got = []
+    if todo:
+        with mp.get_context("fork").Pool(max(mp.cpu_count() - 1, 1)) as pool:
+            got = pool.map(_one, todo, chunksize=64)
     with db.connect() as c:
         dates = {r["game_id"]: r["date"] for r in c.execute(
             "select game_id, date from games where sport='mlb'")}
-    rows = [{"name": n, "date": dates[f"mlb-{pk}"], "velo": round(v, 2),
-             "n_fb": nf,
-             "zone": round(z, 4) if z is not None else None}
-            for g in got if g for pk, n, v, nf, z in g
-            if dates.get(f"mlb-{pk}")]
-    rows.sort(key=lambda r: (r["name"], r["date"]))
+    fresh = [{"game": pk, "name": n, "date": dates[f"mlb-{pk}"],
+              "velo": round(v, 2), "n_fb": nf,
+              "zone": round(z, 4) if z is not None else None}
+             for g in got if g for pk, n, v, nf, z in g
+             if dates.get(f"mlb-{pk}")]
+    # EVERY GAME WE REOPENED LOSES ITS OLD ROWS, whether or not it
+    # produced new ones — a refetch that drops a start below MIN_FB has
+    # to remove the row, not leave the previous one behind it.
+    reparsed = {_pk(f) for f in todo}
+    rows = [r for r in old if r["game"] not in reparsed] + fresh
+    rows.sort(key=lambda r: (r["name"], r["date"], r["game"]))
     json.dump(rows, open(path, "w"))
     n_zone = sum(1 for r in rows if r["zone"] is not None)
     print(f"  {len(rows)} starter-start velo rows "
-          f"({n_zone / len(rows):.1%} with a zone share) -> {path}")
+          f"({n_zone / len(rows):.1%} with a zone share, "
+          f"{len(fresh)} rebuilt) -> {path}")
 
 
 # ── lookup (sim time) ───────────────────────────────────────────────────
@@ -232,7 +281,7 @@ def _reset() -> None:
 
 if __name__ == "__main__":
     if "--build" in sys.argv:
-        build()
+        build(full="--full" in sys.argv)
         raise SystemExit
     from src import db
     with db.connect() as c:
