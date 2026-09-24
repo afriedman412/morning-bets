@@ -305,3 +305,53 @@ def check_the_two_batted_ball_tables_count_the_same_balls():
     assert bad <= 5, f"{bad} rows with more home runs than air balls"
     assert bad / n_hr < 1e-3, "inside-the-park home runs are supposed " \
         "to be a rounding error; this is a trajectory bug"
+
+
+def check_the_pricing_path_fetches_one_nights_crew_once():
+    """The board asks for the plate umpire once per `simulate_slate_game`,
+    and since 2026-09-24 it calls that several times per game — the draws
+    are chunked across the pool. Unmemoised, a 16-game slate cut four ways
+    made 64 identical schedule calls for one night's crew and rewrote the
+    same rows 64 times.
+
+    THE SECOND HALF IS THE POINT: `fetch_date` itself must stay unmemoised
+    so `--backfill` can walk a date it has already seen. A memo there would
+    turn a deliberate re-pull into a no-op that exits 0 — the failure
+    `weather` records for the same split.
+    """
+    from src.context.sources import officials
+
+    calls = []
+    real, officials.fetch_date = officials.fetch_date, \
+        lambda d: calls.append(d) or 1
+    memo = dict(officials._DATE_MEMO)
+    officials._DATE_MEMO.clear()
+    try:
+        for _ in range(8):
+            officials.fetch_date_cached("2026-09-24")
+        assert calls == ["2026-09-24"], f"{len(calls)} fetches, wanted 1"
+        # a DIFFERENT date is still its own fetch
+        officials.fetch_date_cached("2026-09-25")
+        assert len(calls) == 2, calls
+        # and the raw entry point never consults the memo
+        officials.fetch_date("2026-09-24")
+        assert len(calls) == 3, "fetch_date was memoised — backfill breaks"
+    finally:
+        officials.fetch_date = real
+        officials._DATE_MEMO.clear()
+        officials._DATE_MEMO.update(memo)
+
+
+def check_a_failed_crew_fetch_still_prices_the_slate():
+    """Silent-neutral, the ump rail's rule: no crew on record means
+    (1.0, 1.0), and an offline board must not raise out of the sim."""
+    from src.context.sources import officials
+
+    real, officials.fetch_date = officials.fetch_date, \
+        lambda d: (_ for _ in ()).throw(OSError("no network"))
+    officials._DATE_MEMO.clear()
+    try:
+        officials.fetch_date_cached("2026-09-24")  # must not raise
+    finally:
+        officials.fetch_date = real
+        officials._DATE_MEMO.clear()

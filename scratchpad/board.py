@@ -94,19 +94,89 @@ def _fmt(label, p, mid=None, note=""):
 
 _CTX: dict = {}  # set pre-fork; a spawn child would reset USE_* flags
 
+#: HOW THE SLATE IS CUT UP FOR THE POOL, counted on this machine
+#: 2026-09-24 at the shipped 20,000 sims on a 12-game slate, three runs
+#: an arm. The unit of work used to be ONE GAME, and that lost twice:
+#:
+#:   * TWO WAVES, MOSTLY IDLE. 12 games over 11 workers is one full wave
+#:     and then a wave carrying a single game while ten cores sit out.
+#:     A 16-game slate is the same shape and worse — five idle.
+#:   * OVERSUBSCRIPTION. `cpu_count()` is 12 LOGICAL on 6 PHYSICAL cores
+#:     here, so `cpu_count() - 1` put eleven python processes on six real
+#:     ones and every one of them ran slower.
+#:
+#: So each game's draws are split `CHUNKS_PER_GAME` ways, which makes the
+#: tasks small enough that the tail wave costs a quarter of a game rather
+#: than a whole one. It is affordable because the per-call setup is
+#: 0.128s against ~60s of drawing — measured, not assumed; the 6.8s that
+#: LOOKS like setup is one-time lazy loading and `_warm` below kills it.
+CHUNKS_PER_GAME = 4
 
-def _one(i):
+
+def _workers(n_games: int) -> int:
+    """Pool size. Two thirds of the logical count, which is this box's
+    six physical cores plus a couple of hyperthreads — measured faster
+    than both 6 and 11. `BOARD_WORKERS` overrides it on other hardware."""
+    import multiprocessing as mp
+    import os
+    override = os.environ.get("BOARD_WORKERS")
+    if override:
+        return max(1, int(override))
+    return max(1, min(n_games * CHUNKS_PER_GAME,
+                      round((mp.cpu_count() or 2) * 2 / 3)))
+
+
+def _jobs(n_games: int, n_sims: int) -> list[tuple[int, int, int]]:
+    """(game, draws, seed) per task, the draws split so they still sum to
+    exactly `n_sims` — a floor division would quietly price 19,999.
+
+    EVERY CHUNK NEEDS ITS OWN SEED. `simulate_slate_game` defaults to
+    `seed=0` and builds `random.Random(seed)` itself, so four chunks of
+    one game at the default would draw the SAME 5,000 games four times
+    and the board would print a 5,000-draw distribution labelled 20,000.
+    """
+    out = []
+    for i in range(n_games):
+        base, extra = divmod(n_sims, CHUNKS_PER_GAME)
+        for c in range(CHUNKS_PER_GAME):
+            n = base + (1 if c < extra else 0)
+            if n:
+                out.append((i, n, c))
+    return out
+
+
+def _warm() -> None:
+    """One cheap draw in the PARENT, before the fork.
+
+    The first `simulate_slate_game` in a process costs 6.8s of lazy
+    loading — the velo table, the advancement counts, the lineup and
+    role lookups, tonight's weather and plate umpire. `build` warmed the
+    RATES in the parent and nothing else, so every forked child paid the
+    rest again. Doing it once here means fork hands each child the warm
+    copy. Best-effort: a slate whose first game cannot simulate is the
+    pool's problem to report, not this function's.
+    """
+    try:
+        slate.simulate_slate_game(
+            _CTX["games"][0], _CTX["d"], _CTX["lg"], _CTX["pr"], _CTX["br"],
+            _CTX["league_bats"], _CTX["pens"], n_sims=1)
+    except Exception:
+        pass
+
+
+def _one(job):
+    i, n_sims, seed = job
     c = _CTX
     g = c["games"][i]
     try:
         res, why = slate.simulate_slate_game(
             g, c["d"], c["lg"], c["pr"], c["br"], c["league_bats"],
-            c["pens"], n_sims=c["n"])
+            c["pens"], n_sims=n_sims, seed=seed)
     except Exception as e:  # a bad game must not sink the slate
-        return {"why": f"{type(e).__name__} {e}"}
+        return i, {"why": f"{type(e).__name__} {e}"}
     if not res:
-        return {"why": why}
-    return {
+        return i, {"why": why}
+    return i, {
         "why": None,
         "total": [r.total for r in res],
         "away": [r.away for r in res],
@@ -117,6 +187,40 @@ def _one(i):
         "outs": {s: [getattr(r, f"{s}_sp").outs for r in res]
                  for s in ("away", "home")},
     }
+
+
+def _merge(n_games: int, parts) -> list[dict]:
+    """Chunks back into one result per game, in slate order.
+
+    A CHUNK THAT FAILED FAILS ITS WHOLE GAME. Declining is the house rule
+    — both starters or neither — and a game silently priced off three of
+    its four chunks would look exactly like one priced off all four.
+    """
+    out: list[dict] = [{"why": "no draws returned"} for _ in range(n_games)]
+    acc: dict[int, dict] = {}
+    failed: dict[int, str] = {}
+    for i, part in parts:
+        if part["why"]:
+            failed.setdefault(i, part["why"])
+            continue
+        cur = acc.get(i)
+        if cur is None:
+            cur = acc[i] = {"why": None, "k": {"away": [], "home": []},
+                            "outs": {"away": [], "home": []},
+                            **{f: [] for f in ("total", "away", "home", "f5")}}
+        for f in ("total", "away", "home", "f5"):
+            cur[f].extend(part[f])
+        for f in ("k", "outs"):
+            for side in ("away", "home"):
+                cur[f][side].extend(part[f][side])
+    for i, cur in acc.items():
+        out[i] = cur
+    # LAST, so a decline is STICKY. Written as an overwrite of whatever
+    # the good chunks accumulated, because the pool does not promise an
+    # order and a failure that arrived first must not be priced over.
+    for i, why in failed.items():
+        out[i] = {"why": why}
+    return out
 
 
 def _vol(v: float) -> str:
@@ -348,9 +452,12 @@ def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
     t_sim = time.monotonic()
     import multiprocessing as mp
     ctx = mp.get_context("fork")
-    with ctx.Pool(max(1, min(len(games) or 1,
-                             (mp.cpu_count() or 2) - 1))) as pool:
-        out = pool.map(_one, range(len(games)))
+    if games:
+        _warm()
+    jobs = _jobs(len(games), n)
+    with ctx.Pool(_workers(len(games) or 1)) as pool:
+        parts = pool.map(_one, jobs, chunksize=1)
+    out = _merge(len(games), parts)
     t_sim = time.monotonic() - t_sim
 
     # KALSHI FIRST, for every rung, so the rung a book actually hangs

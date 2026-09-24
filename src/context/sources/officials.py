@@ -50,6 +50,35 @@ def _get(url: str) -> dict:
         return json.loads(r.read())
 
 
+#: `fetch_date` is called once PER `simulate_slate_game` — so once per
+#: GAME on the old board and once per CHUNK on the current one. Without
+#: this memo a 16-game slate cut four ways made 64 identical schedule
+#: calls for one night's crew, and every one of them rewrote the same
+#: rows. Same shape and the same reason as `weather._LIVE`, including
+#: the TTL: a board run is minutes, a crew is published once.
+_DATE_MEMO: dict[str, float] = {}
+DATE_TTL_SECONDS = 600
+
+
+def fetch_date_cached(date_str: str) -> None:
+    """`fetch_date` for the PRICING path, at most once per TTL per process.
+
+    THE BACKFILL MUST NOT USE THIS. `sources/officials --backfill` walks
+    dates it means to refresh, and a memo that silently skipped a date it
+    had already seen would turn a re-run into a no-op that looks like a
+    success — the failure `weather` records for exactly this split.
+    """
+    import time
+    hit = _DATE_MEMO.get(date_str)
+    if hit is not None and time.time() - hit < DATE_TTL_SECONDS:
+        return
+    try:
+        fetch_date(date_str)
+    except Exception:
+        pass  # offline slates still price; the record just goes stale
+    _DATE_MEMO[date_str] = time.time()
+
+
 def fetch_date(date_str: str) -> int:
     """Record every game's crew for one date. Returns rows written.
 

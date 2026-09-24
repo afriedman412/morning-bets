@@ -1640,3 +1640,97 @@ def check_a_returning_arm_is_priced_from_his_prior_season():
     # pricing a name the database has never seen. Asserted here rather
     # than in its own check so the rate maps are built once.
     assert "Nobody McNoline" not in filled
+
+
+def check_every_chunk_of_a_game_draws_its_own_stream():
+    """Four chunks of one game must not be the SAME 5,000 games, four times.
+
+    `slate.simulate_slate_game` defaults to `seed=0` and builds its own
+    `random.Random(seed)`, so splitting a game's draws across workers
+    without varying the seed is silent and catastrophic: the board would
+    concatenate four identical blocks, print "20,000 sims" in its header,
+    and be quoting a 5,000-draw distribution with a quarter of the spread
+    it claims. Nothing downstream — the parser, the band, the page — can
+    see the difference.
+    """
+    from scratchpad import board
+
+    jobs = board._jobs(3, 20000)
+    by_game: dict[int, list[int]] = {}
+    for i, n, seed in jobs:
+        by_game.setdefault(i, []).append(seed)
+    for i, seeds in by_game.items():
+        assert len(set(seeds)) == len(seeds), \
+            f"game {i} reuses a seed across chunks: {seeds}"
+
+
+def check_the_chunked_slate_still_draws_exactly_the_sims_asked_for():
+    """The draws must SUM to n, per game — a floor division prices 19,999.
+
+    And the split has to survive an n that does not divide evenly, which
+    is what the operator gets the moment they pass a round-ish number on
+    the command line rather than the default.
+    """
+    from scratchpad import board
+
+    for n in (20000, 999, 7, 1):
+        jobs = board._jobs(4, n)
+        for i in range(4):
+            got = sum(c for g, c, _ in jobs if g == i)
+            assert got == n, f"game {i} drew {got} of {n} at n={n}"
+        assert all(c > 0 for _, c, _ in jobs), "a zero-draw task was queued"
+
+
+def check_merging_chunks_rebuilds_one_result_per_game_in_slate_order():
+    """`build` zips the pool's output against `games` positionally, so the
+    merge has to restore slate order — an unordered map would attach one
+    game's run distribution to another game's starters and print a board
+    that looks entirely normal."""
+    from scratchpad import board
+
+    def part(i, vals):
+        return (i, {"why": None, "total": list(vals), "away": list(vals),
+                    "home": list(vals), "f5": list(vals),
+                    "k": {"away": list(vals), "home": list(vals)},
+                    "outs": {"away": list(vals), "home": list(vals)}})
+
+    # deliberately out of order, the way an unordered pool would hand them back
+    parts = [part(1, [7, 8]), part(0, [1, 2]), part(1, [9]), part(0, [3])]
+    out = board._merge(2, parts)
+    assert out[0]["total"] == [1, 2, 3], out[0]["total"]
+    assert out[1]["total"] == [7, 8, 9], out[1]["total"]
+    assert out[0]["k"]["away"] == [1, 2, 3]
+    assert out[1]["outs"]["home"] == [7, 8, 9]
+
+
+def check_one_failed_chunk_declines_its_whole_game():
+    """Both starters or neither — and a game priced off three of its four
+    chunks would print with a quarter less spread and no way to tell."""
+    from scratchpad import board
+
+    ok = (0, {"why": None, "total": [1], "away": [1], "home": [1], "f5": [1],
+              "k": {"away": [1], "home": [1]},
+              "outs": {"away": [1], "home": [1]}})
+    bad = (0, {"why": "no rates on record for X"})
+    for parts in ([ok, bad], [bad, ok]):
+        out = board._merge(1, parts)
+        assert out[0]["why"], "a failed chunk was priced through"
+    # and a game the pool never reported at all is declined, not empty
+    assert board._merge(2, [ok])[1]["why"]
+
+
+def check_the_board_pool_does_not_oversubscribe_the_cores():
+    """`cpu_count()` is LOGICAL. The board ran `cpu_count() - 1` workers,
+    which on a 6-physical / 12-logical box is eleven python processes on
+    six real cores — measured 2026-09-24 as slower than eight at the
+    shipped 20,000 sims."""
+    import multiprocessing as mp
+    from scratchpad import board
+
+    logical = mp.cpu_count() or 2
+    w = board._workers(16)
+    assert 1 <= w <= logical - 1, f"{w} workers against {logical} logical"
+    assert w < logical - 1 or logical <= 3, \
+        "the pool is still sized to the logical count"
+    # a thin slate never spawns more workers than it has tasks
+    assert board._workers(1) <= board.CHUNKS_PER_GAME

@@ -373,10 +373,10 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
     if sim.USE_UMP_KBB:
         from src import db
         from src.context.sources import officials as officials_src
-        try:
-            officials_src.fetch_date(d)
-        except Exception:
-            pass  # offline slates still price; the record just goes stale
+        # CACHED, because this runs once per call and the board now makes
+        # several calls per game. `fetch_date_cached` swallows its own
+        # failures for the same reason the bare try did.
+        officials_src.fetch_date_cached(d)
         with db.connect() as c:
             r = c.execute("select plate_ump_id from game_officials"
                           " where game_id=?", (g["game_id"],)).fetchone()
