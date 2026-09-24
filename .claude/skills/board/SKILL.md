@@ -184,6 +184,23 @@ is the one the band drops. Guarded at `fmt_cross` since 2026-09-10 and
 covered by
 `check_board_html_survives_a_ladder_that_never_crosses_even_money`.
 
+## Auditing one rung against a real price
+
+The board prices against Kalshi's MID, which is not a number anybody can
+bet. When the operator names a line AND a price — "singer u3.5k at +106"
+— that is the `rung` skill, not another read of this page:
+
+```
+venv/bin/python -m scratchpad.rung <DATE> "Singer k 3.5" under +106
+```
+
+It reads the board JSON (never re-simulates), converts the price to a
+breakeven, removes the day's slate tilt, and prints the arm's role, rate
+DRIFT against what he has actually done, counted batters faced and a
+scenario grid. Built 2026-09-24 after five rungs were worked by hand in
+one session with five slightly different ad-hoc queries — three of which
+turned on batters faced, a column no board carries.
+
 ## What the page adds over the text
 
 The FILTER and the K-DIVERGENCE table. The filter drops off-band rungs,

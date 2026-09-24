@@ -548,6 +548,12 @@ fails. (`make lint` likewise references tooling that is not installed.)
 ### Screens and harnesses
 
 - `... -m scratchpad.battery` — THE BATTERY, rule 15.
+- `... -m scratchpad.rung DATE "<sel>" over|under PRICE` — AUDIT ONE
+  BET against one price. Breakeven, the slate tilt and what the edge is
+  without it, the arm's role and rate DRIFT (with a layoff split),
+  counted batters faced, and a scenario grid. Reads the board JSON and
+  never re-simulates. Built 2026-09-24 after five rungs were audited by
+  hand in one session with five slightly different ad-hoc queries.
 - `... -m scratchpad.data_status` — RUN THIS BEFORE ANY MEASUREMENT. See
   below.
 - `... -m scratchpad.leverage` — SCREEN A MECHANISM BEFORE BUILDING IT.

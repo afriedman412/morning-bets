@@ -11,6 +11,7 @@ bought it.
     venv/bin/python -m scratchpad.board [DATE] [SIMS]      the board
     venv/bin/python -m scratchpad.batprops DATE AWY HOM    offense props (AUDIT ONLY)
     venv/bin/python -m src.context.sources.lineup [DATE]   who has a posted nine
+    venv/bin/python -m scratchpad.rung D "<sel>" over|under PRICE   audit one bet
 
 The board prices, per game off ONE shared set of draws: the full-game
 total, both team totals, the F5 total, and each starter's K and outs

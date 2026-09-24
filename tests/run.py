@@ -66,7 +66,7 @@ MODULES = ["tests.test_pure", "tests.test_regressions",
            "tests.test_weather", "tests.test_velo", "tests.test_usage",
            "tests.test_store", "tests.test_battery", "tests.test_gametype", "tests.test_thin", "tests.test_batter_prior",
            "tests.test_hook_resid", "tests.test_armhook",
-           "tests.test_arm",
+           "tests.test_arm", "tests.test_rung",
            "tests.test_efficiency",
            "tests.test_data_status", "tests.test_board_web",
            "tests.test_ask"]
