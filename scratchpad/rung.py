@@ -84,15 +84,25 @@ def candidates(board: dict, selector: str) -> list[tuple[dict, dict]]:
 
     Case-blind, and whitespace in the selector is collapsed so
     'CWS@KC total 8.5' and 'cws @ kc  total 8.5' find the same rung.
+
+    AN EXACT MATCH ON THE BET WINS OVER ANY NUMBER OF SUBSTRING MATCHES,
+    the same rule `arm.resolve_name` uses for names. Without it every
+    WHOLE-NUMBER total is unaskable: 'total 9' is a substring of
+    'total 9.5', so the one rung a book prints as a push could never be
+    named — and those are exactly the rungs an operator asks about,
+    because a push is a free roll.
     """
     want = " ".join(selector.lower().split())
-    out = []
+    out, exact = [], []
     for g in board["games"]:
         for r in g["rows"]:
-            hay = f"{g['away']}@{g['home']} {r['bet']}".lower()
+            bet = r["bet"].lower()
+            hay = f"{g['away']}@{g['home']} {bet}".lower()
             if want in hay:
                 out.append((g, r))
-    return out
+            if want in (bet, hay):
+                exact.append((g, r))
+    return exact or out
 
 
 def resolve(board: dict, selector: str):
@@ -534,15 +544,30 @@ def _totals(con, g, row, side, be, date) -> None:
 
 
 def _rr(vals: list[int], line: float, side: str, lab: str) -> None:
+    """One counted row: n, mean, and how often the side came in.
+
+    PUSHES LEAVE THE DENOMINATOR on a whole-number line. Landing exactly
+    on 9 is neither an over nor an under, and counting it as an under
+    understated every whole-number over by the push rate — 10.7% of this
+    engine's draws on a 9, which is larger than most edges this tool is
+    asked to adjudicate. The board already prices integer totals as
+    P(cover)/(P(cover)+P(miss)), so this is what makes the counted row
+    comparable to it rather than a different question.
+    """
     vals = [v for v in vals if v is not None]
     if not vals:
         _p(f"  {lab:10s} no games")
         return
-    n = len(vals)
+    pushes = sum(1 for v in vals if v == line)
+    n = len(vals) - pushes
+    if not n:
+        _p(f"  {lab:10s} n={len(vals):4d}   every game pushed")
+        return
     over = sum(1 for v in vals if v > line)
     hits = over if side == "over" else n - over
-    _p(f"  {lab:10s} n={n:4d}   mean {sum(vals)/n:5.2f}"
-       f"   {side} {hits/n:.1%}   se {wilson_se(hits, n):.1%}")
+    push = f"   {pushes} push" if pushes else ""
+    _p(f"  {lab:10s} n={n:4d}   mean {sum(vals)/len(vals):5.2f}"
+       f"   {side} {hits/n:.1%}   se {wilson_se(hits, n):.1%}{push}")
 
 
 def main(argv: list[str]) -> int:

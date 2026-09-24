@@ -290,3 +290,55 @@ def check_team_runs_key_on_the_abbr_columns():
     assert d["allowed"] == [2, 1], d["allowed"]
     # The spring game is excluded from every list.
     assert 9 not in d["all"] and 9 not in d["allowed"]
+
+
+def check_an_exact_bet_beats_every_substring_match():
+    """'total 9' must reach 'total 9', not refuse because of 'total 9.5'.
+
+    THE BUG THIS GUARDS shipped in the first draft and made every
+    WHOLE-NUMBER total unaskable: the selector is a substring match, and
+    every integer total is a prefix of its own half-point neighbour, so
+    the ambiguity guard refused the one rung that carries a push. Same
+    rule as `arm.resolve_name` — an exact match wins outright.
+    """
+    b = _board(_game("CWS", "KC", [
+        _row("total 9", 0.4975, "total"),
+        _row("total 9.5", 0.4444, "total")]))
+    assert len(rung.candidates(b, "total 9")) == 1
+    got = rung.resolve(b, "total 9")
+    assert got is not None and got[1]["bet"] == "total 9"
+    # The half-point neighbour is still reachable, and a genuinely
+    # ambiguous selector still refuses.
+    assert rung.resolve(b, "total 9.5")[1]["bet"] == "total 9.5"
+    assert rung.resolve(b, "total") is None
+
+
+def check_a_push_leaves_the_denominator():
+    """A game landing ON a whole-number line is neither side.
+
+    THE BUG THIS GUARDS: `n - over` counted every push as an under, so a
+    counted 'over 9' row was light by the push rate. This engine puts
+    10.7% of its draws exactly on 9 — larger than most edges this tool
+    adjudicates, and in the direction that makes an over look worse than
+    it is. Half-point lines cannot push and must be unaffected.
+    """
+    import io
+    import contextlib
+
+    def row(vals, line, side):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rung._rr(vals, line, side, "x")
+        return buf.getvalue()
+
+    # 8, 9, 9, 10: one over, one under, TWO pushes -> 50%, not 25%.
+    assert "over 50.0%" in row([8, 9, 9, 10], 9, "over")
+    assert "under 50.0%" in row([8, 9, 9, 10], 9, "under")
+    assert "2 push" in row([8, 9, 9, 10], 9, "over")
+    # The mean still reports over EVERY game, pushes included.
+    assert "mean  9.00" in row([8, 9, 9, 10], 9, "over")
+    # A half-point line cannot push and keeps the FULL denominator:
+    # 9, 9 and 10 all clear 8.5, so three of four, not two of two.
+    assert "n=   4" in row([8, 9, 9, 10], 8.5, "over")
+    assert "over 75.0%" in row([8, 9, 9, 10], 8.5, "over")
+    assert "push" not in row([8, 9, 9, 10], 8.5, "over")
