@@ -48,6 +48,14 @@ edge` line is what is left if the slate gap is our level error rather
 than information. On 2026-09-24 every totals rung on the board sat +5.8
 points above Kalshi; three rungs that looked like bets were the tilt.
 
+**But only a BROAD gap is a level.** The block is per UNIT (a pitcher's
+ladder, a team side, a game), reports the median, the share leaning its
+way and the two largest units, and prints the de-tilted edge only when
+the lean reads UNIFORM. MIXED means a few arms carry the gap — read who
+they are; a short-leash or rehab arm the market is pricing is information,
+not our level, and it must not be subtracted from anyone else. On
+2026-09-26 the blind mean said +6.9 and was May and Yesavage alone.
+
 **DRIFT is the question the THIN flag cannot answer.** Pivetta and
 Sandlin were both flagged THIN on ~120 batters faced. Pivetta's shipped
 rate was .2758 against a post-layoff .2037; Sandlin's was .2278 against a

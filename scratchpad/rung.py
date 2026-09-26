@@ -23,10 +23,13 @@ The sections, in the order the question actually gets asked:
             measured against the Kalshi MID, which is not a number
             anybody can bet. What you keep is `our probability minus the
             breakeven of the price you got`.
-  TILT      the slate's mean gap in THIS market class, and what is left
-            of the edge once it is removed. A uniform one-way gap is our
-            level far more often than it is an edge (BETTING.md rule 4),
-            and the tilt moves day to day, so it is recomputed per board.
+  TILT      the slate's gap in THIS market class, read as a
+            DISTRIBUTION over pitchers (or teams, or games), and what is
+            left of the edge once it is removed. A uniform one-way gap is
+            our level far more often than it is an edge (BETTING.md rule
+            4) — but only a UNIFORM one. The de-tilted edge prints only
+            when most units lean the same way; otherwise the gap is a
+            few arms the market knows something about, and it is named.
   ROLE      season start share against career, and the last five starts'
             outs. `slate.priceable` counts the WHOLE four-season cache,
             so a converted reliever reads as a swingman forever — and a
@@ -59,6 +62,8 @@ call. See BETTING.md for what each market is worth.
 from __future__ import annotations
 
 import math
+import re
+import statistics
 import sys
 
 from scratchpad import board_json, boards
@@ -75,6 +80,23 @@ LAYOFF_DAYS = 30
 #: compresses toward zero — including them drags the slate mean toward
 #: nothing and understates the correction.
 TILT_EXCLUDES_OFFBAND = True
+
+#: The tilt is a level only when it is BROAD: at least this share of the
+#: class's units (a pitcher, a team side, a game) must lean the way the
+#: median does, over at least TILT_MIN_UNITS units. Below either, the
+#: de-tilted edge is not printed. WHAT BOUGHT THIS, 2026-09-26: the K
+#: class read "+6.9 on the over" as a blind mean over rungs, and 17 of 19
+#: pitchers averaged -0.2 — May (+45) and Yesavage (+31, two starts off
+#: knee surgery) were the whole of it. Those are end-of-season limits the
+#: market can see and we cannot, i.e. INFORMATION, and subtracting them
+#: from Bibee turned a +8 edge into a quoted +15. BETTING.md's own
+#: example of a level was "9 of 10 leaning the same way".
+TILT_UNIFORM = 0.75
+TILT_MIN_UNITS = 4
+
+#: The trailing line on a bet label — "Tanner Bibee k 3.5" -> "Tanner
+#: Bibee k". What is left, with the game, is the tilt's unit.
+_LINE = re.compile(r"\s+[\d.]+$")
 
 
 # ------------------------------------------------------------ selection
@@ -140,17 +162,51 @@ def side_prob(row: dict, side: str) -> float:
     return p if side == "over" else 1.0 - p
 
 
-def tilt(board: dict, cls: str) -> tuple[float, int]:
-    """(mean gap in points on the OVER, n) for one market class.
+def tilt(board: dict, cls: str) -> dict:
+    """The slate's gap on the OVER for one market class, by UNIT.
 
-    The rung under audit is included. With 20 to 112 rungs in a class its
-    own contribution is smaller than the rounding, and excluding it would
-    make the correction depend on which rung was asked about.
+    A unit is one subject's ladder in one game — a pitcher's K rungs, one
+    club's team total, one game's full total — so a pitcher with six
+    rungs counts once, not six times. Returns:
+
+      median   median of the unit means, in points on the over
+      mean     the blind mean over rungs, kept to show what it would say
+      n, units rung and unit counts
+      share    fraction of units on the median's side
+      uniform  whether the gap is broad enough to call it our level
+      top      the units furthest from zero, [(label, mean)], largest first
+
+    The rung under audit is included. Excluding it would make the
+    correction depend on which rung was asked about.
     """
-    gaps = [r["gap"] for g in board["games"] for r in g["rows"]
-            if r["cls"] == cls and r["gap"] is not None
-            and not (TILT_EXCLUDES_OFFBAND and r["offband"])]
-    return (sum(gaps) / len(gaps) if gaps else 0.0), len(gaps)
+    by: dict[tuple, list[float]] = {}
+    labels: dict[tuple, str] = {}
+    for gi, g in enumerate(board["games"]):
+        for r in g["rows"]:
+            if (r["cls"] != cls or r["gap"] is None
+                    or (TILT_EXCLUDES_OFFBAND and r["offband"])):
+                continue
+            subj = _LINE.sub("", r["bet"])
+            key = (gi, subj)
+            by.setdefault(key, []).append(r["gap"])
+            # A pitcher's name is unique on a slate; a bare "total" is not.
+            labels[key] = (subj.rsplit(" ", 1)[0] if cls in ("k", "outs")
+                           else f"{g['away']}@{g['home']} {subj}")
+    gaps = [x for v in by.values() for x in v]
+    if not gaps:
+        return {"median": 0.0, "mean": 0.0, "n": 0, "units": 0,
+                "share": 0.0, "uniform": False, "top": []}
+    means = {k: sum(v) / len(v) for k, v in by.items()}
+    med = statistics.median(means.values())
+    sign = 1 if med >= 0 else -1
+    share = sum(1 for m in means.values() if m * sign > 0) / len(means)
+    top = sorted(((labels[k], m) for k, m in means.items()),
+                 key=lambda t: -abs(t[1]))[:2]
+    return {"median": med, "mean": sum(gaps) / len(gaps), "n": len(gaps),
+            "units": len(means), "share": share,
+            "uniform": (len(means) >= TILT_MIN_UNITS
+                        and share >= TILT_UNIFORM),
+            "top": top}
 
 
 def binom_cdf(k: int, n: int, p: float) -> float:
@@ -403,21 +459,32 @@ def report(date: str, selector: str, side: str, price: str,
         kal = row["p_kalshi"] if side == "over" else 1 - row["p_kalshi"]
         _p(f"  edge vs kalshi   {(kal - be) * 100:+.1f} pts")
 
-    t, n = tilt(board, row["cls"])
-    if n:
+    t = tilt(board, row["cls"])
+    if t["n"]:
         # The tilt is measured on the OVER; a bet on the under keeps the
         # same level error with the sign flipped.
-        signed = t if side == "over" else -t
+        flip = 1 if side == "over" else -1
+        med, mean = flip * t["median"], flip * t["mean"]
         _p()
-        _p(f"TILT  class {row['cls']!r}, {n} rungs with a mid on this board")
-        _p(f"  slate mean gap   {signed:+.1f} pts on the {side}")
-        own = (row["gap"] if side == "over" else -row["gap"]) \
-            if row["gap"] is not None else None
+        _p(f"TILT  class {row['cls']!r}, {t['n']} rungs with a mid"
+           f" over {t['units']} units")
+        _p(f"  median unit gap  {med:+.1f} pts on the {side}"
+           f"   (blind mean over rungs {mean:+.1f})")
+        _p(f"  lean             {t['share']:.0%} of units on the median's"
+           f" side — " + ("UNIFORM, reads as our level" if t["uniform"]
+                          else "MIXED, not a level"))
+        _p("  largest          " + ",  ".join(
+            f"{lab} {flip * m:+.1f}" for lab, m in t["top"]))
+        own = flip * row["gap"] if row["gap"] is not None else None
         if own is not None:
             _p(f"  this rung        {own:+.1f} pts"
-               f"   residual {own - signed:+.1f}")
-        _p(f"  de-tilted edge   {(ours - signed / 100 - be) * 100:+.1f} pts"
-           f"   (if the slate gap is our level, not information)")
+               f"   residual {own - med:+.1f}")
+        if t["uniform"]:
+            _p(f"  de-tilted edge   {(ours - med / 100 - be) * 100:+.1f} pts"
+               f"   (if the slate gap is our level, not information)")
+        else:
+            _p("  de-tilted edge   not printed — the gap is not broad;"
+               " read the largest units, they are usually information")
 
     with store.connect() as con:
         if row["cls"] in ("k", "outs"):

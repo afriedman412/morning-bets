@@ -119,6 +119,16 @@ disproportionately on whichever side the tilt is on. Rank on the residual
 after removing the day's mean. The tilt MOVES day to day — it is not a
 constant to subtract once.
 
+**CHECK THE DISTRIBUTION, NOT THE BLIND AVERAGE** (2026-09-26). The tilt
+is only a level if it is BROAD — most pitchers (or teams, or games)
+leaning the same way. On 09-26 the K class read +6.9 on the over as a mean
+over rungs, and 17 of 19 pitchers averaged -0.2: May (+45) and Yesavage
+(+31, two starts off knee surgery) were all of it. September limits the
+market can see and we cannot are INFORMATION, and subtracting them from
+everyone else turned Bibee's +8 under into a quoted +15. `rung` now
+takes the median per unit, names the two largest, and prints no de-tilted
+edge unless 75% of at least four units lean one way.
+
 **5. FIND WHICH SIDE OF THE GAME THE GAP IS ON.** Split a game total into
 its two team totals before believing it. TEX/SEA: the whole +0.48-run gap
 was Texas's runs off Kade Anderson, an arm 66% of whose priced rate is

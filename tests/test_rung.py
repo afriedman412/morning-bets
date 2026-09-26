@@ -113,16 +113,89 @@ def check_the_tilt_excludes_off_band_rungs():
         _row("total 9.5", 0.44, "total", gap=+6.0),
         _row("total 12.5", 0.02, "total", gap=+40.0, offband=True),
     ]))
-    mean, n = rung.tilt(b, "total")
-    assert n == 2, n
-    assert abs(mean - 5.0) < 1e-9, mean
+    t = rung.tilt(b, "total")
+    assert t["n"] == 2, t
+    assert abs(t["mean"] - 5.0) < 1e-9, t
 
 
 def check_a_class_with_no_mids_does_not_divide_by_zero():
     """No priced rung is a real state — an untraded class reads 0, not a
     crash, because the auditor must still print PRICE and the counts."""
     b = _board(_game("AWY", "HOM", [_row("total 8.5", 0.55, "total")]))
-    assert rung.tilt(b, "total") == (0.0, 0)
+    t = rung.tilt(b, "total")
+    assert t["n"] == 0 and t["median"] == 0.0 and not t["uniform"], t
+
+
+def _ladder(name, gap, n=1):
+    """n K rungs for one pitcher, all at one gap."""
+    return [_row(f"{name} k {k + 2.5}", 0.5, "k", gap=gap)
+            for k in range(n)]
+
+
+def check_one_pitcher_with_six_rungs_counts_once():
+    """The tilt's unit is the pitcher, not the rung.
+
+    2026-09-26: May's six rungs at +45 and Yesavage's six at +31 made the
+    K class read +6.9 over a slate whose other pitchers averaged -0.2.
+    Here one arm's six rungs at +10 against four flat arms must leave the
+    median at zero, whatever the rung-weighted mean says.
+    """
+    b = _board(_game("AWY", "HOM", _ladder("Big Gap", 10.0, n=6)
+                     + _ladder("Flat One", 0.0) + _ladder("Flat Two", 0.0)
+                     + _ladder("Flat Three", 0.0)
+                     + _ladder("Flat Four", 0.0)))
+    t = rung.tilt(b, "k")
+    assert t["units"] == 5 and t["n"] == 10, t
+    assert abs(t["mean"] - 6.0) < 1e-9, t
+    assert t["median"] == 0.0, t
+    assert t["top"][0] == ("Big Gap", 10.0), t
+
+
+def check_a_gap_carried_by_two_arms_is_not_a_level():
+    """Two extreme arms and a mixed rest is MIXED — no de-tilted edge.
+
+    The 2026-09-26 shape in miniature: two large one-way units, the rest
+    split both ways. Subtracting that as our level inflated Bibee's under
+    from +8 to +15. Both extremes are named so the reader sees why.
+    """
+    b = _board(_game("AWY", "HOM",
+                     _ladder("May", 45.0, n=6) + _ladder("Yesavage", 31.0, n=6)
+                     + _ladder("A", 3.0) + _ladder("B", -3.0)
+                     + _ladder("C", 2.0) + _ladder("D", -2.0)
+                     + _ladder("E", -1.0)))
+    t = rung.tilt(b, "k")
+    assert t["mean"] > 20, t
+    assert not t["uniform"], t
+    assert [lab for lab, _ in t["top"]] == ["May", "Yesavage"], t
+
+
+def check_a_broad_one_way_gap_is_a_level():
+    """Nine of ten units the same way is exactly BETTING.md rule 4's case,
+    and the de-tilt must still fire on it."""
+    rows = [x for i in range(9) for x in _ladder(f"P{i}", 5.0 + i * 0.1)]
+    rows += _ladder("P9", -1.0)
+    t = rung.tilt(_board(_game("AWY", "HOM", rows)), "k")
+    assert t["uniform"], t
+    assert abs(t["share"] - 0.9) < 1e-9, t
+    assert 5.0 < t["median"] < 6.0, t
+
+
+def check_too_few_units_never_read_as_a_level():
+    """Three units all one way is not a slate — a Sunday with three games
+    priced must not subtract its tiny sample from every rung."""
+    rows = [x for i in range(3) for x in _ladder(f"P{i}", 6.0)]
+    t = rung.tilt(_board(_game("AWY", "HOM", rows)), "k")
+    assert t["share"] == 1.0 and not t["uniform"], t
+
+
+def check_the_same_total_in_two_games_is_two_units():
+    """'total' is the subject in every game, so the unit carries the game
+    — otherwise a whole slate of full totals collapses to one unit."""
+    b = _board(_game("A", "B", [_row("total 8.5", 0.5, "total", gap=4.0)]),
+               _game("C", "D", [_row("total 8.5", 0.5, "total", gap=-4.0)]))
+    t = rung.tilt(b, "total")
+    assert t["units"] == 2, t
+    assert {lab for lab, _ in t["top"]} == {"A@B total", "C@D total"}, t
 
 
 # ------------------------------------------------------------ selection
