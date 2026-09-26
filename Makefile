@@ -76,6 +76,15 @@ backfill:
 pbp:
 	${PYTHON} -m src.context.sources.pbp --backfill --sync
 
+# THE SCHEDULER. Renders scratchpad/launchd/*.plist.in against THIS
+# checkout and loads them. Idempotent, and RunAtLoad is false on both, so
+# nothing fires until the next calendar interval. --dry-run to look first.
+install-cron:
+	bash scratchpad/install_cron.sh
+
+uninstall-cron:
+	bash scratchpad/install_cron.sh --uninstall
+
 # ── lint ───────────────────────────────────────────────────────────────
 #
 # NOTE: these reference tooling that is not in requirements.txt. Left as a

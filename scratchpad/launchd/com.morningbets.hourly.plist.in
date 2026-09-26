@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.morningbets.hourly</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__ROOT__/scratchpad/cron_board.sh</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__ROOT__</string>
+
+  <!-- 08:00 through 23:00. A slate does not change overnight, and a pull
+       after every first pitch is declined games; this is the window where
+       lineups land and the book moves. launchd runs a MISSED calendar
+       interval once on wake, so a sleeping Mac catches up rather than
+       silently skipping the hour. -->
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Hour</key><integer>8</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>9</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>10</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>11</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>12</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>13</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>14</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>15</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>16</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>17</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>18</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>19</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>20</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>21</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>22</integer><key>Minute</key><integer>5</integer></dict>
+    <dict><key>Hour</key><integer>23</integer><key>Minute</key><integer>5</integer></dict>
+  </array>
+
+  <!-- A pull is ~3 minutes on a 15-game slate at 20,000 sims, so two can
+       never overlap on the hour. AbandonProcessGroup is false so a hung
+       run is killed with its children rather than orphaned, which is
+       exactly how the test suite's forked workers ended up spinning at
+       98% CPU attached to nothing. -->
+  <key>AbandonProcessGroup</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>__ROOT__/logs/hourly.launchd.log</string>
+  <key>StandardErrorPath</key>
+  <string>__ROOT__/logs/hourly.launchd.log</string>
+
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>

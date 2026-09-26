@@ -486,6 +486,10 @@ they came from a double-wrapped logger in `hz_cells.py`, fixed the same day.
 **7e. BUILT, SCORED AND PARKED 2026-09-10. `sim.USE_HOOK_MONTH = False`.
 THE FALSIFIER FAILED ON BOTH CLAUSES AND THE ITEM'S PREMISE BELOW IS
 REFUTED — read this before anything under it.**
+RE-SCORED 2026-09-21 ON THE SPRING FOLDS (item 38 stage 2), the data
+it had never seen: a twentieth of an out on the spring mean, the long
+tail worse, the width untouched, summer as before. Still parked; do not
+run it a third time without a different mechanism.
 
 The term exists, counted and switchable: `sim.BND_MONTH_OFFSET` +
 `bnd_month_offset()`, `game.Side.bnd_month_offset`, both branches of
@@ -1814,6 +1818,560 @@ the held-out 2026 fold (usage rows z +0.3/+0.2, separation +1.40 ->
 2026-09-19, five entries.
 
 ---
+
+**37. THE STRIKEOUT LEVEL — the model is ~2.5% light on strikeouts
+fold-wide in 2024 and 2025, across EVERY arm, not just starters.**
+Opened 2026-09-20 by the battery's new `weather/k_pa_all` row (built to
+score the K/BB temperature tables, found this instead).
+
+ESTABLISHED (flags off, both sides, every plate appearance):
+    2023  model 0.2269  actual 0.2282   −0.86 se   75,882 PA
+    2024  model 0.2235  actual 0.2292   −3.68 se   72,306 PA
+    2025  model 0.2202  actual 0.2252   −3.18 se   70,155 PA
+    2026  model 0.2206  actual 0.2206    0.00 se   59,050 PA
+The starter rows said the same thing (`k_mean` −4.5 / −3.2 / −2.9 / 0.0
+se) and it was read as a starter-shape defect; the pooled row says it is
+the whole staff. It is a LEVEL, so rule 14 puts it ahead of every
+refinement, and the temperature tables cannot touch it (zero-mean by
+construction — they only make the hot-half absolute K rows read worse).
+
+NOT ESTABLISHED: the cause. Candidates that are NOT the same thing and
+must be told apart before anything is counted: (a) the July-1-cut rates
+carry April-June air and league-wide K% has a within-season shape of its
+own — but spring rates would push the summer model HIGH, not low, so
+this runs the wrong way; (b) the pitcher/batter K shrinkage constants
+(`stabilise.py`) pulling every arm toward a league mean that is itself
+computed on the wrong window; (c) the 2026 fold reads 0.00 — whatever
+it is, it is absent or cancelled in 2026, which is either a data
+difference between seasons or the actual defect being season-specific.
+(c) is the first thing to check because it costs nothing: `sim.league`
+K rate per fold against the fold's actual.
+
+PRE-REGISTERED FALSIFIER: a per-fold league K rate that matches actuals
+within 0.5% in every fold kills (b) and the denominator story and leaves
+a per-arm cause. State the power before the result; the row's se is
+0.0016 on the rate.
+
+ADDED THE SAME DAY, from the spring folds: THE SIGN FLIPS. Pooled K/PA
+z by fold — spring −3.2 / +1.8 / +1.2 / +3.9, summer −0.9 / −3.7 / −3.2 /
+0.0. Spring 2026 is model-HIGH on K in every temperature bin, summer
+2024-25 model-LOW everywhere. A per-arm cause does not flip with the
+window; a league/prior anchor that is off by a season's drift does.
+That promotes (c) to the leading candidate and makes the cheap check
+above decisive either way.
+
+STAGES 1-3 RUN 2026-09-21 (full entry in `NOTES-context-layer.md`).
+ESTABLISHED: the miss is the FROZEN WINDOW'S level against the scored
+window's — anchor miss predicts model miss at r +0.91 (all arms) / +0.74
+(starters only) over eight folds; starters strike out 1.5-3% more in the
+second half in 2023-25 and the same in 2026, and the model's summer miss
+follows fold for fold. Not per-arm, not the prior's weight. The monthly
+K shape FAILS the era gate (between-season corr mean +0.28), so there is
+no calendar table to count; BB (April +6.5%) and HR (the air) repeat and
+are already carried. DOWNGRADED from a level error to a
+measurement-design note. One lead left, pre-registered: split September
+K/PA by hitters with <150 PA before September 1 — if the rise is the
+call-ups and their prior would have predicted it, this becomes a
+`stabilise.py` item; if it is the established hitters, close it as
+season-specific drift.
+STAGE 4 RUN 2026-09-21: the established hitters' own September rise
+is 91% (2024) and 107% (2025) of the total, and 2023/2026 had no rise.
+CLOSED as season-specific drift. Residue, pre-registered and small:
+call-ups strike out 15-21% more than the league in all four seasons on
+16-18% of September PA — check whether the engine gives a hitter with
+no season rates his own K rate or the league's. If the league's, that
+is a +2.5-3.5% September level and a `stabilise.py` fix.
+DONE 2026-09-21: `rates.USE_THIN_TARGET` — the shrink target for a
+hitter is the league times a counted multiplier for his 365-day record
+(K 1.163 -> 0.923, HR 0.742 -> 1.203 across five buckets, era 0.94-0.98,
+level-neutral on every cut). Summer K rows improve in 2024-26, nothing
+outside the hitter rows moved past 1 se. ITEM 37 CLOSED IN FULL.
+
+**38. THE SPRING FOLDS' OWN DEFECTS — April-June was never scored until
+2026-09-20, and its first battery run has three rows past 3 se that
+summer does not have.** `battery_spring_432ed646d830.json`.
+
+ESTABLISHED (flags off; summer value beside it):
+  * `shape/outs_mean`   2023 −0.35 (−3.5 se) / 2024 −0.61 (−6.3 se);
+    summer −0.36 / −0.14. Starters pulled too early in spring.
+  * `pen/arms_per_side` +0.16 (+5.5) / +0.18 (+5.9) / +0.03 / +0.11
+    (+3.5); summer +0.13 / −0.01 / 0.00 / +0.02. The model reaches for
+    a fourth and fifth arm that April managers do not.
+  * Spring 2026: ladder F1/F3/F5/F7 −0.22 / −0.19 / −0.34 / −0.36 (−3.7 /
+    −2.1 / −2.9 / −2.5 se), `hr_per_club_game` −3.5 se, K/PA +3.9 se.
+    Summer 2026 flat on every one. Rates at an April 8 cut are nearly
+    all prior-season prior; the 2026 league strikes out less and, on
+    this, homers more than 2023-25, and the anchor does not know.
+
+NOT ESTABLISHED: whether the early hook is the boundary curve, the
+mid-inning curve or the leash reading spring pitch counts (build-up
+starts are short BY PLAN, which the hook curves fitted on the full
+season cannot know); whether the 2026 spring level is the prior's
+weight (`stabilise.py`) or its content. The two are separate items
+sharing a fold; split them when one is picked up.
+
+PRE-REGISTERED: the hook rows (`hook_bnd` / `hook_mid`) in the spring
+JSON already say which curve is off — read them before building
+anything. For 2026, `sim.league(season=2026, before='2026-04-08')`
+against April-June 2026 actuals on K%, HR% and runs/9 is one query.
+
+STAGE 1 READ 2026-09-21, off `battery_spring_432ed646d830.json`: it is
+BOTH curves and it is a WIDTH, not a hook. In spring the boundary curve
+fires too often at 25-70 pitches (2023: +1.5 / +2.9 points at 60 / 70,
+z +3.6 / +3.8; 2024: +0.6 at 40, z +5.6) and the mid-inning curve too
+(25-40 pitches z +3.6 to +7.2), and BOTH fire too rarely past 85 pitches
+(−5 to −9 points, z −2 to −5.5 in 2024-26). Summer has the late
+under-pull and much less of the early over-pull. So the model's outs
+distribution is too WIDE everywhere — `outs_sd` +0.31 / +0.54 / +0.64 /
++0.41 (z +4.4 / +7.8 / +10.0 / +5.2 spring; +2.7 / +5.6 / +6.8 / +3.9
+summer) — and the spring mean deficit is the SHORT tail:
+`outs_over_12.5` −0.040 / −0.065 / −0.046 / −0.025 (z −4.3 / −7.2 /
+−5.3 / −2.5) against summer's −2.3 / −3.1 / −2.3 / −0.8. The extra arms
+(`arms_per_side`) follow from the extra short starts. Real April starts
+are short BY PLAN and the model makes them shorter still.
+RELABEL 2026-09-21: the March exhibitions were in every rate and hook
+row this item was measured on (`sources/gametype.py`). Re-run on
+relabelled data: 2024 spring `outs_mean` −0.61 -> −0.78 and
+`outs_over_12.5` −0.065 -> −0.076, 2025-26 inside 1 se — THE ITEM
+STANDS on 2024-26. The 2023 spring rows are WITHDRAWN: 2023 has no prior
+season on record and its April 8 arms shrink to the league, which reads
+as an early hook and is not one (bisection: no flag moves it). 2023 is
+out of `SPRING_FOLDS`.
+NOT ESTABLISHED: which input is hot at low pitch counts in April — the
+leash (fitted on full seasons, applied to build-up starts), the
+per-arm efficiency, or the curves' own low-pitch cells. `usage_gap`
+is ruled out: it needs four prior starts and returns 0.0 in April
+(the `outs_bias_usage_lo` row is empty in every spring fold).
+NEXT: `--spring --off sim.USE_LEASH` is one battery run and answers the
+leash half; if the early over-pull survives it, the curves' low-pitch
+cells are the item. Set the bar: `outs_over_12.5` spring gap inside one
+se in three of four folds.
+RUN 2026-09-21 (`battery_spring_ba41a761ca03.json`, diffed against the
+spring flags-on run): LEASH OFF MAKES IT WORSE. `outs_mean` 2023 −0.37 ->
+−0.52, 2024 −0.61 -> −0.78; `outs_over_12.5` −0.041 -> −0.050;
+`arms_per_side` +0.16 -> +0.19 / +0.18 -> +0.22; and the late buckets
+(85-100 pitches) of both curves move TOWARD actual, so the leash was
+holding starters in late, correctly. The leash is ruled out as the cause
+of the early over-pull. THE ITEM IS THE CURVES' LOW-PITCH CELLS (25-70)
+in spring, fitted on full seasons that include build-up starts nobody
+labelled as such.
+STAGE 2 RUN 2026-09-21: 7e's parked month offset re-scored on the
+spring folds. Letter of the bar met (outs_mean and outs_over_12.5
+closer in 3/3, each ~0.5 se), spirit not: April is 0.0 in its table,
+the effect is May-June slid right by a twentieth of an out, the long
+tail (already +3.7 se) gets fatter and the width does not move. Summer
+reproduces the parking result. STAYS OFF. The item is the WIDTH of the
+spring outs distribution; next is counting the 25-70 pitch cells of
+both curves by month on regular-season rows against the shipped pooled
+cells (falsifier: April-June cells inside 1 se of the pooled value
+means the cells are not it and the width is the per-arm inputs).
+STAGES 3-4, 2026-09-21: COUNTED AND SHIPPED. April-June 25-70 pitch
+boundary removals run 0.0234 against July-September 0.0323 (z −5.9),
+shrinking with the pitch count; `sim.USE_HOOK_BAND` carries the
+three-band x four-bucket ratio table on `Hook.removal_p`. Spring bar
+passes every clause; summer's letter passes and its 50-70 cells in
+2023-24 go 1.8-2.9 se over (the ratio's reference is the pooled actual,
+the engine's baseline there is not). STILL OPEN: the WIDTH (`outs_sd`
++5 to +9 se in spring, both tails) and the proper construction, a
+month-conditioned fit of the curve's own low-pitch cells. 7e is
+superseded.
+
+
+
+**39. HITTERS HAVE NO PRIOR SEASON. Pitchers pool prior seasons through
+`shrink_target` / `_ensure_prior`; `batter_rates` shrinks toward the
+league on the CURRENT season's line only.** Found 2026-09-21 while
+building the thin-record target (which is the other half: a thin
+population's target, not a veteran's history).
+
+ESTABLISHED: at an April 8 cut a 400-PA veteran has ~20 PA on record and
+is 70% league; `_BATTER_Q` is season-scoped by `_where`. Pitchers at the
+same cut carry 77-86% of their full-season K spread (2024-26) BECAUSE of
+the prior; hitters carry whatever 20 PA say. The spring folds' hitter
+rows (`hrbat` deciles, platoon) are scored on that.
+NOT ESTABLISHED: how much of the spring folds' run-level error is this.
+PRE-REGISTERED: mirror the pitcher construction — prior seasons decayed
+by `PRIOR_DECAY`, effective PA counted per stat — behind a flag; the
+falsifier is `hrbat/spread_top_minus_bottom` and `platoon/k_per_pa_*`
+on the three spring folds, bar: closer to actual in two of three with
+summer inside 1 se. Do NOT hand the hitter prior to a search.
+SHIPPED 2026-09-21 (`rates.USE_BATTER_PRIOR`, last season only, the
+pitcher two-stage algebra). Bar: spring spread 2/3 closer, k_adv 3/3,
+k_nad 1/3; summer three per-hitter HR rows moved 1.1-1.7 se, widening a
+July over-spread that predates the change — item 40. Level rows
+unchanged everywhere. Full entry in the notes.
+
+**44. `hook_penstate.json` HAS BEEN STALE SINCE 2026-08-29 AND NOTHING
+SAID SO — the shipped table's WRITER was never in the repo.** Found
+2026-09-22 while fixing the same defect in the velo table. LIVE PRICING
+DEFECT, not a modelling one: no constant changes, the table does.
+
+ESTABLISHED: the committed table's newest key is 2026-08-29 while
+`sim.USE_PEN_STATE` is True, and `sim.pen_state` is SILENT-NEUTRAL on a
+miss, so all 22 September dates fell through to `PEN_BACK2_BASELINE` /
+`PEN_REST_BASELINE`. The mechanism has been inert on every live board for
+three weeks, contributing exactly zero. This is the second instance of one
+category error, the velo table being the first: a DATED OBSERVATION TABLE
+committed into `src/context/` beside the FITTED constants, which carry a
+`before: 2026-07-01` stamp and are frozen at the holdout ON PURPOSE — so a
+stale copy of an observation table looks exactly correct and breaks no
+visible rule. `scratchpad/pen_state.py` is the research script and never
+wrote the shipped file; the writer existed only in the 2026-08-29 session.
+The note that day SAID this would happen ("LIVE SLATES CURRENTLY FALL BACK
+TO LEAGUE-NEUTRAL, AND ANYONE PRICING TONIGHT SHOULD KNOW IT"), the fix
+built a table covering THAT board, and it started drifting again the next
+morning. A snapshot shipped where a pipeline step was needed.
+DONE ALREADY: `pen_state.export()` reconstructs the writer and is
+VERIFIED — 36,828 overlapping keys against the committed table, 99.20%
+identical, and every disagreement is a late-March or opening-week date,
+which is `sources/gametype.py` correctly dropping exhibitions from a
+club's "previous two". 2,038 of the 2,094 dropped keys are March.
+PRE-REGISTERED, AND IT IS THE PART NOT DONE: replacing the table CHANGES
+ENGINE BEHAVIOUR on every fold's September rows, so it takes the battery
+(rule 15) — record the fingerprint, swap, re-run, report the diff. Expect
+`save`/`pen` rows to move and nothing else; a move in the starter's outs
+or K shape is a wiring bug, since this feeds the hook only. Then add the
+export to `cron_backfill.sh` and `data_status`, exactly as the velo table
+now is, or it silently rots again — THAT is the actual fix, not the
+rebuild.
+
+**47. OUT-OF-RACE CLUBS AND THE LEASH — REAL, BACKWARDS, AND MOSTLY
+ROSTER CHURN. DEAD 2026-09-26; do not re-run.** Opened from a live board
+question ("the Sox have nothing to play for") on the hypothesis that a
+buried club lets its starter go longer.
+
+ESTABLISHED, and the sign is the finding: it goes the OTHER WAY. Clubs
+out of the race pull starters EARLIER.
+`scratchpad/standings_outs.py` (stage 1, mean starter outs) is flat —
+OUT minus IN is -0.030 +/- 0.375, a pooled read with no power.
+`scratchpad/standings_leash.py` (stage 2, the boundary hazard conditioned
+on pitch count, which is the manager's actual question) finds out-of-race
+clubs about 10 points LESS likely to send a starter back out at 75-95
+pitches, -3.2 and -2.6 se.
+
+WHY IT IS DEAD ANYWAY: stage 2's own docstring names the confound and
+does not control it. A buried club promotes young arms on innings limits
+in September and they get pulled early — roster composition, not a leash,
+and it produces this exact signature. Stage 2 takes every boundary row
+with no filter on WHO is pitching.
+`scratchpad/standings_same_arm.py` (stage 3, 2026-09-26) restricts to
+pitchers the club used in BOTH windows, dropping 23% of rows:
+
+```
+ pitches     stage 2 DiD      same-arm DiD
+  75-85   -0.090 (-2.55)   -0.044 (-1.11)
+  85-95   -0.091 (-2.04)   -0.088 (-1.71)
+  95+     -0.049 (-1.91)   -0.050 (-1.62)
+```
+
+The 75-85 bin halves, which is what a partial confound looks like; the
+deep bins hold their size and lose significance to the smaller sample.
+NOTHING CLEARS 2 SE once roster churn is out. Positive control passes —
+injecting 12% of OUT-late removals moves 85-95 from -0.113 to -0.018, so
+the restricted harness resolves an effect of the claimed size and this is
+a real null rather than a blind one.
+
+AND THE SAMPLE CANNOT GROW FAST. The effect only exists from mid-August,
+so it gains about six weeks a year, against a population where every arm
+has its own innings-limit and service-time story. Operator decision
+2026-09-26: too volatile and too many moving parts to carry. Re-open only
+if the approach changes — a per-pitcher innings-limit control rather than
+a club-level split would be a different measurement, not this one.
+
+**46. THE SCOREABILITY ROW FOR ITEM 45 — BUILT 2026-09-26, and it says
+item 45 has much less headroom than item 45 thinks.** DONE.
+
+`shape/k_corr` in `scratchpad/battery.py`: actual against model mean K
+per start, with `_corr_ceiling` as the model-free per-arm target — the
+`outs_corr` construction on the other channel, read off the same draws,
+no extra simulation. Pairs come from `start_pairs()`, extracted so the
+row is testable rather than grepped for; `outs_corr` still has its own
+inline copy and should be switched over separately.
+
+RULE 15 DIFF against `battery_f8aeaf4f7a95.json`: **no row moved by more
+than one se.** Purely additive, which is the claim a row reading existing
+draws has to prove.
+
+A WART WORTH KNOWING, found doing it: the saved JSON is named by the
+ENGINE fingerprint, and adding a SCORECARD row does not change the
+engine — so the before and after runs collided on one filename and the
+second landed as `..._dup.json`. That is not a duplicate, it is a
+different scorecard over the same engine, and the repo already has a
+commit dropping a file that arrived this way. The 972-row version is
+the one kept.
+
+AND THE FIRST READING IS THE FINDING:
+
+```
+fold   k_corr  ceiling     gap      z      outs_corr   gap      z
+2023   0.4373   0.4542  -0.0169   -0.7       0.4459 -0.0933   -4.1
+2024   0.4263   0.4239  +0.0023   +0.1       0.4045 -0.0862   -3.7
+2025   0.3831   0.4420  -0.0589   -2.5       0.2657 -0.0675   -2.8
+2026   0.4638   0.4880  -0.0242   -1.0       0.4327 -0.0932   -3.8
+       mean gap -0.0244, combined z -2.05    mean -0.0851, z -7.20
+```
+
+**The model already tells starts apart on strikeouts nearly as well as
+any per-arm predictor could.** One fold of four is past 2 se and the
+combined figure is -2.05, against outs's -7.20 where every single fold
+is 2.8 se or worse. Outs is where the discrimination defect lives; K is
+close to its ceiling already.
+
+READ THE GAP AS AN UPPER BOUND, NOT A TARGET — same caveat as
+`outs_corr`, and for the same reason: the ceiling is computed WITHIN the
+fold, so in-season between-arm variation no prior-season evidence could
+know still counts as reachable. For outs that factor was measured and
+only about a sixth of the printed gap turned out to be reachable. The
+analogue for K has not been measured (it would want whiff's YEAR-OVER-
+YEAR carry, not the within-season split-half of 0.568), so 0.024 is a
+ceiling on a ceiling.
+
+WHAT THIS MEANS FOR 45, recorded before any wiring, which is the whole
+point of having built the row first: the available prize is small. That
+is not the same as zero, and rule 3 says small-and-measured still ships
+— but it should be sized against 0.024 of correlation, not against the
+6-sigma in-sample t.
+
+**OPERATOR DECISION 2026-09-26: DO NOT WIRE IT.** A priority call, not a
+refutation — gate 2 was never run, so the HEADROOM is what is measured
+and not whiff's capture of it. Three grounds: the 0.024 is a ceiling on
+a ceiling (the outs analogue proved only ~1/6 reachable, which would put
+whiff near 0.004); it does not hold across folds, with 2024 ABOVE its
+ceiling and 2025 at -2.5; and this row named a target 3.5x larger on the
+other channel, which is rule 14. Re-open if the outs gap is closed and
+0.024 is still the best thing left.
+
+WHY THE ROW HAD TO COME FIRST, kept because it is the general lesson: a
+whiff term buys DISCRIMINATION between starts, not a better-shaped
+average start — the `leash.py` pattern, which was flat on outs CRPS and
+the run ladder BY DESIGN while taking the outs correlation +0.105 ->
++0.226. Every pooled K row in the battery is flat against it by
+construction, so BOTH outcomes would have been unreadable: a flat
+scorecard would not have been a null, and a moved one would not have
+been evidence. Building the row first is what turned "we cannot tell"
+into "-2.05, and the defect is in outs" (CLAUDE.md, "nothing moved means
+the change did nothing unless you can show the scorecard is blind to it
+— and that has to be SHOWN").
+
+**45. WHIFF RATE IS A SECOND K CHANNEL AND THE ENGINE HAS NONE — it
+survives against the SHRUNK rate at 6 sigma, carries ~0.37 K per start
+at one sd, and REPEATS BETTER THAN THE RATE IT CORRECTS. BUT ITEM 46'S
+ROW SAYS THE HEADROOM IS ~0.024 OF CORRELATION, COMBINED z -2.05.** OPEN
+2026-09-26, gate 1 passed, headroom measured.
+
+ RATE IS A SECOND K CHANNEL AND THE ENGINE HAS NONE — it
+survives against the SHRUNK rate at 6 sigma, carries ~0.37 K per start
+at one sd, and REPEATS BETTER THAN THE RATE IT CORRECTS. BUT ITEM 46'S
+ROW SAYS THE HEADROOM IS ~0.024 OF CORRELATION, COMBINED z -2.05.** OPEN
+2026-09-26, gate 1 passed, headroom measured. Opened
+from a live board question about Mason Adams (5 starts, THIN), where a
+competing analysis proposed replacing his observed K rate with a
+whiff-implied one. The mechanism is real; the proposed SIZE was ~2.5x too
+big.
+
+ESTABLISHED: `scratchpad/whiff_build.py` (20,381 starter-starts out of the
+pbp cache, league whiff/swing 0.2269, K/BF 0.2194) and
+`scratchpad/whiff_test.py` / `whiff_size.py`. Predicting rest-of-season
+K/BF from the first N starts, train rows only (date < HOLDOUT), planted and
+noise controls both passing (+0.928 / +0.027): whiff enters a bivariate
+alongside the observed rate at +5.15 / +5.94 / +4.88 / +2.79 t at N = 5 /
+10 / 15 / 20, so it is NOT a small-sample-only fix and fires on every
+start. AND IT SURVIVES THE SHIPPED RATE, which is the test that matters —
+`future ~ k_shrunk + whiff` gives k_shrunk +0.5713 (+6.79 t) and whiff
++0.3877 (+5.95 t) on 363 pitcher-seasons, with the intercept collapsing to
++0.0095 (0.84 t). Shrinkage regresses toward the LEAGUE; whiff says which
+direction a given arm should regress. Size: sd of whiff/swing across
+starters 0.0433, so one sd moves K/BF by 1.68 points = 0.37 K per start;
+p10 (.171) to p90 (.278) is 0.91 K per start.
+NOT ESTABLISHED: the run conversion. 0.11 runs per side per start assumes
+0.30 runs per K-vs-BIP, which was NOT measured here — at 0.20 it is 0.07.
+The K figure is direct and does not depend on it. Also not established:
+anything out of sample. This is ONE pre-holdout fit, not four folds, and
+the coefficient is from pitcher-seasons with 12+ starts, so applying it to
+a 5-start rookie is extrapolation.
+NO CONFLICT WITH THE EXISTING SCREEN. `velo.py` gated whiff out on
+`scratchpad/pitch_one.py`, which measured split-half reliability at n = ONE
+START. That is a different question and both answers can be right.
+GATE 1 IS DONE AND IT PASSED — `scratchpad/whiff_stable.py`, 2026-09-26,
+1,369 pitcher-seasons, train rows only. Alternate starts within a
+pitcher-season into halves, correlate half against half, bucketed by total
+swings. THE COUNTED CONSTANT the item asked for: reliability crosses 0.5
+at about 400 SWINGS — roughly ten to twelve starts — and sits under 0.40
+below 250.
+
+```
+      swings     n  whiff/swing      K/BF   shuffle
+       0-150    37        0.236     0.283     0.210
+     150-250   112        0.395     0.424    -0.047
+     250-400   159        0.425     0.383     0.053
+     400-600   142        0.585     0.609     0.025
+     600-900   199        0.740     0.665    -0.036
+        900-   307        0.769     0.689     0.036
+      pooled   973        0.568     0.516
+```
+
+Full-season (Spearman-Brown) 0.725 for whiff against 0.681 for K/BF, so
+**whiff repeats BETTER than the rate it is meant to correct** — the
+condition that per-arm and per-club dispersion failed at 0.07. The shuffle
+column is the control and reads ~0 everywhere except the 37-season
+thinnest bucket. The first bucket is noise, not a finding.
+
+PRE-REGISTERED, in order: ~~(1) a split-half stability gate on whiff~~
+DONE, above; (2) ITEM 46 — the per-start K correlation row, which must
+exist before the term is wired or neither result means anything; (3) the
+four folds, bar set before running; (4) only then the wiring, as a term
+beside the velo and zone kicks in `game.build_side`. Never fitted to a
+loss (rule 5).
+
+STILL NOT ESTABLISHED, unchanged by gate 1: anything out of sample. The
+coefficient is one pre-holdout fit on pitcher-seasons with 12+ starts, so
+applying it to a five-start rookie — the Mason Adams case that opened this
+— is extrapolation, and the stability table says exactly why: at a
+rookie's swing count the reliability is 0.40, not 0.77.
+THE SCOREABILITY PROBLEM, RECORDED UP FRONT: this buys DISCRIMINATION
+between starts, not a better-shaped average start — the `leash.py` pattern,
+which was flat on outs CRPS and the run ladder BY DESIGN and bought
++0.105 -> +0.226 on the outs correlation. So the battery's pooled K rows
+will sit flat and THAT IS NOT A NULL. The row that would see it is an
+out-of-sample per-start K correlation, scored the way the leash was. IT
+DOES NOT EXIST YET AND MUST BE BUILT FIRST, or the change is not scoreable
+and must not be reported as an improvement.
+
+**43. A COLD STREAK IS NOT LINEAR — the bottom decile carries ~0.30 and
+the engine's velo term cannot see it.** PARKED 2026-09-22, end of season,
+by operator decision. Opened from a live board question about an arm whose
+last five starts ran 10.9% K against a season 23.2%.
+
+ESTABLISHED: `scratchpad/streak_tail.py`. The recent-5 K drift's carryover
+into the next start is ~0 through the middle eight deciles and +0.22 in the
+bottom one; on nested cold cuts it reads +0.30 / +0.32 / +0.31 (n 414 /
+142 / 41) against the pooled line's -0.0034 / -0.0042 / -0.0050 — 3.9 /
+3.0 / 1.8 se off. TRAIN-ONLY (date < HOLDOUT) holds it at +0.25 / +0.28 /
++0.29, 2.8 / 2.2 se off, so the finding is not holdout contamination.
+`streaks.py`'s pooled +0.0443 +/- 0.0305 is a correct reading of the
+AVERAGE and a wrong reading of any cold arm — the drift sd is 0.0362 and
+the rows that prompt the question sit three and four sd out. ASKING A LINE
+ABOUT THE TAIL IS EXTRAPOLATION, NOT MEASUREMENT, and it is how this
+project nearly filed a real effect as a null.
+NOT ESTABLISHED: that the velocity split inside the tail is real. Arms
+whose radar also fell >0.5 mph carry +0.48 against +0.26 for those whose
+held, same sign at both cuts, but n=61 and n=30 and the two are ~1.2 se
+apart. DIRECTIONAL ONLY.
+PRE-REGISTERED: a threshold term on deep negative drift, on top of the
+velo kick, counted on TRAIN ROWS ONLY and never fitted to a loss (rule 5 —
+the tail numbers are conditional means and must stay that way). Bar before
+running: the cold cells land closer to actual in at least three of four
+folds and the bulk stays inside 1 se.
+THE SCOREABILITY PROBLEM, RECORDED UP FRONT because it is the reason this
+is not a quick item: the term fires on ~4% of starts, so `k_pa_all`
+DIVIDES IT BY TWENTY-FIVE and cannot see it whatever it does. A battery
+row has to be BUILT first — K per PA restricted to starts whose prior-5
+drift is below the threshold — or the change is not scoreable and must not
+be reported as an improvement.
+
+**42. THE OUTS CORRECTION DRIFTS ON THE CALENDAR, NOT THE ENGINE — give it
+a month, and give the board its provenance.** Found 2026-09-21 in a live
+pricing session, where the stale table was quoted as current and then the
+staleness turned out not to be staleness. BETTING LAYER ONLY: no engine
+constant moves, so this does not take the battery.
+
+ESTABLISHED: re-measuring `outs_adjust.MEASURED` on 1,570 holdout starts
+moved the ACTUAL column at every line from 14.5 up while the MODEL column
+sat still (0.532/0.485/0.420 -> 0.530/0.485/0.423 at 15.5/16.5/17.5), so
+the table did not go stale under a changing engine. The SCORED WINDOW'S
+MONTH MIX moved: 2026-07-01..09-08 is Jul 41.4 / Aug 46.4 / Sep 12.2, and
+eleven days later 2026-07-01..09-20 is 35.2 / 39.4 / 25.4. September's
+share DOUBLED. September starters are short — P(16+) 0.440 against 0.502
+for Apr-Aug, 3.0 sigma on 536 starts; P(18+) 0.345 against 0.375. A
+trailing "July onward" window therefore becomes more September every week
+of September. The live cost that day: the board applied -0.009 at o17.5
+where the same morning's measurement said -0.026, printing a rung at
+55.4% the current engine supports at ~53.5%.
+NOT ESTABLISHED: that a month-conditioned table beats the pooled one out
+of sample. The September-minus-pooled deltas are -0.022 (se 0.023) and
+-0.040 for Sep 11-20 (se 0.030) — 1.0 and 1.3 sigma, DIRECTIONAL ONLY.
+This item may well close as "the pooled table was fine and the drift was
+sample".
+PRE-REGISTERED: build the correction per month bucket (Sep+Oct against
+the rest is the minimum split; the shape is a step, not a ramp — see
+`sim.BND_MONTH_OFFSET`) on PRE-HOLDOUT rows only, score on the holdout
+split by month across the four folds. Bar set before running: the
+September cells land closer to actual in at least three of four folds
+AND the summer cells stay inside 1 se of the pooled table. If the
+September cell does not beat pooled ON SEPTEMBER ROWS, the drift was
+sample and the pooled table stays as it is.
+DO NOT AUTO-REFIT THE TABLE ON EVERY BOARD RUN — it smuggles in the
+parked `sim.USE_HOOK_MONTH` by the back door and it destroys the only
+signal the table carries, its 0.045 -> 0.031 -> 0.013 shrinkage across
+hook changes. Reasons written out in `scratchpad/outs_adjust`.
+THE CHEAP HALF, WORTH DOING FIRST AND INDEPENDENTLY: the board prints
+`outs corrected (2026-09-09)` in a footer nobody reads, and it cannot
+know the engine fingerprint moved underneath it. Carry the correction's
+provenance ON THE RUNG, against the FINGERPRINT rather than a date.
+
+WATCH FOR COLLISION WITH ITEM 38 (noted 2026-09-21, same day): a
+`sim.USE_HOOK_BAND` was in the working tree while this was written —
+`BND_BAND_MULT` scaling the boundary curve by calendar band, September
+at 1.87/1.70/1.40/1.27 across the 50-85 pitch cells. IF THAT SHIPS, THE
+MONTH HALF OF THIS ITEM IS LARGELY SUPERSEDED: a hook that sees the date
+removes the composition the pooled table is currently averaging over, and
+the right move is to RE-MEASURE the table on the new engine rather than
+give it a month bucket. The provenance half above stands either way.
+Check `sim.USE_HOOK_BAND` before starting this.
+
+
+**40. THE PER-HITTER HOME RUN SPREAD IS TOO WIDE BY JULY AND TOO NARROW IN
+APRIL.** `hrbat/spread_top_minus_bottom` (top decile minus bottom decile
+of the model's per-hitter HR probability, against what those hitters
+did): summer 2024-26 +1.2 / +2.5 / +2.5 se with the prior on (+1.2 /
++2.0 / +2.5 before it), spring 2026 −2.3 (−2.9 before it). Opened
+2026-09-21 by item 39's battery.
+
+ESTABLISHED: the sign flips with the depth of the record — thin lines
+in April are over-shrunk toward the target, full lines in July are
+under-shrunk away from it. That is the batter HR stabilisation
+constant (k = 193 AB+BB, `stabilise.py`) being too small for a
+full-season line, or the per-decile actual carrying selection the
+model cannot (the top decile is chosen by the MODEL's number).
+NOT ESTABLISHED: which. PRE-REGISTERED: re-count the batter HR
+stabilisation on regular-season rows (the shipped count predates the
+spring-training relabel), and check the spread row with the constant
+at its re-counted value on all seven folds. Bar: summer spread inside
+1.5 se in three of four with spring no worse. Do NOT search the
+constant against the spread row.
+STAGE 1 RUN 2026-09-21: the recount on clean data gives 197 against
+193 — the constant is NOT it. Remaining hypothesis: the decile rows
+select on the model's own number, so model noise reads as over-spread
+by construction. Next: a positive control — jitter the model's per-PA
+HR probability by a known sd and see the spread row widen by the
+predicted amount; if it does, the row needs a selection-free
+companion (bin hitters on PRIOR-season HR rate, not on the model).
+
+
+**41. THE EIGHT STABILISATION CONSTANTS, RE-COUNTED WITHOUT SPRING
+TRAINING.** Opened 2026-09-21. `src.context.stabilise` on regular-season
+rows: batters K 48 / BB 113 / HR 197 / BABIP 400 against the shipped
+51 / 122 / 193 / 447; starters K 122 / BB 167 / HR 2598 / BABIP 1199
+against 132 / 138 / 934 / 3068.
+
+ESTABLISHED: the shipped values were counted with ~5% exhibition rows in
+the halves; the batter K/BB/BABIP and starter K/BB/BABIP counts moved
+6-60% once those left. Starter HR is the recorded three-numbers-disagree
+case and is excluded from this item.
+NOT ESTABLISHED: that the moves survive a four-fold battery — smaller k
+means less shrinkage, and the folds' K rows are already light in
+summer 2024-25, so batter K 51 -> 48 pushes them the RIGHT way and
+starter BB 138 -> 167 pushes walks toward the league.
+PRE-REGISTERED: replace all seven at once (rule 4: measured, not
+fitted), battery on summer and spring against the current baseline
+(`5204b5f4a4e8`), bar: the pooled K/BB rows and `outs_corr` no worse
+than 1 se in any fold, `platoon/k_per_pa_*` closer in five of seven.
+Report every row that moved. Do not tune any of the seven afterwards.
+SHIPPED 2026-09-21: six replaced, starter HR and starter BABIP held
+(the recount on BABIP, 1199, is inside the coin-flip range the test
+pins). Battery flat in all seven folds — no row past 1 se — and the
+dilution is quantified in the notes: two hundredths of a se on the
+pooled K rate. Measured, shipped, not claimed as an improvement.
 
 ## Shipped 2026-09-10 — item 24, the home run channel reads contact type
 

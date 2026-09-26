@@ -11,6 +11,7 @@ bought it.
     venv/bin/python -m scratchpad.board [DATE] [SIMS]      the board
     venv/bin/python -m scratchpad.batprops DATE AWY HOM    offense props (AUDIT ONLY)
     venv/bin/python -m src.context.sources.lineup [DATE]   who has a posted nine
+    venv/bin/python -m src.context.rung D "<sel>" over|under PRICE   audit one bet
 
 The board prices, per game off ONE shared set of draws: the full-game
 total, both team totals, the F5 total, and each starter's K and outs
@@ -50,11 +51,22 @@ line differed 1.2 points on seed alone.
                     close, +3.7c on 5c disagreements) and adds NOTHING
                     against the close (blend weight 0.00). Bet early or
                     not at all.
-    outs            The corrected number is what prints; the raw is in
-                    the note. Still the weakest starter market — the hook
-                    is a manager decision reproduced only in aggregate —
-                    but the sim beats a fitted model here at 4.1 sigma
-                    on grading, so the number is not empty.
+    outs            WORSE THAN THE MARKET, MEASURED (2026-09-21). Graded
+                    head to head on 230 rungs over 13 boards: our Brier
+                    0.2649 against Kalshi's 0.2475, +0.0173 at se 0.0069
+                    — 2.5 sigma the wrong way. It still beats a FITTED
+                    model at 4.1 sigma, so the number is not empty; it is
+                    just not better than the price. The hook is a manager
+                    decision reproduced only in aggregate.
+                    AND THE DISAGREEMENTS ARE WHERE IT BREAKS. Our over
+                    priced 10+ points above Kalshi, n=57 across 48
+                    distinct arms: we said 68.0%, Kalshi said 51.6%, it
+                    hit 45.6% (se 6.6). The bigger our edge looks on an
+                    outs rung, the more likely it is ours that is wrong.
+                    Caveat those boards were priced by OLDER engines; the
+                    current engine's UNCONDITIONAL bias is much smaller
+                    (+0.026 at o17.5). The two measure different things —
+                    the 10+ cut selects the arms we are worst on.
     full total      Usable with a season caveat: July/Aug measured ~4%
                     (0.15-0.20 runs/side) LIGHT — the month HR term is
                     unshipped — and September is UNMEASURED. The model
@@ -107,6 +119,16 @@ disproportionately on whichever side the tilt is on. Rank on the residual
 after removing the day's mean. The tilt MOVES day to day — it is not a
 constant to subtract once.
 
+**CHECK THE DISTRIBUTION, NOT THE BLIND AVERAGE** (2026-09-26). The tilt
+is only a level if it is BROAD — most pitchers (or teams, or games)
+leaning the same way. On 09-26 the K class read +6.9 on the over as a mean
+over rungs, and 17 of 19 pitchers averaged -0.2: May (+45) and Yesavage
+(+31, two starts off knee surgery) were all of it. September limits the
+market can see and we cannot are INFORMATION, and subtracting them from
+everyone else turned Bibee's +8 under into a quoted +15. `rung` now
+takes the median per unit, names the two largest, and prints no de-tilted
+edge unless 75% of at least four units lean one way.
+
 **5. FIND WHICH SIDE OF THE GAME THE GAP IS ON.** Split a game total into
 its two team totals before believing it. TEX/SEA: the whole +0.48-run gap
 was Texas's runs off Kade Anderson, an arm 66% of whose priced rate is
@@ -127,6 +149,17 @@ conditional on tonight's nine — the model is SUPPOSED to disagree with a
 season average. It still caught Sanchez (our 61.8% against his own 40.0%,
 with the trend running away from the side) and it still backed Pallante
 (our 3.84 sitting on his own 3.92 while the market sat at 3.21).
+
+**9. SHOP THE PRICE AGAINST THE MID BEFORE ARGUING ABOUT THE MODEL.**
+Added 2026-09-21, after three quotes in one session. Two of them were
+WORSE than Kalshi's own price for the identical side — a K over offered
+at -108 against Kalshi's +106 (3.4 points), an outs over at -106 against
+Kalshi's +122 (6.4 points). Both gaps were larger than any edge the board
+claimed after corrections, so the whole analysis was moot until the fill
+was fixed. Convert your quote and the mid to probabilities and difference
+them FIRST; a book's two sides do not mirror because its hold is in both,
+so de-vig before calling it. This costs nothing and settles more rungs
+than any model argument.
 
 **8. INTEGER TOTALS PUSH, AND KALSHI HANGS NONE OF THEM.** Derive the
 market's number from the half-run rungs either side; the gap between them

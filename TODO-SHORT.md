@@ -10,12 +10,67 @@ an index that lags is worse than none, because it is read as current.
 Numbers are never reused, so a line here always resolves against the full
 item.
 
-Refreshed 2026-09-17.
+Refreshed 2026-09-21.
 
 ---
 
 ## READY — nothing has to be decided before starting
 
+    41  SHIPPED 2026-09-21 — six stabilisation constants re-counted
+        without spring training; starter HR and BABIP held. Battery
+        flat in all seven folds, dilution quantified (0.02 se).
+    40  The per-hitter HR spread is too wide by July (+2.5 se) — NOT the
+        batter HR constant (recount 197 vs 193); the decile rows select
+        on the model's own number. Needs a positive control. Opened
+        2026-09-21.
+    39  SHIPPED 2026-09-21 — hitters have a prior season
+        (`rates.USE_BATTER_PRIOR`, last season, pitcher algebra). Bar met
+        in spring on two of three metrics, missed on summer's per-hitter
+        HR rows by 1.1-1.7 se; those are item 40.
+    38  PARTLY SHIPPED 2026-09-21 — the boundary hook's 50-84 pitch
+        cells carry a counted calendar band (`sim.USE_HOOK_BAND`, spring
+        0.75x, September 1.87x at 50 pitches, shrinking with pitches);
+        spring bar met. Open: the WIDTH of the spring outs distribution
+        (+5 to +9 se, both tails) and a month-conditioned curve fit.
+    44  `hook_penstate.json` stale since 2026-08-29 and its WRITER was
+        never in the repo, so pen state has been league-neutral on every
+        live board for three weeks. Export reconstructed and verified
+        (99.2% on the overlap); the table swap still needs the battery.
+    44  OPEN — `hook_penstate.json` stale since 2026-08-29; the export
+        was never in the repo. Was MISSING from this index until
+        2026-09-26, which is how a later item nearly reused its number.
+    46  DONE 2026-09-26 — `shape/k_corr` built; battery diff shows no
+        row moved. First reading is the finding: K sits ~0.024 off its
+        ceiling (combined z -2.05) where OUTS is -7.20. The per-start
+        discrimination defect is in outs, not strikeouts.
+    45  PARKED 2026-09-26, NOT WIRED by operator decision — gate 1
+        passed but item 46 puts the headroom at ~0.024 of correlation
+        (combined z -2.05) against an OUTS gap of -7.20. Priority call,
+        not a refutation; gate 2 was never run. whiff/swing is a 2nd K
+        channel the engine lacks: +5.95 t beside the SHRUNK rate (363
+        pitcher-seasons, train-only, controls pass), alive at
+        N=5/10/15/20 starts. One sd = 0.37 K per start. Split-half 0.568
+        pooled / 0.725 full-season, BETTER than the K/BF it corrects
+        (0.516 / 0.681); trustworthy above ~400 swings. Left: four
+        folds, and item 46 first.
+    47  DEAD 2026-09-26 — out-of-race clubs and the leash. Real but
+        BACKWARDS (they pull EARLIER, not later) and half of it was
+        September roster churn: same-arm-both-windows drops the 75-85
+        diff-in-diff from -2.55 to -1.11 se. Nothing clears 2 se. Do
+        not re-run.
+    43  PARKED 2026-09-22 — a cold streak is NOT linear: middle deciles
+        carry ~0, the bottom carries +0.30 (train-only +0.25 to +0.29),
+        3.9 se off the pooled line. Fires on ~4% of starts, so a battery
+        row must be built before it is scoreable.
+    42  The outs correction drifts on the CALENDAR, not the engine — the
+        scored window went 12.2% to 25.4% September in eleven days. Give
+        it a month bucket, and give the board its provenance against the
+        fingerprint. Betting layer; no battery.
+    37  CLOSED 2026-09-21 — the strikeout level was the frozen window's
+        K against the scored window's, a monthly shape that does not
+        repeat, and a September rise in the established hitters. The
+        call-up residue shipped as `rates.USE_THIN_TARGET`: a thin
+        record's shrink target is its own population, not the league.
     34  What tells two starts apart, now that a per-arm constant is ruled
         out — outs_corr is 3.7-5.0 sigma short of the per-arm ceiling in
         all four folds. Successor to 32.

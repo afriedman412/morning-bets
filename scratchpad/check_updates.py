@@ -35,7 +35,7 @@ import os
 import sys
 from datetime import date as _date
 
-from scratchpad import boards
+from src.context import boards
 
 STATE = os.path.join(boards.BETS_DIR, "lineup_watch.json")
 

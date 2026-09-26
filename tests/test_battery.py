@@ -14,9 +14,11 @@ from scratchpad import battery
 
 
 def check_battery_header_lists_every_flag():
-    """Every USE_* in sim, game and calibrate appears in the header."""
+    """Every USE_* in sim, game, calibrate and rates appears in the header."""
     got = battery.flags()
-    for mod, name in ((sim, "sim"), (game, "game"), (cal, "calibrate")):
+    from src.context.sources import rates as rate_src
+    for mod, name in ((sim, "sim"), (game, "game"), (cal, "calibrate"),
+                      (rate_src, "rates")):
         for k in vars(mod):
             if k.startswith("USE_"):
                 assert f"{name}.{k}" in got, f"{name}.{k} missing from " \
@@ -317,3 +319,160 @@ def check_usage_gap_is_per_date_and_strictly_prior():
         got[("Capped", "2026-06-05")]
     # Three prior starts is under USAGE_MIN_PRIOR: absent, never zeroed.
     assert not any(nm == "Fresh" for nm, _ in got), got.keys()
+
+
+def check_the_temperature_rows_see_strikeouts_and_walks_not_just_homers():
+    """`TEMP_K_MULT` and `TEMP_BB_MULT` shipped into a battery that had
+    NO walk row and only fold-wide strikeout means, so the change was not
+    scoreable (CLAUDE.md rule 15: name the row that would see it). The
+    bin rows come from `battery.weather_cells`, and this exercises THAT:
+    a game the binner rejects stays out of every bin and out of `n`,
+    each bin carries k, bb, pa and runs alongside hr and bip plus a game
+    count, and model and actual are tallied from their own side of the
+    pair — the arithmetic a copy in the scoring loop would silently
+    drift from.
+    """
+    from collections import Counter
+
+    def side(**kw):
+        return {"pa": Counter(kw)}
+
+    got = {
+        "cold": (side(hr=1, bip=20, k=9, bb=5, pa=40, runs=80),
+                 side(hr=2, bip=21, k=7, bb=3, pa=41, runs=6)),
+        "hot": (side(hr=3, bip=22, k=6, bb=2, pa=42, runs=120),
+                side(hr=4, bip=23, k=8, bb=4, pa=43, runs=9)),
+        "blank": (side(hr=99, bip=99, k=99, bb=99, pa=99, runs=99),
+                  side(hr=99, bip=99, k=99, bb=99, pa=99, runs=99)),
+    }
+    wx = {"cold": {"temp_f": 50}, "hot": {"temp_f": 91}, "blank": {}}
+    m, a, n = battery.temp_cells(["cold", "hot", "blank"], wx, got)
+    assert n == 2, n
+    assert m[0] == Counter(hr=1, bip=20, k=9, bb=5, pa=40, runs=80, g=1), m[0]
+    assert a[0] == Counter(hr=2, bip=21, k=7, bb=3, pa=41, runs=6, g=1), a[0]
+    assert m[4] == Counter(hr=3, bip=22, k=6, bb=2, pa=42, runs=120, g=1), m[4]
+    assert a[4] == Counter(hr=4, bip=23, k=8, bb=4, pa=43, runs=9, g=1), a[4]
+    # the blank game landed nowhere — no bin carries a 99
+    assert not any(v == 99 for acc in (m, a) for c in acc.values()
+                   for v in c.values())
+    assert set(m) == set(a) == {0, 4}, (set(m), set(a))
+    # the edges are the SHIPPED ones — 65F is the third bin, not the second
+    m2, _, _ = battery.temp_cells(["hot"], {"hot": {"temp_f": 65}}, got)
+    assert set(m2) == {2}, set(m2)
+
+
+def check_the_wet_cell_is_open_air_precipitation_only():
+    """The precipitation rows split on statsapi's condition string. Rain,
+    drizzle and snow are wet; any other open-air condition is dry; a
+    closed roof, a dome or no condition is in NEITHER cell — conditioned
+    air would dilute the dry cell with games that had no weather at all.
+    Verified by the binner, which is what the rows are built on."""
+    wet = battery.wet_bin
+    assert wet({"condition": "Rain"}) == "wet"
+    assert wet({"condition": "Drizzle"}) == "wet"
+    assert wet({"condition": "Snow"}) == "wet"
+    assert wet({"condition": "Partly Cloudy"}) == "dry"
+    assert wet({"condition": "Overcast"}) == "dry"
+    assert wet({"condition": "Dome"}) is None
+    assert wet({"condition": "Roof Closed"}) is None
+    assert wet({"condition": "Rain", "roof_closed": True}) is None
+    assert wet({"condition": None}) is None
+    assert wet({}) is None
+    # and the cells carry a game count the runs-a-game row divides by
+    from collections import Counter
+    got = {"r": ({"pa": Counter(runs=400, pa=1)}, {"pa": Counter(runs=7, pa=1)}),
+           "d": ({"pa": Counter(runs=360, pa=1)}, {"pa": Counter(runs=9, pa=1)})}
+    m, a, n = battery.wet_cells(["r", "d"], {"r": {"condition": "Rain"},
+                                             "d": {"condition": "Clear"}}, got)
+    assert n == 2 and m["wet"]["g"] == 1 and a["dry"]["runs"] == 9, (m, a)
+
+
+def check_the_k_correlation_row_scores_discrimination_not_the_pooled_shape():
+    """TODO 46 — the row that can see a per-arm STRIKEOUT term.
+
+    THE OBLIGATION THIS DISCHARGES (CLAUDE.md rule 15): a whiff term, like
+    the leash, buys discrimination BETWEEN starts rather than a better
+    average one. Every other K row in the battery is pooled over draws, so
+    a term that moves one arm up and another down leaves all of them
+    unmoved — and reading that as a null would be unfalsifiable. This
+    exercises the two pieces `k_corr` is made of.
+
+    The ceiling must also REFUSE to be computed when it cannot be, rather
+    than hand back a fabricated target the model is then scored against.
+    """
+    # a model that ranks starts correctly scores high even when its LEVEL
+    # is wrong — which is the whole point of a correlation row
+    good = [(4.0, 5), (5.0, 6), (6.0, 7), (7.0, 8), (8.0, 9)]
+    assert battery._corr(good) > 0.99, battery._corr(good)
+    shifted = [(m + 10, a) for m, a in good]
+    assert abs(battery._corr(shifted) - battery._corr(good)) < 1e-9, \
+        "a pure level shift must not move a correlation row"
+    # ... and a model that cannot tell starts apart scores zero
+    assert battery._corr([(5.0, 4), (5.0, 9), (5.0, 6)]) == 0.0
+
+    # THE CEILING. Arms that differ from each other and repeat give a real
+    # target; arms that are all the same give ~0 headroom.
+    spread = {"a": [9, 8, 9], "b": [3, 2, 3], "c": [6, 5, 6]}
+    ceil = battery._corr_ceiling(spread)
+    assert ceil is not None and 0.8 < ceil <= 1.0, ceil
+    flat = {"a": [5, 6, 4], "b": [5, 4, 6], "c": [6, 5, 4]}
+    assert (battery._corr_ceiling(flat) or 0.0) < 0.4, \
+        battery._corr_ceiling(flat)
+    # NOT ESTIMABLE MUST RETURN None, NOT A NUMBER — a row with no target
+    # prints the model's own figure, which is honest; a fabricated ceiling
+    # would be scored against forever.
+    assert battery._corr_ceiling({"a": [5], "b": [6], "c": [7]}) is None
+    assert battery._corr_ceiling({"a": [5, 6]}) is None
+
+
+def check_the_k_correlation_pairs_come_off_the_draws_already_taken():
+    """`start_pairs` is exercised, not grepped for.
+
+    THE WEAKNESS THIS REPLACES: the first version of this check asserted
+    the row's source text contained `fold.add("shape", "k_corr"`, and a
+    mutation that disabled the row with `if False:` left that string in
+    place and the check green. A test that guards nothing looks identical
+    to one that guards something (CLAUDE.md rule 13).
+
+    One pass per fold is the battery's design, so the pairs must be read
+    off `got[...]["sp"][side][channel]` — the same counter every pooled
+    row on that channel is tallied from — and never re-simulated.
+    """
+    from collections import Counter
+
+    def sp(outs, k):
+        return {"outs": Counter(outs), "k": Counter(k)}
+
+    got = {
+        "g1": ({"sp": {"away": sp({15: 1, 18: 1}, {4: 1, 6: 1}),
+                       "home": sp({12: 2}, {9: 2})}},),
+        "g2": ({"sp": {"away": sp({21: 1}, {7: 1}),
+                       "home": sp({}, {})}},),          # no draws -> skipped
+    }
+    cases = {
+        "g1": ([{"o": 16, "k": 5, "player_name": "A"}],
+               [{"o": 11, "k": 8, "player_name": "B"}]),
+        "g2": ([{"o": 20, "k": 7, "player_name": "A"}],
+               [{"o": 19, "k": 9, "player_name": "C"}]),
+    }
+    kp, kby = battery.start_pairs(got, cases, ["g1", "g2"], "k")
+    # model mean is the mean of the DRAWS; actual is the real start
+    assert kp == [(5.0, 5), (9.0, 8), (7.0, 7)], kp
+    # the side with no draws contributed nothing, to pairs or to the arms
+    assert dict(kby) == {"A": [5, 7], "B": [8]}, dict(kby)
+    assert "C" not in kby
+
+    # THE HELPER IS CHANNEL-GENERAL and outs goes through it identically.
+    # NOTE: `outs_corr` itself still builds its pairs inline — that copy
+    # predates this helper and should be switched over, but not in the
+    # same change as the diff that proves `k_corr` is additive, because
+    # touching the outs path would make the two indistinguishable.
+    op, oby = battery.start_pairs(got, cases, ["g1", "g2"], "outs")
+    assert op == [(16.5, 16), (12.0, 11), (21.0, 20)], op
+    assert dict(oby) == {"A": [16, 20], "B": [11]}, dict(oby)
+
+    # a start with no ACTUAL is not a pair either
+    cases2 = {"g1": ([{"o": 16, "k": None, "player_name": "A"}],
+                     [{"o": 11, "k": 8, "player_name": "B"}])}
+    kp2, _ = battery.start_pairs(got, cases2, ["g1"], "k")
+    assert kp2 == [(9.0, 8)], kp2

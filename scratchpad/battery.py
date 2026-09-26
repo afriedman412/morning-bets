@@ -34,7 +34,12 @@ THE ROWS, all model vs real with gap, se, z and the Monte-Carlo floor:
     contact     DP per opportunity, sacrifice per PA, XBH share of non-HR
                 hits, HR per ball in play; GB%-quintile rows EMPTY until
                 item 4a plumbs `gb_pct` (printed empty, not omitted)
-    weather     HR/BIP by temperature bucket — EMPTY until item 5
+    weather     HR/BIP, K/PA and BB/PA by SHIPPED temperature bin, the
+                pooled K and BB per PA, HR/BIP by wind, and WET vs DRY
+                (K/PA, BB/PA, HR/BIP, runs a game) off statsapi's
+                condition. The bin rows are the ones that can SEE a
+                temperature table (rule 2 — a pooled rate is a mean, the
+                change is a shape); the cold bins need `--spring`
     late        innings 7-9: runs per inning by |margin| when it started
     save        a lead of 1-3 after eight: how often it is HELD, and what
                 the protecting side allows from the ninth on (0, 2+). The
@@ -102,8 +107,30 @@ from src.context import boundary, calibrate as cal, game, sim
 from src.context.sources import pbp, rates as rate_src
 from scratchpad.pitch_hazard import EDGES, ROWS
 
-FOLDS = ((2023, "2023-07-01"), (2024, "2024-07-01"),
-         (2025, "2025-07-01"), (2026, "2026-07-01"))
+#: (year, rates-frozen-at, scored-until). The SUMMER folds are the historical
+#: four: rates frozen July 1, scored July onward. They never see April,
+#: May or June, so a mechanism that lives in cold air had no row anywhere
+#: until the SPRING folds were added (2026-09-20): rates frozen April 8,
+#: scored April 8 through June 30. APRIL 8, NOT OPENING DAY, because a club
+#: with no rated pen hands every relief inning to the STARTER'S rates
+#: (`Side.current`), and at April 1 that is 1-13 clubs a season; at April
+#: 8 it is none, at ~7 arms a club. The week it costs is stated in the
+#: header. `--spring` selects them; the engine fingerprint is always taken
+#: off the summer 2026 cases so a spring file and a summer file with the
+#: same engine carry the same name, distinguished by the `spring_` prefix.
+FOLDS = ((2023, "2023-07-01", None), (2024, "2024-07-01", None),
+         (2025, "2025-07-01", None), (2026, "2026-07-01", None))
+#: THREE SPRING FOLDS, NOT FOUR. 2023 has no prior season on record (the
+#: data starts 2023-03), so at an April 8 cut every arm is one or two
+#: starts shrunk to the league: rotation starters' K rates carry 53% of
+#: their full-season spread and correlate 0.38 with it, against 77-86% and
+#: 0.71-0.77 for 2024-26. That is not a fold the live board ever runs —
+#: it always has last season — and it read as a starter-length defect
+#: (outs −0.9, arms +0.3) that no hook flag could move (2026-09-21
+#: bisection). Until the March exhibitions were relabelled it was padded
+#: by them and looked like the others.
+SPRING_FOLDS = tuple((y, f"{y}-04-08", f"{y}-07-01")
+                     for y in (2024, 2025, 2026))
 
 #: Innings tracked in the one pass. 18 is the ceiling (`max_extra=9`).
 TRACK = tuple(range(1, 19))
@@ -149,12 +176,14 @@ EV_REACH = EV_BB + ("hit_by_pitch", "field_error") + tuple(EV_HIT)
 
 
 def flags() -> dict:
-    """Every USE_* switch in the three modules, live values, plus the two
+    """Every USE_* switch in the four modules, live values, plus the two
     non-USE_ knobs that change what a run means. THE WIRING CONTRACT: a
     battery run is attributable to a configuration only if this is total,
-    and `tests/test_battery.py` holds it to that."""
+    and `tests/test_battery.py` holds it to that. `rates` joined the list
+    on 2026-09-21, the day a rate-side flag (`USE_THIN_TARGET`) went live
+    while a battery was mid-run and the header could not have said so."""
     out = {}
-    for m in (sim, game, cal):
+    for m in (sim, game, cal, rate_src):
         for k in sorted(vars(m)):
             if k.startswith("USE_"):
                 out[f"{m.__name__.rsplit('.', 1)[-1]}.{k}"] = getattr(m, k)
@@ -502,6 +531,8 @@ def _model_one(gid: str) -> dict:
             miss_bat[batter] *= 1.0 - p_hr
             if o == sim.K:
                 pa["k"] += 1
+            elif o == sim.BB:
+                pa["bb"] += 1
             elif o in (sim.B1, sim.B2, sim.B3):
                 pa["h1" if o == sim.B1 else "xbh"] += 1
             elif o == sim.HR:
@@ -632,6 +663,8 @@ def _actual_one(gid: str, data: dict) -> dict:
         pa["pa"] += 1
         if ev in EV_K:
             pa["k"] += 1
+        elif ev in EV_BB:
+            pa["bb"] += 1
         elif ev == "single":
             pa["h1"] += 1
         elif ev in ("double", "triple"):
@@ -773,6 +806,70 @@ def _paired(pairs_):
             st.mean(d), se, n)
 
 
+TEMP_LABELS = ("lt55", "55_64", "65_74", "75_84", "85plus")
+#: Tallies carried per bin. `runs` is BOTH clubs' runs (summed over draws
+#: on the model side, so divide by `_SIMS`); `g` counts games and is added
+#: here, not read off the pay-load.
+TEMP_CHANNELS = ("hr", "bip", "k", "bb", "pa", "runs")
+#: statsapi's `condition` strings that mean it was precipitating at first
+#: pitch. 96 games in four seasons, ~1% of the slate — and it is the rain
+#: they CHOSE to play through, which is a selection the rows cannot undo.
+WET_CONDITIONS = ("Rain", "Drizzle", "Snow")
+
+
+def weather_cells(gids, wx, got, binner):
+    """The fold's plate-appearance tallies per weather bin —
+    `(model, actual, n_binned)`, each side a `{bin: Counter}` over
+    `TEMP_CHANNELS` plus `g` (games). `binner(weather_row) -> bin` or
+    None, and a None game is left out of every bin and out of `n`.
+
+    ONE function for every weather channel, so K, BB, HR and runs bucket
+    on exactly the same games and edges. It exists because the battery
+    had no walk row at all when `TEMP_BB_MULT` shipped, and the only
+    strikeout rows were fold-wide means — a mean cannot see a table that
+    lives in bins (rule 2), so the change was NOT SCOREABLE until this
+    row (CLAUDE.md, rule 15's "name the row that would see it").
+    """
+    m: dict = defaultdict(Counter)
+    a: dict = defaultdict(Counter)
+    n = 0
+    for g in gids:
+        b = binner(wx.get(g) or {})
+        if b is None:
+            continue
+        n += 1
+        for acc, pay in ((m, got[g][0]["pa"]), (a, got[g][1]["pa"])):
+            for ch in TEMP_CHANNELS:
+                acc[b][ch] += pay[ch]
+            acc[b]["g"] += 1
+    return m, a, n
+
+
+def temp_bin(w):
+    """The SHIPPED temperature bin (0-4) or None without a reading."""
+    t = w.get("temp_f")
+    return None if t is None else sum(t >= e for e in sim.TEMP_HR_EDGES)
+
+
+def wet_bin(w):
+    """'wet' / 'dry' from statsapi's condition, open-air only; a closed
+    roof, a dome, or no condition at all is None — conditioned air is in
+    neither cell."""
+    c = w.get("condition")
+    if not c or w.get("roof_closed") or c in ("Dome", "Roof Closed",
+                                               "Unknown"):
+        return None
+    return "wet" if c in WET_CONDITIONS else "dry"
+
+
+def temp_cells(gids, wx, got):
+    return weather_cells(gids, wx, got, temp_bin)
+
+
+def wet_cells(gids, wx, got):
+    return weather_cells(gids, wx, got, wet_bin)
+
+
 def _rate_se(p, n):
     """Binomial se of an observed rate. An observed 0 or 1 returns se 0,
     which the row constructor turns into z=None rather than infinity."""
@@ -790,6 +887,34 @@ def _corr(pairs_):
     dx = sum((x - mx) ** 2 for x, _ in pairs_) ** 0.5
     dy = sum((y - my) ** 2 for _, y in pairs_) ** 0.5
     return num / (dx * dy) if dx and dy else 0.0
+
+
+def start_pairs(got, cases, gids, channel):
+    """(model mean, actual) per start, and the actuals grouped by arm.
+
+    EXTRACTED SO THE ROW CAN BE TESTED, which is why `temp_cells` exists
+    too. `outs_corr` and `k_corr` are the same arithmetic on two channels
+    and a copy of it in the scoring loop would silently drift.
+
+    Reads the draws already taken — `got[gid][0]["sp"][side][channel]` is
+    the counter every pooled row on that channel is tallied from, so this
+    cannot disagree with them about the same games and costs no extra
+    simulation.
+    """
+    key = {"outs": "o", "k": "k"}[channel]
+    pairs, by_arm = [], defaultdict(list)
+    for g in gids:
+        for side, case in (("away", 0), ("home", 1)):
+            act = cases[g][case][0]
+            if act.get(key) is None:
+                continue
+            d = got[g][0]["sp"][side][channel]
+            n = sum(d.values())
+            if not n:
+                continue
+            pairs.append((sum(v * c for v, c in d.items()) / n, act[key]))
+            by_arm[act.get("player_name") or ""].append(act[key])
+    return pairs, by_arm
 
 
 def _corr_ceiling(by_unit):
@@ -1324,28 +1449,68 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
     # carries the multiplier through `cal.replay`'s hr_air, so these
     # rows score the wire, not just the table.
     wx = cal._WEATHER or {}
-    wb_m: dict = defaultdict(lambda: [0.0, 0.0])
-    wb_a: dict = defaultdict(lambda: [0.0, 0.0])
-    n_temp = 0
-    for g in gids:
-        t = (wx.get(g) or {}).get("temp_f")
-        if t is None:
-            continue
-        n_temp += 1
-        b = sum(t >= e for e in sim.TEMP_HR_EDGES)
-        for acc, pay in ((wb_m, got[g][0]["pa"]), (wb_a, got[g][1]["pa"])):
-            acc[b][0] += pay["hr"]
-            acc[b][1] += pay["bip"]
+    wb_m, wb_a, n_temp = temp_cells(gids, wx, got)
     fold.add("weather", "temp_coverage", n_temp / max(len(gids), 1), 1.0,
              0.0, len(gids), "share of fold games with a temperature")
-    for b, lab in enumerate(("lt55", "55_64", "65_74", "75_84", "85plus")):
-        if not (wb_a[b][1] and wb_m[b][1]):
-            fold.add("weather", f"hr_bip_temp_{lab}", None, None, 0.0, 0,
-                     "no games in this bin")
+    # The pooled K and BB per PA over EVERY fold game — the level rows.
+    # A temperature table moves these by its plate-appearance-weighted
+    # mean over the fold, which on a July-onward fold is the hot half of
+    # the table only; the bin rows below are where the shape lives.
+    for ch in ("k", "bb"):
+        ar = pa_a[ch] / max(pa_a["pa"], 1)
+        fold.add("weather", f"{ch}_pa_all", pa_m[ch] / max(pa_m["pa"], 1),
+                 ar, _rate_se(ar, int(pa_a["pa"])), int(pa_a["pa"]),
+                 "pooled over all fold games, both sides")
+    # Three channels per bin: HR per ball in play (the table that shipped
+    # first), K per PA and BB per PA (`TEMP_K_MULT` / `TEMP_BB_MULT`).
+    # The model side carries each multiplier through `cal.replay`, so
+    # these rows score the WIRE, not just the table — a stub in the
+    # replay path reads flat here while the live board applies it.
+    for b, lab in enumerate(TEMP_LABELS):
+        for key, num, den in (("hr_bip", "hr", "bip"), ("k_pa", "k", "pa"),
+                              ("bb_pa", "bb", "pa")):
+            if not (wb_a[b][den] and wb_m[b][den]):
+                fold.add("weather", f"{key}_temp_{lab}", None, None, 0.0,
+                         0, "no games in this bin")
+                continue
+            ar = wb_a[b][num] / wb_a[b][den]
+            fold.add("weather", f"{key}_temp_{lab}",
+                     wb_m[b][num] / wb_m[b][den], ar,
+                     _rate_se(ar, int(wb_a[b][den])), int(wb_a[b][den]))
+    # PRECIPITATION ROWS (2026-09-20). The engine has NO rain mechanism,
+    # so the model's wet cell is what the players' rates say and the
+    # actual wet cell is what rain does to them; the wet-minus-dry gap is
+    # the effect net of everything the model already carries, including
+    # the temperature tables (rainy games are cold games). Power is the
+    # catch: ~25 wet games a season, so read the four folds together.
+    # `runs_pg` is both clubs' runs a game, the outcome the rest proxy.
+    pm, pa_w, n_cond = wet_cells(gids, wx, got)
+    fold.add("weather", "precip_coverage", n_cond / max(len(gids), 1),
+             None, 0.0, len(gids),
+             "open-air share of fold games with a condition")
+    for lab in ("wet", "dry"):
+        for key, num, den in (("k_pa", "k", "pa"), ("bb_pa", "bb", "pa"),
+                              ("hr_bip", "hr", "bip")):
+            if not (pa_w[lab][den] and pm[lab][den]):
+                fold.add("weather", f"{key}_{lab}", None, None, 0.0, 0,
+                         "no games in this cell")
+                continue
+            ar = pa_w[lab][num] / pa_w[lab][den]
+            fold.add("weather", f"{key}_{lab}", pm[lab][num] / pm[lab][den],
+                     ar, _rate_se(ar, int(pa_w[lab][den])),
+                     int(pa_w[lab][den]))
+        gn = pa_w[lab]["g"]
+        if not (gn and pm[lab]["g"]):
+            fold.add("weather", f"runs_pg_{lab}", None, None, 0.0, 0,
+                     "no games in this cell")
             continue
-        ar = wb_a[b][0] / wb_a[b][1]
-        fold.add("weather", f"hr_bip_temp_{lab}", wb_m[b][0] / wb_m[b][1],
-                 ar, _rate_se(ar, int(wb_a[b][1])), int(wb_a[b][1]))
+        per = [got[g][1]["pa"]["runs"] for g in gids
+               if wet_bin(wx.get(g) or {}) == lab]
+        se = st.pstdev(per) / gn ** 0.5 if gn > 1 else 0.0
+        fold.add("weather", f"runs_pg_{lab}",
+                 pm[lab]["runs"] / _SIMS / pm[lab]["g"],
+                 pa_w[lab]["runs"] / gn, se, int(gn),
+                 "both clubs' runs a game")
     # WIND ROWS, live since item 7, in the SHIPPED three bins. Open-air
     # only, matching the population the table was counted on — a closed
     # roof reports no push toward the fence and belongs in neither the
@@ -1473,6 +1638,12 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
     # extra simulation, which is the whole point of one pass per fold.
     o_pairs, o_by_arm = [], defaultdict(list)
     o_named = []
+    # THE SAME PAIR, ON STRIKEOUTS — TODO 46. Built for the whiff term
+    # (TODO 45), which like the leash buys DISCRIMINATION between starts
+    # rather than a better-shaped average one, so every pooled K row here
+    # is flat against it BY CONSTRUCTION and reading one as a null would
+    # be unfalsifiable. Same draws, no extra simulation.
+    k_pairs, k_by_arm = start_pairs(got, _CASES, gids, "k")
     for g in gids:
         for side, case in (("away", 0), ("home", 1)):
             act = _CASES[g][case][0]
@@ -1497,6 +1668,7 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
                 o_named.append((mmean, act["o"],
                                 act.get("player_name") or "",
                                 act.get("date") or ""))
+
     mo_n, mk_n = sum(mo.values()), sum(mk.values())
     mo_mean = sum(v * c for v, c in mo.items()) / mo_n
     mk_mean = sum(v * c for v, c in mk.items()) / mk_n
@@ -1535,6 +1707,26 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
                  len(o_pairs),
                  "actual vs model mean outs per start; real = the "
                  "model-free per-arm ceiling (LOOSE — see the comment)")
+    # TODO 46 — THE ROW THAT CAN SEE A WHIFF TERM, and the reason it had
+    # to exist before one was wired. `k_pa_all` and the per-bin weather K
+    # rows are POOLED over draws: a term that moves one arm's strikeouts
+    # up and another's down leaves every one of them unmoved. This scores
+    # whether the model tells STARTS APART on strikeouts, exactly as
+    # `outs_corr` does for outs.
+    #
+    # THE CEILING IS LOOSE HERE FOR THE SAME REASON IT IS THERE — it is
+    # computed WITHIN the fold, so in-season between-arm variation that no
+    # prior-season evidence could know still counts as reachable signal.
+    # Read the GAP as an upper bound on what a per-arm K term can buy, not
+    # as a target. What bounds it properly is whiff's own carry: split-half
+    # 0.568 within a season (`scratchpad/whiff_stable.py`), which is the
+    # number to price the gap against when TODO 45 is scored.
+    if len(k_pairs) > 10:
+        fold.add("shape", "k_corr", _corr(k_pairs),
+                 _corr_ceiling(k_by_arm), 1 / (len(k_pairs) - 3) ** 0.5,
+                 len(k_pairs),
+                 "actual vs model mean K per start; real = the model-free "
+                 "per-arm ceiling (LOOSE — see the comment)")
     # ITEM 35's SEEING ROWS (added 2026-09-17, the same "build the row"
     # obligation that produced the save rows and `outs_corr` itself). Both
     # of item 35's positive controls — recent walks x1.6 in the model's
@@ -1737,9 +1929,9 @@ def main(argv):
         os.execv(sys.executable,
                  [sys.executable, "-m", "scratchpad.battery"] + argv)
     limit = None
-    fold_years = [y for y, _ in FOLDS]
+    fold_years = [f[0] for f in FOLDS]
     diff_fp = None
-    mods = {"sim": sim, "game": game, "calibrate": cal}
+    mods = {"sim": sim, "game": game, "calibrate": cal, "rates": rate_src}
     # An option's space-separated value is CONSUMED — without this, the
     # value of `--on calibrate.USE_PARK` fell through into the positional
     # list and was parsed as the sim count.
@@ -1770,8 +1962,9 @@ def main(argv):
            if not a.startswith("-") and i not in consumed]
     _SIMS = int(pos[0]) if pos else 40
     maim = "--maim" in argv
+    spring = "--spring" in argv
     dev = bool(limit) or _SIMS != 40 or maim or \
-        set(fold_years) != {y for y, _ in FOLDS}
+        set(fold_years) != {f[0] for f in FOLDS}
 
     print("  THE BATTERY — every table, one pass per fold")
     if dev:
@@ -1783,12 +1976,15 @@ def main(argv):
                                  for k, v in sim.ADVANCE_3B_ON_OUT.items()}
     print(f"  {_SIMS} sims a game, folds {fold_years}, "
           f"limit {limit or 'none'}")
+    print("  SPRING FOLDS: rates frozen April 8, scored April 8 - June 30"
+          if spring else
+          "  SUMMER FOLDS: rates frozen July 1, scored July 1 onward")
     print("  flags:")
     for k, v in flags().items():
         print(f"    {k} = {v}")
 
     # Engine fingerprint off the LAST fold's cases (2026 when standard).
-    yr, cut = [f for f in FOLDS if f[0] == max(fold_years)][0]
+    yr, cut, _ = [f for f in FOLDS if f[0] == max(fold_years)][0]
     pairs = cal.paired_cases(season=yr, rates_before=cut, since=cut)
     lg = sim.league(season=yr, before=cut)
     pens = rate_src.bullpens(lg, season=yr, before=cut)
@@ -1804,10 +2000,11 @@ def main(argv):
 
     all_rows = []
     folds_meta = []
-    for year, cut in FOLDS:
+    for year, cut, until in (SPRING_FOLDS if spring else FOLDS):
         if year not in fold_years:
             continue
-        pairs = cal.paired_cases(season=year, rates_before=cut, since=cut)
+        pairs = cal.paired_cases(season=year, rates_before=cut, since=cut,
+                                 before=until)
         gids = sorted(pairs)[:limit] if limit else sorted(pairs)
         _CASES = {g: pairs[g] for g in gids}
         _LG = sim.league(season=year, before=cut)
@@ -1834,7 +2031,7 @@ def main(argv):
             agg = defaultdict(lambda: [0, 0])
             for r in hook_rows:
                 d = r.get("date") or ""
-                if d[:4] != str(year) or d < cut:
+                if d[:4] != str(year) or d < cut or (until and d >= until):
                     continue
                 if bool(r.get("ends_inning")) != sel:
                     continue
@@ -1874,19 +2071,22 @@ def main(argv):
         _score_fold(fold, got, act_db_all, real_hook)
         _print_fold(fold)
         all_rows.extend(fold.rows)
-        folds_meta.append({"year": year, "cut": cut, "games": len(got)})
+        folds_meta.append({"year": year, "cut": cut, "until": until,
+                           "games": len(got)})
 
     out = {"meta": {"engine_fp": fp, "n_sims": _SIMS, "dev": dev,
-                    "maim": maim, "flags": flags_jsonable(),
-                    "folds": folds_meta},
+                    "maim": maim, "spring": spring,
+                    "flags": flags_jsonable(), "folds": folds_meta},
            "rows": all_rows}
     # DEV RUNS GET THEIR OWN NAMESPACE: a dev run under an unchanged engine
     # has the same fingerprint as the standard baseline and would silently
     # overwrite it otherwise.
-    path = f"scratchpad/battery_{'dev_' if dev else ''}{fp[:12]}.json"
+    tag = ("spring_" if spring else "") + ("dev_" if dev else "")
+    path = f"scratchpad/battery_{tag}{fp[:12]}.json"
     if diff_fp:
-        prev_path = (diff_fp if diff_fp.endswith(".json")
-                     else f"scratchpad/battery_{diff_fp[:12]}.json")
+        prev_path = (diff_fp if diff_fp.endswith(".json") else
+                     f"scratchpad/battery_{'spring_' if spring else ''}"
+                     f"{diff_fp[:12]}.json")
         if not maim and fp.startswith(diff_fp[:12]):
             print("\n  *** THE ENGINE FINGERPRINT DID NOT MOVE — the "
                   "mechanism under test is not live. ***")

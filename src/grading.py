@@ -115,9 +115,14 @@ def mlb_schedule(date_str: str) -> list[dict]:
             if official and official != date_str:
                 continue
             teams = g["teams"]
+            # Spring training, exhibitions and the All-Star game get their
+            # own sport label so `sport = 'mlb'` means regular season —
+            # see `src/context/sources/gametype.py` for the day 200 March
+            # exhibitions a season were found inside every rate.
+            from src.context.sources.gametype import sport_for
             out.append({
                 "game_id": f"mlb-{g['gamePk']}",
-                "sport": "mlb",
+                "sport": sport_for(g.get("gameType")),
                 "date": date_str,
                 "away_team": teams["away"]["team"]["name"],
                 "home_team": teams["home"]["team"]["name"],

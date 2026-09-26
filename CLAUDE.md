@@ -93,14 +93,21 @@ a null. This causes as much drift as the CLV rule does.
 ## THE BATTERY — every change scores against everything (added 2026-09-05)
 
 `venv/bin/python -m scratchpad.battery` — one simulation pass per fold, four
-folds (July-onward of 2023-2026, rates frozen at each cut), every table read
+folds (July-onward of 2023-2026, rates frozen at each cut) — and `--spring`
+for the OTHER four (April 8 to June 30, rates frozen April 8; added
+2026-09-20 because a third of every season had never been scored, and the
+first run found two spring-only defects, `TODO.md` 38). Every table read
 off the same games and draws: ladder, per-inning runs, per-venue residuals,
 traffic and run-mass shape, platoon, DP/sac/XBH, late-inning runs by margin,
 THE SAVE ROWS (a lead of 1-3 after eight: how often it is HELD and what
 the protecting side allows from the ninth on), THE PEN ROWS (relief outing
 length, its short and long tails, mid-inning entries and arms per side),
 both hook curves cell by cell,
-the starter's outs/K shape, the current `outs_adjust` corrections.
+the starter's outs/K shape, the current `outs_adjust` corrections, and
+THE WEATHER ROWS (HR per ball in play, K per PA and BB per PA in each
+shipped temperature bin, the pooled K and BB rates, and wet vs dry — the
+rows that can see a weather table, since a pooled mean cannot; the cold
+bins only exist under `--spring`).
 Header prints every `USE_*` flag; output is
 `scratchpad/battery_<engine-fingerprint>.json`; `--diff <fingerprint>` prints
 every row that moved by more than one se against a saved run. `--maim` is the
@@ -403,12 +410,28 @@ src/context/
   velo.py          recent fastball velocity -> tonight's K rate
   arm.py           one arm's board inputs explained: starts, log, splits,
                    neutralised rates, the per-PA chain. Read-only
+  rung.py          audit ONE bet against ONE price, off the board JSON.
+                   Never re-simulates. Read-only
+  boards.py        which board JSON is the board of record; next stem;
+                   the one American-odds -> probability conversion
   removal.py       the LEARNED hook. OFF — see the entrypoint list
   form.py          PARKED — "he does not have it tonight", not there
   gamestate.py     has this game started
   sources/pbp.py   whole-game play-by-play, gzipped; base-out-score state
   sources/         one module per data source, all offline-cacheable
 ```
+
+**`sport = 'mlb'` MEANS REGULAR SEASON, and that was not true until
+2026-09-21.** The schedule ingest took every `sportId=1` game by date, so
+150-200 spring-training games a season sat in `games` as `mlb`/`Final` with
+full lines and cached play-by-play, and every rate, anchor, hitter line,
+pitch count and hook decision counted them — a hitter's April line was
+mostly March exhibitions and the April anchor sat on 23,000 PA where a week
+of real games is 10,000. `sources/gametype.py` relabels them `mlb-s` /
+`mlb-e` / `mlb-a` (reversible, cached ids, `--apply` / `--revert`) and the
+ingest applies the same mapping to new games. Every query keys on
+`sport = 'mlb'`; a new one must too, or it re-admits March. Postseason
+stays `mlb` — `rates.EXCLUDE_POSTSEASON` owns that by date.
 
 **Two databases.** `context.db` holds DERIVED tables (`mlb_stints`, rebuilt
 from the play-by-play cache in ~30s). `morning_bets.db` attaches through a
@@ -509,6 +532,15 @@ fails. (`make lint` likewise references tooling that is not installed.)
   rates and velo kick as the sim gets them, and the per-PA chain vs that
   date's slate. `--parks DATE` prints the slate's venue factors. Built
   2026-09-13 after the Gasser o5.5 investigation retyped all of it by hand.
+- `... -m src.context.rung DATE "<sel>" over|under PRICE` — AUDIT ONE
+  BET against one price. Breakeven, the slate tilt and what the edge is
+  without it, the arm's role and rate DRIFT (with a layoff split),
+  counted batters faced, and a scenario grid. Reads the board JSON and
+  never re-simulates. Built 2026-09-24 after five rungs were audited by
+  hand in one session with five slightly different ad-hoc queries;
+  moved out of `scratchpad/` 2026-09-26. The TILT block is per UNIT
+  (pitcher / team side / game) and prints a de-tilted edge only when the
+  gap is broad — BETTING.md rule 4.
 - `... -m src.context.tto` — times through the order. K% falls 19% from the
   first pass to the third.
 - `... -m src.context.stabilise` — the four shrinkage constants. Batter rates
@@ -544,12 +576,38 @@ fails. (`make lint` likewise references tooling that is not installed.)
 
 ### The data is only as fresh as the last backfill (added 2026-09-09)
 
-**NOTHING IS SCHEDULED.** The four `com.morningbets.*` launchd jobs were
-unloaded and deleted, and `.cron-config` with them: three of the four ran
-`src.main` or `src.context.snapshot`, both removed with the betting layer,
-and had been exiting 1 daily into a log nobody read while every session
-assumed the data was fresh. `grade` worked and was retired with them by
-decision — the board runs `/backfill-data` instead.
+**TWO JOBS ARE SCHEDULED, AND NOTHING ELSE IS** (changed 2026-09-20).
+`com.morningbets.backfill` runs the whole `/backfill-data` chain at 07:30;
+`com.morningbets.hourly` pulls a versioned board every hour 08:05-23:05.
+Both are `scratchpad/cron_*.sh`, both log under `logs/`, and
+`data_status` now reports them — a MISSING expected job is flagged, not
+just a returning stray.
+
+**THE WHOLE SCHEDULER IS IN THE REPO AS OF 2026-09-21, AND WAS NOT
+BEFORE.** `make install-cron` renders `scratchpad/launchd/*.plist.in`
+against the current checkout and loads them; `--dry-run` looks first and
+`make uninstall-cron` boots them out. It is idempotent and both plists
+are `RunAtLoad=false`, so installing never starts a run — the next
+calendar interval does. Until that target existed the three `cron_*.sh`
+were untracked and the two plists lived only in `~/Library/LaunchAgents`,
+so a clone had no scheduler and an `rm` in `scratchpad/` removed it with
+no undo. The plists hardcode an absolute root because launchd expands
+nothing, which is why they are templates and why the root is resolved off
+the file rather than typed.
+
+THE BACKFILL IS DAILY AND MUST STAY DAILY. It rewrites games already in
+the set, which moved the fingerprint `2fa14f8df0c6 -> 00925f199684` on
+identical code. Between hourly pulls that would move our price for a DATA
+reason inside a series whose only purpose is to show the market moving on
+INFORMATION, and the two are indistinguishable afterwards.
+
+The four ORIGINAL `com.morningbets.*` jobs were unloaded and deleted on
+2026-09-09, and `.cron-config` with them: three ran `src.main` or
+`src.context.snapshot`, both removed with the betting layer, and had been
+exiting 1 daily into a log nobody read while every session assumed the
+data was fresh. `grade` worked and was retired with them by decision.
+That failure is why the new pair is loud rather than silent, and why
+`data_status` treats their absence as a finding.
 
 Run `venv/bin/python -m scratchpad.data_status` before any measurement. It
 reports each source's lag against the newest FINISHED GAME (not the wall

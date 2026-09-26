@@ -23,15 +23,14 @@ import json
 import re
 import sys
 
+from src.context.boards import prob
+
 ROW = re.compile(r"^  (.+?)\s+([+-]\d+)\s*/\s*([+-]\d+)\s+(\S+)\s{0,3}(.*)$")
 HEAD = re.compile(
     r"^(\w{2,3}) @ (\w{2,3})\s+(.+?) v (.+?)\s+\((.+?), mean ([\d.]+)\)")
 DECLINE = re.compile(r"^  (\w{2,3} @ \w{2,3})\s+(.+?)\s{2,}(.+)$")
 
 
-def prob(odds: str) -> float:
-    o = float(odds)
-    return -o / (-o + 100) if o < 0 else 100 / (o + 100)
 
 
 def parse(path: str, date: str) -> dict:
@@ -80,6 +79,12 @@ def parse(path: str, date: str) -> dict:
         vm = re.search(r"vol \$([\d.]+)(k?)", note)
         r["vol"] = (float(vm.group(1)) * (1000 if vm.group(2) else 1)
                     if vm else None)
+        # 'clv +3.2c' -> 0.032. How far the book has moved since its first
+        # PREGAME trade, on the over. None means no opening trade to diff
+        # against — an untraded rung, not a flat one, and the two must not
+        # read the same downstream.
+        cm = re.search(r"clv ([+-][\d.]+)c", note)
+        r["clv"] = round(float(cm.group(1)) / 100, 4) if cm else None
 
         if re.match(r"^total ", bet):
             r["cls"] = "total"

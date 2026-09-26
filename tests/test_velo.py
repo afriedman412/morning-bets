@@ -192,3 +192,57 @@ def check_velo_kick_moves_the_starters_k_only_when_on():
         sim.USE_VELO_K = old
         sim.USE_START_SHARPNESS = old_sharp
         _restore()
+
+
+def check_the_velo_build_only_opens_games_it_has_to():
+    """A starter's row only changes when he starts, so a full pass over
+    ~10,000 cached games to append last night's fifteen is 350x the work
+    the day needs. Two things force a file open, and the SECOND is the one
+    that is easy to forget: the daily backfill refetches games already in
+    the set — that is what moved the engine fingerprint on identical code
+    — so a build keyed only on "game not seen yet" would go stale silently.
+    """
+    import os
+    import tempfile
+    from src.context import velo
+
+    with tempfile.TemporaryDirectory() as tmp:
+        table = os.path.join(tmp, "velo.json")
+        open(table, "w").write("[]")
+        files = [os.path.join(tmp, f"{pk}.json.gz") for pk in ("1", "2", "3")]
+        for f in files:
+            open(f, "w").write("x")
+        os.utime(table, None)
+        rows = [{"game": "1", "name": "A", "date": "2026-04-01"},
+                {"game": "2", "name": "B", "date": "2026-04-01"}]
+
+        # game 3 is unseen; 1 and 2 are in the table and older than it
+        for f in files[:2]:
+            os.utime(f, (1, 1))
+        os.utime(files[2], (1, 1))
+        assert velo.to_parse(files, rows, table) == [files[2]], \
+            "an unseen game was not queued"
+
+        # now game 1 is REFETCHED — newer than the table
+        os.utime(files[0], None)
+        got = velo.to_parse(files, rows, table)
+        assert files[0] in got and files[2] in got and files[1] not in got, got
+
+
+def check_a_table_without_game_ids_rebuilds_from_scratch():
+    """The incremental path keys on a `game` field the old table never
+    carried. Reading one of those and topping it up would append every
+    game again beside rows it could not match, doubling the table."""
+    import os
+    import tempfile
+    from src.context import velo
+
+    with tempfile.TemporaryDirectory() as tmp:
+        table = os.path.join(tmp, "velo.json")
+        open(table, "w").write("[]")
+        files = [os.path.join(tmp, "1.json.gz")]
+        open(files[0], "w").write("x")
+        os.utime(files[0], (1, 1))
+        old = [{"name": "A", "date": "2026-04-01", "velo": 93.0}]
+        assert velo.to_parse(files, old, table) == files, \
+            "a pre-`game` table must force a full pass"

@@ -782,6 +782,74 @@ def temp_hr_mult(temp_f: int | None) -> float:
     return TEMP_HR_MULT[sum(temp_f >= e for e in TEMP_HR_EDGES)]
 
 
+#: TEMPERATURE INTO THE STRIKEOUT AND WALK CHANNELS — the other side of
+#: the air the home run table already reads. Counted 2026-09-20 by
+#: `scratchpad/temp_k.py` on 7,907 open-air games and 598,773 plate
+#: appearances before the holdout, by EXACTLY the method `TEMP_HR_MULT`
+#: uses: within-venue indirect standardisation, climate-centred on the
+#: prior full seasons, pre-July training rows.
+#:
+#: COUNTED ACROSS EVERY CHANNEL THE ENGINE HAS, because an effect that
+#: appears on one rate and nowhere else is usually a denominator, not
+#: physics (rule 10). Span from the coldest cell to the hottest, with
+#: the season-to-season shape correlation beside it:
+#:
+#:     bb        0.147   era 0.95     <- the biggest, and the best gate
+#:     k         0.055   era 0.73
+#:     hr        0.360   era 0.93     <- CONTROL, already shipped
+#:     hbp       0.103   era -0.03    <- REJECTED: does not repeat
+#:     h_on_bip  0.020   era 0.11     <- REJECTED: does not repeat
+#:
+#: THE HOME RUN ROW IS WHY THE OTHER TWO ARE BELIEVABLE. Recounted blind
+#: through this pipeline it lands at 0.765 -> 1.125 against the shipped
+#: table's 0.798 -> 1.115 — same direction, same size, counted
+#: independently. A pipeline that reproduces a known answer is measuring
+#: air rather than manufacturing tables.
+#:
+#: AND TWO CHANNELS WERE REJECTED ON THE ERA GATE ALONE. `hbp` spans
+#: 0.103 — larger than the strikeout effect that prompted all of this —
+#: and would have shipped on size. Its shape does not survive to the
+#: next season (-0.03), so the span is one season's noise. Size is not
+#: evidence; repeating is.
+#:
+#: NOT REDUNDANT WITH THE CALENDAR, checked before shipping rather than
+#: after: counted within venue AND month the K column reads 1.031 /
+#: 1.006 / 1.004 / 0.993 / 0.987 against 1.035 / 1.006 / 1.007 / 0.993 /
+#: 0.980 — about four fifths of the effect survives, so this is the air
+#: and not a worse-measured proxy for the month.
+#:
+#: SEPARATE FLAGS ON PURPOSE. Two mechanisms behind one flag cannot be
+#: told apart, which is the lesson `game.USE_MEASURED_RELIEF_HOOK`'s
+#: neighbours already record.
+#:
+#: COVERAGE IS THE CATCH AND IT IS NOT SMALL. statsapi backfills a
+#: temperature for essentially every FINISHED game, but the forecast
+#: lands late: on 2026-09-20 only 6 of 15 that night's games had a
+#: reading at board time, against 100% for April-August. So a backtest
+#: of this mechanism is fully powered while the live board can use it on
+#: a minority of games. Silent-neutral makes that safe rather than
+#: wrong, but do not read a holdout score as what the board will get.
+TEMP_K_EDGES = TEMP_HR_EDGES
+TEMP_K_MULT = (1.0350, 1.0063, 1.0072, 0.9931, 0.9802)
+TEMP_BB_MULT = (1.1119, 1.0243, 1.0069, 0.9804, 0.9647)
+USE_TEMP_K = True
+USE_TEMP_BB = True
+
+
+def temp_k_mult(temp_f: int | None) -> float:
+    """The K odds multiplier for one game's temperature. Silent-neutral."""
+    if not USE_TEMP_K or temp_f is None:
+        return 1.0
+    return TEMP_K_MULT[sum(temp_f >= e for e in TEMP_K_EDGES)]
+
+
+def temp_bb_mult(temp_f: int | None) -> float:
+    """The BB odds multiplier for one game's temperature. Silent-neutral."""
+    if not USE_TEMP_BB or temp_f is None:
+        return 1.0
+    return TEMP_BB_MULT[sum(temp_f >= e for e in TEMP_K_EDGES)]
+
+
 #: WIND INTO THE SAME CHANNEL — plan item 7, temperature's mirror. The
 #: feed reports wind FIELD-RELATIVE ("12 mph, Out To RF"), so
 #: `carry * wind_mph` is the signed scalar with the physics in it and no
@@ -1805,10 +1873,22 @@ class Hook:
     #: outs instead drives it to 74, which reproduces the out total by
     #: pretending starters throw 8 fewer pitches than they do.
     #:
-    #: THE RESIDUAL THIS EXPOSES. At the pitch count that matches reality
-    #: the simulator records ~16.0 outs against a real 15.11 — it gets about
-    #: 6% more outs per pitch than real starters. No value of this constant
-    #: fixes that, because it is the same left-skew defect below.
+    #: THE RESIDUAL THIS EXPOSED, AND IT IS CLOSED. At the pitch count that
+    #: matches reality the simulator recorded ~16.0 outs against a real
+    #: 15.11 — about 6% more outs per pitch than real starters. That is no
+    #: longer the engine: re-measured 2026-09-21 on 1,570 holdout starts
+    #: (`scratchpad/shape 40`) the mean is 15.65 against a real 15.58, +0.07
+    #: at se 0.102 — 0.7 se, dead on. The counted backbones closed it.
+    #:
+    #: WHAT REPLACED IT IS A TAIL, NOT A LEVEL, and anything reasoning from
+    #: "the sim runs long" must use these rows instead: o17.5 model 0.423
+    #: against a real 0.397 (+0.026), o18.5 0.212 against 0.168 (+0.045),
+    #: o20.5 0.152 against 0.117 (+0.036), with `outs_sd` 4.47 against 4.15.
+    #: Too many long starts AND too many short ones while the mean is right
+    #: — the width defect `USE_HOOK_MONTH` records below, not a level error.
+    #: THE STALE VERSION OF THIS PARAGRAPH WAS QUOTED AS A CURRENT
+    #: MEASUREMENT IN A LIVE PRICING SESSION on 2026-09-21 and named the
+    #: wrong mechanism for a right conclusion. State the date on a residual.
     #:
     #: KNOWN UNFIXABLE AT THIS FORM, and worth reading before tuning it
     #: again. Real starts are LEFT-SKEWED — mean 84.0, median 89 — because
@@ -1819,6 +1899,9 @@ class Hook:
     #: closest lands P(outs>=18) at 46.9% against a real 41.1%. That is the
     #: "no parameter reaches the target, so the mechanism is missing"
     #: signature: what is absent is a disaster mode, not a better constant.
+    #: (Those two figures are the SCAN's, from before the counted backbones;
+    #: the engine now runs P(outs>=18) 42.3% against a real 39.7%. The gap
+    #: narrowed by more than half and the signature still holds.)
     #:
     #: REFIT 2026-09-06 ON 38,714 TRAINING DECISIONS — 2025-01-01 to the
     #: holdout, rule 9's population: the 2026-08-26 fit used 2026 rows
@@ -2315,7 +2398,8 @@ class Hook:
                   inning_runs: int = 0,
                   pen: tuple[float, float] | None = None,
                   layoff_gap: int | None = None,
-                  month_offset: float = 0.0) -> float:
+                  month_offset: float = 0.0,
+                  band: str | None = None) -> float:
         """P(pulled) evaluated at the end of a completed inning.
 
         `pen` is (arms unavailable, days of club rest) from
@@ -2328,7 +2412,18 @@ class Hook:
         `month_offset` is the calendar term, from `sim.bnd_month_offset`.
         It defaults to 0.0 so every existing caller and every test that
         builds a `Hook` by hand is unaffected — TODO 7e.
+
+        `band` is the calendar band from `sim.bnd_band`; the counted
+        low-pitch multiplier `bnd_band_mult` scales the result. None is
+        exactly 1.0 — item 38.
         """
+        return min(1.0, self._removal_p(pitches, runs, innings, baserunners,
+                                        margin, inning_runs, pen, layoff_gap,
+                                        month_offset)
+                   * bnd_band_mult(band, pitches))
+
+    def _removal_p(self, pitches, runs, innings, baserunners, margin,
+                   inning_runs, pen, layoff_gap, month_offset) -> float:
         if self.early_innings and innings <= self.early_innings:
             return _sigmoid(self.intercept + self.early_bnd_offset
                             + self.team_offset
@@ -2981,6 +3076,71 @@ def bnd_month_offset(date: str | None) -> float:
         return BND_MONTH_OFFSET.get(int(str(date)[5:7]), 0.0)
     except (ValueError, IndexError):
         return 0.0
+
+
+#: THE CALENDAR ON THE BOUNDARY HOOK'S LOW-PITCH CELLS (item 38, counted
+#: 2026-09-21) — the shape 7e's uniform logit offset above did not have.
+#: Boundary removal rate by pitch bucket, as a RATIO to the pooled cell,
+#: on 346,775 regular-season training decisions (`/tmp/hook_rows.json`,
+#: date < HOLDOUT, spring training relabelled out that day):
+#:
+#:     bucket      spring (Apr-Jun)   Jul-Aug     September      n per cell
+#:     50-59            0.75           1.08         1.87        5,060 / 2,546 / 1,235
+#:     60-69            0.79           1.09         1.70        5,033 / 2,504 / 1,210
+#:     70-77            0.90           1.01         1.40        3,812 / 1,929 /   907
+#:     78-84            0.96           0.96         1.27        3,000 / 1,492 /   665
+#:
+#: A starter at 50-70 pitches at an inning boundary comes out 28% LESS
+#: often in April-June than in July-September (z −5.9) and in September
+#: nearly twice as often at 50 pitches — and the effect SHRINKS with the
+#: pitch count, which is why a single logit shift across 50-84 pitches
+#: (7e) fixed the mean and gave back the middle band. Era gate: the
+#: September step is 4 for 4 (1.3-2.0x every season), spring 3 of 4 at
+#: 50-60 pitches (2026's May-June cells are mixed), full-season shapes
+#: correlate +0.54 / +0.64 / +0.77. Mid-inning shows an 11% spring
+#: effect (z −2.1) and is NOT touched. Below 50 pitches the cells are
+#: too thin to count (0.5-0.8% removal) and resolve to 1.0; above 84 the
+#: curve is the existing pitch hazard.
+#:
+#: Applied as a multiplier on the boundary removal PROBABILITY, capped
+#: at 1.0, so at these rates (1-20%) it is the counted ratio. Silent-
+#: neutral: no date, March, a pitch count outside 50-84, is exactly 1.0.
+#: `USE_HOOK_MONTH` and this must not both be on — the September step
+#: would be counted twice; `tests/test_game.py` holds that.
+BND_BAND_EDGES = (50, 60, 70, 78, 85)
+BND_BAND_MULT = {
+    "spring": (0.75, 0.79, 0.90, 0.96),
+    "jul_aug": (1.08, 1.09, 1.01, 0.96),
+    "sep": (1.87, 1.70, 1.40, 1.27),
+}
+USE_HOOK_BAND = True
+
+
+def bnd_band(date: str | None) -> str | None:
+    """'spring' (Apr-Jun), 'jul_aug', 'sep' (Sep-Oct), or None."""
+    if not USE_HOOK_BAND or not date:
+        return None
+    try:
+        m = int(str(date)[5:7])
+    except (ValueError, IndexError):
+        return None
+    if 4 <= m <= 6:
+        return "spring"
+    if m in (7, 8):
+        return "jul_aug"
+    if m in (9, 10):
+        return "sep"
+    return None
+
+
+def bnd_band_mult(band: str | None, pitches: int) -> float:
+    """The counted multiplier for this band and pitch count, or 1.0."""
+    if not USE_HOOK_BAND or band not in BND_BAND_MULT:
+        return 1.0
+    if pitches < BND_BAND_EDGES[0] or pitches >= BND_BAND_EDGES[-1]:
+        return 1.0
+    i = sum(pitches >= e for e in BND_BAND_EDGES[1:-1])
+    return BND_BAND_MULT[band][i]
 
 
 #: PITCH COUNT x INNING. Seventy pitches in the third is not the decision

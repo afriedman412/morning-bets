@@ -1011,9 +1011,16 @@ def check_a_temperatureless_weather_cache_is_not_treated_as_final():
     p = w.CACHE / f"{day}.json"
     w.CACHE.mkdir(parents=True, exist_ok=True)
     saved = p.read_text() if p.exists() else None
+    # `state` and `start_utc` are carried for the Open-Meteo fallback. A
+    # cache written before they existed is deliberately re-pulled (absent
+    # `state` every game reads as already started, which would switch the
+    # fallback off for a whole date), so the fixture has to be the shape
+    # `fetch_date` writes today or it tests the migration instead.
     empty = [{"game_id": "mlb-9", "date": day, "venue_id": 1,
               "temp_f": None, "condition": None, "wind_mph": 0,
-              "wind_dir": None, "carry": 0, "roof_closed": 0}]
+              "wind_dir": None, "carry": 0, "roof_closed": 0,
+              "start_utc": f"{day}T23:10:00Z", "state": "Preview",
+              "detailed": "Scheduled"}]
     warm = [{**empty[0], "temp_f": 81}]
     try:
         # A cache WITH a temperature is final and is returned as-is, with
@@ -1042,18 +1049,46 @@ def check_a_temperatureless_weather_cache_is_not_treated_as_final():
             p.write_text(saved)
 
 
-def check_the_weather_backfill_revisits_a_date_with_no_temperature():
-    """The second half: `backfill`'s skip-list must key on a date having
-    a TEMPERATURE, not merely having rows.
+def check_the_weather_backfill_revisits_an_incomplete_date():
+    """`backfill`'s skip-list must key on a date being COMPLETE, not on
+    its merely having rows, and not on its having one reading either.
 
-    Asserted against the SQL itself rather than by running a backfill,
-    which would need the network. The literal is what the bug was.
+    TWO BUGS, ONE CLAUSE. The first was `select distinct date`, which
+    skipped a date the live path had written empty, forever. The fix was
+    `sum(temp_f is not null) > 0` — and that was the SECOND bug, because
+    statsapi fills a slate in start-time order, so one 1:05 game with a
+    reading made the whole date "have" and its night games never healed.
+
+    Run against the SHIPPED SQL rather than matched as a literal: a string
+    assertion passes for a clause that happens to contain it and fails for
+    a better one that does not, which is how this check ended up blocking
+    its own fix.
     """
     import inspect
+    import re
+    import sqlite3
     from src.context.sources import weather as w
     src = inspect.getsource(w.backfill)
-    assert "sum(temp_f is not null) > 0" in src, \
-        "backfill's have-set no longer requires a temperature — a date " \
-        "written empty by the live path can never heal"
     assert "select distinct date from mlb_weather" not in src, \
         "backfill is back on the plain distinct-date skip list"
+    # the query is written as adjacent string literals, so pull the whole
+    # execute() argument and stitch them back together
+    m = re.search(r'"(select date from mlb_weather.*?)"\)\}', src, re.S)
+    assert m, "the have-set query is no longer recognisable"
+    q = " ".join(m.group(1).replace('"', " ").split())
+    assert "having" in q, f"no HAVING clause was extracted: {q!r}"
+
+    c = sqlite3.connect(":memory:")
+    c.execute("create table mlb_weather (date text, temp_f int)")
+    c.executemany("insert into mlb_weather values (?,?)", [
+        ("empty", None), ("empty", None),        # nothing read at all
+        ("partial", 70), ("partial", None),      # the day game only
+        ("complete", 70), ("complete", 64),      # everything read
+    ])
+    have = {r[0] for r in c.execute(q)}
+    assert "empty" not in have, \
+        "a date written empty by the live path can never heal"
+    assert "partial" not in have, \
+        "one day game's reading is marking a whole slate done"
+    assert "complete" in have, \
+        "a fully-read date is being re-pulled for nothing"

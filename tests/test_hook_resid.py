@@ -96,3 +96,41 @@ def check_repeats_refuses_an_underpowered_sample(capture=None):
         hr.repeats(rows, lambda r: r["name"], "UNIT")
     assert "NOT POWERED" in buf.getvalue(), \
         "the screen reported a reliability it had no units for"
+
+
+def check_the_hook_row_build_keeps_its_order_under_the_pool():
+    """`build` walks the pbp cache in parallel since 2026-09-24. Order is
+    not cosmetic — `fit_one` splits train from test by date off the row
+    list, and every saved cache assumes it — so the pool must yield in the
+    order of `ids`, not as games finish. `imap` does; `imap_unordered` and
+    `apply_async` do not, and the difference is invisible in the output.
+    """
+    import inspect
+    from scratchpad import fit_hooks
+
+    src = inspect.getsource(fit_hooks.build)
+    assert "imap" in src, "the build is not using the pool"
+    assert "imap_unordered" not in src, \
+        "imap_unordered reorders the rows and silently changes every fit"
+    # the maps the children read must be populated BEFORE the pool forks
+    assert src.index("_CTX.update") < src.index("Pool"), \
+        "the fork happens before the context is built"
+
+
+def check_the_daily_backfill_can_ask_for_rows_without_the_research():
+    """`--rebuild` refit six models and printed a pooled-vs-split
+    comparison every morning into a log nobody reads. `--rows-only` has to
+    survive `limit_arg`, which used to parse the first argv entry as an
+    int and crashed `--rebuild` on its own flag."""
+    import inspect
+    from scratchpad import fit_hooks
+
+    assert fit_hooks.limit_arg(["--rebuild", "--rows-only"]) is None
+    assert fit_hooks.limit_arg(["--rows-only", "500"]) == 500
+    assert fit_hooks.rows_only(["--rebuild", "--rows-only"]) is True
+    assert fit_hooks.rows_only(["--rebuild"]) is False
+    # and `main` must actually consult it — asserting on the SOURCE would
+    # pass on the comment that explains the flag, which is how the first
+    # version of this check survived its own mutation.
+    src = inspect.getsource(fit_hooks.main)
+    assert "rows_only(" in src, "the flag is documented but not honoured"

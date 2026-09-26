@@ -64,11 +64,12 @@ MODULES = ["tests.test_pure", "tests.test_regressions",
            "tests.test_prior", "tests.test_plans",
            "tests.test_stabilise", "tests.test_tto",
            "tests.test_weather", "tests.test_velo", "tests.test_usage",
-           "tests.test_store", "tests.test_battery",
+           "tests.test_store", "tests.test_battery", "tests.test_gametype", "tests.test_thin", "tests.test_batter_prior",
            "tests.test_hook_resid", "tests.test_armhook",
-           "tests.test_arm",
+           "tests.test_arm", "tests.test_rung",
            "tests.test_efficiency",
-           "tests.test_data_status", "tests.test_board_web"]
+           "tests.test_data_status", "tests.test_board_web",
+           "tests.test_ask"]
 
 
 def _run_one(job):
@@ -105,6 +106,31 @@ def main(argv: list[str]) -> int:
     flags = {a for a in argv if a.startswith("-")}
     rest = [a for a in argv if not a.startswith("-")]
     want = rest[0] if rest else ""
+
+    # macOS ABORTS A FORKED CHILD that touches the Objective-C runtime when
+    # `+initialize` may have been in flight in another thread at fork time.
+    # It surfaces here as `BrokenProcessPool` out of `pool.map` with no
+    # failing check to point at, and the crash report says it plainly:
+    # SIGABRT, `"termination": {"namespace": "OBJC"}`, "crashed on child
+    # side of fork pre-exec". It took the whole suite down on a 6-core Intel
+    # machine on 2026-09-19 while all 33 modules passed run one at a time.
+    #
+    # IT ALSO DOES NOT LOOK LIKE A CRASH. The dead worker's own salt forks
+    # are orphaned to PID 1 and keep the output pipe open, so `make test`
+    # prints nothing and reads as a hang until they are killed.
+    #
+    # The docstring's "no socket to inherit, so forking is safe" is
+    # necessary and NOT sufficient. `scratchpad.battery` blames a
+    # stale-cache `roster.load()` network call, but this reproduces with
+    # every cache warm, so something else here reaches ObjC too.
+    #
+    # libobjc reads the escape hatch WHEN IT LOADS, so setting it in this
+    # process would do nothing — it has to be set before the interpreter
+    # starts, hence the re-exec. Same exit `scratchpad.battery` takes.
+    if sys.platform == "darwin" and not {"--serial", "-1"} & flags \
+            and os.environ.get("OBJC_DISABLE_INITIALIZE_FORK_SAFETY") != "YES":
+        os.environ["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
+        os.execv(sys.executable, [sys.executable, "-m", "tests.run"] + argv)
 
     t0 = time.time()
     jobs = _collect(want)

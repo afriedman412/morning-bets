@@ -356,10 +356,14 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
 
     park = (calibrate.park_for(g["venue_id"])
             if calibrate.USE_PARK else None)
-    # TONIGHT'S AIR, from the same statsapi feed the historical table was
-    # counted on — pregame the field carries the forecast, which is the
-    # best number available at price time. No reading contributes nothing.
-    wx = {r["game_id"]: r for r in weather_src.fetch_date(d)}
+    # TONIGHT'S AIR. statsapi first, because that is the feed every
+    # shipped temperature and wind table was counted on. But statsapi
+    # REPORTS RATHER THAN FORECASTS: a night game carries no reading
+    # until near first pitch, so a morning board saw nothing for exactly
+    # the games it most needed. `fetch_live` fills those holes from
+    # Open-Meteo's hourly forecast, per game, in memory only — see the
+    # module docstring for why `backfill` must not do the same.
+    wx = {r["game_id"]: r for r in weather_src.fetch_live(d)}
     w = wx.get(g["game_id"]) or {}
     hr_air = sim.air_hr_mult(w.get("temp_f"), w.get("carry"),
                              w.get("wind_mph"))
@@ -373,14 +377,25 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
     if sim.USE_UMP_KBB:
         from src import db
         from src.context.sources import officials as officials_src
-        try:
-            officials_src.fetch_date(d)
-        except Exception:
-            pass  # offline slates still price; the record just goes stale
+        # CACHED, because this runs once per call and the board now makes
+        # several calls per game. `fetch_date_cached` swallows its own
+        # failures for the same reason the bare try did.
+        officials_src.fetch_date_cached(d)
         with db.connect() as c:
             r = c.execute("select plate_ump_id from game_officials"
                           " where game_id=?", (g["game_id"],)).fetchone()
         ump = sim.ump_kbb_mult(r["plate_ump_id"] if r else None)
+    # THE SAME AIR, ON THE PITCHER'S OTHER TWO CHANNELS. `hr_air` above
+    # reads this game's temperature for the home run rate; cold adds
+    # strikeouts and adds walks (`sim.TEMP_K_MULT` / `TEMP_BB_MULT`,
+    # counted the same way on the same rows). They ride the shared
+    # k_game/bb_game rail rather than getting one of their own, because
+    # that rail is exactly "multipliers every batter tonight shares" —
+    # which is what a night's weather is, same as the plate umpire.
+    # Silent-neutral: no reading multiplies by 1.0 and the tuple is
+    # unchanged, which is the common case at board time.
+    ump = (ump[0] * sim.temp_k_mult(w.get("temp_f")),
+           ump[1] * sim.temp_bb_mult(w.get("temp_f")))
     rng = random.Random(seed)
     out = []
     # `progress(done, total)` is called about a hundred times, not once per

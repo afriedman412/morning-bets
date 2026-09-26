@@ -1,0 +1,87 @@
+BOARD — 2026-09-21 · 3 games · 20,000 sims · fair inside ±170 · odds are FAIR (no vig)
+
+TOR @ BAL   Trey Yesavage v Shane Baz   (PROJECTED lineups, mean 8.9)
+  bet                          over / under  kalshi
+  total 8                      -116 /  +116       -   
+  total 8.5                    +102 /  -102    +141   vol $3.8k  clv -0.5c
+  total 9                      +128 /  -128       -   
+  TOR total 3.5                -135 /  +135    -111   vol $3.3k  clv -1.5c
+  TOR total 4.5                +128 /  -128    +156   vol $239  clv -2.0c
+  BAL total 3.5                -132 /  +132    -102   vol $2.2k  clv -3.5c
+  BAL total 4.5                +131 /  -131    +182   vol $75  clv -3.5c
+  F5 total 4.5                 -102 /  +102    +130   vol $5.9k  clv -1.5c
+  F5 total 5.5                 +157 /  -157    +208   vol $387  clv -0.5c
+  Trey Yesavage k 2.5          -451 /  +451    -138   proj lineup  off-band  vol $206  clv +1.0c
+  Trey Yesavage k 3.5          -211 /  +211    +147   proj lineup  off-band  vol $101  clv +1.5c
+  Trey Yesavage k 4.5          -106 /  +106    +300   proj lineup  vol $191  clv +2.0c
+  Trey Yesavage k 5.5          +183 /  -183    +641   proj lineup  off-band  vol $261  clv +0.5c
+  Trey Yesavage k 6.5          +361 /  -361    +953   proj lineup  off-band  vol $277  clv +3.5c
+  Trey Yesavage outs 12.5      +118 /  -118       -   proj lineup  raw +126
+  Trey Yesavage outs 13.5      +131 /  -131       -   proj lineup  raw +145
+  Shane Baz k 2.5              -254 /  +254    -300   proj lineup  off-band  vol $418  clv -2.0c
+  Shane Baz k 3.5              -106 /  +106    -125   proj lineup  vol $4.2k  clv -1.5c
+  Shane Baz k 4.5              +215 /  -215    +178   proj lineup  off-band  vol $470  clv +1.0c
+  Shane Baz k 5.5              +495 /  -495    +400   proj lineup  off-band  vol $1.2k  clv -4.0c
+  Shane Baz k 6.5             +1185 / -1185    +953   proj lineup  off-band  vol $184  clv -0.5c
+  Shane Baz k 7.5             +3131 / -3131   +3233   proj lineup  off-band  vol $2.2k  clv -3.0c
+  Shane Baz outs 16.5          -155 /  +155       -   proj lineup  raw -161
+  Shane Baz outs 17.5          -119 /  +119    +120   proj lineup  raw -123  vol $1.0k  clv -5.5c
+
+WSH @ DET   DJ Herz v River Ryan   (PROJECTED lineups, mean 8.2)
+  bet                          over / under  kalshi
+  total 7.5                    -105 /  +105    -141   [DJ Herz: 2024 rates, not aged]  [River Ryan: 2024 rates, not aged]  vol $29k  clv +2.5c
+  total 8                      +113 /  -113       -   [DJ Herz: 2024 rates, not aged]  [River Ryan: 2024 rates, not aged]
+  total 8.5                    +131 /  -131    -102   [DJ Herz: 2024 rates, not aged]  [River Ryan: 2024 rates, not aged]  vol $46k  clv +4.5c
+  WSH total 3.5                +100 /  -100    -115   [DJ Herz: 2024 rates, not aged]  [River Ryan: 2024 rates, not aged]  vol $1.1k  clv +1.5c
+  DET total 3.5                -123 /  +123    -141   [DJ Herz: 2024 rates, not aged]  [River Ryan: 2024 rates, not aged]  vol $178  clv -3.5c
+  DET total 4.5                +143 /  -143    +120   [DJ Herz: 2024 rates, not aged]  [River Ryan: 2024 rates, not aged]  vol $1.6k  clv -2.5c
+  F5 total 3.5                 -125 /  +125    -160   [DJ Herz: 2024 rates, not aged]  [River Ryan: 2024 rates, not aged]  vol $1.0k  clv -2.5c
+  F5 total 4.5                 +137 /  -137    +111   [DJ Herz: 2024 rates, not aged]  [River Ryan: 2024 rates, not aged]  vol $6.2k  clv -2.5c
+  DJ Herz k 2.5               -1331 / +1331    -270   off-band  vol $844  clv +3.0c
+  DJ Herz k 3.5                -583 /  +583    -127   off-band  vol $5.9k  clv +4.0c
+  DJ Herz k 4.5                -283 /  +283    +208   off-band  vol $785  clv -0.5c
+  DJ Herz k 5.5                -144 /  +144    +506   vol $506  clv -1.5c
+  DJ Herz k 6.5                +132 /  -132    +852   vol $280  clv +2.5c
+  DJ Herz k 7.5                +246 /  -246   +1900   off-band  vol $101  clv -2.0c
+  DJ Herz outs 15.5            +127 /  -127       -   raw +128
+  DJ Herz outs 16.5            +161 /  -161       -   raw +156
+  River Ryan k 2.5             -662 /  +662    -102   proj lineup  THIN  off-band  vol $170  clv -1.5c
+  River Ryan k 3.5             -285 /  +285    +239   proj lineup  THIN  off-band  vol $206  clv -6.5c
+  River Ryan k 4.5             -136 /  +136    +525   proj lineup  THIN  vol $723  clv -1.0c
+  River Ryan k 5.5             +148 /  -148   +1076   proj lineup  THIN  vol $1.0k  clv -1.5c
+  River Ryan outs 15.5         +102 /  -102       -   proj lineup  THIN  raw +103
+  River Ryan outs 16.5         +128 /  -128       -   proj lineup  THIN  raw +124
+
+MIN @ SF   Zebby Matthews v Blade Tidwell   (PROJECTED lineups, mean 8.6)
+  bet                          over / under  kalshi
+  total 7.5                    -120 /  +120    -130   vol $6.4k  clv +0.5c
+  total 8                      -103 /  +103       -   
+  total 8.5                    +114 /  -114    +106   vol $27k  clv -0.5c
+  MIN total 3.5                -127 /  +127    -147   vol $348  clv -0.5c
+  MIN total 4.5                +134 /  -134    +120   vol $907  clv -0.5c
+  SF total 3.5                 -119 /  +119    -108   vol $425  clv -3.0c
+  SF total 4.5                 +149 /  -149    +167   vol $302  clv -2.5c
+  F5 total 3.5                 -163 /  +163    -167   vol $812  clv -1.5c
+  F5 total 4.5                 +104 /  -104    -102   vol $2.4k  clv -1.5c
+  Zebby Matthews k 2.5         -676 /  +676    -525   proj lineup  off-band  vol $217  clv -3.0c
+  Zebby Matthews k 3.5         -276 /  +276    -228   proj lineup  off-band  vol $346  clv -0.5c
+  Zebby Matthews k 4.5         -128 /  +128    +106   proj lineup  vol $6.9k  clv -7.5c
+  Zebby Matthews k 5.5         +161 /  -161    +203   proj lineup  vol $1.9k  clv -1.0c
+  Zebby Matthews k 6.5         +338 /  -338    +456   proj lineup  off-band  vol $483  clv -3.0c
+  Zebby Matthews k 7.5         +722 /  -722    +900   proj lineup  off-band  vol $418  clv -2.0c
+  Zebby Matthews outs 15.5     -181 /  +181    -106   proj lineup  raw -180  off-band  vol $818  clv +5.5c
+  Zebby Matthews outs 16.5     -146 /  +146       -   proj lineup  raw -151
+  Zebby Matthews outs 17.5     -112 /  +112       -   proj lineup  raw -116
+  Blade Tidwell k 2.5          -301 /  +301    -344   proj lineup  off-band  vol $34  clv -0.5c
+  Blade Tidwell k 3.5          -133 /  +133    -138   proj lineup  vol $3.7k  clv -1.0c
+  Blade Tidwell k 4.5          +163 /  -163    +170   proj lineup  vol $3.9k  clv -2.0c
+  Blade Tidwell k 5.5          +351 /  -351    +344   proj lineup  off-band  vol $2.1k  clv -0.5c
+  Blade Tidwell k 6.5          +790 /  -790    +900   proj lineup  off-band  vol $8  clv +0.0c
+  Blade Tidwell outs 15.5      +105 /  -105    +135   proj lineup  raw +105  vol $161  clv -1.5c
+  Blade Tidwell outs 16.5      +132 /  -132       -   proj lineup  raw +127
+
+outs corrected (2026-09-09); raw in note. K beats the OPEN only — bet early or not.
+Totals Jul/Aug ran ~0.15-0.20 light a side (unshipped month term); Sept unmeasured.
+Re-run after lineups post: a projected nine has cost half an edge before.
+
+wall clock: 91s total — 85s simulating, 2s fetching markets, 4s loading rates. RE-RUNNING IS CHEAP; do it when lineups post.

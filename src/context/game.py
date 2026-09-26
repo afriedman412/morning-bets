@@ -547,10 +547,17 @@ class Side:
     #: the same air, the same shape park takes. 1.0 when the game has no
     #: reading, and each half of it is silent-neutral on its own.
     hr_air: float = 1.0
-    #: The plate umpire's (k, bb) multipliers (`sim.ump_kbb_mult`), set by
-    #: `simulate_game` on BOTH sides for the same reason as `hr_air`: one
-    #: man calls the whole game for both clubs. (1.0, 1.0) when the crew
-    #: is unknown — silent-neutral like every other lookup here.
+    #: THE NIGHT'S SHARED (k, bb) MULTIPLIERS — everything both clubs
+    #: face alike, multiplied together into one pair. Set by
+    #: `simulate_game` on BOTH sides for the same reason as `hr_air`.
+    #: Two things ride it today: the plate umpire (`sim.ump_kbb_mult` —
+    #: one man calls the whole game) and the TEMPERATURE
+    #: (`sim.temp_k_mult` / `temp_bb_mult` — both clubs hit in the same
+    #: air). The name is historical; it predates the second passenger.
+    #: (1.0, 1.0) when neither is known — silent-neutral like every
+    #: other lookup here, and the common case at board time, since the
+    #: crew is rarely posted the night before and the forecast often is
+    #: not either.
     ump_kbb: tuple[float, float] = (1.0, 1.0)
     #: Days since THIS STARTER's previous start, from `sim.layoff_gap`.
     #: None means unknown, no prior start, or across a season break, and
@@ -568,6 +575,9 @@ class Side:
     #: the DATE, shared by every arm, and both hook call sites are already
     #: guarded so only the starter can receive it.
     bnd_month_offset: float = 0.0
+    #: THE CALENDAR BAND on the boundary hook's low-pitch cells, from
+    #: `sim.bnd_band` — 'spring' / 'jul_aug' / 'sep' / None. Item 38.
+    bnd_band: str | None = None
     #: RESOLVED MATCHUPS, nine of them, rebuilt when the arm changes.
     #:
     #: The point of `sim.resolve` is that a plate appearance's inputs get
@@ -1185,7 +1195,8 @@ def _end_of_inning(side: Side, rng: random.Random, inning: int,
                     inning_runs=side.last_inning_runs,
                     pen=side.pen_state,
                     layoff_gap=side.layoff_gap,
-                    month_offset=side.bnd_month_offset))
+                    month_offset=side.bnd_month_offset,
+                    band=side.bnd_band))
             or ln.pitches >= side.hook.hard_pitch_cap):
         if not ln.covered_f5:
             ln.runs_f5, ln.outs_f5 = ln.runs, ln.outs
@@ -1626,6 +1637,7 @@ def build_side(starter: sim.PitcherRates, pen_pool: list[dict],
                 pen_state=sim.pen_state(team, date),
                 layoff_gap=sim.layoff_gap(starter.name, date),
                 bnd_month_offset=sim.bnd_month_offset(date),
+                bnd_band=sim.bnd_band(date),
                 forced_exit_outs=fx,
                 bulk=bulk, bulk_hook=bh,
                 closer=cl, closer_worked=cl_worked)
