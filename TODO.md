@@ -2035,6 +2035,142 @@ export to `cron_backfill.sh` and `data_status`, exactly as the velo table
 now is, or it silently rots again — THAT is the actual fix, not the
 rebuild.
 
+**47. OUT-OF-RACE CLUBS AND THE LEASH — REAL, BACKWARDS, AND MOSTLY
+ROSTER CHURN. DEAD 2026-09-26; do not re-run.** Opened from a live board
+question ("the Sox have nothing to play for") on the hypothesis that a
+buried club lets its starter go longer.
+
+ESTABLISHED, and the sign is the finding: it goes the OTHER WAY. Clubs
+out of the race pull starters EARLIER.
+`scratchpad/standings_outs.py` (stage 1, mean starter outs) is flat —
+OUT minus IN is -0.030 +/- 0.375, a pooled read with no power.
+`scratchpad/standings_leash.py` (stage 2, the boundary hazard conditioned
+on pitch count, which is the manager's actual question) finds out-of-race
+clubs about 10 points LESS likely to send a starter back out at 75-95
+pitches, -3.2 and -2.6 se.
+
+WHY IT IS DEAD ANYWAY: stage 2's own docstring names the confound and
+does not control it. A buried club promotes young arms on innings limits
+in September and they get pulled early — roster composition, not a leash,
+and it produces this exact signature. Stage 2 takes every boundary row
+with no filter on WHO is pitching.
+`scratchpad/standings_same_arm.py` (stage 3, 2026-09-26) restricts to
+pitchers the club used in BOTH windows, dropping 23% of rows:
+
+```
+ pitches     stage 2 DiD      same-arm DiD
+  75-85   -0.090 (-2.55)   -0.044 (-1.11)
+  85-95   -0.091 (-2.04)   -0.088 (-1.71)
+  95+     -0.049 (-1.91)   -0.050 (-1.62)
+```
+
+The 75-85 bin halves, which is what a partial confound looks like; the
+deep bins hold their size and lose significance to the smaller sample.
+NOTHING CLEARS 2 SE once roster churn is out. Positive control passes —
+injecting 12% of OUT-late removals moves 85-95 from -0.113 to -0.018, so
+the restricted harness resolves an effect of the claimed size and this is
+a real null rather than a blind one.
+
+AND THE SAMPLE CANNOT GROW FAST. The effect only exists from mid-August,
+so it gains about six weeks a year, against a population where every arm
+has its own innings-limit and service-time story. Operator decision
+2026-09-26: too volatile and too many moving parts to carry. Re-open only
+if the approach changes — a per-pitcher innings-limit control rather than
+a club-level split would be a different measurement, not this one.
+
+**46. BUILD THE SCOREABILITY ROW FOR ITEM 45 — an out-of-sample
+per-start K correlation, before any whiff term is wired.** OPEN
+2026-09-26. Item 45 records the problem and this is it pulled out as its
+own item, because it is a prerequisite and kept reading as a footnote.
+
+A whiff term buys DISCRIMINATION between starts, not a better-shaped
+average start — the `leash.py` pattern, which was flat on outs CRPS and
+the run ladder BY DESIGN while taking the outs correlation +0.105 ->
++0.226. So the battery's pooled K rows will sit flat and THAT IS NOT A
+NULL, and equally it is not evidence the term worked. No existing row can
+see this change. Score it the way the leash was: per-start predicted K
+against actual K, out of sample, across the four folds. Until the row
+exists the term must not be wired, because neither outcome would mean
+anything (CLAUDE.md, "nothing moved means the change did nothing unless
+you can show the scorecard is blind to it — and that has to be SHOWN").
+
+**45. WHIFF RATE IS A SECOND K CHANNEL AND THE ENGINE HAS NONE — it
+survives against the SHRUNK rate at 6 sigma, carries ~0.37 K per start
+at one sd, and REPEATS BETTER THAN THE RATE IT CORRECTS.** OPEN
+2026-09-26, gate 1 passed. Opened
+from a live board question about Mason Adams (5 starts, THIN), where a
+competing analysis proposed replacing his observed K rate with a
+whiff-implied one. The mechanism is real; the proposed SIZE was ~2.5x too
+big.
+
+ESTABLISHED: `scratchpad/whiff_build.py` (20,381 starter-starts out of the
+pbp cache, league whiff/swing 0.2269, K/BF 0.2194) and
+`scratchpad/whiff_test.py` / `whiff_size.py`. Predicting rest-of-season
+K/BF from the first N starts, train rows only (date < HOLDOUT), planted and
+noise controls both passing (+0.928 / +0.027): whiff enters a bivariate
+alongside the observed rate at +5.15 / +5.94 / +4.88 / +2.79 t at N = 5 /
+10 / 15 / 20, so it is NOT a small-sample-only fix and fires on every
+start. AND IT SURVIVES THE SHIPPED RATE, which is the test that matters —
+`future ~ k_shrunk + whiff` gives k_shrunk +0.5713 (+6.79 t) and whiff
++0.3877 (+5.95 t) on 363 pitcher-seasons, with the intercept collapsing to
++0.0095 (0.84 t). Shrinkage regresses toward the LEAGUE; whiff says which
+direction a given arm should regress. Size: sd of whiff/swing across
+starters 0.0433, so one sd moves K/BF by 1.68 points = 0.37 K per start;
+p10 (.171) to p90 (.278) is 0.91 K per start.
+NOT ESTABLISHED: the run conversion. 0.11 runs per side per start assumes
+0.30 runs per K-vs-BIP, which was NOT measured here — at 0.20 it is 0.07.
+The K figure is direct and does not depend on it. Also not established:
+anything out of sample. This is ONE pre-holdout fit, not four folds, and
+the coefficient is from pitcher-seasons with 12+ starts, so applying it to
+a 5-start rookie is extrapolation.
+NO CONFLICT WITH THE EXISTING SCREEN. `velo.py` gated whiff out on
+`scratchpad/pitch_one.py`, which measured split-half reliability at n = ONE
+START. That is a different question and both answers can be right.
+GATE 1 IS DONE AND IT PASSED — `scratchpad/whiff_stable.py`, 2026-09-26,
+1,369 pitcher-seasons, train rows only. Alternate starts within a
+pitcher-season into halves, correlate half against half, bucketed by total
+swings. THE COUNTED CONSTANT the item asked for: reliability crosses 0.5
+at about 400 SWINGS — roughly ten to twelve starts — and sits under 0.40
+below 250.
+
+```
+      swings     n  whiff/swing      K/BF   shuffle
+       0-150    37        0.236     0.283     0.210
+     150-250   112        0.395     0.424    -0.047
+     250-400   159        0.425     0.383     0.053
+     400-600   142        0.585     0.609     0.025
+     600-900   199        0.740     0.665    -0.036
+        900-   307        0.769     0.689     0.036
+      pooled   973        0.568     0.516
+```
+
+Full-season (Spearman-Brown) 0.725 for whiff against 0.681 for K/BF, so
+**whiff repeats BETTER than the rate it is meant to correct** — the
+condition that per-arm and per-club dispersion failed at 0.07. The shuffle
+column is the control and reads ~0 everywhere except the 37-season
+thinnest bucket. The first bucket is noise, not a finding.
+
+PRE-REGISTERED, in order: ~~(1) a split-half stability gate on whiff~~
+DONE, above; (2) ITEM 46 — the per-start K correlation row, which must
+exist before the term is wired or neither result means anything; (3) the
+four folds, bar set before running; (4) only then the wiring, as a term
+beside the velo and zone kicks in `game.build_side`. Never fitted to a
+loss (rule 5).
+
+STILL NOT ESTABLISHED, unchanged by gate 1: anything out of sample. The
+coefficient is one pre-holdout fit on pitcher-seasons with 12+ starts, so
+applying it to a five-start rookie — the Mason Adams case that opened this
+— is extrapolation, and the stability table says exactly why: at a
+rookie's swing count the reliability is 0.40, not 0.77.
+THE SCOREABILITY PROBLEM, RECORDED UP FRONT: this buys DISCRIMINATION
+between starts, not a better-shaped average start — the `leash.py` pattern,
+which was flat on outs CRPS and the run ladder BY DESIGN and bought
++0.105 -> +0.226 on the outs correlation. So the battery's pooled K rows
+will sit flat and THAT IS NOT A NULL. The row that would see it is an
+out-of-sample per-start K correlation, scored the way the leash was. IT
+DOES NOT EXIST YET AND MUST BE BUILT FIRST, or the change is not scoreable
+and must not be reported as an improvement.
+
 **43. A COLD STREAK IS NOT LINEAR — the bottom decile carries ~0.30 and
 the engine's velo term cannot see it.** PARKED 2026-09-22, end of season,
 by operator decision. Opened from a live board question about an arm whose

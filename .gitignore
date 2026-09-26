@@ -195,3 +195,4 @@ scratchpad/hands.json
 # `battery.py` under HRBAT_DUMP so the classifier can be scored against
 # the simulation on identical rows. 1.5 MB a fold, one engine run each.
 scratchpad/simpred.*.json
+scratchpad/whiff_starts.json

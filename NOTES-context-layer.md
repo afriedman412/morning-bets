@@ -14589,3 +14589,72 @@ PARKED by operator decision (end of season), TODO 43. The scoreability
 problem is recorded there and is the reason it is not quick: it fires on
 ~4% of starts, so `k_pa_all` divides it by twenty-five and a battery row
 has to be built before the change is scoreable at all.
+
+## 2026-09-23 — "nothing to play for, let him cook" is false, and it reverses
+
+Opened from a live board question: Colorado are buried, so why would they
+not let Mason Adams go deep? The claim is countable and was counted.
+`scratchpad/standings_outs.py`, `scratchpad/standings_leash.py`.
+
+STAGE 1, mean starter outs, diff-in-diff so club talent differences out —
+each club-season's late window (from Aug 15) minus its early one (before
+Aug 1), then split on games back of the 6th playoff spot as of Aug 15.
+104 club-seasons. **OUT minus IN = -0.042 outs +/- 0.392.** A null, and the
+se is wide enough that only effects above ~0.8 outs were resolvable, so
+this stage alone does not settle it. What it DOES show: every club's
+starters shorten late, -0.489 (IN) / -0.765 (MID) / -0.532 (OUT).
+
+STAGE 2, the boundary hazard conditioned on pitch count, which is the
+manager's actual question and is not confounded by September callups on
+innings limits the way a pooled mean is. All four seasons of the pbp cache,
+inning 4+, P(comes back out for the next inning):
+
+    pitches     contender     buried (10+ back)
+     75-85        0.802          0.706     -2.98 se
+     85-95        0.454          0.357     -2.46 se
+     95+          0.071          0.024     -2.31 se
+
+Diff-in-diff against each club's own April-July baseline holds it (-0.086,
+-0.088, -0.050). Train-only (date < HOLDOUT) is the same sign and shape at
+smaller n (-0.086 / -0.071 / -0.043). **THE EFFECT IS REAL AND SIGNED THE
+OTHER WAY: buried clubs pull EARLIER**, ~9 points at exactly the counts
+where the decision is live. Presumably rookies on innings limits and
+expanded-roster auditions beating whatever "nothing to lose" buys.
+
+POSITIVE CONTROL (rule 7, and it is the reason the reversal is reportable
+rather than a shrug): injecting a 15% cook effect into the buried clubs
+moves 95+ from -0.047 to +0.146 (3.12 se) and 85-95 from -0.097 to +0.024.
+A leash effect the size claimed WOULD have been seen.
+
+NOT WIRED and no item opened. Buried clubs late are ~3% of all boundary
+decisions, so no battery row could see it without a purpose-built split —
+the same scoreability problem as TODO 43. Recorded so it is not re-run.
+
+The specific case, for the record: Colorado's starters since Aug 15 ran
+13.54 outs / 80.6 pitches over 35 starts, one start over 100 pitches,
+against a league 14.93 / 82.9 — and shorter than their own Apr-Jul 14.01.
+Four different arms, same treatment.
+
+## 2026-09-23 — whiff is a second K channel; see TODO 45
+
+Same session, from the same board row. A competing analysis proposed that
+Adams' observed K rate was "outrunning his stuff" and should be replaced by
+a whiff-implied rate (~16.8% against his observed ~22.5%). MEASURED: the
+MECHANISM is real and the engine has nothing like it — whiff enters a
+bivariate beside the SHRUNK shipped rate at +5.95 t on 363 pitcher-seasons,
+train rows only, with planted (+0.928) and noise (+0.027) controls passing,
+and it is alive at N = 5/10/15/20 starts so it fires on every start rather
+than on rookies only. THE PROPOSED SIZE WAS ~2.5x TOO BIG: the measured
+weights are +0.3152 on the observed rate and +0.2670 on whiff over a large
+intercept, which puts Adams at 0.2094, not 0.168.
+
+Worth recording about the specific arm, as an instance of rule 2 in the
+predictor rather than the target: his aggregate whiff (0.1778 on 180
+swings) sits 1.57 se below league and is driven ENTIRELY by one start —
+2026-09-16, ONE swinging strike in 84 pitches, verified against the call-code
+histogram rather than assumed to be a parsing bug. His other four starts
+pool to 0.2246 against a league 0.2269. The 1-K line everyone cites as
+corroboration IS that start, not independent evidence of it.
+
+Full item, pre-registered gates and the scoreability problem: TODO 45.
+Instruments: `scratchpad/whiff_build.py`, `whiff_test.py`, `whiff_size.py`.

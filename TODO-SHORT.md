@@ -36,6 +36,24 @@ Refreshed 2026-09-21.
         never in the repo, so pen state has been league-neutral on every
         live board for three weeks. Export reconstructed and verified
         (99.2% on the overlap); the table swap still needs the battery.
+    44  OPEN — `hook_penstate.json` stale since 2026-08-29; the export
+        was never in the repo. Was MISSING from this index until
+        2026-09-26, which is how a later item nearly reused its number.
+    46  OPEN 2026-09-26 — BUILD THE SCOREABILITY ROW for item 45: an
+        out-of-sample per-start K correlation, scored the way the leash
+        was. Until it exists the whiff term cannot be scored either way.
+    45  OPEN 2026-09-26, gate 1 PASSED — whiff/swing is a SECOND K
+        channel the engine lacks: +5.95 t beside the SHRUNK rate (363
+        pitcher-seasons, train-only, controls pass), alive at
+        N=5/10/15/20 starts. One sd = 0.37 K per start. Split-half 0.568
+        pooled / 0.725 full-season, BETTER than the K/BF it corrects
+        (0.516 / 0.681); trustworthy above ~400 swings. Left: four
+        folds, and item 46 first.
+    47  DEAD 2026-09-26 — out-of-race clubs and the leash. Real but
+        BACKWARDS (they pull EARLIER, not later) and half of it was
+        September roster churn: same-arm-both-windows drops the 75-85
+        diff-in-diff from -2.55 to -1.11 se. Nothing clears 2 se. Do
+        not re-run.
     43  PARKED 2026-09-22 — a cold streak is NOT linear: middle deciles
         carry ~0, the bottom carries +0.30 (train-only +0.25 to +0.29),
         3.9 se off the pooled line. Fires on ~4% of starts, so a battery
