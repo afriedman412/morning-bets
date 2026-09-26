@@ -534,10 +534,15 @@ def air_mult_for(row) -> float:
     weather row.
 
     THE SHARED LOOKUP for every historical replay path (`replay`, `fitf5`,
-    `ladder`) — the live slate reads the same feed through
-    `weather.fetch_date`, so the two paths cannot mean different things by
-    "the air" (the park lesson). Missing game or missing reading
-    contributes exactly nothing.
+    `ladder`) — and therefore for the battery. It reads the `mlb_weather`
+    TABLE, which is statsapi only.
+
+    THE LIVE SLATE DELIBERATELY DOES NOT MATCH IT. `weather.fetch_live`
+    falls back to an Open-Meteo forecast for a game statsapi has not
+    published yet, because a night game has no observation at board time.
+    That asymmetry is the point: the tables below were counted on
+    statsapi, so a forecast belongs in a price and not in the training
+    set. Missing game or missing reading contributes exactly nothing.
     """
     if not (sim.USE_TEMP_HR or sim.USE_WIND_HR):
         return 1.0

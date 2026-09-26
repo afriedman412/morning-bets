@@ -85,6 +85,53 @@ def assess(latest: str | None, ref: str, budget: int = BUDGET) -> tuple:
     return ("ok" if lag <= budget else "STALE"), lag
 
 
+def missed_playing_dates(ref: str, today: str, played: set[str]) -> list[str]:
+    """Dates after `ref` on which baseball is normally played.
+
+    THE ANCHOR ITSELF CAN GO STALE, AND FOR THREE DAYS IN SEPTEMBER 2026 IT
+    DID. Every row in this report is measured against the newest finished
+    game, so when RESULTS stop advancing the whole table reads 0d/ok while
+    sitting three days behind -- which is exactly what happened when
+    `season.missing_dates` inverted its window and the 07:30 job went on
+    exiting 0 with nothing to pull. A report whose reference is the thing
+    that broke cannot see the break.
+
+    Comparing `ref` to the wall clock instead would flag all winter, which
+    is the reason it was anchored to the newest game in the first place.
+    So ask the data: `played` is every MM-DD on which an EARLIER season
+    played, and a date after `ref` matching one of those is a date we
+    should already hold results for. Off-days and the All-Star break are
+    absent from `played` in those seasons too, so they cost no false
+    positive. Today is excluded -- its games are still being played.
+
+    Pure, so the calendar logic is testable without a database.
+    """
+    if not ref:
+        return []
+    d = datetime.date.fromisoformat(ref) + datetime.timedelta(days=1)
+    end = datetime.date.fromisoformat(today)
+    out = []
+    while d < end:
+        if d.isoformat()[5:] in played:
+            out.append(d.isoformat())
+        d += datetime.timedelta(days=1)
+    return out
+
+
+def _played_month_days(c, ref: str | None) -> set[str]:
+    """Every MM-DD played in a season EARLIER than the one `ref` is in."""
+    if not ref:
+        return set()
+    try:
+        rows = c.execute(
+            "SELECT DISTINCT substr(date, 6) FROM bets.games "
+            "WHERE sport = 'mlb' AND substr(date, 1, 4) < ?",
+            (ref[:4],)).fetchall()
+    except Exception:
+        return set()
+    return {r[0] for r in rows if r[0]}
+
+
 def _max_date(c, table, schema="", col="date"):
     try:
         q = f"SELECT MAX({col}) FROM {schema}{table}"
@@ -240,11 +287,13 @@ def collect() -> dict:
         ]
         month = (ref or "2000-01-01")[:8] + "01"
         total, miss = pbp_gap(c, month)
+        today = datetime.date.today().isoformat()
+        missed = missed_playing_dates(ref, today, _played_month_days(c, ref))
     hook = _json_max_date(HOOK_ROWS)
     srcs.append((f"{HOOK_ROWS} (hook rows)", hook))
     srcs.append(("velo_starts.json (velo/zone)", _json_max_date(VELO_TABLE)))
     return {"ref": ref, "sources": srcs, "pbp_total": total,
-            "pbp_missing": miss, "month": month,
+            "pbp_missing": miss, "month": month, "missed": missed,
             "pbp_cached": len(list(PBP_CACHE.glob("*.json.gz")))}
 
 
@@ -252,7 +301,15 @@ def main():
     d = collect()
     ref = d["ref"]
     print(f"\n  NEWEST FINISHED GAME: {ref}   (everything is measured "
-          f"against this, not against the wall clock)\n")
+          f"against this, not against the wall clock)")
+    missed = d.get("missed") or []
+    if missed:
+        print(f"  ^^ AND THE ANCHOR IS STALE: {len(missed)} date(s) since "
+              f"then were played and are NOT here\n     {', '.join(missed)}"
+              f"\n     Every lag below is measured against a stale "
+              f"reference, so they all read ok.\n     Results ingest is "
+              f"what is behind — `-m src.context.sources.season --backfill`.")
+    print()
     print(f"  {'source':<34}{'latest':>12}{'lag':>7}{'':>4}status")
     stale = 0
     for name, latest in d["sources"]:
@@ -295,6 +352,7 @@ def main():
                   "assume nothing does is\n    how the data drifts "
                   "silently. Remove it or account for it.")
 
+    stale += len(missed)
     print(f"\n  {'ALL CURRENT' if not stale else f'{stale} SOURCE(S) BEHIND'}"
           f" — `/backfill-data` refreshes everything in dependency order.\n")
 

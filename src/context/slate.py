@@ -356,10 +356,14 @@ def simulate_slate_game(g, d, lg, pr, br, league_bats, pens, n_sims=N_SIMS,
 
     park = (calibrate.park_for(g["venue_id"])
             if calibrate.USE_PARK else None)
-    # TONIGHT'S AIR, from the same statsapi feed the historical table was
-    # counted on — pregame the field carries the forecast, which is the
-    # best number available at price time. No reading contributes nothing.
-    wx = {r["game_id"]: r for r in weather_src.fetch_date(d)}
+    # TONIGHT'S AIR. statsapi first, because that is the feed every
+    # shipped temperature and wind table was counted on. But statsapi
+    # REPORTS RATHER THAN FORECASTS: a night game carries no reading
+    # until near first pitch, so a morning board saw nothing for exactly
+    # the games it most needed. `fetch_live` fills those holes from
+    # Open-Meteo's hourly forecast, per game, in memory only — see the
+    # module docstring for why `backfill` must not do the same.
+    wx = {r["game_id"]: r for r in weather_src.fetch_live(d)}
     w = wx.get(g["game_id"]) or {}
     hr_air = sim.air_hr_mult(w.get("temp_f"), w.get("carry"),
                              w.get("wind_mph"))

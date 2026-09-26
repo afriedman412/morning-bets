@@ -44,13 +44,30 @@ def missing_dates(start: date | None = None, end: date | None = None,
     A date with SOME games cached is treated as done. That is right for a
     completed date and wrong only for one interrupted mid-fetch, which the
     `--refetch` flag exists to handle.
+
+    THE WINDOW ENDS AT TODAY, NOT AT THE EARLIEST DATE WE HOLD. It used to
+    default `end` to `min(have)`, which was right for the ONE job this
+    module was written to do -- the database started 2026-05-28 and the
+    early season had to be filled in BEHIND it. The day 2023-2025 were
+    loaded, `min(have)` moved to 2023-03-30, the window inverted, and this
+    returned [] on every call from then on. Forward ingest was really being
+    done by `grading.grade`, which was retired 2026-09-09, so results
+    silently stopped advancing and the daily job went on exiting 0 with
+    nothing to show. `data_status` could not see it either, because it
+    measures every source against the newest FINISHED GAME -- which is the
+    stale thing itself, so all eight rows read 0d/ok three days behind.
+
+    Ending at today (exclusive) keeps the backward fill -- dates already
+    held are skipped either way -- and adds the forward one. Today is left
+    to tomorrow's 07:30 run, because a date cached while games are still in
+    progress counts as done and would never be re-pulled.
     """
     def _run(c):
         return {r["date"] for r in c.execute(
             "select distinct date from games where sport = 'mlb'")}
     have = _run(conn) if conn is not None else _with(_run)
     start = start or SEASON_START
-    end = end or (min(have) if have else date.today().isoformat())
+    end = end or date.today()
     if isinstance(end, str):
         y, m, d = (int(x) for x in end.split("-"))
         end = date(y, m, d)

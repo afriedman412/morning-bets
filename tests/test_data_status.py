@@ -199,3 +199,63 @@ def check_a_file_sidecar_is_read_for_freshness_like_a_table():
     # existing is not the same as `collect` calling it.
     names = [n for n, _ in ds.collect()["sources"]]
     assert any("velo" in n for n in names), names
+
+
+def check_a_stale_anchor_is_caught_even_though_every_lag_reads_zero():
+    """THE BUG THIS GUARDS shipped, and hid for three days.
+
+    `season.missing_dates` defaulted its window end to the EARLIEST date
+    held rather than the latest, so once 2023-2025 were loaded it returned
+    [] forever and results stopped advancing. The 07:30 job exited 0 with
+    nothing to pull, and because every row in this report is measured
+    against the newest finished game -- the thing that had stopped -- all
+    eight sources read 0d/ok while sitting three days behind.
+    """
+    played = {"09-20", "09-21", "09-22", "09-23"}
+    got = ds.missed_playing_dates("2026-09-20", "2026-09-23", played)
+    assert got == ["2026-09-21", "2026-09-22"], got
+    # and the rest of the report was genuinely blind to it
+    assert ds.assess("2026-09-20", "2026-09-20")[0] == "ok"
+
+
+def check_off_days_and_the_all_star_break_do_not_flag():
+    """Absence of games is not absence of data.
+
+    The break is three or four consecutive dates with no games, and the
+    reference set is built from EARLIER seasons, which did not play them
+    either. Asking the data which calendar days baseball happens on is
+    what keeps this from crying every July.
+    """
+    # 07-14 and 07-15 are break days in the earlier seasons; 07-16 is not.
+    played = {"07-16"}
+    assert ds.missed_playing_dates("2026-07-13", "2026-07-16", played) == []
+    assert ds.missed_playing_dates(
+        "2026-07-13", "2026-07-17", played) == ["2026-07-16"]
+
+
+def check_the_anchor_check_is_silent_out_of_season():
+    """February must stay quiet, which is the whole reason for `played`.
+
+    Comparing the anchor to the wall clock would have caught the September
+    failure too -- and then screamed every day from November to March,
+    which is precisely why the report was anchored to the newest game in
+    the first place. This check has to do both.
+    """
+    played = {"09-21", "09-22"}
+    assert ds.missed_playing_dates("2025-11-01", "2026-02-15", played) == []
+
+
+def check_today_is_never_counted_as_missing():
+    """Its games are still being played.
+
+    An inclusive end would flag every single afternoon between the first
+    pitch and the backfill the next morning, and a report that is wrong
+    daily is one nobody reads.
+    """
+    played = {"09-22", "09-23"}
+    assert ds.missed_playing_dates("2026-09-22", "2026-09-23", played) == []
+
+
+def check_an_absent_anchor_does_not_crash_the_report():
+    """An EMPTY results table has no reference date at all."""
+    assert ds.missed_playing_dates(None, "2026-09-23", {"09-22"}) == []

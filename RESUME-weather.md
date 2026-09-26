@@ -6,6 +6,51 @@ worth more work. Read `CLAUDE.md` first; this assumes its rules,
 especially 4 (count it, do not import it), 6 (the holdout), 7 (a null is
 a claim) and 15 (the battery).
 
+**STATE (2026-09-26): THE BINDING CONSTRAINT IS FIXED, AND THE TWO
+REMAINING COUNT ITEMS ARE BOTH DEAD.** Section 4 said coverage, not
+counting, was the bottleneck. It was right, and it is closed: the board
+now reads statsapi first and falls back to an Open-Meteo hourly forecast
+per game. Board-time coverage went from 6 of 15 games to 16 of 16.
+
+* **Coverage, the actual fix.** Two bugs, not one. statsapi fills a
+  slate in START-TIME ORDER, and `fetch_date` froze a date's cache as
+  soon as ANY game carried a temperature — so the 1:05 game locked the
+  file and every night game stayed blank. 2026-09-19 to -23 ran
+  4/15, 6/15, 1/15, 1/16. `backfill`'s skip-list had the identical
+  half-fix (`sum(temp_f is not null) > 0`), so a partial date could
+  never heal. Both now key on COMPLETENESS. Since the fix every date is
+  full, and 09-19 through 09-23 were healed retroactively.
+* **`fetch_live` is the board's entry point and `backfill` must never
+  use it.** Every shipped table was counted on statsapi OBSERVATIONS,
+  so a forecast belongs in tonight's price and not in `mlb_weather`.
+  A forecast also only ever fills a game that has NOT STARTED — once
+  the first pitch is thrown the conditions are being observed, and
+  unknown state counts as started.
+* **The orientation table exists and was DERIVED, not typed.** 27 parks,
+  off ~7,000 nights where we hold statsapi's field-relative label and
+  Open-Meteo's compass bearing for the same hour. Eight independent
+  routes pin each park and their agreement is the validation; wind is
+  gated on it, so six parks including Coors (R 0.39) get temperature
+  only rather than a guessed direction.
+* **Source mismatch measured, and it is not a problem for temperature.**
+  Open-air, n=2,151: temperature corr 0.942 at +0.56F bias — nothing
+  against the bin widths, so `TEMP_*` takes Open-Meteo with NO recount,
+  which was supposed to be the expensive half of the source item. Wind
+  is weaker (corr 0.563, statsapi 6% high) and is rescaled.
+* **PRECIPITATION IS DEAD** — section 5, rewritten. 1,501 wet games on
+  continuous millimetres against the old 96 categorical, flat on every
+  channel, every era gate negative. The old 0.805 was a COLD CONFOUND.
+* **WIND BEYOND HR IS DEAD** — old item 4. K spans 0.015 (era 0.29),
+  BB spans 0.013 (era -0.02), against `hbp`'s 0.103 that was rejected
+  on the era gate alone.
+* **Both nulls carry the prescribed positive control.** Temperature run
+  back through the precip pipeline reproduces the HR row at 0.7650
+  against section 3's independently counted 0.7651, era 0.89.
+
+Still open, and now the only weather item: the shipped `TEMP_BB_MULT`
+<55F cell reads about half too big (below). It is a change to a shipped
+constant, so it owes the battery a diff across all eight folds.
+
 **STATE (2026-09-20, second sitting): RULE 15 IS CLOSED ON THE K AND BB
 TABLES, AND THEY STAY ON.** Full entry in `NOTES-context-layer.md`
 under this date. What it found, in order:
@@ -162,7 +207,11 @@ worse-measured proxy for the calendar.
 
 ---
 
-## 4. THE BINDING CONSTRAINT — coverage, not counting
+## 4. THE BINDING CONSTRAINT — coverage, not counting (CLOSED 2026-09-26)
+
+**This section was right and is now HISTORY. Read it for why coverage
+outranks counting, not for the current state — the board reads statsapi
+first and Open-Meteo second, and every game on the card gets a reading.**
 
 **This is the most important section. Counting more tables is not the
 bottleneck.**
@@ -188,7 +237,15 @@ their weather entirely — 41 games — with nothing complaining, because
 silent-neutral mechanisms fail quietly. Re-fetching is handled now, but
 re-fetching cannot conjure a forecast statsapi does not serve.
 
-### The alternate source — investigated 2026-09-20, VERIFIED, not built
+### The alternate source — BUILT 2026-09-26
+
+**All three catches below were resolved, and the second was the only real
+one.** Catch 1 (source mismatch) measured away for temperature at corr
+0.942. Catch 2 (wind direction) is the `PARK_CF` table in `weather.py`,
+derived from our own data rather than typed. Catch 3 (precip gets
+better) came true and killed the mechanism — see section 5.
+
+The investigation as it stood:
 
 Both halves work, free, no API key:
 
@@ -225,7 +282,88 @@ Both halves work, free, no API key:
 
 ---
 
-## 5. PRECIPITATION — real, underpowered, not shipped
+## 5. PRECIPITATION — DEAD, counted properly 2026-09-26
+
+**The doc below predicted that continuous millimetres would "turn this
+from an underpowered categorical count into a real one". They turned it
+into a null, and explained the old result.**
+
+Open-Meteo archive precipitation, summed over first pitch to +3h, bins
+PRE-REGISTERED on the physics before any outcome was read
+(0 / 0.2 / 1.0 / 3.0 mm). Within venue, before HOLDOUT, era-gated —
+`scratchpad/temp_k.py`'s method, copied.
+
+```
+channel     den      dry    trace    light moderate    heavy   range    era
+k            pa   1.0015   1.0029   0.9879   1.0039   0.9791   0.025  -0.15
+bb           pa   0.9986   0.9921   1.0059   0.9973   1.0402   0.048  -0.12
+hr           pa   0.9994   1.0082   0.9970   0.9902   1.0169   0.027  -0.25
+hbp          pa   0.9939   0.9955   1.0438   1.0025   1.0604   0.066  -0.12
+h_on_bip    bip   1.0008   0.9884   0.9987   1.0173   0.9864   0.031   0.12
+games              5801      476      525      271      229
+```
+
+**1,501 wet games against 96 by statsapi's category.** Every era gate
+negative. Heavy-rain HR is +0.4 se, in a sample powered to see 8.6%.
+
+**WHY THE OLD NUMBER WAS WRONG, and it is a rule-10 definition failure:
+statsapi's "wet" label is a COLD label.** Mean temperature by subset —
+
+```
+all open-air games          72.8F
+statsapi label wet          62.1F
+labelled wet BUT dry by mm  59.6F
+open-meteo > 3mm            73.0F
+```
+
+Real rain falls at ordinary summer temperature. The label lands on raw
+drizzly days 10-13F below average, inside the cells where
+`TEMP_HR_MULT` already removes 5-20% of the home runs. Net of venue AND
+temperature bin the label's HR effect shrinks 0.749 (-3.6 se) to 0.858
+(-2.0 se) on 83 games, while millimetres stay flat at 1.026 (+0.6 se)
+on 229. The categorical count was measuring the thermometer.
+
+**The honest caveat:** Open-Meteo reanalysis is gridded at ~9-25km, so a
+localised shower can be misplaced, and that dilutes toward null. Bounded,
+though — for the >3mm cell to read +0.6 se when the truth is -19.5%, it
+would have to be ~90% contaminated, and 17% of it is label-confirmed wet.
+
+**POSITIVE CONTROL (rule 7, and section 3's own instruction).** The same
+pipeline with only the binning variable swapped back to degrees:
+
+```
+channel         <55    55-64    65-74    75-84      85+   range    era
+hr           0.7650   0.9211   0.9753   1.0601   1.1065   0.341   0.89
+k            1.0325   1.0037   1.0060   0.9933   0.9832   0.049   0.66
+bb           1.1137   1.0240   1.0036   0.9806   0.9599   0.154   0.95
+```
+
+against section 3's blind recount of 0.7651 / 0.9233 / 0.9639 / 1.0517 /
+1.1253. The harness measures air.
+
+---
+
+## 5b. WIND BEYOND HOME RUNS — DEAD, counted 2026-09-26
+
+Old item 4. Within venue AND temperature bin, cells matching the shipped
+HR table's own split, HR carried as the positive control:
+
+```
+channel         in 5+  calm/cross      out 5+   range    era
+hr             0.9535      0.9894      1.0420   0.088    0.67
+                -2.6se       -1.0se       +3.2se
+k              1.0106      0.9988      0.9960   0.015    0.29
+bb             0.9924      1.0056      0.9954   0.013   -0.02
+```
+
+HR reproduces, so the pipeline sees wind. K's best cell is +1.8 se,
+under the 2 se bar set before the run, on a weak era gate. BB is the
+`hbp` signature exactly — except `hbp` spanned 0.103 and these span a
+seventh of that. Neither ships.
+
+---
+
+## 5c. THE OLD CATEGORICAL COUNT, kept for the record
 
 Counted 2026-09-20 off statsapi's `condition` field. Four seasons of
 open-air games:
@@ -271,18 +409,20 @@ a real one**, which is the strongest argument for doing the source work.
 1b. **Not a weather item, but found by the weather rows and larger than
    any of them:** the model is ~2.5% light on strikeouts fold-wide in
    2024 and 2025, across every arm. Goes to `TODO.md` (rule 14).
-2. **The source item.** Venue coordinates → Open-Meteo archive →
-   recount `TEMP_HR`, `TEMP_K`, `TEMP_BB` on the new source → then
-   serve forecasts. Decide the wind question explicitly rather than by
-   accident. This is the highest-leverage weather work, because it is
-   what makes every table above actually reach a board.
-3. **Precip, once there is a continuous measure**, with the era gate
-   and the selection effect both named in advance. The battery rows are
-   in place (`weather/*_wet`) and read HR −12% ± 10% on 46 games; they
-   will turn into a measurement the day the source does.
-4. **Wind beyond HR.** `temp_hr.py` records wind counted but not wired
-   on other channels: in 5+ mph ×0.896, out 5+ ×1.063 on home runs. The
-   K/BB analogue has never been counted.
+2. ~~**The source item.**~~ DONE 2026-09-26. Coordinates, the derived
+   `PARK_CF` orientation table, and `fetch_live` serving forecasts for
+   games that have not started. The recount turned out to be
+   unnecessary: temperature agrees across the two sources at corr 0.942.
+3. ~~**Precip, once there is a continuous measure.**~~ DONE and DEAD,
+   2026-09-26 — section 5. The continuous measure arrived and the
+   effect did not survive it.
+4. ~~**Wind beyond HR.**~~ DONE and DEAD, 2026-09-26 — section 5b.
+
+5. **THE ONLY WEATHER ITEM LEFT: the `TEMP_BB_MULT` <55F cell reads
+   about half too big** (state block, 2026-09-20 third sitting: model
+   −5.3 off, +4.5 on, combined z −2.5 → +2.1, in sample on the spring
+   folds). It is a shipped constant, not a new mechanism, so it owes
+   the battery a diff across all eight folds and the bar set first.
 
 ## 7. FILES
 
