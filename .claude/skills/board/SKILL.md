@@ -130,6 +130,14 @@ freshness row reading `ok`.
 first instinct was a broken slate call; the schedule API had five that day
 against fifteen on either side. Check the API before debugging the code.
 
+**A `FROZEN vN, game <status>` header is a started game, not a stale
+run** (added 2026-09-26). The board never prices a live game; instead of
+declining it, it copies that game's block VERBATIM from the newest pull
+that priced it — prices, Kalshi mids, notes — and the stamp names that
+pull. Those rows are what we said before first pitch, which is what gets
+graded; they do not move again. A started game no pull ever priced still
+declines.
+
 **`DECLINED` empty is not the same as nothing filtered.** Declines are
 missing-opposing-starter only. The arm gate MARKS and does not decline, so
 a flagged arm still prints every rung with its reason attached.

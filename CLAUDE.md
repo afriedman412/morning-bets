@@ -413,7 +413,8 @@ src/context/
   rung.py          audit ONE bet against ONE price, off the board JSON.
                    Never re-simulates. Read-only
   boards.py        which board JSON is the board of record; next stem;
-                   the one American-odds -> probability conversion
+                   the one American-odds -> probability conversion; a
+                   started game's last pregame block, carried FROZEN
   removal.py       the LEARNED hook. OFF — see the entrypoint list
   form.py          PARKED — "he does not have it tonight", not there
   gamestate.py     has this game started

@@ -346,12 +346,19 @@ def build(d, nav=None, chat=False):
         n_keep = sum(1 for r in g["rows"] if keep(r))
         fl = cross([(line_of(r), r["p_over"])
                     for r in g["rows"] if r["cls"] == "total"])
+        # A started game's block is the last pregame pull's, verbatim
+        # (`boards.frozen_block`); say so where the eye lands first.
+        frozen = ("" if not g.get("frozen") else
+                  '<span class="g-frozen" title="The game has started; '
+                  'these are the last pregame prices, not re-simulated.">'
+                  + html.escape(g["lineups"].split(" · ")[0]).lower()
+                  + "</span>")
         blocks.append(f"""<section class="game" id="g-{g['away']}-{g['home']}">
   <header class="g-head">
     <h3>{g['away']} <span class="at">@</span> {g['home']}</h3>
     <p class="g-arms">{html.escape(g['ap'])} <span class="v">v</span> \
 {html.escape(g['hp'])}</p>
-    <p class="g-meta"><span class="g-line" title="Where our over/under \
+    <p class="g-meta">{frozen}<span class="g-line" title="Where our over/under \
 crosses even money — the number comparable to a posted total.">fair total \
 {fmt_cross(fl)}</span><span class="g-mean" title="The simulated average. Right \
 skew puts it about half a run above the line; the league's own gap is \
@@ -425,7 +432,7 @@ lineups</span><span class="g-count"><b class="n-keep">{n_keep}</b>\
   P(over) minus the mid&rsquo;s</b>, so a positive number means we price the over
   higher than Kalshi and a negative one means we price it lower.</p>
   <p class="filterline">gap of at least
-    <input type="number" id="gap-min" value="10" min="0" max="40"
+    <input type="number" id="gap-min" value="7" min="0" max="40"
       step="0.5" aria-label="minimum gap in points"> points, both prices
     inside &plusmn;<input type="number" id="odds-max" value="200"
       min="100" max="2000" step="10" aria-label="odds band, both sides">
@@ -722,6 +729,7 @@ td{padding:7px 10px 7px 0;vertical-align:middle;}
 .g-line{color:var(--accent);font-weight:600;cursor:help;}
 .g-mean{color:var(--ink3);cursor:help;}
 .g-proj{color:var(--warn);}
+.g-frozen{color:var(--warn);font-weight:600;}
 .g-count b{font-weight:600;color:var(--ink2);}
 
 /* ── declined + rules ─────────────────────────────────────── */

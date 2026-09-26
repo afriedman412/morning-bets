@@ -60,6 +60,65 @@ def board_of_record(date: str, bets_dir: str | None = None) -> str | None:
     return paths[-1] if paths else None
 
 
+#: The header stamp on a carried-forward block, and how to find it again.
+#: "(FROZEN v5, game In Progress · lineups posted, mean 9.1)". `·` ends
+#: the stamp because a status never contains one and `board_json.HEAD`
+#: reads everything before ", mean" as the lineups field.
+FROZEN = re.compile(r"FROZEN (v\d+), game [^·]* · ")
+
+
+def version_of(path: str) -> str:
+    """'..._board.json' -> 'v1', '..._board_v5.json' -> 'v5'."""
+    m = _VERSIONED.search(os.path.basename(path))
+    return f"v{m.group(1)}" if m else "v1"
+
+
+def frozen_block(date: str, head: str, status: str,
+                 bets_dir: str | None = None) -> list[str] | None:
+    """A started game's block, copied from the newest pull that priced it.
+
+    Operator decision 2026-09-26: once a game starts the board never
+    prices it again (`gamestate`, never price a live one), and it used to
+    drop into DECLINED — so every hourly pull after first pitch lost the
+    number we had said about it. The last pregame block is the one worth
+    keeping, and it is kept VERBATIM: its prices, its Kalshi mids and its
+    notes are what the board said, not a re-derivation.
+
+    `head` is "AWY @ HOM   Away SP v Home SP". Matching the starters as
+    well as the clubs means a doubleheader cannot borrow the other game's
+    block and a scratched starter's block is not passed off as the real
+    game's. Newest pull first, reading the .txt of every pull whose JSON
+    exists — a JSON is only written when the pull finished, so a crashed
+    pull's half-written text is never the source. None when no pull ever
+    priced it, and the caller declines as before.
+
+    The stamp keeps the version the block was FIRST frozen from, so a
+    game carried through six hourly pulls still says which pull priced
+    it, while its status is refreshed ("In Progress" -> "Final").
+    """
+    for path in reversed(board_files(bets_dir).get(date, [])):
+        txt = path[: -len(".json")] + ".txt"
+        if not os.path.exists(txt):
+            continue
+        with open(txt) as f:
+            lines = f.read().splitlines()
+        for i, ln in enumerate(lines):
+            if not ln.startswith(head + "   ("):
+                continue
+            block = [ln]
+            for nxt in lines[i + 1:]:
+                if not nxt.strip():
+                    break
+                block.append(nxt)
+            m = FROZEN.search(ln)
+            ver = m.group(1) if m else version_of(path)
+            bare = FROZEN.sub("", ln, count=1)
+            block[0] = bare.replace(
+                "   (", f"   (FROZEN {ver}, game {status} · ", 1)
+            return block
+    return None
+
+
 #: `_board`, then `_board_v2`, `_board_v3`, ... A pull never overwrites the
 #: one before it: the morning number IS the comparison, and on 2026-09-10
 #: it was the whole answer — our F5 moved 0.4 points on the real nines

@@ -66,6 +66,118 @@ def check_board_of_record_is_newest_by_mtime_not_by_name():
         assert boards.board_of_record("2026-09-01", td) is None
 
 
+def _pull(td, stem, when, text, with_json=True):
+    """One board pull on disk: its .txt, and its .json unless it crashed."""
+    for ext in (".txt", ".json") if with_json else (".txt",):
+        p = os.path.join(td, stem + ext)
+        with open(p, "w") as f:
+            f.write(text if ext == ".txt" else "{}")
+        os.utime(p, (when, when))
+
+
+_HEAD = "PIT @ DET   Kirby Yates v Justin Verlander"
+
+
+def _game_text(total_over, stamp=""):
+    return (f"BOARD — 2026-09-26 · 1 games\n\n"
+            f"{_HEAD}   ({stamp}lineups posted, mean 9.1)\n"
+            f"  bet                          over / under  kalshi\n"
+            f"  total 8.5                    {total_over} /  +108    -115"
+            f"   vol $53k  clv +3.5c\n"
+            f"  Justin Verlander k 3.5       -100 /  +100    -251   THIN\n"
+            f"\nDECLINED — never filled with a league-average arm:\n")
+
+
+def check_a_started_game_keeps_its_newest_pregame_block():
+    """The block comes from the NEWEST pull that priced the game, verbatim,
+    stamped with that pull's version and the live status.
+
+    Operator decision 2026-09-26: a started game used to drop into
+    DECLINED on every hourly pull after first pitch, losing what the board
+    had said. A crashed pull (text, no JSON) is never the source, and the
+    starters must match too — a doubleheader or a scratched arm must not
+    borrow another game's prices.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        _pull(td, "2026_09_26_board", 100, _game_text("-120"))
+        _pull(td, "2026_09_26_board_v2", 200, _game_text("-108"))
+        _pull(td, "2026_09_26_board_v3", 300, _game_text("+999"),
+              with_json=False)                         # crashed pull
+        b = boards.frozen_block("2026-09-26", _HEAD, "In Progress", td)
+        assert b is not None
+        assert b[0] == (f"{_HEAD}   (FROZEN v2, game In Progress · "
+                        "lineups posted, mean 9.1)"), b[0]
+        assert "-108 /  +108" in b[2] and len(b) == 4, b
+        assert boards.frozen_block(
+            "2026-09-26", "PIT @ DET   Someone Else v Justin Verlander",
+            "In Progress", td) is None
+        assert boards.frozen_block("2026-09-27", _HEAD, "Final", td) is None
+
+
+def check_a_refrozen_block_keeps_its_first_version_and_new_status():
+    """Carried through several hourly pulls, the stamp still names the
+    pull that PRICED it, never the pull that last copied it, and the
+    status moves on. One stamp, never two."""
+    with tempfile.TemporaryDirectory() as td:
+        _pull(td, "2026_09_26_board_v7", 100, _game_text(
+            "-108", stamp="FROZEN v5, game In Progress · "))
+        b = boards.frozen_block("2026-09-26", _HEAD, "Final", td)
+        assert b[0].count("FROZEN") == 1, b[0]
+        assert "(FROZEN v5, game Final · lineups posted" in b[0], b[0]
+
+
+def check_a_frozen_block_parses_and_prints_verbatim():
+    """board prints the block untouched, and board_json reads it back as
+    the same game with its rows, marked frozen and still counted as
+    posted — the page, `rung` and the grader all read that JSON."""
+    import contextlib
+    import io
+    from scratchpad import board, board_json
+    with tempfile.TemporaryDirectory() as td:
+        _pull(td, "2026_09_26_board", 100, _game_text("-108"))
+        blk = boards.frozen_block("2026-09-26", _HEAD, "In Progress", td)
+    payload = {"date": "2026-09-26", "n": 20000, "band": 170.0,
+               "blocks": [{"tag": "PIT @ DET", "frozen": blk, "rows": []}],
+               "declined": []}
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        board.print_board(payload)
+    assert "\n".join(blk) in out.getvalue()
+    with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as f:
+        f.write(out.getvalue())
+    d = board_json.parse(f.name, "2026-09-26")
+    os.unlink(f.name)
+    (g,) = d["games"]
+    assert g["frozen"] == "v1" and len(g["rows"]) == 2, g
+    assert g["ap"] == "Kirby Yates" and d["lineups_posted"] == 1, g
+    assert g["rows"][0]["p_kalshi"] is not None
+
+
+def check_board_carries_a_started_game_instead_of_declining_it():
+    """A game past pregame is carried; a PREGAME refusal (no starter, no
+    lineup) still declines even when an earlier pull priced the game —
+    carrying it would hide a scratch behind a stale block. And the decline
+    branch of `build` routes through `_carried`."""
+    import inspect
+    from scratchpad import board
+    game = {"away": {"abbr": "PIT", "starter": "Kirby Yates"},
+            "home": {"abbr": "DET", "starter": "Justin Verlander"}}
+    old = boards.BETS_DIR
+    with tempfile.TemporaryDirectory() as td:
+        _pull(td, "2026_09_26_board", 100, _game_text("-108"))
+        boards.BETS_DIR = td
+        try:
+            live = board._carried("2026-09-26",
+                                  {**game, "status": "In Progress"})
+            pre = board._carried("2026-09-26", {**game, "status": "Pre-Game"})
+        finally:
+            boards.BETS_DIR = old
+    assert live and live["tag"] == "PIT @ DET" and live["rows"] == []
+    assert "FROZEN v1, game In Progress" in live["frozen"][0], live
+    assert pre is None
+    assert "_carried(d, g)" in inspect.getsource(board.build)
+
+
 # ── gen_board_html — every disagreement, filtered client-side ──────────
 
 

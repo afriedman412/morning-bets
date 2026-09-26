@@ -50,7 +50,11 @@ def parse(path: str, date: str) -> dict:
             in_declines = False
             g = {"away": m.group(1), "home": m.group(2), "ap": m.group(3),
                  "hp": m.group(4), "lineups": m.group(5),
-                 "mean": float(m.group(6)), "rows": []}
+                 "mean": float(m.group(6)), "rows": [],
+                 # "v5" when the block was carried from an earlier pull
+                 # because the game had started (`boards.frozen_block`).
+                 "frozen": (fz.group(1) if (fz := re.search(
+                     r"FROZEN (v\d+)", m.group(5))) else None)}
             games.append(g)
             continue
         if in_declines:

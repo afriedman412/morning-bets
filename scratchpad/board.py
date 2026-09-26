@@ -29,7 +29,7 @@ import time
 from datetime import date as _date
 
 from src import roster
-from src.context import plans, sim, slate
+from src.context import boards, gamestate, plans, sim, slate
 from src.context.sources import rates as rate_src
 from scratchpad import kalshi
 from scratchpad.outs_adjust import MEASURED_ON, correction
@@ -483,6 +483,10 @@ def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
         tag = f"{a['abbr']} @ {h['abbr']}"
         code = f"{a['abbr']}{h['abbr']}"
         if r["why"]:
+            carried = _carried(d, g)
+            if carried:
+                blocks.append(carried)
+                continue
             declined.append((tag, f"{a['starter']} / {h['starter']}",
                              r["why"]))
             continue
@@ -627,6 +631,25 @@ def build(d: str, n: int = 20000, band: float | None = BAND) -> dict:
             "t_sim": t_sim, "t_mkt": t_mkt}
 
 
+def _carried(d: str, g: dict) -> dict | None:
+    """A STARTED GAME KEEPS ITS LAST PREGAME BLOCK rather than dropping
+    into DECLINED (`boards.frozen_block`, operator decision 2026-09-26).
+
+    It is never re-simulated — the worker already refused it — and None
+    means decline as before: the game is still pregame (so its refusal
+    was something else, a missing starter or lineup), or no pull ever
+    priced it.
+    """
+    if g.get("status") in gamestate.PREGAME_STATES:
+        return None
+    a, h = g["away"], g["home"]
+    tag = f"{a['abbr']} @ {h['abbr']}"
+    frozen = boards.frozen_block(
+        d, f"{tag}   {a['starter']} v {h['starter']}",
+        g.get("status") or "started")
+    return {"tag": tag, "frozen": frozen, "rows": []} if frozen else None
+
+
 def print_board(payload):
     d, n, band = payload["date"], payload["n"], payload["band"]
     bs = f"±{band:.0f}" if band is not None else "all lines"
@@ -634,6 +657,10 @@ def print_board(payload):
           f" · fair inside {bs} · odds are FAIR (no vig)\n")
     stat_label = {"tot": "", "k": "k", "outs": "outs"}
     for b in payload["blocks"]:
+        if b.get("frozen"):
+            print("\n".join(b["frozen"]))
+            print()
+            continue
         g, r = b["g"], b["r"]
         lu = ("lineups posted" if g["away"].get("lineup")
               and g["home"].get("lineup") else "PROJECTED lineups")
