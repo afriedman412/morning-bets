@@ -6,15 +6,15 @@ description: Audit ONE bet against ONE price — breakeven, the board's number, 
 # Auditing one rung
 
 `BETTING.md` is the authority on what each market is worth. This is the
-procedure for a single bet, and `scratchpad/rung.py` is the procedure in
+procedure for a single bet, and `src/context/rung.py` is the procedure in
 code — run it FIRST, then read around it.
 
 ```
-venv/bin/python -m scratchpad.rung <DATE> "<selector>" <over|under> <price>
+venv/bin/python -m src.context.rung <DATE> "<selector>" <over|under> <price>
 
-venv/bin/python -m scratchpad.rung 2026-09-24 "Singer k 3.5"     under +106
-venv/bin/python -m scratchpad.rung 2026-09-24 "KC total 3.5"     over  -136
-venv/bin/python -m scratchpad.rung 2026-09-24 "CWS@KC total 8.5" over  -120
+venv/bin/python -m src.context.rung 2026-09-24 "Singer k 3.5"     under +106
+venv/bin/python -m src.context.rung 2026-09-24 "KC total 3.5"     over  -136
+venv/bin/python -m src.context.rung 2026-09-24 "CWS@KC total 8.5" over  -120
 ```
 
 The selector is a substring of `AWY@HOM <bet>` as the board prints it.

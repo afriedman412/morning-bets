@@ -23,15 +23,14 @@ import json
 import re
 import sys
 
+from src.context.boards import prob
+
 ROW = re.compile(r"^  (.+?)\s+([+-]\d+)\s*/\s*([+-]\d+)\s+(\S+)\s{0,3}(.*)$")
 HEAD = re.compile(
     r"^(\w{2,3}) @ (\w{2,3})\s+(.+?) v (.+?)\s+\((.+?), mean ([\d.]+)\)")
 DECLINE = re.compile(r"^  (\w{2,3} @ \w{2,3})\s+(.+?)\s{2,}(.+)$")
 
 
-def prob(odds: str) -> float:
-    o = float(odds)
-    return -o / (-o + 100) if o < 0 else 100 / (o + 100)
 
 
 def parse(path: str, date: str) -> dict:

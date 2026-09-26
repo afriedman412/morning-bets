@@ -34,7 +34,8 @@ import sys
 
 from flask import Flask, abort, jsonify, redirect, request
 
-from scratchpad import ask, boards
+from scratchpad import ask
+from src.context import boards
 from scratchpad.gen_board_html import build
 
 app = Flask(__name__)

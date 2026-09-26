@@ -47,7 +47,8 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from scratchpad import boards, grade_boards as gb
+from src.context import boards
+from scratchpad import grade_boards as gb
 
 ROOT = Path(__file__).resolve().parent.parent
 

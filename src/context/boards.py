@@ -18,9 +18,21 @@ import json
 import os
 import re
 
-BETS_DIR = os.path.join(os.path.dirname(__file__), "..", "bets")
+BETS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "bets")
 
 BOARD_FILE = re.compile(r"^(\d{4})_(\d{2})_(\d{2})_board.*\.json$")
+
+
+
+def prob(odds: str) -> float:
+    """American odds -> implied probability, no vig removed.
+
+    The board's one conversion. `board_json` parses every printed price
+    through it and `rung` turns an operator's price into a breakeven with
+    it, so the two can never disagree at even money.
+    """
+    o = float(odds)
+    return -o / (-o + 100) if o < 0 else 100 / (o + 100)
 
 
 def board_files(bets_dir: str | None = None) -> dict[str, list[str]]:

@@ -17,7 +17,8 @@ import os
 import sqlite3
 import tempfile
 
-from scratchpad import ask, boards, grade_boards as gb
+from src.context import boards
+from scratchpad import ask, grade_boards as gb
 from scratchpad.gen_board_html import build
 
 

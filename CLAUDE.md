@@ -410,6 +410,10 @@ src/context/
   velo.py          recent fastball velocity -> tonight's K rate
   arm.py           one arm's board inputs explained: starts, log, splits,
                    neutralised rates, the per-PA chain. Read-only
+  rung.py          audit ONE bet against ONE price, off the board JSON.
+                   Never re-simulates. Read-only
+  boards.py        which board JSON is the board of record; next stem;
+                   the one American-odds -> probability conversion
   removal.py       the LEARNED hook. OFF — see the entrypoint list
   form.py          PARKED — "he does not have it tonight", not there
   gamestate.py     has this game started
@@ -528,6 +532,15 @@ fails. (`make lint` likewise references tooling that is not installed.)
   rates and velo kick as the sim gets them, and the per-PA chain vs that
   date's slate. `--parks DATE` prints the slate's venue factors. Built
   2026-09-13 after the Gasser o5.5 investigation retyped all of it by hand.
+- `... -m src.context.rung DATE "<sel>" over|under PRICE` — AUDIT ONE
+  BET against one price. Breakeven, the slate tilt and what the edge is
+  without it, the arm's role and rate DRIFT (with a layoff split),
+  counted batters faced, and a scenario grid. Reads the board JSON and
+  never re-simulates. Built 2026-09-24 after five rungs were audited by
+  hand in one session with five slightly different ad-hoc queries;
+  moved out of `scratchpad/` 2026-09-26. The TILT block is per UNIT
+  (pitcher / team side / game) and prints a de-tilted edge only when the
+  gap is broad — BETTING.md rule 4.
 - `... -m src.context.tto` — times through the order. K% falls 19% from the
   first pass to the third.
 - `... -m src.context.stabilise` — the four shrinkage constants. Batter rates
@@ -548,12 +561,6 @@ fails. (`make lint` likewise references tooling that is not installed.)
 ### Screens and harnesses
 
 - `... -m scratchpad.battery` — THE BATTERY, rule 15.
-- `... -m scratchpad.rung DATE "<sel>" over|under PRICE` — AUDIT ONE
-  BET against one price. Breakeven, the slate tilt and what the edge is
-  without it, the arm's role and rate DRIFT (with a layoff split),
-  counted batters faced, and a scenario grid. Reads the board JSON and
-  never re-simulates. Built 2026-09-24 after five rungs were audited by
-  hand in one session with five slightly different ad-hoc queries.
 - `... -m scratchpad.data_status` — RUN THIS BEFORE ANY MEASUREMENT. See
   below.
 - `... -m scratchpad.leverage` — SCREEN A MECHANISM BEFORE BUILDING IT.

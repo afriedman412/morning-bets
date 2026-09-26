@@ -1,8 +1,8 @@
 """Audit ONE rung of the board against ONE price you can actually get.
 
-    venv/bin/python -m scratchpad.rung 2026-09-24 "Singer k 3.5" under +106
-    venv/bin/python -m scratchpad.rung 2026-09-24 "KC total 3.5"  over -136
-    venv/bin/python -m scratchpad.rung 2026-09-24 "CWS@KC total 8.5" over -120
+    venv/bin/python -m src.context.rung 2026-09-24 "Singer k 3.5" under +106
+    venv/bin/python -m src.context.rung 2026-09-24 "KC total 3.5"  over -136
+    venv/bin/python -m src.context.rung 2026-09-24 "CWS@KC total 8.5" over -120
 
 Read-only, and it NEVER re-simulates. The board .txt is the artefact of
 record and its 20,000 draws cost real time, so this reads the JSON that
@@ -66,8 +66,7 @@ import re
 import statistics
 import sys
 
-from scratchpad import board_json, boards
-from src.context import arm, store
+from src.context import arm, boards, store
 
 #: A gap this long between starts is a layoff, and the rate on the far
 #: side of it gets its own DRIFT row. Pivetta's was 148 days and his
@@ -143,11 +142,11 @@ def resolve(board: dict, selector: str):
 def breakeven(price: str) -> float:
     """American odds -> the win rate that makes the bet break even.
 
-    Deliberately `board_json.prob`, not a second copy: the board's own
+    Deliberately `boards.prob`, not a second copy: the board's own
     parser turns a price into a probability and two implementations of
     one formula is how they come to disagree about -100.
     """
-    return board_json.prob(price)
+    return boards.prob(price)
 
 
 def side_prob(row: dict, side: str) -> float:

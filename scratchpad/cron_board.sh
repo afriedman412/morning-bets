@@ -39,7 +39,7 @@ die() { say "FAILED at $1"; exit 1; }
 . "$ROOT/scratchpad/cron_lib.sh"
 require_dns statsapi.mlb.com || exit 1
 
-STEM="$("$PY" -m scratchpad.boards --next "$DATE")" || die "next_stem"
+STEM="$("$PY" -m src.context.boards --next "$DATE")" || die "next_stem"
 say "pull $DATE -> $(basename "$STEM")"
 
 "$PY" -m scratchpad.board "$DATE" > "$STEM.txt" 2>>"$LOG" || die "board"

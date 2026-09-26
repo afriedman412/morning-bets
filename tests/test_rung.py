@@ -1,4 +1,4 @@
-"""Checks for the rung auditor, `scratchpad.rung`.
+"""Checks for the rung auditor, `src.context.rung`.
 
 The SQL runs against a REAL in-memory sqlite with a real ATTACHed `bets`
 schema, not a stub that returns canned rows whatever the query says —
@@ -11,7 +11,7 @@ wrong cell is not.
 """
 import sqlite3
 
-from scratchpad import rung
+from src.context import rung
 
 
 # ------------------------------------------------------------- fixtures

@@ -28,7 +28,7 @@ DATE=2026-09-20      # YYYY-MM-DD; filenames use underscores
 venv/bin/python -m scratchpad.data_status
 
 # 1. The stem for THIS pull. One answer, used by all three steps.
-STEM=$(venv/bin/python -m scratchpad.boards --next $DATE)
+STEM=$(venv/bin/python -m src.context.boards --next $DATE)
 
 # 2. The board. 20,000 sims. REDIRECT, do not pipe.
 venv/bin/python -m scratchpad.board $DATE > $STEM.txt
@@ -191,7 +191,7 @@ bet. When the operator names a line AND a price — "singer u3.5k at +106"
 — that is the `rung` skill, not another read of this page:
 
 ```
-venv/bin/python -m scratchpad.rung <DATE> "Singer k 3.5" under +106
+venv/bin/python -m src.context.rung <DATE> "Singer k 3.5" under +106
 ```
 
 It reads the board JSON (never re-simulates), converts the price to a

@@ -12,7 +12,8 @@ import json
 import os
 import tempfile
 
-from scratchpad import boards, check_updates
+from src.context import boards
+from scratchpad import check_updates
 from scratchpad.gen_board_html import build
 
 
