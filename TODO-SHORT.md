@@ -43,8 +43,10 @@ Refreshed 2026-09-21.
         row moved. First reading is the finding: K sits ~0.024 off its
         ceiling (combined z -2.05) where OUTS is -7.20. The per-start
         discrimination defect is in outs, not strikeouts.
-    45  OPEN 2026-09-26, gate 1 PASSED but HEADROOM IS SMALL (item 46:
-        ~0.024 of correlation, combined z -2.05) — whiff/swing is a 2nd K
+    45  PARKED 2026-09-26, NOT WIRED by operator decision — gate 1
+        passed but item 46 puts the headroom at ~0.024 of correlation
+        (combined z -2.05) against an OUTS gap of -7.20. Priority call,
+        not a refutation; gate 2 was never run. whiff/swing is a 2nd K
         channel the engine lacks: +5.95 t beside the SHRUNK rate (363
         pitcher-seasons, train-only, controls pass), alive at
         N=5/10/15/20 starts. One sd = 0.37 K per start. Split-half 0.568

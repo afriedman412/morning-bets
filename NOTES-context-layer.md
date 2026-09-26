@@ -14658,3 +14658,102 @@ corroboration IS that start, not independent evidence of it.
 
 Full item, pre-registered gates and the scoreability problem: TODO 45.
 Instruments: `scratchpad/whiff_build.py`, `whiff_test.py`, `whiff_size.py`.
+
+---
+
+## 2026-09-26 — the row that scores a per-arm K term, and what it said
+
+Built TODO 46, the scoreability row item 45 was blocked behind, and it
+came back with the opposite of what item 45 expected.
+
+**Why the row had to exist.** A whiff term buys DISCRIMINATION between
+starts, not a better-shaped average start — the `leash.py` pattern,
+flat on outs CRPS and the run ladder BY DESIGN while taking the outs
+correlation +0.105 -> +0.226. Every K row in the battery is pooled over
+draws, so a term that lifts one arm and drops another leaves all of them
+unmoved. Both outcomes would have been unreadable: a flat scorecard
+would not have been a null, a moved one would not have been evidence.
+
+**`shape/k_corr`** is `outs_corr` on the other channel — actual against
+model mean K per start, `_corr_ceiling` as the model-free per-arm
+target, read off the draws already taken. Rule 15 diff against
+`battery_f8aeaf4f7a95`: NO ROW MOVED BY MORE THAN ONE SE.
+
+```
+fold   k_corr  ceiling     gap      z      outs gap      z
+2023   0.4373   0.4542  -0.0169   -0.7      -0.0933   -4.1
+2024   0.4263   0.4239  +0.0023   +0.1      -0.0862   -3.7
+2025   0.3831   0.4420  -0.0589   -2.5      -0.0675   -2.8
+2026   0.4638   0.4880  -0.0242   -1.0      -0.0932   -3.8
+       mean -0.0244, combined z -2.05       mean -0.0851, z -7.20
+```
+
+**THE MODEL ALREADY TELLS STARTS APART ON STRIKEOUTS.** One fold of four
+past 2 se, and 2024 has the model ABOVE its ceiling. The per-start
+discrimination defect is in OUTS, 2.8 se or worse in every fold and
+3.5x the size.
+
+**Operator decision 2026-09-26: do not wire the whiff term.** Not a
+refutation — gate 2 (the term through four folds, bar set first) was
+never run, so what is measured here is the HEADROOM and not whiff's
+capture of it. It is a priority call, on three grounds: the 0.024 is a
+ceiling on a ceiling (within-fold, and for outs only about a sixth of
+the printed gap proved reachable, which would put whiff near 0.004); it
+does not hold across folds; and the same row named a target 3.5x larger
+on the other channel, which is rule 14.
+
+Gate 1 did pass cleanly and is worth keeping on the record —
+`scratchpad/whiff_stable.py`, 1,369 pitcher-seasons, train rows only:
+pooled split-half 0.568 and full-season 0.725 against K/BF's 0.516 and
+0.681, so whiff REPEATS BETTER THAN THE RATE IT WOULD CORRECT, and the
+counted constant is that it crosses 0.5 at about 400 SWINGS (ten to
+twelve starts) and sits under 0.40 below 250. That last number also
+settles the five-start rookie the item opened on: at his swing count
+reliability is 0.40, not 0.77, so replacing his observed rate with a
+whiff-implied one was never supportable however real the mechanism.
+
+**Two process notes, both of which cost a cycle.** The first version of
+the row's test grepped `_score_fold` for `fold.add("shape", "k_corr"`
+and stayed green when a mutation disabled the row with `if False:` —
+the same weak-test shape as the weather cache regression the same week.
+`start_pairs()` is extracted so the row is exercised, and four mutations
+now die on it. And the saved battery JSON is named by the ENGINE
+fingerprint, so a purely additive SCORECARD row collides the before and
+after runs onto one filename and the second arrives as `_dup.json`,
+which reads like something to delete and is not.
+
+Instruments: `scratchpad/whiff_stable.py`, `scratchpad/battery.py`
+(`start_pairs`, `shape/k_corr`). Items 45, 46.
+
+## 2026-09-26 — out-of-race clubs and the leash: real, backwards, dead
+
+Opened from a live board question ("the Sox have nothing to play for")
+on the hypothesis that a buried club lets its starter go longer.
+
+The sign is the finding: they pull him EARLIER. Stage 1
+(`standings_outs.py`, mean starter outs) is a pooled read with no power,
+-0.030 +/- 0.375. Stage 2 (`standings_leash.py`, the boundary hazard
+conditioned on pitch count, which is the manager's actual question)
+finds out-of-race clubs ~10 points less likely to send a starter back
+out at 75-95 pitches, -3.2 and -2.6 se.
+
+**But stage 2 names its own confound and does not control it.** A buried
+club promotes arms on innings limits in September; that is roster
+composition, not a leash, and it produces this exact signature. Stage 3
+(`standings_same_arm.py`) restricts to pitchers the club used in BOTH
+windows, dropping 23% of rows:
+
+```
+ pitches     stage 2 DiD      same-arm DiD
+  75-85   -0.090 (-2.55)   -0.044 (-1.11)
+  85-95   -0.091 (-2.04)   -0.088 (-1.71)
+  95+     -0.049 (-1.91)   -0.050 (-1.62)
+```
+
+The 75-85 bin halves — a partial confound — and nothing clears 2 se.
+Positive control passes (injecting 12% of OUT-late removals moves 85-95
+from -0.113 to -0.018), so this is a real null and not a blind one. The
+effect only exists from mid-August, so the sample gains six weeks a year
+against a population where every arm has its own innings-limit story.
+DEAD by operator decision; TODO 47. Re-open only on a different
+measurement — a per-pitcher innings-limit control, not a club split.

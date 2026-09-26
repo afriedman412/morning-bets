@@ -2132,6 +2132,15 @@ is not the same as zero, and rule 3 says small-and-measured still ships
 — but it should be sized against 0.024 of correlation, not against the
 6-sigma in-sample t.
 
+**OPERATOR DECISION 2026-09-26: DO NOT WIRE IT.** A priority call, not a
+refutation — gate 2 was never run, so the HEADROOM is what is measured
+and not whiff's capture of it. Three grounds: the 0.024 is a ceiling on
+a ceiling (the outs analogue proved only ~1/6 reachable, which would put
+whiff near 0.004); it does not hold across folds, with 2024 ABOVE its
+ceiling and 2025 at -2.5; and this row named a target 3.5x larger on the
+other channel, which is rule 14. Re-open if the outs gap is closed and
+0.024 is still the best thing left.
+
 WHY THE ROW HAD TO COME FIRST, kept because it is the general lesson: a
 whiff term buys DISCRIMINATION between starts, not a better-shaped
 average start — the `leash.py` pattern, which was flat on outs CRPS and
