@@ -889,6 +889,34 @@ def _corr(pairs_):
     return num / (dx * dy) if dx and dy else 0.0
 
 
+def start_pairs(got, cases, gids, channel):
+    """(model mean, actual) per start, and the actuals grouped by arm.
+
+    EXTRACTED SO THE ROW CAN BE TESTED, which is why `temp_cells` exists
+    too. `outs_corr` and `k_corr` are the same arithmetic on two channels
+    and a copy of it in the scoring loop would silently drift.
+
+    Reads the draws already taken — `got[gid][0]["sp"][side][channel]` is
+    the counter every pooled row on that channel is tallied from, so this
+    cannot disagree with them about the same games and costs no extra
+    simulation.
+    """
+    key = {"outs": "o", "k": "k"}[channel]
+    pairs, by_arm = [], defaultdict(list)
+    for g in gids:
+        for side, case in (("away", 0), ("home", 1)):
+            act = cases[g][case][0]
+            if act.get(key) is None:
+                continue
+            d = got[g][0]["sp"][side][channel]
+            n = sum(d.values())
+            if not n:
+                continue
+            pairs.append((sum(v * c for v, c in d.items()) / n, act[key]))
+            by_arm[act.get("player_name") or ""].append(act[key])
+    return pairs, by_arm
+
+
 def _corr_ceiling(by_unit):
     """The highest correlation ANY per-pitcher predictor could reach here.
 
@@ -1610,6 +1638,12 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
     # extra simulation, which is the whole point of one pass per fold.
     o_pairs, o_by_arm = [], defaultdict(list)
     o_named = []
+    # THE SAME PAIR, ON STRIKEOUTS — TODO 46. Built for the whiff term
+    # (TODO 45), which like the leash buys DISCRIMINATION between starts
+    # rather than a better-shaped average one, so every pooled K row here
+    # is flat against it BY CONSTRUCTION and reading one as a null would
+    # be unfalsifiable. Same draws, no extra simulation.
+    k_pairs, k_by_arm = start_pairs(got, _CASES, gids, "k")
     for g in gids:
         for side, case in (("away", 0), ("home", 1)):
             act = _CASES[g][case][0]
@@ -1634,6 +1668,7 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
                 o_named.append((mmean, act["o"],
                                 act.get("player_name") or "",
                                 act.get("date") or ""))
+
     mo_n, mk_n = sum(mo.values()), sum(mk.values())
     mo_mean = sum(v * c for v, c in mo.items()) / mo_n
     mk_mean = sum(v * c for v, c in mk.items()) / mk_n
@@ -1672,6 +1707,26 @@ def _score_fold(fold: Fold, got: dict, act_db: dict, real_hook: dict):
                  len(o_pairs),
                  "actual vs model mean outs per start; real = the "
                  "model-free per-arm ceiling (LOOSE — see the comment)")
+    # TODO 46 — THE ROW THAT CAN SEE A WHIFF TERM, and the reason it had
+    # to exist before one was wired. `k_pa_all` and the per-bin weather K
+    # rows are POOLED over draws: a term that moves one arm's strikeouts
+    # up and another's down leaves every one of them unmoved. This scores
+    # whether the model tells STARTS APART on strikeouts, exactly as
+    # `outs_corr` does for outs.
+    #
+    # THE CEILING IS LOOSE HERE FOR THE SAME REASON IT IS THERE — it is
+    # computed WITHIN the fold, so in-season between-arm variation that no
+    # prior-season evidence could know still counts as reachable signal.
+    # Read the GAP as an upper bound on what a per-arm K term can buy, not
+    # as a target. What bounds it properly is whiff's own carry: split-half
+    # 0.568 within a season (`scratchpad/whiff_stable.py`), which is the
+    # number to price the gap against when TODO 45 is scored.
+    if len(k_pairs) > 10:
+        fold.add("shape", "k_corr", _corr(k_pairs),
+                 _corr_ceiling(k_by_arm), 1 / (len(k_pairs) - 3) ** 0.5,
+                 len(k_pairs),
+                 "actual vs model mean K per start; real = the model-free "
+                 "per-arm ceiling (LOOSE — see the comment)")
     # ITEM 35's SEEING ROWS (added 2026-09-17, the same "build the row"
     # obligation that produced the save rows and `outs_corr` itself). Both
     # of item 35's positive controls — recent walks x1.6 in the model's

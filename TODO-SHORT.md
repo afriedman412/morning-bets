@@ -39,10 +39,12 @@ Refreshed 2026-09-21.
     44  OPEN — `hook_penstate.json` stale since 2026-08-29; the export
         was never in the repo. Was MISSING from this index until
         2026-09-26, which is how a later item nearly reused its number.
-    46  OPEN 2026-09-26 — BUILD THE SCOREABILITY ROW for item 45: an
-        out-of-sample per-start K correlation, scored the way the leash
-        was. Until it exists the whiff term cannot be scored either way.
-    45  OPEN 2026-09-26, gate 1 PASSED — whiff/swing is a SECOND K
+    46  DONE 2026-09-26 — `shape/k_corr` built; battery diff shows no
+        row moved. First reading is the finding: K sits ~0.024 off its
+        ceiling (combined z -2.05) where OUTS is -7.20. The per-start
+        discrimination defect is in outs, not strikeouts.
+    45  OPEN 2026-09-26, gate 1 PASSED but HEADROOM IS SMALL (item 46:
+        ~0.024 of correlation, combined z -2.05) — whiff/swing is a 2nd K
         channel the engine lacks: +5.95 t beside the SHRUNK rate (363
         pitcher-seasons, train-only, controls pass), alive at
         N=5/10/15/20 starts. One sd = 0.37 K per start. Split-half 0.568

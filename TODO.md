@@ -2078,26 +2078,75 @@ has its own innings-limit and service-time story. Operator decision
 if the approach changes — a per-pitcher innings-limit control rather than
 a club-level split would be a different measurement, not this one.
 
-**46. BUILD THE SCOREABILITY ROW FOR ITEM 45 — an out-of-sample
-per-start K correlation, before any whiff term is wired.** OPEN
-2026-09-26. Item 45 records the problem and this is it pulled out as its
-own item, because it is a prerequisite and kept reading as a footnote.
+**46. THE SCOREABILITY ROW FOR ITEM 45 — BUILT 2026-09-26, and it says
+item 45 has much less headroom than item 45 thinks.** DONE.
 
-A whiff term buys DISCRIMINATION between starts, not a better-shaped
+`shape/k_corr` in `scratchpad/battery.py`: actual against model mean K
+per start, with `_corr_ceiling` as the model-free per-arm target — the
+`outs_corr` construction on the other channel, read off the same draws,
+no extra simulation. Pairs come from `start_pairs()`, extracted so the
+row is testable rather than grepped for; `outs_corr` still has its own
+inline copy and should be switched over separately.
+
+RULE 15 DIFF against `battery_f8aeaf4f7a95.json`: **no row moved by more
+than one se.** Purely additive, which is the claim a row reading existing
+draws has to prove.
+
+AND THE FIRST READING IS THE FINDING:
+
+```
+fold   k_corr  ceiling     gap      z      outs_corr   gap      z
+2023   0.4373   0.4542  -0.0169   -0.7       0.4459 -0.0933   -4.1
+2024   0.4263   0.4239  +0.0023   +0.1       0.4045 -0.0862   -3.7
+2025   0.3831   0.4420  -0.0589   -2.5       0.2657 -0.0675   -2.8
+2026   0.4638   0.4880  -0.0242   -1.0       0.4327 -0.0932   -3.8
+       mean gap -0.0244, combined z -2.05    mean -0.0851, z -7.20
+```
+
+**The model already tells starts apart on strikeouts nearly as well as
+any per-arm predictor could.** One fold of four is past 2 se and the
+combined figure is -2.05, against outs's -7.20 where every single fold
+is 2.8 se or worse. Outs is where the discrimination defect lives; K is
+close to its ceiling already.
+
+READ THE GAP AS AN UPPER BOUND, NOT A TARGET — same caveat as
+`outs_corr`, and for the same reason: the ceiling is computed WITHIN the
+fold, so in-season between-arm variation no prior-season evidence could
+know still counts as reachable. For outs that factor was measured and
+only about a sixth of the printed gap turned out to be reachable. The
+analogue for K has not been measured (it would want whiff's YEAR-OVER-
+YEAR carry, not the within-season split-half of 0.568), so 0.024 is a
+ceiling on a ceiling.
+
+WHAT THIS MEANS FOR 45, recorded before any wiring, which is the whole
+point of having built the row first: the available prize is small. That
+is not the same as zero, and rule 3 says small-and-measured still ships
+— but it should be sized against 0.024 of correlation, not against the
+6-sigma in-sample t.
+
+WHY THE ROW HAD TO COME FIRST, kept because it is the general lesson: a
+whiff term buys DISCRIMINATION between starts, not a better-shaped
 average start — the `leash.py` pattern, which was flat on outs CRPS and
 the run ladder BY DESIGN while taking the outs correlation +0.105 ->
-+0.226. So the battery's pooled K rows will sit flat and THAT IS NOT A
-NULL, and equally it is not evidence the term worked. No existing row can
-see this change. Score it the way the leash was: per-start predicted K
-against actual K, out of sample, across the four folds. Until the row
-exists the term must not be wired, because neither outcome would mean
-anything (CLAUDE.md, "nothing moved means the change did nothing unless
-you can show the scorecard is blind to it — and that has to be SHOWN").
++0.226. Every pooled K row in the battery is flat against it by
+construction, so BOTH outcomes would have been unreadable: a flat
+scorecard would not have been a null, and a moved one would not have
+been evidence. Building the row first is what turned "we cannot tell"
+into "-2.05, and the defect is in outs" (CLAUDE.md, "nothing moved means
+the change did nothing unless you can show the scorecard is blind to it
+— and that has to be SHOWN").
 
 **45. WHIFF RATE IS A SECOND K CHANNEL AND THE ENGINE HAS NONE — it
 survives against the SHRUNK rate at 6 sigma, carries ~0.37 K per start
-at one sd, and REPEATS BETTER THAN THE RATE IT CORRECTS.** OPEN
-2026-09-26, gate 1 passed. Opened
+at one sd, and REPEATS BETTER THAN THE RATE IT CORRECTS. BUT ITEM 46'S
+ROW SAYS THE HEADROOM IS ~0.024 OF CORRELATION, COMBINED z -2.05.** OPEN
+2026-09-26, gate 1 passed, headroom measured.
+
+ RATE IS A SECOND K CHANNEL AND THE ENGINE HAS NONE — it
+survives against the SHRUNK rate at 6 sigma, carries ~0.37 K per start
+at one sd, and REPEATS BETTER THAN THE RATE IT CORRECTS. BUT ITEM 46'S
+ROW SAYS THE HEADROOM IS ~0.024 OF CORRELATION, COMBINED z -2.05.** OPEN
+2026-09-26, gate 1 passed, headroom measured. Opened
 from a live board question about Mason Adams (5 starts, THIN), where a
 competing analysis proposed replacing his observed K rate with a
 whiff-implied one. The mechanism is real; the proposed SIZE was ~2.5x too
