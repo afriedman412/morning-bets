@@ -1,0 +1,189 @@
+BOARD — 2026-09-25 · 6 games · 20,000 sims · fair inside ±170 · odds are FAIR (no vig)
+
+CLE @ KC   Gavin Williams v Noah Cameron   (lineups posted, mean 8.6)
+  bet                          over / under  kalshi
+  total 7.5                    -121 /  +121    +120   vol $91k  clv -5.5c
+  total 8                      -103 /  +103       -   
+  total 8.5                    +115 /  -115    +163   vol $23k  clv -5.0c
+  CLE total 3.5                -135 /  +135    -120   vol $4.4k  clv -0.5c
+  CLE total 4.5                +124 /  -124    +147   vol $4.0k  clv -0.5c
+  KC total 3.5                 -108 /  +108    +135   vol $4.0k  clv -3.5c
+  KC total 4.5                 +161 /  -161    +264   vol $0
+  F5 total 3.5                 -139 /  +139    +102   vol $6.1k  clv -5.5c
+  F5 total 4.5                 +121 /  -121    +170   vol $2.2k  clv -5.0c
+  Gavin Williams k 3.5         -618 /  +618    -852   off-band  vol $1.3k  clv -0.5c
+  Gavin Williams k 4.5         -296 /  +296    -400   off-band  vol $1.7k  clv -2.0c
+  Gavin Williams k 5.5         -147 /  +147    -212   vol $5.8k  clv -1.0c
+  Gavin Williams k 6.5         +129 /  -129    +100   vol $34k  clv -5.0c
+  Gavin Williams k 7.5         +246 /  -246    +186   off-band  vol $15k  clv -2.0c
+  Gavin Williams k 8.5         +477 /  -477    +365   off-band  vol $7.1k  clv -3.5c
+  Gavin Williams k 9.5         +959 /  -959    +733   off-band  vol $8.1k  clv -3.0c
+  Gavin Williams outs 16.5     -130 /  +130       -   raw -135
+  Gavin Williams outs 17.5     -101 /  +101    -120   raw -104  vol $2.6k  clv +9.5c
+  Noah Cameron k 2.5           -274 /  +274    -388   off-band  vol $8  clv -3.5c
+  Noah Cameron k 3.5           -118 /  +118    -160   vol $1.1k  clv -1.5c
+  Noah Cameron k 4.5           +189 /  -189    +138   off-band  vol $2.6k  clv -1.0c
+  Noah Cameron k 5.5           +423 /  -423    +326   off-band  vol $1.3k  clv -0.5c
+  Noah Cameron k 6.5           +962 /  -962    +733   off-band  vol $48  clv +1.0c
+  Noah Cameron k 7.5          +2313 / -2313   +1718   off-band  vol $0
+  Noah Cameron outs 16.5       -102 /  +102       -   raw -105
+  Noah Cameron outs 17.5       +127 /  -127    +100   raw +122  vol $3.8k  clv -4.0c
+
+TEX @ MIN   Jacob deGrom v Joe Ryan   (lineups posted, mean 8.6)
+  bet                          over / under  kalshi
+  total 7.5                    -122 /  +122    +125   vol $81k  clv -6.5c
+  total 8                      -104 /  +104       -   
+  total 8.5                    +113 /  -113    +167   vol $7.0k  clv -4.5c
+  TEX total 3.5                -124 /  +124    -108   vol $891  clv -1.0c
+  TEX total 4.5                +135 /  -135    +160   vol $1.9k  clv -0.5c
+  MIN total 3.5                -121 /  +121    +125   vol $240  clv -6.5c
+  MIN total 4.5                +145 /  -145    +208   vol $1
+  F5 total 3.5                 -142 /  +142    -102   vol $7.5k  clv -3.5c
+  F5 total 4.5                 +118 /  -118    +167   vol $7.7k  clv -8.5c
+  Jacob deGrom k 3.5           -499 /  +499    -733   off-band  vol $14  clv -2.0c
+  Jacob deGrom k 4.5           -235 /  +235    -365   off-band  vol $382  clv +2.5c
+  Jacob deGrom k 5.5           -116 /  +116    -170   vol $1.2k  clv +4.0c
+  Jacob deGrom k 6.5           +161 /  -161    +122   vol $17k  clv +2.0c
+  Jacob deGrom k 7.5           +311 /  -311    +217   off-band  vol $2.5k  clv +4.5c
+  Jacob deGrom k 8.5           +615 /  -615    +506   off-band  vol $905  clv -0.5c
+  Jacob deGrom k 9.5          +1294 / -1294    +852   off-band  vol $679  clv +0.5c
+  Jacob deGrom outs 15.5       -150 /  +150    +102   raw -149  vol $8.9k  clv +4.5c
+  Jacob deGrom outs 16.5       -120 /  +120       -   raw -124
+  Jacob deGrom outs 17.5       +108 /  -108       -   raw +104
+  Joe Ryan k 3.5               -567 /  +567    -614   off-band  vol $188  clv -2.0c
+  Joe Ryan k 4.5               -272 /  +272    -292   off-band  vol $1.2k  clv +1.5c
+  Joe Ryan k 5.5               -136 /  +136    -135   vol $510  clv +0.5c
+  Joe Ryan k 6.5               +138 /  -138    +147   vol $2.1k  clv +1.5c
+  Joe Ryan k 7.5               +264 /  -264    +300   off-band  vol $860  clv -3.0c
+  Joe Ryan k 8.5               +527 /  -527    +545   off-band  vol $836  clv -0.5c
+  Joe Ryan k 9.5              +1089 / -1089   +1438   off-band  vol $97
+  Joe Ryan outs 15.5           -142 /  +142    -120   raw -141  vol $6.2k  clv +1.5c
+  Joe Ryan outs 16.5           -115 /  +115       -   raw -119
+  Joe Ryan outs 17.5           +114 /  -114       -   raw +110
+
+HOU @ ATH   Hunter Brown v Jacob Lopez   (lineups posted, mean 9.5)
+  bet                          over / under  kalshi
+  total 8.5                    -124 /  +124    -130   vol $69k  clv +4.5c
+  total 9                      -102 /  +102       -   
+  total 9.5                    +120 /  -120    +120   vol $27k  clv +4.5c
+  HOU total 4.5                -114 /  +114    -135   vol $3.9k  clv +4.5c
+  HOU total 5.5                +144 /  -144    +115   vol $2.8k  clv +4.5c
+  ATH total 3.5                -123 /  +123    +102   vol $4.2k  clv +0.5c
+  ATH total 4.5                +140 /  -140    +174   vol $22  clv -1.5c
+  F5 total 4.5                 -119 /  +119    -113   vol $1.6k  clv +2.0c
+  F5 total 5.5                 +134 /  -134    +144   vol $89
+  Hunter Brown k 2.5           -659 /  +659   -1150   off-band  vol $250  clv -2.0c
+  Hunter Brown k 3.5           -286 /  +286    -488   off-band  vol $937  clv +0.0c
+  Hunter Brown k 4.5           -137 /  +137    -217   vol $501  clv -2.5c
+  Hunter Brown k 5.5           +149 /  -149    -115   vol $11k  clv -1.5c
+  Hunter Brown k 6.5           +294 /  -294    +182   off-band  vol $8.3k  clv -3.5c
+  Hunter Brown k 7.5           +600 /  -600    +365   off-band  vol $1.8k  clv -1.5c
+  Hunter Brown k 8.5          +1281 / -1281    +809   off-band  vol $1.4k  clv -1.0c
+  Hunter Brown k 9.5          +3095 / -3095   +1718   off-band  vol $1.5k  clv -1.5c
+  Hunter Brown outs 15.5       +103 /  -103       -   raw +103
+  Hunter Brown outs 16.5       +129 /  -129       -   raw +125
+  Hunter Brown outs 17.5       +169 /  -169    +120   raw +162  vol $5.2k  clv +0.5c
+  Jacob Lopez k 2.5            -363 /  +363    -388   off-band  vol $50  clv -2.5c
+  Jacob Lopez k 3.5            -154 /  +154    -153   vol $218  clv -4.5c
+  Jacob Lopez k 4.5            +140 /  -140    +147   vol $12k  clv -7.5c
+  Jacob Lopez k 5.5            +298 /  -298    +292   off-band  vol $370  clv -2.5c
+  Jacob Lopez k 6.5            +639 /  -639    +641   off-band  vol $474  clv -1.5c
+  Jacob Lopez k 7.5           +1437 / -1437   +1438   off-band  vol $70  clv -1.5c
+  Jacob Lopez outs 14.5        -182 /  +182    -141   raw -158  vol $172  clv +0.5c
+  Jacob Lopez outs 15.5        +133 /  -133       -   raw +134
+
+AZ @ SD   Brandon Pfaadt v Casey Mize   (lineups posted, mean 8.5)
+  bet                          over / under  kalshi
+  total 7.5                    -120 /  +120    -106   vol $53k  clv +4.5c
+  total 8                      -103 /  +103       -   
+  total 8.5                    +114 /  -114    +135   vol $3.9k  clv +4.5c
+  AZ total 3.5                 -126 /  +126    +100   vol $8.9k  clv +2.0c
+  AZ total 4.5                 +136 /  -136    +170   vol $268  clv +1.0c
+  SD total 3.5                 -120 /  +120    -115   vol $1.3k  clv -0.5c
+  SD total 4.5                 +151 /  -151    +160   vol $173  clv -1.5c
+  F5 total 3.5                 -159 /  +159    -153   vol $607  clv +0.5c
+  F5 total 4.5                 +104 /  -104    +106   vol $5.6k  clv +2.5c
+  Brandon Pfaadt k 2.5         -282 /  +282    -277   off-band  vol $32  clv -1.5c
+  Brandon Pfaadt k 3.5         -122 /  +122    -115   vol $71  clv +0.5c
+  Brandon Pfaadt k 4.5         +180 /  -180    +208   off-band  vol $127  clv -0.5c
+  Brandon Pfaadt k 5.5         +390 /  -390    +471   off-band  vol $93  clv -0.5c
+  Brandon Pfaadt k 6.5         +897 /  -897   +1011   off-band  vol $85  clv +1.0c
+  Brandon Pfaadt outs 15.5     -117 /  +117       -   raw -116
+  Brandon Pfaadt outs 16.5     +106 /  -106       -   raw +103
+  Brandon Pfaadt outs 17.5     +137 /  -137    +270   raw +132  vol $1.5k  clv -20.0c
+  Casey Mize k 4.5             +126 /  -126       -   
+  Casey Mize outs 15.5         -106 /  +106       -   raw -106
+  Casey Mize outs 16.5         +118 /  -118       -   raw +114
+
+LAA @ SEA   Reid Detmers v Bryce Miller   (lineups posted, mean 7.0)
+  bet                          over / under  kalshi
+  total 6.5                    -103 /  +103    -106   vol $23k  clv -3.5c
+  total 7                      +129 /  -129       -   
+  total 7.5                    +161 /  -161    +160   vol $3.9k  clv -2.5c
+  LAA total 2.5                -137 /  +137    -144   vol $0
+  LAA total 3.5                +135 /  -135    +130   vol $0
+  SEA total 2.5                -157 /  +157    -156   vol $0
+  SEA total 3.5                +125 /  -125    +120   vol $0
+  F5 total 3.5                 +103 /  -103    +102   vol $243  clv -1.5c
+  Reid Detmers k 3.5           -786 /  +786    -900   off-band  vol $64  clv -2.0c
+  Reid Detmers k 4.5           -359 /  +359    -413   off-band  vol $208  clv -1.5c
+  Reid Detmers k 5.5           -178 /  +178    -190   off-band  vol $253  clv -3.5c
+  Reid Detmers k 6.5           +108 /  -108    +102   vol $2.7k  clv -3.5c
+  Reid Detmers k 7.5           +207 /  -207    +199   off-band  vol $327  clv -3.5c
+  Reid Detmers k 8.5           +403 /  -403    +413   off-band  vol $0
+  Reid Detmers k 9.5           +835 /  -835   +1011   off-band  vol $175  clv -1.0c
+  Reid Detmers outs 17.5       -133 /  +133       -   raw -138
+  Bryce Miller k 3.5           -773 /  +773    -733   off-band  vol $0
+  Bryce Miller k 4.5           -361 /  +361    -326   off-band  vol $5  clv -1.5c
+  Bryce Miller k 5.5           -186 /  +186    -150   off-band  vol $161  clv +0.0c
+  Bryce Miller k 6.5           +101 /  -101    +127   vol $944  clv +2.0c
+  Bryce Miller k 7.5           +193 /  -193    +251   off-band  vol $8
+  Bryce Miller k 8.5           +369 /  -369    +488   off-band  vol $0
+  Bryce Miller k 9.5           +745 /  -745   +1233   off-band  vol $0
+  Bryce Miller outs 15.5       -134 /  +134    +102   raw -134  vol $89  clv -3.5c
+  Bryce Miller outs 16.5       -108 /  +108       -   raw -112
+  Bryce Miller outs 17.5       +119 /  -119       -   raw +115
+
+LAD @ SF   Tarik Skubal v Yunior Marte   (lineups posted, mean 7.4)
+  bet                          over / under  kalshi
+  total 6.5                    -120 /  +120    -160   [Yunior Marte: only 2 start(s) on record]  vol $6.3k  clv +2.5c
+  total 7                      +106 /  -106       -   [Yunior Marte: only 2 start(s) on record]
+  total 7.5                    +134 /  -134    -111   [Yunior Marte: only 2 start(s) on record]  vol $188k  clv +7.5c
+  LAD total 3.5                -160 /  +160    -217   [Yunior Marte: only 2 start(s) on record]  vol $391  clv +0.5c
+  LAD total 4.5                +108 /  -108    -125   [Yunior Marte: only 2 start(s) on record]  vol $1.4k  clv +0.5c
+  SF total 2.5                 +131 /  -131    +125   [Yunior Marte: only 2 start(s) on record]  vol $1.4k  clv +1.5c
+  F5 total 3.5                 +103 /  -103    -130   [Yunior Marte: only 2 start(s) on record]  vol $2.3k  clv +3.5c
+  Tarik Skubal k 3.5          -1665 / +1665   -1329   off-band  vol $131  clv -2.0c
+  Tarik Skubal k 4.5           -798 /  +798    -590   off-band  vol $674  clv +2.5c
+  Tarik Skubal k 5.5           -402 /  +402    -317   off-band  vol $966  clv +6.0c
+  Tarik Skubal k 6.5           -212 /  +212    -147   off-band  vol $2.0k  clv +4.5c
+  Tarik Skubal k 7.5           -115 /  +115    +130   vol $6.2k  clv +2.5c
+  Tarik Skubal k 8.5           +160 /  -160    +239   vol $376  clv +7.5c
+  Tarik Skubal k 9.5           +294 /  -294    +471   off-band  vol $1.6k  clv -3.5c
+  Tarik Skubal outs 17.5       -180 /  +180    -133   raw -188  off-band  vol $5.2k  clv +3.0c
+  Tarik Skubal outs 18.5       +193 /  -193       -   raw +167
+  Yunior Marte k 3.5           +113 /  -113       -   THIN  [only 2 start(s) on record]  
+  Yunior Marte outs 14.5       -170 /  +170       -   THIN  [only 2 start(s) on record]  raw -148
+  Yunior Marte outs 15.5       +140 /  -140       -   THIN  [only 2 start(s) on record]  raw +140
+
+ARMS FLAGGED — priced, but not a normal starter's line:
+  LAD @ SF    Yunior Marte            only 2 start(s) on record
+
+DECLINED — never filled with a league-average arm:
+  CHC @ BOS   Clay Holmes / Alec Gamboa               game is Final — never price a live one
+  CHC @ BOS   David Peterson / Brayan Bello           game is In Progress — never price a live one
+  BAL @ NYY   Trevor Rogers / Brendan Beck            game is Final — never price a live one
+  BAL @ NYY   Brandon Young / Ryan Yarbrough          game is In Progress — never price a live one
+  PIT @ DET   Bubba Chandler / Jackson Jobe           game is In Progress — never price a live one
+  TB @ PHI    Freddy Peralta / Cristopher Sánchez     game is In Progress — never price a live one
+  NYM @ WSH   Jefry Yan / Andrew Alvarez              game is In Progress — never price a live one
+  CIN @ TOR   Nick Lodolo / José Soriano              game is In Progress — never price a live one
+  ATL @ MIA   Ray Kerr / Eury Pérez                   game is In Progress — never price a live one
+  COL @ CWS   Tomoyuki Sugano / Sean Burke            game is In Progress — never price a live one
+  STL @ MIL   Michael McGreevy / Robert Gasser        game is In Progress — never price a live one
+
+outs corrected (2026-09-09); raw in note. K beats the OPEN only — bet early or not.
+Totals Jul/Aug ran ~0.15-0.20 light a side (unshipped month term); Sept unmeasured.
+Re-run after lineups post: a projected nine has cost half an edge before.
+
+wall clock: 88s total — 80s simulating, 5s fetching markets, 4s loading rates. RE-RUNNING IS CHEAP; do it when lineups post.

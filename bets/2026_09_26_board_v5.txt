@@ -1,0 +1,298 @@
+BOARD — 2026-09-26 · 11 games · 20,000 sims · fair inside ±170 · odds are FAIR (no vig)
+
+NYM @ WSH   Jonah Tong v Connelly Early   (lineups posted, mean 8.9)
+  bet                          over / under  kalshi
+  total 8                      -117 /  +117       -   
+  total 8.5                    +101 /  -101    +106   vol $54k  clv -0.5c
+  total 9                      +128 /  -128       -   
+  NYM total 3.5                -140 /  +140    -138   vol $100  clv -4.0c
+  NYM total 4.5                +120 /  -120    +120   vol $2.0k  clv -3.5c
+  WSH total 3.5                -129 /  +129    -125   vol $1.6k  clv +2.5c
+  WSH total 4.5                +136 /  -136    +144   vol $248  clv +2.0c
+  F5 total 4.5                 +104 /  -104    -102   vol $6.1k  clv -0.5c
+  F5 total 5.5                 +166 /  -166    +163   vol $1.2k  clv -1.0c
+  Jonah Tong k 2.5             -551 /  +551    -506   THIN  off-band  vol $20  clv -1.5c
+  Jonah Tong k 3.5             -236 /  +236    -208   THIN  off-band  vol $4.0k  clv -0.5c
+  Jonah Tong k 4.5             -112 /  +112    +102   THIN  vol $5.8k  clv +0.5c
+  Jonah Tong k 5.5             +182 /  -182    +228   THIN  off-band  vol $1.3k  clv -1.5c
+  Jonah Tong k 6.5             +372 /  -372    +488   THIN  off-band  vol $134  clv -2.0c
+  Jonah Tong k 7.5             +819 /  -819   +1011   THIN  off-band  vol $0
+  Jonah Tong outs 15.5         +122 /  -122    +141   THIN  raw +122  vol $417  clv +0.5c
+  Jonah Tong outs 16.5         +155 /  -155       -   THIN  raw +150
+  Connelly Early k 2.5         -287 /  +287    -163   off-band  vol $1.8k  clv -2.0c
+  Connelly Early k 3.5         -140 /  +140    +147   vol $2.2k  clv -4.5c
+  Connelly Early k 4.5         +144 /  -144    +292   vol $1.7k  clv -2.5c
+  Connelly Early k 5.5         +293 /  -293    +641   off-band  vol $1.1k  clv +1.5c
+  Connelly Early k 6.5         +618 /  -618    +809   off-band  vol $2.3k  clv +4.0c
+  Connelly Early k 7.5        +1327 / -1327   +1329   off-band  vol $1.1k  clv +1.0c
+  Connelly Early outs 12.5     +132 /  -132       -   raw +141
+  Connelly Early outs 13.5     +142 /  -142       -   raw +157
+
+PIT @ DET   Kirby Yates v Justin Verlander   (lineups posted, mean 9.1)
+  bet                          over / under  kalshi
+  total 8                      -130 /  +130       -   [PLAN PIT: Kirby Yates pooled opener exit, Antwone Kelly in bulk]  [Kirby Yates: only 0 start(s) on record]  [Justin Verlander: only 19 batters faced]
+  total 8.5                    -108 /  +108    -115   [PLAN PIT: Kirby Yates pooled opener exit, Antwone Kelly in bulk]  [Kirby Yates: only 0 start(s) on record]  [Justin Verlander: only 19 batters faced]  vol $97k  clv +3.5c
+  total 9                      +117 /  -117       -   [PLAN PIT: Kirby Yates pooled opener exit, Antwone Kelly in bulk]  [Kirby Yates: only 0 start(s) on record]  [Justin Verlander: only 19 batters faced]
+  PIT total 3.5                -151 /  +151    -144   [PLAN PIT: Kirby Yates pooled opener exit, Antwone Kelly in bulk]  [Kirby Yates: only 0 start(s) on record]  [Justin Verlander: only 19 batters faced]  vol $2.5k  clv +3.0c
+  PIT total 4.5                +112 /  -112    +115   [PLAN PIT: Kirby Yates pooled opener exit, Antwone Kelly in bulk]  [Kirby Yates: only 0 start(s) on record]  [Justin Verlander: only 19 batters faced]  vol $1.9k  clv +1.5c
+  DET total 3.5                -134 /  +134    -141   [PLAN PIT: Kirby Yates pooled opener exit, Antwone Kelly in bulk]  [Kirby Yates: only 0 start(s) on record]  [Justin Verlander: only 19 batters faced]  vol $2.2k  clv +1.5c
+  DET total 4.5                +132 /  -132    +120   [PLAN PIT: Kirby Yates pooled opener exit, Antwone Kelly in bulk]  [Kirby Yates: only 0 start(s) on record]  [Justin Verlander: only 19 batters faced]  vol $1.1k  clv +0.5c
+  F5 total 4.5                 -109 /  +109    -120   [PLAN PIT: Kirby Yates pooled opener exit, Antwone Kelly in bulk]  [Kirby Yates: only 0 start(s) on record]  [Justin Verlander: only 19 batters faced]  vol $4.0k  clv +3.5c
+  F5 total 5.5                 +147 /  -147    +135   [PLAN PIT: Kirby Yates pooled opener exit, Antwone Kelly in bulk]  [Kirby Yates: only 0 start(s) on record]  [Justin Verlander: only 19 batters faced]  vol $541  clv +3.5c
+  Justin Verlander k 2.5       -215 /  +215    -545   THIN  [only 19 batters faced]  off-band  vol $1.8k  clv +4.5c
+  Justin Verlander k 3.5       +101 /  -101    -217   THIN  [only 19 batters faced]  vol $5.1k  clv +1.5c
+  Justin Verlander k 4.5       +207 /  -207    +102   THIN  [only 19 batters faced]  off-band  vol $15k  clv -2.5c
+  Justin Verlander k 5.5       +449 /  -449    +190   THIN  [only 19 batters faced]  off-band  vol $7.0k  clv -3.5c
+  Justin Verlander k 6.5      +1002 / -1002    +344   THIN  [only 19 batters faced]  off-band  vol $1.6k  clv -4.5c
+  Justin Verlander k 7.5      +2357 / -2357    +700   THIN  [only 19 batters faced]  off-band  vol $802  clv -5.5c
+
+CIN @ TOR   Rhett Lowder v Trey Yesavage   (lineups posted, mean 8.9)
+  bet                          over / under  kalshi
+  total 8                      -120 /  +120       -   
+  total 8.5                    -100 /  +100    +125   vol $235  clv -0.5c
+  total 9                      +126 /  -126       -   
+  CIN total 3.5                -117 /  +117    +111   vol $103  clv +0.5c
+  CIN total 4.5                +144 /  -144    +194   vol $0
+  TOR total 3.5                -157 /  +157    -138   vol $226  clv -2.0c
+  TOR total 4.5                +114 /  -114    +127   vol $1.3k  clv -2.0c
+  F5 total 4.5                 -107 /  +107    +106   vol $8.7k  clv -0.5c
+  F5 total 5.5                 +152 /  -152    +174   vol $1.2k  clv +0.5c
+  Rhett Lowder k 2.5           -192 /  +192    -170   off-band  vol $356  clv -4.0c
+  Rhett Lowder k 3.5           +126 /  -126    +144   vol $4.5k  clv -14.0c
+  Rhett Lowder k 4.5           +282 /  -282    +308   off-band  vol $169  clv -3.5c
+  Rhett Lowder k 5.5           +647 /  -647    +700   off-band  vol $1
+  Rhett Lowder k 6.5          +1632 / -1632   +1718   off-band  vol $0
+  Rhett Lowder outs 14.5       -215 /  +215    -120   raw -186  off-band  vol $3.3k  clv +0.5c
+  Rhett Lowder outs 15.5       +108 /  -108       -   raw +108
+  Rhett Lowder outs 16.5       +136 /  -136       -   raw +132
+  Trey Yesavage k 2.5         -1402 / +1402    -251   off-band  vol $11  clv -0.5c
+  Trey Yesavage k 3.5          -587 /  +587    -125   off-band  vol $1.5k  clv +1.5c
+  Trey Yesavage k 4.5          -274 /  +274    +199   off-band  vol $3.1k  clv -4.5c
+  Trey Yesavage k 5.5          -137 /  +137    +413   vol $2.7k  clv -2.5c
+  Trey Yesavage k 6.5          +140 /  -140    +953   vol $2.6k  clv -1.5c
+  Trey Yesavage k 7.5          +263 /  -263   +1718   off-band  vol $976  clv +0.5c
+  Trey Yesavage outs 15.5      -114 /  +114       -   raw -114
+  Trey Yesavage outs 16.5      +109 /  -109       -   raw +106
+
+LAD @ SF   Blake Snell v Matt Wilkinson   (PROJECTED lineups, mean 7.4)
+  bet                          over / under  kalshi
+  total 6.5                    -123 /  +123    -147   vol $1.1k  clv -0.5c
+  total 7                      +104 /  -104       -   
+  total 7.5                    +131 /  -131    +111   vol $14k  clv -1.5c
+  LAD total 3.5                -124 /  +124    -186   vol $6
+  LAD total 4.5                +137 /  -137    -106   vol $165  clv -1.5c
+  SF total 2.5                 -111 /  +111    +120   vol $3.1k  clv -0.5c
+  F5 total 3.5                 +106 /  -106    -120   vol $431  clv +0.5c
+  Blake Snell k 4.5            -302 /  +302    -545   proj lineup  THIN  off-band  vol $15  clv -0.5c
+  Blake Snell k 5.5            -158 /  +158    -270   proj lineup  THIN  vol $12  clv -3.0c
+  Blake Snell k 6.5            +119 /  -119    -141   proj lineup  THIN  vol $146  clv -8.5c
+  Blake Snell k 7.5            +224 /  -224    +141   proj lineup  THIN  off-band  vol $8.9k  clv -12.5c
+  Blake Snell k 8.5            +425 /  -425    +233   proj lineup  THIN  off-band  vol $79  clv -7.0c
+  Blake Snell k 9.5            +865 /  -865    +441   proj lineup  THIN  off-band  vol $274  clv -5.5c
+  Blake Snell outs 15.5        +132 /  -132       -   proj lineup  THIN  raw +132
+  Blake Snell outs 16.5        +158 /  -158       -   proj lineup  THIN  raw +153
+  Matt Wilkinson k 2.5         -318 /  +318    -233   proj lineup  THIN  off-band  vol $4
+  Matt Wilkinson k 3.5         -136 /  +136    +106   proj lineup  THIN  vol $150  clv -0.5c
+  Matt Wilkinson k 4.5         +160 /  -160    +245   proj lineup  THIN  vol $4  clv -3.0c
+  Matt Wilkinson k 5.5         +334 /  -334    +506   proj lineup  THIN  off-band  vol $2  clv +1.5c
+  Matt Wilkinson k 6.5         +721 /  -721   +1233   proj lineup  THIN  off-band  vol $12  clv -2.5c
+  Matt Wilkinson outs 14.5     -267 /  +267    -130   proj lineup  THIN  raw -228  off-band  vol $0
+  Matt Wilkinson outs 15.5     -110 /  +110       -   proj lineup  THIN  raw -110
+  Matt Wilkinson outs 16.5     +113 /  -113       -   proj lineup  THIN  raw +109
+
+TEX @ MIN   Nathan Eovaldi v Bailey Ober   (PROJECTED lineups, mean 9.3)
+  bet                          over / under  kalshi
+  total 8.5                    -117 /  +117    +120   vol $16k  clv +1.5c
+  total 9                      +107 /  -107       -   
+  total 9.5                    +131 /  -131    +190   vol $1.6k  clv +0.5c
+  TEX total 4.5                -107 /  +107    +130   vol $107
+  TEX total 5.5                +153 /  -153    +208   vol $0
+  MIN total 3.5                -129 /  +129    +100   vol $0
+  MIN total 4.5                +139 /  -139    +178   vol $0
+  F5 total 4.5                 -114 /  +114    +111   vol $14  clv -1.5c
+  F5 total 5.5                 +140 /  -140    +178   vol $0
+  Nathan Eovaldi k 2.5         -300 /  +300    -208   proj lineup  off-band  vol $1.4k  clv -0.5c
+  Nathan Eovaldi k 3.5         -134 /  +134    +120   proj lineup  vol $336  clv -1.5c
+  Nathan Eovaldi k 4.5         +158 /  -158    +264   proj lineup  vol $1.5k  clv -1.5c
+  Nathan Eovaldi k 5.5         +340 /  -340    +545   proj lineup  off-band  vol $1.2k  clv -0.5c
+  Nathan Eovaldi k 6.5         +739 /  -739   +1150   proj lineup  off-band  vol $0
+  Nathan Eovaldi outs 13.5     -163 /  +163       -   proj lineup  raw -148
+  Nathan Eovaldi outs 14.5     -141 /  +141       -   proj lineup  raw -124
+  Bailey Ober k 2.5            -252 /  +252    -413   proj lineup  off-band  vol $5  clv -0.5c
+  Bailey Ober k 3.5            -109 /  +109    -174   proj lineup  vol $206  clv -2.5c
+  Bailey Ober k 4.5            +198 /  -198    +130   proj lineup  off-band  vol $527  clv -4.5c
+  Bailey Ober k 5.5            +432 /  -432    +270   proj lineup  off-band  vol $201  clv -1.0c
+  Bailey Ober k 6.5            +989 /  -989    +567   proj lineup  off-band  vol $6  clv +0.0c
+  Bailey Ober k 7.5           +2487 / -2487   +1150   proj lineup  off-band  vol $34
+  Bailey Ober outs 14.5        -184 /  +184       -   proj lineup  raw -161
+  Bailey Ober outs 15.5        +139 /  -139    +153   proj lineup  raw +139  vol $376  clv -7.5c
+
+ATL @ MIA   Brent Suter v Jack Ralston   (PROJECTED lineups, mean 8.4)
+  bet                          over / under  kalshi
+  total 7.5                    -111 /  +111    -141   [Brent Suter: averages 5.2 outs a start — opener]  [Jack Ralston: only 0 start(s) on record]  vol $29  clv -1.5c
+  total 8                      +107 /  -107       -   [Brent Suter: averages 5.2 outs a start — opener]  [Jack Ralston: only 0 start(s) on record]
+  total 8.5                    +126 /  -126    -102   [Brent Suter: averages 5.2 outs a start — opener]  [Jack Ralston: only 0 start(s) on record]  vol $1.6k  clv +0.5c
+  ATL total 3.5                -120 /  +120    -156   [Brent Suter: averages 5.2 outs a start — opener]  [Jack Ralston: only 0 start(s) on record]  vol $0
+  ATL total 4.5                +142 /  -142    +108   [Brent Suter: averages 5.2 outs a start — opener]  [Jack Ralston: only 0 start(s) on record]  vol $0
+  MIA total 3.5                -111 /  +111    -120   [Brent Suter: averages 5.2 outs a start — opener]  [Jack Ralston: only 0 start(s) on record]  vol $71  clv -0.5c
+  MIA total 4.5                +160 /  -160    +144   [Brent Suter: averages 5.2 outs a start — opener]  [Jack Ralston: only 0 start(s) on record]  vol $0
+  F5 total 3.5                 -142 /  +142    -194   [Brent Suter: averages 5.2 outs a start — opener]  [Jack Ralston: only 0 start(s) on record]  vol $0
+  F5 total 4.5                 +120 /  -120    -115   [Brent Suter: averages 5.2 outs a start — opener]  [Jack Ralston: only 0 start(s) on record]  vol $267  clv +1.5c
+
+CLE @ KC   Tanner Bibee v Michael Wacha   (PROJECTED lineups, mean 9.5)
+  bet                          over / under  kalshi
+  total 8.5                    -121 /  +121    +111   vol $10k  clv +1.5c
+  total 9                      +102 /  -102       -   
+  total 9.5                    +126 /  -126    +167   vol $378  clv -1.5c
+  CLE total 3.5                -152 /  +152    -138   vol $0
+  CLE total 4.5                +110 /  -110    +122   vol $0
+  KC total 3.5                 -162 /  +162    -113   vol $1.1k  clv +0.0c
+  KC total 4.5                 +111 /  -111    +156   vol $0
+  F5 total 4.5                 -122 /  +122    +104   vol $114  clv +1.0c
+  F5 total 5.5                 +131 /  -131    +174   vol $133  clv +0.5c
+  Tanner Bibee k 2.5           -191 /  +191    -264   proj lineup  off-band  vol $27  clv -5.5c
+  Tanner Bibee k 3.5           +129 /  -129    -106   proj lineup  vol $125  clv +0.5c
+  Tanner Bibee k 4.5           +293 /  -293    +208   proj lineup  off-band  vol $377  clv -1.5c
+  Tanner Bibee k 5.5           +686 /  -686    +471   proj lineup  off-band  vol $3  clv +2.5c
+  Tanner Bibee k 6.5          +1703 / -1703   +1329   proj lineup  off-band  vol $20
+  Tanner Bibee outs 14.5       -290 /  +290    -174   proj lineup  raw -247  off-band  vol $361  clv -0.5c
+  Tanner Bibee outs 15.5       -121 /  +121       -   proj lineup  raw -121
+  Tanner Bibee outs 16.5       +104 /  -104       -   proj lineup  raw +101
+  Michael Wacha k 2.5          -277 /  +277    -335   proj lineup  off-band  vol $12  clv -4.0c
+  Michael Wacha k 3.5          -113 /  +113    -133   proj lineup  vol $819  clv -1.0c
+  Michael Wacha k 4.5          +200 /  -200    +170   proj lineup  off-band  vol $154  clv +0.0c
+  Michael Wacha k 5.5          +449 /  -449    +365   proj lineup  off-band  vol $100
+  Michael Wacha k 6.5         +1058 / -1058    +852   proj lineup  off-band  vol $0
+  Michael Wacha outs 17.5      -153 /  +153    -117   proj lineup  raw -159  vol $188  clv +1.0c
+  Michael Wacha outs 18.5      +187 /  -187       -   proj lineup  raw +161
+
+COL @ CWS   Jose Quintana v Davis Martin   (PROJECTED lineups, mean 8.7)
+  bet                          over / under  kalshi
+  total 7.5                    -126 /  +126    -125   vol $996  clv -0.5c
+  total 8                      -108 /  +108       -   
+  total 8.5                    +109 /  -109    +111   vol $12k  clv -0.5c
+  COL total 3.5                -100 /  +100    +135   vol $2
+  COL total 4.5                +169 /  -169    +228   vol $0
+  CWS total 3.5                -157 /  +157    -182   vol $34  clv -0.5c
+  CWS total 4.5                +111 /  -111    -106   vol $376  clv -0.5c
+  F5 total 3.5                 -157 /  +157    -163   vol $19  clv -1.0c
+  F5 total 4.5                 +107 /  -107    +111   vol $1.4k  clv -1.5c
+  Jose Quintana k 2.5          -180 /  +180    -233   proj lineup  off-band  vol $0
+  Jose Quintana k 3.5          +128 /  -128    -102   proj lineup  vol $138  clv +1.5c
+  Jose Quintana k 4.5          +287 /  -287    +223   proj lineup  off-band  vol $0
+  Jose Quintana k 5.5          +675 /  -675    +545   proj lineup  off-band  vol $88  clv +4.5c
+  Jose Quintana outs 13.5      -227 /  +227    +100   proj lineup  raw -203  off-band  vol $119  clv -4.0c
+  Jose Quintana outs 14.5      -176 /  +176       -   proj lineup  raw -154
+  Jose Quintana outs 15.5      +132 /  -132       -   proj lineup  raw +132
+  Davis Martin k 2.5           -568 /  +568    -388   proj lineup  off-band  vol $1
+  Davis Martin k 3.5           -238 /  +238    -153   proj lineup  off-band  vol $5
+  Davis Martin k 4.5           -108 /  +108    +135   proj lineup  vol $1.5k  clv +2.5c
+  Davis Martin k 5.5           +194 /  -194    +300   proj lineup  off-band  vol $8  clv -2.0c
+  Davis Martin k 6.5           +414 /  -414    +641   proj lineup  off-band  vol $10  clv +1.5c
+  Davis Martin k 7.5           +861 /  -861   +1438   proj lineup  off-band  vol $47  clv -1.5c
+  Davis Martin outs 14.5       -469 /  +469    -111   proj lineup  raw -382  off-band  vol $91  clv -2.5c
+  Davis Martin outs 16.5       -141 /  +141       -   proj lineup  raw -145
+  Davis Martin outs 17.5       -109 /  +109       -   proj lineup  raw -113
+
+STL @ MIL   Quinn Mathews v Dustin May   (PROJECTED lineups, mean 8.6)
+  bet                          over / under  kalshi
+  total 7.5                    -119 /  +119    +102   vol $16k  clv -2.5c
+  total 8                      -102 /  +102       -   
+  total 8.5                    +115 /  -115    +141   vol $172  clv -1.5c
+  STL total 3.5                +103 /  -103    +130   vol $69  clv -2.5c
+  MIL total 3.5                -145 /  +145    -127   vol $5  clv -4.0c
+  MIL total 4.5                +120 /  -120    +130   vol $8  clv -4.5c
+  F5 total 3.5                 -155 /  +155    -138   vol $0
+  F5 total 4.5                 +107 /  -107    +125   vol $19  clv -0.5c
+  Quinn Mathews k 2.5          -576 /  +576    -506   proj lineup  off-band  vol $24  clv +1.5c
+  Quinn Mathews k 3.5          -249 /  +249    -190   proj lineup  off-band  vol $52  clv -1.5c
+  Quinn Mathews k 4.5          -120 /  +120    +102   proj lineup  vol $1.5k  clv +2.5c
+  Quinn Mathews k 5.5          +165 /  -165    +233   proj lineup  vol $10  clv +1.0c
+  Quinn Mathews k 6.5          +322 /  -322    +488   proj lineup  off-band  vol $2  clv +1.0c
+  Quinn Mathews k 7.5          +657 /  -657   +1329   proj lineup  off-band  vol $0
+  Quinn Mathews outs 14.5      -155 /  +155       -   proj lineup  raw -136
+  Quinn Mathews outs 15.5      +162 /  -162    +135   proj lineup  raw +163  vol $167  clv +3.5c
+  Dustin May k 2.5            -1578 / +1578    -122   proj lineup  off-band  vol $1.9k  clv -7.0c
+  Dustin May k 3.5             -668 /  +668    +217   proj lineup  off-band  vol $12k  clv -6.5c
+  Dustin May k 4.5             -318 /  +318    +413   proj lineup  off-band  vol $2.1k  clv +0.5c
+  Dustin May k 5.5             -158 /  +158    +809   proj lineup  vol $1.5k  clv +3.0c
+  Dustin May k 6.5             +122 /  -122   +1718   proj lineup  vol $542  clv -4.5c
+  Dustin May k 7.5             +228 /  -228   +2122   proj lineup  off-band  vol $253  clv -0.5c
+  Dustin May outs 16.5         -118 /  +118       -   proj lineup  raw -122
+  Dustin May outs 17.5         +109 /  -109       -   proj lineup  raw +105
+
+HOU @ ATH   Hayden Wesneski v Jack Perkins   (PROJECTED lineups, mean 9.5)
+  bet                          over / under  kalshi
+  total 8.5                    -123 /  +123    -167   [Hayden Wesneski: 33/77 appearances are starts — swingman]  [Jack Perkins: 20/48 appearances are starts — swingman]  vol $41k  clv +11.5c
+  total 9                      +100 /  -100       -   [Hayden Wesneski: 33/77 appearances are starts — swingman]  [Jack Perkins: 20/48 appearances are starts — swingman]
+  total 9.5                    +123 /  -123    -106   [Hayden Wesneski: 33/77 appearances are starts — swingman]  [Jack Perkins: 20/48 appearances are starts — swingman]  vol $7.9k  clv +10.5c
+  HOU total 3.5                -168 /  +168    -233   [Hayden Wesneski: 33/77 appearances are starts — swingman]  [Jack Perkins: 20/48 appearances are starts — swingman]  vol $3
+  HOU total 4.5                +102 /  -102    -141   [Hayden Wesneski: 33/77 appearances are starts — swingman]  [Jack Perkins: 20/48 appearances are starts — swingman]  vol $2
+  ATH total 3.5                -146 /  +146    -133   [Hayden Wesneski: 33/77 appearances are starts — swingman]  [Jack Perkins: 20/48 appearances are starts — swingman]  vol $0
+  ATH total 4.5                +119 /  -119    +133   [Hayden Wesneski: 33/77 appearances are starts — swingman]  [Jack Perkins: 20/48 appearances are starts — swingman]  vol $2
+  F5 total 4.5                 -119 /  +119    -141   [Hayden Wesneski: 33/77 appearances are starts — swingman]  [Jack Perkins: 20/48 appearances are starts — swingman]  vol $2.1k  clv +7.5c
+  F5 total 5.5                 +135 /  -135    +111   [Hayden Wesneski: 33/77 appearances are starts — swingman]  [Jack Perkins: 20/48 appearances are starts — swingman]  vol $905  clv +8.5c
+  Hayden Wesneski k 2.5        -238 /  +238    -300   proj lineup  [33/77 appearances are starts — swingman]  off-band  vol $303  clv -6.0c
+  Hayden Wesneski k 3.5        -101 /  +101    -130   proj lineup  [33/77 appearances are starts — swingman]  vol $6.8k  clv -8.5c
+  Hayden Wesneski k 4.5        +219 /  -219    +199   proj lineup  [33/77 appearances are starts — swingman]  off-band  vol $9.3k  clv -10.5c
+  Hayden Wesneski k 5.5        +483 /  -483    +344   proj lineup  [33/77 appearances are starts — swingman]  off-band  vol $0
+  Hayden Wesneski k 6.5       +1155 / -1155    +809   proj lineup  [33/77 appearances are starts — swingman]  off-band  vol $0
+  Hayden Wesneski k 7.5       +2794 / -2794   +1718   proj lineup  [33/77 appearances are starts — swingman]  off-band  vol $0
+  Hayden Wesneski outs 15.5    +103 /  -103    +147   proj lineup  [33/77 appearances are starts — swingman]  raw +103  vol $0
+  Hayden Wesneski outs 16.5    +129 /  -129       -   proj lineup  [33/77 appearances are starts — swingman]  raw +125
+  Jack Perkins k 2.5           -559 /  +559    -506   proj lineup  [20/48 appearances are starts — swingman]  off-band  vol $0
+  Jack Perkins k 3.5           -244 /  +244    -212   proj lineup  [20/48 appearances are starts — swingman]  off-band  vol $25
+  Jack Perkins k 4.5           -115 /  +115    -104   proj lineup  [20/48 appearances are starts — swingman]  vol $130  clv -3.0c
+  Jack Perkins k 5.5           +174 /  -174    +228   proj lineup  [20/48 appearances are starts — swingman]  off-band  vol $109  clv -2.5c
+  Jack Perkins k 6.5           +350 /  -350    +488   proj lineup  [20/48 appearances are starts — swingman]  off-band  vol $0
+  Jack Perkins k 7.5           +745 /  -745   +1076   proj lineup  [20/48 appearances are starts — swingman]  off-band  vol $0
+  Jack Perkins k 8.5          +1678 / -1678   +2122   proj lineup  [20/48 appearances are starts — swingman]  off-band  vol $0
+  Jack Perkins outs 15.5       +130 /  -130       -   proj lineup  [20/48 appearances are starts — swingman]  raw +130
+  Jack Perkins outs 16.5       +164 /  -164       -   proj lineup  [20/48 appearances are starts — swingman]  raw +158
+
+LAA @ SEA   Ryan Johnson v Kade Anderson   (PROJECTED lineups, mean 7.9)
+  bet                          over / under  kalshi
+  total 7                      -126 /  +126       -   
+  total 7.5                    +104 /  -104    +115   vol $25k  clv -5.5c
+  total 8                      +125 /  -125       -   
+  LAA total 2.5                -130 /  +130    -144   vol $0
+  LAA total 3.5                +142 /  -142    +130   vol $517  clv -1.5c
+  SEA total 3.5                -150 /  +150    -125   vol $9
+  SEA total 4.5                +117 /  -117    +141   vol $624  clv -4.5c
+  F5 total 3.5                 -154 /  +154    -130   vol $0
+  F5 total 4.5                 +111 /  -111    +138   vol $102  clv -3.0c
+  Ryan Johnson k 2.5           -386 /  +386    -426   proj lineup  off-band  vol $5
+  Ryan Johnson k 3.5           -170 /  +170    -167   proj lineup  off-band  vol $9  clv +1.5c
+  Ryan Johnson k 4.5           +124 /  -124    +130   proj lineup  vol $373  clv +2.5c
+  Ryan Johnson k 5.5           +261 /  -261    +251   proj lineup  off-band  vol $1.0k  clv -0.5c
+  Ryan Johnson k 6.5           +564 /  -564    +641   proj lineup  off-band  vol $3  clv +1.5c
+  Ryan Johnson k 7.5          +1240 / -1240   +1438   proj lineup  off-band  vol $0
+  Ryan Johnson outs 14.5       -167 /  +167       -   proj lineup  raw -146
+  Ryan Johnson outs 15.5       +146 /  -146    +111   proj lineup  raw +147  vol $20  clv -3.5c
+  Kade Anderson k 3.5          -511 /  +511    -614   proj lineup  THIN  off-band  vol $6
+  Kade Anderson k 4.5          -243 /  +243    -277   proj lineup  THIN  off-band  vol $7
+  Kade Anderson k 5.5          -126 /  +126    -135   proj lineup  THIN  vol $244  clv -1.5c
+  Kade Anderson k 6.5          +153 /  -153    +150   proj lineup  THIN  vol $309  clv +1.0c
+  Kade Anderson k 7.5          +297 /  -297    +308   proj lineup  THIN  off-band  vol $4  clv -0.5c
+  Kade Anderson k 8.5          +579 /  -579    +641   proj lineup  THIN  off-band  vol $5  clv +0.5c
+  Kade Anderson k 9.5         +1275 / -1275   +1718   proj lineup  THIN  off-band  vol $0
+  Kade Anderson outs 16.5      -108 /  +108       -   proj lineup  THIN  raw -112
+  Kade Anderson outs 17.5      +118 /  -118       -   proj lineup  THIN  raw +114
+
+ARMS FLAGGED — priced, but not a normal starter's line:
+  PIT @ DET   Kirby Yates             only 0 start(s) on record
+  PIT @ DET   Justin Verlander        only 19 batters faced
+  ATL @ MIA   Brent Suter             averages 5.2 outs a start — opener
+  ATL @ MIA   Jack Ralston            only 0 start(s) on record
+  HOU @ ATH   Hayden Wesneski         33/77 appearances are starts — swingman
+  HOU @ ATH   Jack Perkins            20/48 appearances are starts — swingman
+
+DECLINED — never filled with a league-average arm:
+  TB @ PHI    Griffin Jax / None                      no probable posted (home) — set one with `-m src.context.probables`
+  AZ @ SD     None / Walker Buehler                   no probable posted (away) — set one with `-m src.context.probables`
+
+outs corrected (2026-09-09); raw in note. K beats the OPEN only — bet early or not.
+Totals Jul/Aug ran ~0.15-0.20 light a side (unshipped month term); Sept unmeasured.
+Re-run after lineups post: a projected nine has cost half an edge before.
+
+wall clock: 142s total — 132s simulating, 6s fetching markets, 4s loading rates. RE-RUNNING IS CHEAP; do it when lineups post.

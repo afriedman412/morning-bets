@@ -1,0 +1,79 @@
+BOARD — 2026-09-23 · 2 games · 20,000 sims · fair inside ±170 · odds are FAIR (no vig)
+
+SD @ LAD   Robbie Ray v Yoshinobu Yamamoto   (lineups posted, mean 9.7)
+  bet                          over / under  kalshi
+  total 8.5                    -133 /  +133    +115   vol $346k  clv -1.5c
+  total 9                      -109 /  +109       -   
+  total 9.5                    +114 /  -114    +174   vol $6.6k  clv -1.5c
+  SD total 2.5                 -164 /  +164    -141   vol $4.0k  clv +0.5c
+  SD total 3.5                 +111 /  -111    +130   vol $2.3k  clv -2.5c
+  LAD total 4.5                -159 /  +159    -111   vol $12k  clv -0.5c
+  LAD total 5.5                +104 /  -104    +156   vol $2.0k  clv -1.0c
+  F5 total 4.5                 -137 /  +137    +111   vol $29k  clv -3.5c
+  F5 total 5.5                 +116 /  -116    +174   vol $3.7k  clv -0.5c
+  Robbie Ray k 2.5             -312 /  +312    -270   off-band  vol $362  clv +2.0c
+  Robbie Ray k 3.5             -135 /  +135    -113   vol $6.3k  clv -1.0c
+  Robbie Ray k 4.5             +156 /  -156    +190   vol $2.0k  clv -0.5c
+  Robbie Ray k 5.5             +335 /  -335    +426   off-band  vol $748  clv -1.0c
+  Robbie Ray k 6.5             +748 /  -748   +1150   off-band  vol $258  clv -2.0c
+  Robbie Ray k 7.5            +1728 / -1728   +2757   off-band  vol $57  clv -0.5c
+  Robbie Ray outs 13.5         -186 /  +186       -   raw -168
+  Robbie Ray outs 14.5         -137 /  +137    -106   raw -121  vol $2.7k  clv -5.5c
+  Yoshinobu Yamamoto k 3.5     -704 /  +704    -770   off-band  vol $3.8k  clv -3.5c
+  Yoshinobu Yamamoto k 4.5     -313 /  +313    -365   off-band  vol $1.6k  clv -1.5c
+  Yoshinobu Yamamoto k 5.5     -154 /  +154    -190   vol $7.8k  clv -0.5c
+  Yoshinobu Yamamoto k 6.5     +124 /  -124    +108   vol $39k  clv -4.0c
+  Yoshinobu Yamamoto k 7.5     +239 /  -239    +194   off-band  vol $7.9k  clv -1.0c
+  Yoshinobu Yamamoto k 8.5     +464 /  -464    +400   off-band  vol $4.2k  clv -2.0c
+  Yoshinobu Yamamoto k 9.5     +947 /  -947    +953   off-band  vol $3.1k  clv -2.5c
+  Yoshinobu Yamamoto outs 18.5   +164 /  -164    +190   raw +142  vol $15k  clv -13.5c
+  Yoshinobu Yamamoto outs 19.5   +185 /  -185       -   raw +162
+
+HOU @ SEA   Ethan Pecko v George Kirby   (lineups posted, mean 7.8)
+  bet                          over / under  kalshi
+  total 7                      -112 /  +112       -   
+  total 7.5                    +114 /  -114    -102   vol $103k  clv -1.5c
+  total 8                      +137 /  -137       -   
+  HOU total 2.5                -157 /  +157    -190   vol $430  clv -0.5c
+  HOU total 3.5                +117 /  -117    -102   vol $11k  clv -1.5c
+  SEA total 3.5                -112 /  +112    -120   vol $365  clv -0.5c
+  SEA total 4.5                +156 /  -156    +150   vol $696  clv -2.0c
+  F5 total 3.5                 -133 /  +133    -135   vol $4.2k  clv -4.5c
+  F5 total 4.5                 +129 /  -129    +130   vol $24k  clv -2.5c
+  Ethan Pecko k 2.5            -270 /  +270    -308   THIN  off-band  vol $475  clv -3.5c
+  Ethan Pecko k 3.5            -124 /  +124    -135   THIN  vol $473  clv -3.5c
+  Ethan Pecko k 4.5            +174 /  -174    +156   THIN  off-band  vol $920  clv +0.0c
+  Ethan Pecko k 5.5            +370 /  -370    +400   THIN  off-band  vol $558  clv -2.0c
+  Ethan Pecko k 6.5            +830 /  -830   +1076   THIN  off-band  vol $39  clv -2.5c
+  Ethan Pecko outs 13.5        -140 /  +140       -   THIN  raw -127
+  Ethan Pecko outs 14.5        -114 /  +114    +141   THIN  raw -101  vol $8.6k  clv -12.5c
+  George Kirby k 2.5           -737 /  +737    -700   off-band  vol $1.1k  clv -1.5c
+  George Kirby k 3.5           -310 /  +310    -264   off-band  vol $1.1k  clv -2.5c
+  George Kirby k 4.5           -145 /  +145    -127   vol $2.2k  clv +3.0c
+  George Kirby k 5.5           +139 /  -139    +174   vol $1.1k  clv -1.5c
+  George Kirby k 6.5           +287 /  -287    +365   off-band  vol $13k  clv -1.5c
+  George Kirby k 7.5           +598 /  -598    +700   off-band  vol $3.2k  clv +2.5c
+  George Kirby k 8.5          +1304 / -1304   +1900   off-band  vol $2.1k  clv +1.0c
+  George Kirby outs 17.5       -145 /  +145    -130   raw -151  vol $834  clv +0.5c
+
+DECLINED — never filled with a league-average arm:
+  WSH @ DET   Richard Lovelady / Framber Valdez       game is Final — never price a live one
+  TOR @ BAL   Max Scherzer / Chris Bassitt            game is Final — never price a live one
+  TOR @ BAL   CJ Van Eyk / Trey Gibson                game is Final — never price a live one
+  MIN @ SF    Connor Prielipp / Cesar Perdomo         game is Final — never price a live one
+  STL @ PIT   Matthew Liberatore / Lake Bachar        game is Final — never price a live one
+  MIL @ PHI   Logan Henderson / Aaron Nola            game is Final — never price a live one
+  TB @ NYY    Mason Englert / Gerrit Cole             game is Game Over — never price a live one
+  CLE @ BOS   Foster Griffin / Sonny Gray             game is Final — never price a live one
+  CIN @ ATL   Andrew Abbott / Chris Sale              game is Game Over — never price a live one
+  CWS @ KC    Bryan Hudson / Seth Lugo                game is In Progress — never price a live one
+  MIA @ CHC   Ryan Gusto / Kevin Gausman              game is In Progress — never price a live one
+  NYM @ TEX   Nolan McLean / Cody Bradford            game is In Progress — never price a live one
+  AZ @ COL    Merrill Kelly / Mason Adams             game is In Progress — never price a live one
+  LAA @ ATH   Walbert Ureña / Jeffrey Springs         game is In Progress — never price a live one
+
+outs corrected (2026-09-09); raw in note. K beats the OPEN only — bet early or not.
+Totals Jul/Aug ran ~0.15-0.20 light a side (unshipped month term); Sept unmeasured.
+Re-run after lineups post: a projected nine has cost half an edge before.
+
+wall clock: 84s total — 77s simulating, 3s fetching markets, 4s loading rates. RE-RUNNING IS CHEAP; do it when lineups post.

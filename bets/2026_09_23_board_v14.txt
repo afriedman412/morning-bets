@@ -1,0 +1,111 @@
+BOARD — 2026-09-23 · 3 games · 20,000 sims · fair inside ±170 · odds are FAIR (no vig)
+
+LAA @ ATH   Walbert Ureña v Jeffrey Springs   (lineups posted, mean 9.1)
+  bet                          over / under  kalshi
+  total 8                      -127 /  +127       -   
+  total 8.5                    -105 /  +105    -141   vol $4.2k  clv -3.5c
+  total 9                      +120 /  -120       -   
+  LAA total 3.5                -155 /  +155    -208   vol $333  clv -0.5c
+  LAA total 4.5                +110 /  -110    -125   vol $2.4k  clv -1.5c
+  ATH total 3.5                -127 /  +127    -141   vol $16
+  ATH total 4.5                +136 /  -136    +122   vol $339  clv +0.0c
+  F5 total 4.5                 -113 /  +113    -120   vol $7.7k  clv +1.5c
+  F5 total 5.5                 +142 /  -142    +135   vol $771  clv +1.5c
+  Walbert Ureña k 2.5          -591 /  +591    -669   off-band  vol $344  clv -2.0c
+  Walbert Ureña k 3.5          -243 /  +243    -277   off-band  vol $2.2k  clv -3.5c
+  Walbert Ureña k 4.5          -117 /  +117    -125   vol $15k  clv -1.5c
+  Walbert Ureña k 5.5          +175 /  -175    +167   off-band  vol $1.7k  clv -2.5c
+  Walbert Ureña k 6.5          +352 /  -352    +344   off-band  vol $3.6k  clv +1.5c
+  Walbert Ureña k 7.5          +734 /  -734    +700   off-band  vol $506  clv -0.5c
+  Walbert Ureña k 8.5         +1653 / -1653   +1900   off-band  vol $476  clv -2.0c
+  Walbert Ureña outs 15.5      -113 /  +113       -   raw -113
+  Walbert Ureña outs 16.5      +111 /  -111       -   raw +107
+  Walbert Ureña outs 17.5      +144 /  -144    +120   raw +139  vol $2.0k  clv -2.5c
+  Jeffrey Springs k 2.5        -449 /  +449    -567   off-band  vol $30  clv -4.0c
+  Jeffrey Springs k 3.5        -192 /  +192    -228   off-band  vol $312  clv -3.5c
+  Jeffrey Springs k 4.5        +109 /  -109    -102   vol $4.0k  clv -5.5c
+  Jeffrey Springs k 5.5        +226 /  -226    +217   off-band  vol $115  clv -3.5c
+  Jeffrey Springs k 6.5        +470 /  -470    +441   off-band  vol $280  clv -1.5c
+  Jeffrey Springs k 7.5       +1045 / -1045    +900   off-band  vol $53  clv -1.0c
+  Jeffrey Springs k 8.5       +2525 / -2525   +2122   off-band  vol $0
+  Jeffrey Springs outs 14.5    -218 /  +218    -135   raw -188  off-band  vol $108  clv -2.5c
+  Jeffrey Springs outs 15.5    +114 /  -114       -   raw +114
+  Jeffrey Springs outs 16.5    +143 /  -143       -   raw +138
+
+SD @ LAD   Robbie Ray v Yoshinobu Yamamoto   (lineups posted, mean 9.7)
+  bet                          over / under  kalshi
+  total 8.5                    -133 /  +133    +115   vol $48k  clv -1.5c
+  total 9                      -109 /  +109       -   
+  total 9.5                    +114 /  -114    +174   vol $2.2k  clv -1.5c
+  SD total 2.5                 -164 /  +164    -147   vol $104  clv +1.5c
+  SD total 3.5                 +111 /  -111    +127   vol $1.3k  clv -2.0c
+  LAD total 4.5                -159 /  +159    -111   vol $2.3k  clv -0.5c
+  LAD total 5.5                +104 /  -104    +156   vol $1.3k  clv -1.0c
+  F5 total 4.5                 -137 /  +137    +106   vol $8.1k  clv -2.5c
+  F5 total 5.5                 +116 /  -116    +174   vol $254  clv -0.5c
+  Robbie Ray k 2.5             -312 /  +312    -292   off-band  vol $115  clv +3.5c
+  Robbie Ray k 3.5             -135 /  +135    -120   vol $1.1k  clv +0.5c
+  Robbie Ray k 4.5             +156 /  -156    +199   vol $1.7k  clv -1.5c
+  Robbie Ray k 5.5             +335 /  -335    +426   off-band  vol $716  clv -1.0c
+  Robbie Ray k 6.5             +748 /  -748   +1011   off-band  vol $257  clv -1.0c
+  Robbie Ray k 7.5            +1728 / -1728   +1900   off-band  vol $55  clv +1.0c
+  Robbie Ray outs 13.5         -186 /  +186       -   raw -168
+  Robbie Ray outs 14.5         -137 /  +137    -125   raw -121  vol $440  clv -1.5c
+  Yoshinobu Yamamoto k 3.5     -704 /  +704    -852   off-band  vol $2.1k  clv -2.5c
+  Yoshinobu Yamamoto k 4.5     -313 /  +313    -400   off-band  vol $1.5k  clv +0.0c
+  Yoshinobu Yamamoto k 5.5     -154 /  +154    -199   vol $6.3k  clv +0.5c
+  Yoshinobu Yamamoto k 6.5     +124 /  -124    +106   vol $27k  clv -3.5c
+  Yoshinobu Yamamoto k 7.5     +239 /  -239    +199   off-band  vol $5.2k  clv -1.5c
+  Yoshinobu Yamamoto k 8.5     +464 /  -464    +388   off-band  vol $2.1k  clv -1.5c
+  Yoshinobu Yamamoto k 9.5     +947 /  -947    +852   off-band  vol $2.1k  clv -1.5c
+  Yoshinobu Yamamoto outs 18.5   +164 /  -164    +194   raw +142  vol $10k  clv -14.0c
+  Yoshinobu Yamamoto outs 19.5   +185 /  -185       -   raw +162
+
+HOU @ SEA   Ethan Pecko v George Kirby   (lineups posted, mean 7.8)
+  bet                          over / under  kalshi
+  total 7                      -112 /  +112       -   
+  total 7.5                    +114 /  -114    -106   vol $55k  clv -0.5c
+  total 8                      +137 /  -137       -   
+  HOU total 2.5                -157 /  +157    -190   vol $399  clv -0.5c
+  HOU total 3.5                +117 /  -117    -106   vol $716  clv -0.5c
+  SEA total 3.5                -112 /  +112    -120   vol $35  clv -0.5c
+  SEA total 4.5                +156 /  -156    +147   vol $696  clv -1.5c
+  F5 total 3.5                 -133 /  +133    -135   vol $2.1k  clv -4.5c
+  F5 total 4.5                 +129 /  -129    +130   vol $5.5k  clv -2.5c
+  Ethan Pecko k 2.5            -270 /  +270    -326   THIN  off-band  vol $219  clv -2.5c
+  Ethan Pecko k 3.5            -124 /  +124    -138   THIN  vol $249  clv -3.0c
+  Ethan Pecko k 4.5            +174 /  -174    +160   THIN  off-band  vol $867  clv -0.5c
+  Ethan Pecko k 5.5            +370 /  -370    +365   THIN  off-band  vol $63  clv -0.5c
+  Ethan Pecko k 6.5            +830 /  -830    +770   THIN  off-band  vol $31  clv +0.5c
+  Ethan Pecko k 7.5           +1962 / -1962   +1567   THIN  off-band  vol $2  clv +1.0c
+  Ethan Pecko outs 13.5        -140 /  +140       -   THIN  raw -127
+  Ethan Pecko outs 14.5        -114 /  +114    +127   THIN  raw -101  vol $6.0k  clv -10.0c
+  George Kirby k 2.5           -737 /  +737    -669   off-band  vol $28  clv -2.0c
+  George Kirby k 3.5           -310 /  +310    -257   off-band  vol $26  clv -3.0c
+  George Kirby k 4.5           -145 /  +145    -125   vol $853  clv +2.5c
+  George Kirby k 5.5           +139 /  -139    +174   vol $454  clv -1.5c
+  George Kirby k 6.5           +287 /  -287    +376   off-band  vol $35  clv -2.0c
+  George Kirby k 7.5           +598 /  -598    +770   off-band  vol $96  clv +1.5c
+  George Kirby k 8.5          +1304 / -1304   +1900   off-band  vol $2  clv +1.0c
+  George Kirby outs 17.5       -145 /  +145    -141   raw -151  vol $310  clv +2.5c
+
+DECLINED — never filled with a league-average arm:
+  WSH @ DET   Richard Lovelady / Framber Valdez       game is Final — never price a live one
+  TOR @ BAL   Max Scherzer / Chris Bassitt            game is Final — never price a live one
+  TOR @ BAL   CJ Van Eyk / Trey Gibson                game is Game Over — never price a live one
+  MIN @ SF    Connor Prielipp / Cesar Perdomo         game is Final — never price a live one
+  STL @ PIT   Matthew Liberatore / Lake Bachar        game is In Progress — never price a live one
+  MIL @ PHI   Logan Henderson / Aaron Nola            game is In Progress — never price a live one
+  TB @ NYY    Mason Englert / Gerrit Cole             game is In Progress — never price a live one
+  CLE @ BOS   Foster Griffin / Sonny Gray             game is In Progress — never price a live one
+  CIN @ ATL   Andrew Abbott / Chris Sale              game is In Progress — never price a live one
+  CWS @ KC    Bryan Hudson / Seth Lugo                game is In Progress — never price a live one
+  MIA @ CHC   Ryan Gusto / Kevin Gausman              game is In Progress — never price a live one
+  NYM @ TEX   Nolan McLean / Cody Bradford            game is In Progress — never price a live one
+  AZ @ COL    Merrill Kelly / Mason Adams             game is In Progress — never price a live one
+
+outs corrected (2026-09-09); raw in note. K beats the OPEN only — bet early or not.
+Totals Jul/Aug ran ~0.15-0.20 light a side (unshipped month term); Sept unmeasured.
+Re-run after lineups post: a projected nine has cost half an edge before.
+
+wall clock: 87s total — 79s simulating, 4s fetching markets, 4s loading rates. RE-RUNNING IS CHEAP; do it when lineups post.

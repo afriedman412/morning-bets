@@ -1,0 +1,374 @@
+BOARD — 2026-09-23 · 13 games · 20,000 sims · fair inside ±170 · odds are FAIR (no vig)
+
+MIN @ SF   Connor Prielipp v Cesar Perdomo   (lineups posted, mean 7.3)
+  bet                          over / under  kalshi
+  total 6.5                    -118 /  +118    -190   vol $7.9k  clv +1.5c
+  total 7                      +110 /  -110       -   
+  total 7.5                    +138 /  -138    -115   vol $83k  clv +1.5c
+  MIN total 3.5                -106 /  +106    -147   vol $9  clv -0.5c
+  MIN total 4.5                +162 /  -162    +115   vol $7.1k  clv +0.5c
+  SF total 2.5                 -127 /  +127    -163   vol $8.7k  clv +0.0c
+  SF total 3.5                 +150 /  -150    +115   vol $5.6k  clv -1.5c
+  F5 total 3.5                 -102 /  +102    -141   vol $191
+  F5 total 4.5                 +166 /  -166    +120   vol $5.6k  clv -1.5c
+  Connor Prielipp k 2.5       -1290 / +1290    -900   off-band  vol $37  clv +1.0c
+  Connor Prielipp k 3.5        -524 /  +524    -400   off-band  vol $294  clv +5.0c
+  Connor Prielipp k 4.5        -251 /  +251    -178   off-band  vol $3.2k  clv -3.0c
+  Connor Prielipp k 5.5        -124 /  +124    +111   vol $12k  clv -1.5c
+  Connor Prielipp k 6.5        +154 /  -154    +245   vol $1.1k  clv -3.0c
+  Connor Prielipp k 7.5        +303 /  -303    +506   off-band  vol $1.1k  clv -2.5c
+  Connor Prielipp k 8.5        +613 /  -613   +1076   off-band  vol $685  clv +2.5c
+  Connor Prielipp outs 15.5    -159 /  +159    +147   raw -158  vol $8.0k  clv -10.5c
+  Connor Prielipp outs 16.5    -129 /  +129       -   raw -133
+  Connor Prielipp outs 17.5    +101 /  -101       -   raw -102
+  Cesar Perdomo k 2.5          -305 /  +305    -228   THIN  off-band  vol $240  clv +1.5c
+  Cesar Perdomo k 3.5          -133 /  +133    +106   THIN  vol $1.2k  clv -2.5c
+  Cesar Perdomo k 4.5          +166 /  -166    +245   THIN  vol $995  clv +1.0c
+  Cesar Perdomo k 5.5          +363 /  -363    +590   THIN  off-band  vol $798  clv -0.5c
+  Cesar Perdomo k 6.5          +829 /  -829   +1438   THIN  off-band  vol $344  clv +0.5c
+  Cesar Perdomo outs 15.5      -110 /  +110       -   THIN  raw -110
+  Cesar Perdomo outs 16.5      +113 /  -113       -   THIN  raw +109
+
+STL @ PIT   Matthew Liberatore v Lake Bachar   (PROJECTED lineups, mean 8.6)
+  bet                          over / under  kalshi
+  total 7.5                    -121 /  +121    +115   [Lake Bachar: averages 6.3 outs a start — opener]  vol $20k  clv -5.5c
+  total 8                      -103 /  +103       -   [Lake Bachar: averages 6.3 outs a start — opener]
+  total 8.5                    +114 /  -114    +153   [Lake Bachar: averages 6.3 outs a start — opener]  vol $192  clv -2.5c
+  STL total 3.5                +103 /  -103    +111   [Lake Bachar: averages 6.3 outs a start — opener]  vol $26  clv -2.5c
+  PIT total 3.5                -154 /  +154    -108   [Lake Bachar: averages 6.3 outs a start — opener]  vol $1.4k  clv -2.0c
+  PIT total 4.5                +115 /  -115    +167   [Lake Bachar: averages 6.3 outs a start — opener]  vol $0
+  F5 total 3.5                 -162 /  +162    -133   [Lake Bachar: averages 6.3 outs a start — opener]  vol $51
+  F5 total 4.5                 +104 /  -104    +135   [Lake Bachar: averages 6.3 outs a start — opener]  vol $1.6k  clv -4.5c
+  Matthew Liberatore k 2.5     -418 /  +418    -567   off-band  vol $56  clv -2.0c
+  Matthew Liberatore k 3.5     -187 /  +187    -270   off-band  vol $283  clv -1.0c
+  Matthew Liberatore k 4.5     +112 /  -112    -125   vol $1.0k  clv -0.5c
+  Matthew Liberatore k 5.5     +229 /  -229    +167   off-band  vol $228  clv -1.5c
+  Matthew Liberatore k 6.5     +475 /  -475    +317   off-band  vol $69  clv -2.0c
+  Matthew Liberatore k 7.5    +1001 / -1001    +669   off-band  vol $533  clv -2.0c
+  Matthew Liberatore k 8.5    +2394 / -2394   +1438   off-band  vol $669  clv -1.5c
+  Matthew Liberatore outs 14.5   -170 /  +170       -   raw -148
+  Matthew Liberatore outs 15.5   +142 /  -142    +150   raw +142  vol $2.6k  clv -5.0c
+  Lake Bachar k 2.5            +103 /  -103       -   proj lineup  [averages 6.3 outs a start — opener]  
+
+MIL @ PHI   Logan Henderson v Aaron Nola   (PROJECTED lineups, mean 8.8)
+  bet                          over / under  kalshi
+  total 8                      -114 /  +114       -   
+  total 8.5                    +104 /  -104    +174   vol $420  clv -3.5c
+  total 9                      +132 /  -132       -   
+  MIL total 3.5                -136 /  +136    -108   vol $223  clv -5.0c
+  MIL total 4.5                +126 /  -126    +156   vol $96  clv -4.0c
+  PHI total 3.5                -127 /  +127    +135   vol $9.4k  clv -1.5c
+  PHI total 4.5                +139 /  -139    +239   vol $0
+  F5 total 4.5                 +103 /  -103    +160   vol $401  clv -3.5c
+  F5 total 5.5                 +165 /  -165    +264   vol $265  clv -1.5c
+  Logan Henderson k 2.5        -733 /  +733    -852   off-band  vol $62  clv -2.5c
+  Logan Henderson k 3.5        -321 /  +321    -400   off-band  vol $152  clv +1.0c
+  Logan Henderson k 4.5        -159 /  +159    -182   vol $1.2k  clv -3.5c
+  Logan Henderson k 5.5        +128 /  -128    +115   vol $4.0k  clv +2.5c
+  Logan Henderson k 6.5        +255 /  -255    +239   off-band  vol $1.5k  clv -3.5c
+  Logan Henderson k 7.5        +527 /  -527    +506   off-band  vol $279  clv +4.5c
+  Logan Henderson k 8.5       +1158 / -1158   +1076   off-band  vol $190  clv +1.5c
+  Logan Henderson k 9.5       +2697 / -2697   +2400   off-band  vol $12  clv -2.0c
+  Logan Henderson outs 14.5    -238 /  +238    -153   raw -205  off-band  vol $4.3k  clv -5.5c
+  Logan Henderson outs 15.5    +108 /  -108       -   raw +109
+  Logan Henderson outs 16.5    +135 /  -135       -   raw +131
+  Aaron Nola k 2.5             -673 /  +673   -1011   proj lineup  off-band  vol $11  clv -2.0c
+  Aaron Nola k 3.5             -302 /  +302    -413   proj lineup  off-band  vol $191  clv -1.5c
+  Aaron Nola k 4.5             -146 /  +146    -190   proj lineup  vol $52  clv +0.5c
+  Aaron Nola k 5.5             +132 /  -132    +108   proj lineup  vol $2.0k  clv +0.0c
+  Aaron Nola k 6.5             +262 /  -262    +223   proj lineup  off-band  vol $1.0k  clv +0.0c
+  Aaron Nola k 7.5             +528 /  -528    +413   proj lineup  off-band  vol $276  clv +1.5c
+  Aaron Nola k 8.5            +1144 / -1144    +900   proj lineup  off-band  vol $336  clv +0.0c
+  Aaron Nola outs 14.5         -182 /  +182       -   proj lineup  raw -159
+  Aaron Nola outs 15.5         +140 /  -140    +113   proj lineup  raw +140  vol $3.7k  clv +2.0c
+
+TB @ NYY   Mason Englert v Gerrit Cole   (PROJECTED lineups, mean 9.4)
+  bet                          over / under  kalshi
+  total 8.5                    -121 /  +121    +228   [Mason Englert: averages 10.5 outs a start — opener]  vol $803  clv -4.5c
+  total 9                      +102 /  -102       -   [Mason Englert: averages 10.5 outs a start — opener]
+  total 9.5                    +127 /  -127    +365   [Mason Englert: averages 10.5 outs a start — opener]  vol $173  clv -0.5c
+  TB total 3.5                 -163 /  +163    +141   [Mason Englert: averages 10.5 outs a start — opener]  vol $123  clv -2.5c
+  TB total 4.5                 +104 /  -104    +257   [Mason Englert: averages 10.5 outs a start — opener]  vol $0
+  NYY total 3.5                -146 /  +146    +120   [Mason Englert: averages 10.5 outs a start — opener]  vol $623  clv -5.5c
+  NYY total 4.5                +121 /  -121    +223   [Mason Englert: averages 10.5 outs a start — opener]  vol $0
+  F5 total 4.5                 -115 /  +115    +186   [Mason Englert: averages 10.5 outs a start — opener]  vol $25  clv -9.0c
+  F5 total 5.5                 +139 /  -139    +308   [Mason Englert: averages 10.5 outs a start — opener]  vol $49  clv -14.5c
+  Mason Englert k 3.5          +101 /  -101       -   proj lineup  THIN  [averages 10.5 outs a start — opener]  
+  Gerrit Cole k 2.5            -501 /  +501    -809   proj lineup  off-band  vol $86  clv -2.0c
+  Gerrit Cole k 3.5            -216 /  +216    -326   proj lineup  off-band  vol $720  clv -2.5c
+  Gerrit Cole k 4.5            -101 /  +101    -141   proj lineup  vol $811  clv +3.5c
+  Gerrit Cole k 5.5            +203 /  -203    +153   proj lineup  off-band  vol $2.2k  clv -0.5c
+  Gerrit Cole k 6.5            +428 /  -428    +326   proj lineup  off-band  vol $34  clv -3.5c
+  Gerrit Cole k 7.5            +934 /  -934    +700   proj lineup  off-band  vol $15  clv -2.5c
+  Gerrit Cole k 8.5           +2137 / -2137   +1438   proj lineup  off-band  vol $46  clv +0.5c
+  Gerrit Cole outs 15.5        -119 /  +119       -   proj lineup  raw -119
+  Gerrit Cole outs 16.5        +105 /  -105       -   proj lineup  raw +102
+  Gerrit Cole outs 17.5        +136 /  -136    +108   proj lineup  raw +131  vol $950  clv -8.0c
+
+CLE @ BOS   Foster Griffin v Sonny Gray   (PROJECTED lineups, mean 8.2)
+  bet                          over / under  kalshi
+  total 7.5                    -105 /  +105    +153   vol $43k  clv -6.5c
+  total 8                      +113 /  -113       -   
+  total 8.5                    +132 /  -132    +208   vol $1.7k  clv -5.5c
+  CLE total 3.5                -121 /  +121    +130   vol $0
+  CLE total 4.5                +140 /  -140    +223   vol $0
+  BOS total 3.5                +101 /  -101    +111   vol $40
+  F5 total 3.5                 -127 /  +127    +102   vol $1.6k  clv -5.5c
+  F5 total 4.5                 +133 /  -133    +174   vol $2.6k  clv -4.5c
+  Foster Griffin k 2.5         -605 /  +605    -471   off-band  vol $168  clv +2.5c
+  Foster Griffin k 3.5         -256 /  +256    -203   off-band  vol $119  clv +4.0c
+  Foster Griffin k 4.5         -121 /  +121    +113   vol $3.2k  clv +3.0c
+  Foster Griffin k 5.5         +169 /  -169    +245   vol $170  clv -1.0c
+  Foster Griffin k 6.5         +340 /  -340    +525   off-band  vol $144  clv +0.0c
+  Foster Griffin k 7.5         +718 /  -718   +1233   off-band  vol $1
+  Foster Griffin outs 14.5     -344 /  +344    -153   raw -289  off-band  vol $1.7k  clv -8.5c
+  Foster Griffin outs 16.5     -110 /  +110       -   raw -113
+  Foster Griffin outs 17.5     +119 /  -119       -   raw +114
+  Sonny Gray k 2.5             -299 /  +299    -614   proj lineup  off-band  vol $35  clv +0.0c
+  Sonny Gray k 3.5             -124 /  +124    -251   proj lineup  vol $348  clv -0.5c
+  Sonny Gray k 4.5             +180 /  -180    -113   proj lineup  off-band  vol $3.8k  clv +2.0c
+  Sonny Gray k 5.5             +399 /  -399    +203   proj lineup  off-band  vol $1
+  Sonny Gray k 6.5             +917 /  -917    +413   proj lineup  off-band  vol $33  clv -1.5c
+  Sonny Gray k 7.5            +2284 / -2284    +953   proj lineup  off-band  vol $1
+  Sonny Gray outs 16.5         -133 /  +133       -   proj lineup  raw -138
+  Sonny Gray outs 17.5         -103 /  +103    -113   proj lineup  raw -107  vol $813  clv -2.0c
+
+CIN @ ATL   Andrew Abbott v Chris Sale   (PROJECTED lineups, mean 8.3)
+  bet                          over / under  kalshi
+  total 7.5                    -108 /  +108    +106   vol $15k  clv -1.5c
+  total 8                      +110 /  -110       -   
+  total 8.5                    +128 /  -128    +153   vol $520  clv +0.5c
+  CIN total 2.5                -130 /  +130    -106   vol $0
+  CIN total 3.5                +140 /  -140    +186   vol $192  clv +0.0c
+  ATL total 4.5                +104 /  -104    +111   vol $3.5k  clv -0.5c
+  F5 total 3.5                 -137 /  +137    -125   vol $124  clv +1.5c
+  F5 total 4.5                 +124 /  -124    +141   vol $570  clv -4.5c
+  Andrew Abbott k 2.5          -304 /  +304    -285   proj lineup  off-band  vol $12  clv -2.0c
+  Andrew Abbott k 3.5          -126 /  +126    -125   proj lineup  vol $1.4k  clv +1.5c
+  Andrew Abbott k 4.5          +173 /  -173    +194   proj lineup  off-band  vol $15  clv -0.0c
+  Andrew Abbott k 5.5          +383 /  -383    +441   proj lineup  off-band  vol $41
+  Andrew Abbott k 6.5          +856 /  -856    +953   proj lineup  off-band  vol $1
+  Andrew Abbott k 7.5         +2188 / -2188   +3233   proj lineup  off-band  vol $131  clv -1.0c
+  Andrew Abbott outs 14.5      -267 /  +267    -135   proj lineup  raw -228  off-band  vol $64  clv -2.5c
+  Andrew Abbott outs 15.5      -111 /  +111       -   proj lineup  raw -110
+  Andrew Abbott outs 16.5      +113 /  -113       -   proj lineup  raw +110
+  Chris Sale k 4.5             -647 /  +647    -641   proj lineup  off-band  vol $2.7k  clv +4.5c
+  Chris Sale k 5.5             -335 /  +335    -326   proj lineup  off-band  vol $638  clv -0.5c
+  Chris Sale k 6.5             -178 /  +178    -174   proj lineup  off-band  vol $2.5k  clv +7.5c
+  Chris Sale k 7.5             +103 /  -103    +120   proj lineup  vol $4.7k  clv +4.5c
+  Chris Sale k 8.5             +187 /  -187    +217   proj lineup  off-band  vol $1.7k  clv +6.5c
+  Chris Sale k 9.5             +346 /  -346    +456   proj lineup  off-band  vol $4.5k  clv +0.0c
+  Chris Sale outs 16.5         -130 /  +130    +144   proj lineup  raw -134  vol $2.8k  clv -7.0c
+  Chris Sale outs 17.5         -105 /  +105       -   proj lineup  raw -109
+
+CWS @ KC   Bryan Hudson v Seth Lugo   (PROJECTED lineups, mean 9.0)
+  bet                          over / under  kalshi
+  total 8                      -121 /  +121       -   [Bryan Hudson: averages 3.4 outs a start — opener]
+  total 8.5                    -102 /  +102    +102   [Bryan Hudson: averages 3.4 outs a start — opener]  vol $12k  clv +0.5c
+  total 9                      +123 /  -123       -   [Bryan Hudson: averages 3.4 outs a start — opener]
+  CWS total 3.5                -156 /  +156    -150   [Bryan Hudson: averages 3.4 outs a start — opener]  vol $201  clv +0.0c
+  CWS total 4.5                +108 /  -108    +113   [Bryan Hudson: averages 3.4 outs a start — opener]  vol $592  clv +0.0c
+  KC total 3.5                 -120 /  +120    -120   [Bryan Hudson: averages 3.4 outs a start — opener]  vol $72  clv -2.5c
+  KC total 4.5                 +147 /  -147    +150   [Bryan Hudson: averages 3.4 outs a start — opener]  vol $6  clv -3.0c
+  F5 total 4.5                 -102 /  +102    +100   [Bryan Hudson: averages 3.4 outs a start — opener]  vol $2.1k  clv +0.0c
+  F5 total 5.5                 +155 /  -155    +156   [Bryan Hudson: averages 3.4 outs a start — opener]  vol $9
+  Seth Lugo k 2.5              -473 /  +473    -441   proj lineup  off-band  vol $4
+  Seth Lugo k 3.5              -193 /  +193    -194   proj lineup  off-band  vol $616  clv -3.0c
+  Seth Lugo k 4.5              +115 /  -115    +117   proj lineup  vol $798  clv -0.0c
+  Seth Lugo k 5.5              +246 /  -246    +245   proj lineup  off-band  vol $1
+  Seth Lugo k 6.5              +530 /  -530    +525   proj lineup  off-band  vol $1
+  Seth Lugo k 7.5             +1207 / -1207   +1233   proj lineup  off-band  vol $1
+  Seth Lugo outs 14.5          -348 /  +348    -223   proj lineup  raw -292  off-band  vol $1.3k  clv +2.0c
+  Seth Lugo outs 16.5          -112 /  +112       -   proj lineup  raw -116
+  Seth Lugo outs 17.5          +115 /  -115       -   proj lineup  raw +111
+
+MIA @ CHC   Ryan Gusto v Kevin Gausman   (PROJECTED lineups, mean 9.2)
+  bet                          over / under  kalshi
+  total 8                      -134 /  +134       -   
+  total 8.5                    -111 /  +111    +208   vol $510  clv -3.5c
+  total 9                      +113 /  -113       -   
+  MIA total 3.5                -113 /  +113    +163   vol $104  clv -2.0c
+  MIA total 4.5                +148 /  -148    +285   vol $0
+  CHC total 4.5                -106 /  +106    +178   vol $14  clv -6.0c
+  CHC total 5.5                +159 /  -159    +300   vol $19  clv -1.0c
+  F5 total 4.5                 -113 /  +113    +174   vol $2  clv +0.5c
+  F5 total 5.5                 +141 /  -141    +292   vol $28  clv -2.5c
+  Ryan Gusto k 2.5             -267 /  +267    -292   proj lineup  off-band  vol $4  clv -1.5c
+  Ryan Gusto k 3.5             -117 /  +117    -125   proj lineup  vol $111  clv -1.5c
+  Ryan Gusto k 4.5             +185 /  -185    +194   proj lineup  off-band  vol $314  clv -3.0c
+  Ryan Gusto k 5.5             +398 /  -398    +456   proj lineup  off-band  vol $3  clv -2.0c
+  Ryan Gusto k 6.5             +863 /  -863    +852   proj lineup  off-band  vol $1
+  Ryan Gusto k 7.5            +2048 / -2048   +1900   proj lineup  off-band  vol $1
+  Ryan Gusto outs 13.5         -142 /  +142       -   proj lineup  raw -129
+  Ryan Gusto outs 14.5         -111 /  +111       -   proj lineup  raw +102
+  Ryan Gusto outs 15.5         +218 /  -218    +163   proj lineup  raw +219  off-band  vol $351  clv -7.0c
+  Kevin Gausman k 2.5         -1302 / +1302   -1233   proj lineup  off-band  vol $73  clv -2.5c
+  Kevin Gausman k 3.5          -526 /  +526    -545   proj lineup  off-band  vol $589  clv -3.5c
+  Kevin Gausman k 4.5          -245 /  +245    -264   proj lineup  off-band  vol $77  clv -1.5c
+  Kevin Gausman k 5.5          -124 /  +124    -127   proj lineup  vol $3.1k  clv -2.0c
+  Kevin Gausman k 6.5          +160 /  -160    +163   proj lineup  vol $631  clv -3.0c
+  Kevin Gausman k 7.5          +314 /  -314    +308   proj lineup  off-band  vol $3  clv -0.5c
+  Kevin Gausman k 8.5          +650 /  -650    +669   proj lineup  off-band  vol $363  clv -1.0c
+  Kevin Gausman k 9.5         +1377 / -1377   +1329   proj lineup  off-band  vol $0
+  Kevin Gausman outs 16.5      -139 /  +139       -   proj lineup  raw -144
+  Kevin Gausman outs 17.5      -107 /  +107    -153   proj lineup  raw -111  vol $208  clv +3.5c
+
+NYM @ TEX   Nolan McLean v Cody Bradford   (PROJECTED lineups, mean 8.4)
+  bet                          over / under  kalshi
+  total 7.5                    -113 /  +113    -111   vol $29k  clv +3.5c
+  total 8                      +104 /  -104       -   
+  total 8.5                    +121 /  -121    +125   vol $5.9k  clv +3.5c
+  NYM total 3.5                -144 /  +144    -115   vol $122
+  NYM total 4.5                +119 /  -119    +147   vol $0
+  TEX total 3.5                +104 /  -104    -106   vol $38  clv -0.5c
+  F5 total 3.5                 -145 /  +145    -147   vol $41
+  F5 total 4.5                 +117 /  -117    +115   vol $56  clv +0.5c
+  Nolan McLean k 2.5          -1220 / +1220   -1076   proj lineup  off-band  vol $16  clv -1.5c
+  Nolan McLean k 3.5           -522 /  +522    -471   proj lineup  off-band  vol $1.8k  clv +0.5c
+  Nolan McLean k 4.5           -247 /  +247    -208   proj lineup  off-band  vol $570  clv +3.5c
+  Nolan McLean k 5.5           -123 /  +123    -111   proj lineup  vol $6.5k  clv +5.5c
+  Nolan McLean k 6.5           +157 /  -157    +190   proj lineup  vol $287  clv +4.5c
+  Nolan McLean k 7.5           +306 /  -306    +388   proj lineup  off-band  vol $99  clv +4.5c
+  Nolan McLean k 8.5           +614 /  -614    +852   proj lineup  off-band  vol $72  clv -0.5c
+  Nolan McLean k 9.5          +1292 / -1292   +1900   proj lineup  off-band  vol $1
+  Nolan McLean outs 16.5       -129 /  +129       -   proj lineup  raw -134
+  Nolan McLean outs 17.5       +101 /  -101    +102   proj lineup  raw -103  vol $959  clv +0.5c
+  Cody Bradford k 2.5          -133 /  +133    -130   proj lineup  THIN  vol $649  clv +0.5c
+  Cody Bradford k 3.5          +178 /  -178    +182   proj lineup  THIN  off-band  vol $1.6k  clv +0.5c
+  Cody Bradford k 4.5          +419 /  -419    +413   proj lineup  THIN  off-band  vol $205  clv +0.5c
+  Cody Bradford k 5.5         +1028 / -1028    +900   proj lineup  THIN  off-band  vol $3  clv +0.0c
+  Cody Bradford k 6.5         +2606 / -2606   +2122   proj lineup  THIN  off-band  vol $858  clv +1.5c
+  Cody Bradford outs 12.5      -217 /  +217    -106   proj lineup  THIN  raw -202  off-band  vol $1.2k  clv -1.5c
+  Cody Bradford outs 14.5      -155 /  +155       -   proj lineup  THIN  raw -136
+  Cody Bradford outs 15.5      +166 /  -166       -   proj lineup  THIN  raw +167
+
+AZ @ COL   Merrill Kelly v Mason Adams   (PROJECTED lineups, mean 11.1)
+  bet                          over / under  kalshi
+  total 10                     -123 /  +123       -   
+  total 10.5                   -104 /  +104    -125   vol $30k  clv +1.5c
+  total 11.5                   +135 /  -135    +120   vol $130k  clv -1.5c
+  AZ total 4.5                 -142 /  +142    -199   vol $57  clv -1.5c
+  AZ total 5.5                 +110 /  -110    -127   vol $3.0k  clv -1.0c
+  COL total 4.5                -126 /  +126    -115   vol $372  clv -0.5c
+  COL total 5.5                +131 /  -131    +153   vol $11  clv -3.5c
+  F5 total 5.5                 -117 /  +117    -122   vol $4.8k  clv +9.0c
+  F5 total 6.5                 +130 /  -130    +125   vol $3.9k  clv +9.5c
+  Merrill Kelly k 2.5          -335 /  +335    -277   off-band  vol $40  clv -2.5c
+  Merrill Kelly k 3.5          -143 /  +143    -120   vol $2.3k  clv +0.5c
+  Merrill Kelly k 4.5          +153 /  -153    +190   vol $3  clv +2.5c
+  Merrill Kelly k 5.5          +333 /  -333    +426   off-band  vol $3  clv -1.0c
+  Merrill Kelly k 6.5          +762 /  -762    +953   off-band  vol $234  clv -0.5c
+  Merrill Kelly outs 15.5      -101 /  +101       -   raw -100
+  Merrill Kelly outs 16.5      +126 /  -126       -   raw +122
+  Mason Adams k 2.5            -323 /  +323    -199   proj lineup  THIN  off-band  vol $41  clv +0.5c
+  Mason Adams k 3.5            -139 /  +139    +127   proj lineup  THIN  vol $533  clv +0.0c
+  Mason Adams k 4.5            +155 /  -155    +277   proj lineup  THIN  vol $1
+  Mason Adams k 5.5            +331 /  -331    +641   proj lineup  THIN  off-band  vol $1
+  Mason Adams k 6.5            +697 /  -697   +1567   proj lineup  THIN  off-band  vol $1
+  Mason Adams outs 13.5        -211 /  +211    -111   proj lineup  THIN  raw -189  off-band  vol $9  clv +2.5c
+  Mason Adams outs 14.5        -161 /  +161       -   proj lineup  THIN  raw -141
+  Mason Adams outs 15.5        +149 /  -149       -   proj lineup  THIN  raw +150
+
+LAA @ ATH   Walbert Ureña v Jeffrey Springs   (PROJECTED lineups, mean 9.3)
+  bet                          over / under  kalshi
+  total 8.5                    -114 /  +114    -147   vol $308  clv -2.5c
+  total 9                      +109 /  -109       -   
+  total 9.5                    +134 /  -134    +106   vol $11k  clv -1.5c
+  LAA total 3.5                -167 /  +167    -203   vol $165  clv -1.0c
+  LAA total 4.5                +104 /  -104    -125   vol $408  clv -1.5c
+  ATH total 3.5                -133 /  +133    -150   vol $0
+  ATH total 4.5                +129 /  -129    +117   vol $124  clv +1.0c
+  F5 total 4.5                 -117 /  +117    -135   vol $2  clv +4.5c
+  F5 total 5.5                 +137 /  -137    +120   vol $144  clv +4.5c
+  Walbert Ureña k 2.5          -539 /  +539    -525   proj lineup  off-band  vol $259  clv -5.0c
+  Walbert Ureña k 3.5          -234 /  +234    -217   proj lineup  off-band  vol $627  clv -8.5c
+  Walbert Ureña k 4.5          -110 /  +110    -106   proj lineup  vol $3.6k  clv -5.5c
+  Walbert Ureña k 5.5          +188 /  -188    +178   proj lineup  off-band  vol $72  clv -4.0c
+  Walbert Ureña k 6.5          +384 /  -384    +376   proj lineup  off-band  vol $12
+  Walbert Ureña k 7.5          +823 /  -823    +770   proj lineup  off-band  vol $0
+  Walbert Ureña k 8.5         +1898 / -1898   +1718   proj lineup  off-band  vol $0
+  Walbert Ureña outs 15.5      -107 /  +107       -   proj lineup  raw -106
+  Walbert Ureña outs 16.5      +117 /  -117       -   proj lineup  raw +113
+  Walbert Ureña outs 17.5      +154 /  -154    +113   proj lineup  raw +148  vol $96  clv -1.0c
+  Jeffrey Springs k 2.5        -455 /  +455    -614   proj lineup  off-band  vol $3  clv -3.0c
+  Jeffrey Springs k 3.5        -198 /  +198    -264   proj lineup  off-band  vol $0
+  Jeffrey Springs k 4.5        +105 /  -105    -117   proj lineup  vol $151  clv -2.0c
+  Jeffrey Springs k 5.5        +217 /  -217    +170   proj lineup  off-band  vol $16  clv +2.0c
+  Jeffrey Springs k 6.5        +455 /  -455    +365   proj lineup  off-band  vol $12
+  Jeffrey Springs k 7.5        +963 /  -963    +809   proj lineup  off-band  vol $0
+  Jeffrey Springs k 8.5       +2234 / -2234   +1900   proj lineup  off-band  vol $0
+  Jeffrey Springs outs 14.5    -203 /  +203    -127   proj lineup  raw -176  off-band  vol $22  clv -4.0c
+  Jeffrey Springs outs 15.5    +122 /  -122       -   proj lineup  raw +122
+  Jeffrey Springs outs 16.5    +154 /  -154       -   proj lineup  raw +149
+
+SD @ LAD   Robbie Ray v Yoshinobu Yamamoto   (PROJECTED lineups, mean 8.9)
+  bet                          over / under  kalshi
+  total 8                      -119 /  +119       -   
+  total 8.5                    -100 /  +100    +115   vol $13k  clv -1.5c
+  total 9                      +124 /  -124       -   
+  SD total 2.5                 -151 /  +151    -147   vol $0  clv +1.5c
+  SD total 3.5                 +119 /  -119    +127   vol $243  clv -2.0c
+  LAD total 4.5                -117 /  +117    -106   vol $838  clv -1.5c
+  LAD total 5.5                +140 /  -140    +160   vol $709  clv -1.5c
+  F5 total 4.5                 -107 /  +107    +104   vol $58  clv -2.0c
+  F5 total 5.5                 +150 /  -150    +167   vol $252  clv +0.5c
+  Robbie Ray k 2.5             -344 /  +344    -300   proj lineup  off-band  vol $38  clv +4.0c
+  Robbie Ray k 3.5             -147 /  +147    -120   proj lineup  vol $182  clv +0.5c
+  Robbie Ray k 4.5             +148 /  -148    +190   proj lineup  vol $48  clv -0.5c
+  Robbie Ray k 5.5             +314 /  -314    +426   proj lineup  off-band  vol $15
+  Robbie Ray k 6.5             +689 /  -689    +900   proj lineup  off-band  vol $0
+  Robbie Ray k 7.5            +1621 / -1621   +2757   proj lineup  off-band  vol $30  clv -0.5c
+  Robbie Ray outs 14.5         -151 /  +151    -113   proj lineup  raw -132  vol $53  clv -4.0c
+  Robbie Ray outs 15.5         +156 /  -156       -   proj lineup  raw +157
+  Yoshinobu Yamamoto k 3.5     -729 /  +729    -770   proj lineup  off-band  vol $315  clv -3.5c
+  Yoshinobu Yamamoto k 4.5     -327 /  +327    -365   proj lineup  off-band  vol $705  clv -1.5c
+  Yoshinobu Yamamoto k 5.5     -157 /  +157    -190   proj lineup  vol $2.2k  clv -0.5c
+  Yoshinobu Yamamoto k 6.5     +125 /  -125    +102   proj lineup  vol $11k  clv -2.5c
+  Yoshinobu Yamamoto k 7.5     +241 /  -241    +208   proj lineup  off-band  vol $2.9k  clv -2.5c
+  Yoshinobu Yamamoto k 8.5     +469 /  -469    +413   proj lineup  off-band  vol $485  clv -2.5c
+  Yoshinobu Yamamoto k 9.5     +963 /  -963   +1011   proj lineup  off-band  vol $174  clv -3.0c
+  Yoshinobu Yamamoto outs 18.5   +167 /  -167    +135   proj lineup  raw +145  vol $2.5k  clv -5.5c
+  Yoshinobu Yamamoto outs 19.5   +189 /  -189       -   proj lineup  raw +166
+
+HOU @ SEA   Ethan Pecko v George Kirby   (PROJECTED lineups, mean 7.9)
+  bet                          over / under  kalshi
+  total 7                      -122 /  +122       -   
+  total 7.5                    +107 /  -107    -106   vol $25k  clv -0.5c
+  total 8                      +129 /  -129       -   
+  HOU total 3.5                +104 /  -104    -102   vol $239  clv -1.5c
+  SEA total 3.5                -111 /  +111    -120   vol $0
+  SEA total 4.5                +160 /  -160    +144   vol $16  clv -1.0c
+  F5 total 3.5                 -136 /  +136    -138   vol $58  clv -4.0c
+  F5 total 4.5                 +125 /  -125    +130   vol $3.4k  clv -2.5c
+  Ethan Pecko k 2.5            -256 /  +256    -326   proj lineup  THIN  off-band  vol $4
+  Ethan Pecko k 3.5            -117 /  +117    -141   proj lineup  THIN  vol $105  clv -2.5c
+  Ethan Pecko k 4.5            +178 /  -178    +156   proj lineup  THIN  off-band  vol $256  clv +0.0c
+  Ethan Pecko k 5.5            +376 /  -376    +355   proj lineup  THIN  off-band  vol $39  clv +0.0c
+  Ethan Pecko k 6.5            +834 /  -834    +700   proj lineup  THIN  off-band  vol $30  clv +1.5c
+  Ethan Pecko k 7.5           +2023 / -2023   +1567   proj lineup  THIN  off-band  vol $1
+  Ethan Pecko outs 13.5        -146 /  +146       -   proj lineup  THIN  raw -133
+  Ethan Pecko outs 14.5        -118 /  +118    -122   proj lineup  THIN  raw -104  vol $2
+  George Kirby k 2.5           -671 /  +671    -590   proj lineup  off-band  vol $16  clv -3.5c
+  George Kirby k 3.5           -276 /  +276    -264   proj lineup  off-band  vol $16  clv -2.5c
+  George Kirby k 4.5           -128 /  +128    -125   proj lineup  vol $292  clv +2.5c
+  George Kirby k 5.5           +160 /  -160    +178   proj lineup  vol $45  clv -2.0c
+  George Kirby k 6.5           +333 /  -333    +365   proj lineup  off-band  vol $3  clv -1.5c
+  George Kirby k 7.5           +707 /  -707    +770   proj lineup  off-band  vol $72  clv +1.5c
+  George Kirby k 8.5          +1612 / -1612   +2122   proj lineup  off-band  vol $1
+  George Kirby outs 17.5       -142 /  +142    -147   proj lineup  raw -147  vol $18  clv +3.5c
+
+ARMS FLAGGED — priced, but not a normal starter's line:
+  STL @ PIT   Lake Bachar             averages 6.3 outs a start — opener
+  TB @ NYY    Mason Englert           averages 10.5 outs a start — opener
+  CWS @ KC    Bryan Hudson            averages 3.4 outs a start — opener
+
+DECLINED — never filled with a league-average arm:
+  TOR @ BAL   None / None                             no probable posted (away, home) — set one with `-m src.context.probables`
+  WSH @ DET   Richard Lovelady / Framber Valdez       game is In Progress — never price a live one
+  TOR @ BAL   Max Scherzer / Chris Bassitt            game is In Progress — never price a live one
+
+outs corrected (2026-09-09); raw in note. K beats the OPEN only — bet early or not.
+Totals Jul/Aug ran ~0.15-0.20 light a side (unshipped month term); Sept unmeasured.
+Re-run after lineups post: a projected nine has cost half an edge before.
+
+wall clock: 256s total — 241s simulating, 10s fetching markets, 4s loading rates. RE-RUNNING IS CHEAP; do it when lineups post.

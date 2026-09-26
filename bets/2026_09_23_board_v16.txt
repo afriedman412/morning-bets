@@ -1,0 +1,25 @@
+BOARD — 2026-09-23 · 0 games · 20,000 sims · fair inside ±170 · odds are FAIR (no vig)
+
+DECLINED — never filled with a league-average arm:
+  WSH @ DET   Richard Lovelady / Framber Valdez       game is Final — never price a live one
+  TOR @ BAL   Max Scherzer / Chris Bassitt            game is Final — never price a live one
+  TOR @ BAL   CJ Van Eyk / Trey Gibson                game is Final — never price a live one
+  MIN @ SF    Connor Prielipp / Cesar Perdomo         game is Final — never price a live one
+  STL @ PIT   Matthew Liberatore / Lake Bachar        game is Final — never price a live one
+  MIL @ PHI   Logan Henderson / Aaron Nola            game is Final — never price a live one
+  TB @ NYY    Mason Englert / Gerrit Cole             game is Final — never price a live one
+  CLE @ BOS   Foster Griffin / Sonny Gray             game is Final — never price a live one
+  CIN @ ATL   Andrew Abbott / Chris Sale              game is Final — never price a live one
+  CWS @ KC    Bryan Hudson / Seth Lugo                game is Final — never price a live one
+  MIA @ CHC   Ryan Gusto / Kevin Gausman              game is Final — never price a live one
+  NYM @ TEX   Nolan McLean / Cody Bradford            game is Final — never price a live one
+  AZ @ COL    Merrill Kelly / Mason Adams             game is In Progress — never price a live one
+  LAA @ ATH   Walbert Ureña / Jeffrey Springs         game is In Progress — never price a live one
+  SD @ LAD    Robbie Ray / Yoshinobu Yamamoto         game is In Progress — never price a live one
+  HOU @ SEA   Ethan Pecko / George Kirby              game is In Progress — never price a live one
+
+outs corrected (2026-09-09); raw in note. K beats the OPEN only — bet early or not.
+Totals Jul/Aug ran ~0.15-0.20 light a side (unshipped month term); Sept unmeasured.
+Re-run after lineups post: a projected nine has cost half an edge before.
+
+wall clock: 6s total — 0s simulating, 1s fetching markets, 5s loading rates. RE-RUNNING IS CHEAP; do it when lineups post.

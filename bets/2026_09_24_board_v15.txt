@@ -1,0 +1,21 @@
+BOARD — 2026-09-24 · 0 games · 20,000 sims · fair inside ±170 · odds are FAIR (no vig)
+
+DECLINED — never filled with a league-average arm:
+  STL @ PIT   Kyle Leahy / Paul Skenes                game is Final — never price a live one
+  CWS @ KC    David Sandlin / Randy Dobnak            game is Final — never price a live one
+  MIA @ CHC   Tyler Phillips / Matthew Boyd           game is Final — never price a live one
+  NYM @ TEX   Zac Thornton / Kumar Rocker             game is Final — never price a live one
+  AZ @ COL    Eduardo Rodriguez / Tanner Gordon       game is Final — never price a live one
+  MIL @ PHI   Shane Drohan / Andrew Painter           game is Final — never price a live one
+  CLE @ BOS   Daniel Espino / Ranger Suarez           game is Final — never price a live one
+  TB @ NYY    Ian Seymour / Cam Schlittler            game is Final — never price a live one
+  CIN @ ATL   Brady Singer / Tyler Mahle              game is Final — never price a live one
+  HOU @ ATH   Peter Lambert / Mason Barnett           game is In Progress — never price a live one
+  LAA @ SEA   Grayson Rodriguez / Bryan Woo           game is In Progress — never price a live one
+  SD @ LAD    Nick Pivetta / Tyler Glasnow            game is In Progress — never price a live one
+
+outs corrected (2026-09-09); raw in note. K beats the OPEN only — bet early or not.
+Totals Jul/Aug ran ~0.15-0.20 light a side (unshipped month term); Sept unmeasured.
+Re-run after lineups post: a projected nine has cost half an edge before.
+
+wall clock: 6s total — 0s simulating, 1s fetching markets, 5s loading rates. RE-RUNNING IS CHEAP; do it when lineups post.

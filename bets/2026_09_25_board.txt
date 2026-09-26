@@ -1,0 +1,322 @@
+BOARD — 2026-09-25 · 12 games · 20,000 sims · fair inside ±170 · odds are FAIR (no vig)
+
+CHC @ BOS   Clay Holmes v Alec Gamboa   (PROJECTED lineups, mean 9.1)
+  bet                          over / under  kalshi
+  total 8                      -125 /  +125       -   [Clay Holmes: 48/196 appearances are starts — swingman]  [Alec Gamboa: only 2 start(s) on record]
+  total 8.5                    -105 /  +105       -   [Clay Holmes: 48/196 appearances are starts — swingman]  [Alec Gamboa: only 2 start(s) on record]
+  total 9                      +119 /  -119       -   [Clay Holmes: 48/196 appearances are starts — swingman]  [Alec Gamboa: only 2 start(s) on record]
+  CHC total 3.5                -145 /  +145       -   [Clay Holmes: 48/196 appearances are starts — swingman]  [Alec Gamboa: only 2 start(s) on record]
+  CHC total 4.5                +117 /  -117       -   [Clay Holmes: 48/196 appearances are starts — swingman]  [Alec Gamboa: only 2 start(s) on record]
+  BOS total 3.5                -130 /  +130       -   [Clay Holmes: 48/196 appearances are starts — swingman]  [Alec Gamboa: only 2 start(s) on record]
+  BOS total 4.5                +132 /  -132       -   [Clay Holmes: 48/196 appearances are starts — swingman]  [Alec Gamboa: only 2 start(s) on record]
+  F5 total 4.5                 +102 /  -102       -   [Clay Holmes: 48/196 appearances are starts — swingman]  [Alec Gamboa: only 2 start(s) on record]
+  F5 total 5.5                 +160 /  -160       -   [Clay Holmes: 48/196 appearances are starts — swingman]  [Alec Gamboa: only 2 start(s) on record]
+  Clay Holmes k 3.5            -110 /  +110       -   proj lineup  [48/196 appearances are starts — swingman]  
+  Clay Holmes outs 15.5        -114 /  +114       -   proj lineup  [48/196 appearances are starts — swingman]  raw -114
+  Clay Holmes outs 16.5        +110 /  -110       -   proj lineup  [48/196 appearances are starts — swingman]  raw +107
+
+CHC @ BOS   David Peterson v Brayan Bello   (PROJECTED lineups, mean 9.1)
+  bet                          over / under  kalshi
+  total 8                      -128 /  +128       -   
+  total 8.5                    -108 /  +108       -   
+  total 9                      +115 /  -115       -   
+  CHC total 3.5                -157 /  +157       -   
+  CHC total 4.5                +107 /  -107       -   
+  BOS total 3.5                -124 /  +124       -   
+  BOS total 4.5                +138 /  -138       -   
+  F5 total 4.5                 +101 /  -101       -   
+  F5 total 5.5                 +160 /  -160       -   
+  David Peterson k 3.5         -158 /  +158       -   proj lineup  
+  David Peterson k 4.5         +135 /  -135       -   proj lineup  
+  David Peterson outs 14.5     -183 /  +183       -   proj lineup  raw -159
+  David Peterson outs 15.5     +130 /  -130       -   proj lineup  raw +131
+  Brayan Bello k 3.5           -105 /  +105       -   proj lineup  
+  Brayan Bello outs 14.5       -147 /  +147       -   proj lineup  raw -129
+  Brayan Bello outs 15.5       +161 /  -161       -   proj lineup  raw +162
+
+BAL @ NYY   Trevor Rogers v Brendan Beck   (PROJECTED lineups, mean 8.5)
+  bet                          over / under  kalshi
+  total 7.5                    -114 /  +114       -   [Brendan Beck: only 1 start(s) on record]
+  total 8                      +102 /  -102       -   [Brendan Beck: only 1 start(s) on record]
+  total 8.5                    +119 /  -119       -   [Brendan Beck: only 1 start(s) on record]
+  BAL total 3.5                -135 /  +135       -   [Brendan Beck: only 1 start(s) on record]
+  BAL total 4.5                +126 /  -126       -   [Brendan Beck: only 1 start(s) on record]
+  NYY total 3.5                -102 /  +102       -   [Brendan Beck: only 1 start(s) on record]
+  F5 total 3.5                 -146 /  +146       -   [Brendan Beck: only 1 start(s) on record]
+  F5 total 4.5                 +118 /  -118       -   [Brendan Beck: only 1 start(s) on record]
+  Trevor Rogers k 5.5          +106 /  -106       -   proj lineup  
+  Trevor Rogers outs 15.5      -115 /  +115       -   proj lineup  raw -114
+  Trevor Rogers outs 16.5      +106 /  -106       -   proj lineup  raw +103
+  Brendan Beck k 3.5           -130 /  +130       -   proj lineup  THIN  [only 1 start(s) on record]  
+  Brendan Beck k 4.5           +157 /  -157       -   proj lineup  THIN  [only 1 start(s) on record]  
+
+PIT @ DET   Bubba Chandler v Jackson Jobe   (PROJECTED lineups, mean 9.5)
+  bet                          over / under  kalshi
+  total 8.5                    -122 /  +122    +127   vol $353  clv -1.0c
+  total 9                      +101 /  -101       -   
+  total 9.5                    +125 /  -125    +190   vol $24  clv -3.5c
+  PIT total 3.5                -156 /  +156    -120   vol $0
+  PIT total 4.5                +109 /  -109    +141   vol $8  clv -1.5c
+  DET total 3.5                -153 /  +153    -106   vol $22  clv -3.5c
+  DET total 4.5                +113 /  -113    +167   vol $138  clv -1.5c
+  F5 total 4.5                 -125 /  +125    +117   vol $4.7k  clv -0.0c
+  F5 total 5.5                 +126 /  -126    +186   vol $0
+  Bubba Chandler k 2.5         -368 /  +368    -488   proj lineup  off-band  vol $57  clv -3.0c
+  Bubba Chandler k 3.5         -163 /  +163    -203   proj lineup  vol $47  clv -4.0c
+  Bubba Chandler k 4.5         +130 /  -130    +106   proj lineup  vol $695  clv +2.5c
+  Bubba Chandler k 5.5         +270 /  -270    +245   proj lineup  off-band  vol $460  clv -4.0c
+  Bubba Chandler k 6.5         +569 /  -569    +506   proj lineup  off-band  vol $13  clv -2.5c
+  Bubba Chandler k 7.5        +1263 / -1263   +1329   proj lineup  off-band  vol $8
+  Bubba Chandler outs 14.5     -161 /  +161       -   proj lineup  raw -141
+  Bubba Chandler outs 15.5     +152 /  -152    +122   proj lineup  raw +152  vol $2
+  Jackson Jobe k 2.5           -751 /  +751    -770   proj lineup  THIN  off-band  vol $0
+  Jackson Jobe k 3.5           -326 /  +326    -317   proj lineup  THIN  off-band  vol $187  clv -3.0c
+  Jackson Jobe k 4.5           -158 /  +158    -150   proj lineup  THIN  vol $2.0k  clv +0.0c
+  Jackson Jobe k 5.5           +124 /  -124    +125   proj lineup  THIN  vol $2.9k  clv +2.5c
+  Jackson Jobe k 6.5           +243 /  -243    +285   proj lineup  THIN  off-band  vol $393  clv +0.0c
+  Jackson Jobe k 7.5           +489 /  -489    +590   proj lineup  THIN  off-band  vol $661  clv -0.5c
+  Jackson Jobe k 8.5          +1034 / -1034   +1718   proj lineup  THIN  off-band  vol $249  clv -3.5c
+  Jackson Jobe outs 15.5       +128 /  -128    +130   proj lineup  THIN  raw +128  vol $0
+  Jackson Jobe outs 16.5       +163 /  -163       -   proj lineup  THIN  raw +158
+
+TB @ PHI   Freddy Peralta v Cristopher Sánchez   (PROJECTED lineups, mean 8.7)
+  bet                          over / under  kalshi
+  total 7.5                    -124 /  +124    +153   vol $68  clv +1.5c
+  total 8                      -106 /  +106       -   
+  total 8.5                    +111 /  -111    +217   vol $0  clv -3.5c
+  TB total 3.5                 -107 /  +107    +167   vol $0
+  TB total 4.5                 +158 /  -158    +292   vol $0
+  PHI total 3.5                -146 /  +146    +102   vol $0
+  PHI total 4.5                +121 /  -121    +182   vol $0
+  F5 total 3.5                 -142 /  +142    +115   vol $6.7k  clv -1.5c
+  F5 total 4.5                 +118 /  -118    +182   vol $0
+  Freddy Peralta k 2.5         -543 /  +543    -441   proj lineup  off-band  vol $0
+  Freddy Peralta k 3.5         -230 /  +230    -174   proj lineup  off-band  vol $0
+  Freddy Peralta k 4.5         -105 /  +105    +135   proj lineup  vol $3  clv -2.5c
+  Freddy Peralta k 5.5         +199 /  -199    +292   proj lineup  off-band  vol $2  clv -2.5c
+  Freddy Peralta k 6.5         +412 /  -412    +669   proj lineup  off-band  vol $2  clv -1.0c
+  Freddy Peralta outs 14.5     -292 /  +292    -102   proj lineup  raw -248  off-band  vol $1
+  Freddy Peralta outs 15.5     -116 /  +116       -   proj lineup  raw -116
+  Freddy Peralta outs 16.5     +107 /  -107       -   proj lineup  raw +103
+  Cristopher Sánchez k 2.5     -901 /  +901   -1233   proj lineup  off-band  vol $0
+  Cristopher Sánchez k 3.5     -358 /  +358    -614   proj lineup  off-band  vol $0
+  Cristopher Sánchez k 4.5     -164 /  +164    -264   proj lineup  vol $1
+  Cristopher Sánchez k 5.5     +124 /  -124    -130   proj lineup  vol $18  clv +1.5c
+  Cristopher Sánchez k 6.5     +249 /  -249    +153   proj lineup  off-band  vol $1
+  Cristopher Sánchez k 7.5     +510 /  -510    +300   proj lineup  off-band  vol $1
+  Cristopher Sánchez k 8.5    +1093 / -1093    +733   proj lineup  off-band  vol $0
+  Cristopher Sánchez outs 17.5   -163 /  +163       -   proj lineup  raw -169
+  Cristopher Sánchez outs 18.5   +188 /  -188    -115   proj lineup  raw +162  vol $1.0k  clv -2.5c
+
+CLE @ KC   Gavin Williams v Noah Cameron   (PROJECTED lineups, mean 8.1)
+  bet                          over / under  kalshi
+  total 7                      -131 /  +131       -   
+  total 7.5                    -101 /  +101    +102   vol $16k  clv -1.5c
+  total 8                      +118 /  -118       -   
+  CLE total 3.5                -117 /  +117    -133   vol $0
+  CLE total 4.5                +145 /  -145    +130   vol $0
+  KC total 3.5                 +104 /  -104    +113   vol $0
+  F5 total 3.5                 -120 /  +120    -122   vol $1.4k  clv +0.0c
+  F5 total 4.5                 +140 /  -140    +133   vol $0
+  Gavin Williams k 3.5         -598 /  +598    -852   proj lineup  off-band  vol $51  clv -0.5c
+  Gavin Williams k 4.5         -284 /  +284    -456   proj lineup  off-band  vol $383  clv +0.0c
+  Gavin Williams k 5.5         -142 /  +142    -217   proj lineup  vol $287  clv -0.5c
+  Gavin Williams k 6.5         +135 /  -135    -115   proj lineup  vol $846  clv -1.5c
+  Gavin Williams k 7.5         +256 /  -256    +178   proj lineup  off-band  vol $117  clv -1.0c
+  Gavin Williams k 8.5         +499 /  -499    +355   proj lineup  off-band  vol $4
+  Gavin Williams k 9.5        +1018 / -1018    +770   proj lineup  off-band  vol $72  clv -3.5c
+  Gavin Williams outs 16.5     -131 /  +131       -   proj lineup  raw -135
+  Gavin Williams outs 17.5     -102 /  +102    -102   proj lineup  raw -105  vol $66  clv +5.5c
+  Noah Cameron k 2.5           -255 /  +255    -400   proj lineup  off-band  vol $5
+  Noah Cameron k 3.5           -108 /  +108    -153   proj lineup  vol $32  clv -2.5c
+  Noah Cameron k 4.5           +202 /  -202    +141   proj lineup  off-band  vol $68  clv -1.5c
+  Noah Cameron k 5.5           +442 /  -442    +308   proj lineup  off-band  vol $1
+  Noah Cameron k 6.5          +1009 / -1009    +700   proj lineup  off-band  vol $44  clv +1.5c
+  Noah Cameron outs 16.5       -114 /  +114       -   proj lineup  raw -118
+  Noah Cameron outs 17.5       +113 /  -113    -135   proj lineup  raw +109  vol $0
+
+COL @ CWS   Tomoyuki Sugano v Sean Burke   (PROJECTED lineups, mean 8.8)
+  bet                          over / under  kalshi
+  total 8                      -115 /  +115       -   
+  total 8.5                    +103 /  -103    +120   vol $7.9k  clv -2.5c
+  total 9                      +132 /  -132       -   
+  COL total 3.5                +101 /  -101    +133   vol $0
+  CWS total 3.5                -169 /  +169    -174   vol $37  clv -2.5c
+  CWS total 4.5                +104 /  -104    -104   vol $348  clv -2.0c
+  F5 total 4.5                 -100 /  +100    +115   vol $5.5k  clv -3.5c
+  F5 total 5.5                 +160 /  -160    +178   vol $0
+  Tomoyuki Sugano k 2.5        -305 /  +305    -251   proj lineup  off-band  vol $1
+  Tomoyuki Sugano k 3.5        -129 /  +129    +100   proj lineup  vol $1
+  Tomoyuki Sugano k 4.5        +170 /  -170    +228   proj lineup  vol $1
+  Tomoyuki Sugano k 5.5        +364 /  -364    +525   proj lineup  off-band  vol $1
+  Tomoyuki Sugano outs 14.5    -249 /  +249    -122   proj lineup  raw -214  off-band  vol $24
+  Tomoyuki Sugano outs 15.5    -104 /  +104       -   proj lineup  raw -104
+  Tomoyuki Sugano outs 16.5    +122 /  -122       -   proj lineup  raw +118
+  Sean Burke k 2.5            -1118 / +1118   -1329   proj lineup  off-band  vol $0
+  Sean Burke k 3.5             -475 /  +475    -641   proj lineup  off-band  vol $0
+  Sean Burke k 4.5             -228 /  +228    -292   proj lineup  off-band  vol $0
+  Sean Burke k 5.5             -114 /  +114    -153   proj lineup  vol $1
+  Sean Burke k 6.5             +168 /  -168    +135   proj lineup  vol $1
+  Sean Burke k 7.5             +319 /  -319    +285   proj lineup  off-band  vol $0
+  Sean Burke k 8.5             +667 /  -667    +614   proj lineup  off-band  vol $0
+  Sean Burke outs 15.5         -120 /  +120       -   proj lineup  raw -120
+  Sean Burke outs 16.5         +103 /  -103    -104   proj lineup  raw -100  vol $0
+
+STL @ MIL   Michael McGreevy v Robert Gasser   (PROJECTED lineups, mean 8.8)
+  bet                          over / under  kalshi
+  total 7.5                    -131 /  +131    -111   vol $4.9k  clv -2.5c
+  total 8                      -113 /  +113       -   
+  total 8.5                    +104 /  -104    +122   vol $557  clv +0.0c
+  STL total 3.5                -105 /  +105    +113   vol $0
+  STL total 4.5                +160 /  -160    +199   vol $0
+  MIL total 3.5                -160 /  +160    -156   vol $0
+  MIL total 4.5                +109 /  -109    +113   vol $247  clv -3.0c
+  F5 total 4.5                 -104 /  +104    +111   vol $165  clv -1.5c
+  F5 total 5.5                 +156 /  -156    +178   vol $0
+  Michael McGreevy k 2.5       -389 /  +389    -239   proj lineup  off-band  vol $1
+  Michael McGreevy k 3.5       -168 /  +168    -104   proj lineup  vol $1
+  Michael McGreevy k 4.5       +128 /  -128    +212   proj lineup  vol $6
+  Michael McGreevy k 5.5       +266 /  -266    +488   proj lineup  off-band  vol $1
+  Michael McGreevy k 6.5       +557 /  -557   +1076   proj lineup  off-band  vol $0
+  Michael McGreevy outs 14.5   -214 /  +214    -133   proj lineup  raw -186  off-band  vol $22
+  Michael McGreevy outs 15.5   +113 /  -113       -   proj lineup  raw +113
+  Michael McGreevy outs 16.5   +143 /  -143       -   proj lineup  raw +139
+  Robert Gasser k 2.5         -1194 / +1194    -669   proj lineup  off-band  vol $0
+  Robert Gasser k 3.5          -542 /  +542    -257   proj lineup  off-band  vol $33  clv +2.0c
+  Robert Gasser k 4.5          -266 /  +266    -135   proj lineup  off-band  vol $139  clv +4.5c
+  Robert Gasser k 5.5          -132 /  +132    +153   proj lineup  vol $681  clv +7.5c
+  Robert Gasser k 6.5          +145 /  -145    +335   proj lineup  vol $0
+  Robert Gasser k 7.5          +279 /  -279    +733   proj lineup  off-band  vol $1
+  Robert Gasser outs 15.5      -112 /  +112    +135   proj lineup  raw -112  vol $129  clv +3.5c
+  Robert Gasser outs 16.5      +110 /  -110       -   proj lineup  raw +107
+
+TEX @ MIN   Jacob deGrom v Joe Ryan   (PROJECTED lineups, mean 8.6)
+  bet                          over / under  kalshi
+  total 7.5                    -124 /  +124    +102   vol $2.7k  clv -1.5c
+  total 8                      -105 /  +105       -   
+  total 8.5                    +113 /  -113    +135   vol $0
+  TEX total 3.5                -125 /  +125    -115   vol $0
+  TEX total 4.5                +134 /  -134    +147   vol $0
+  MIN total 3.5                -123 /  +123    -102   vol $200  clv -0.5c
+  MIN total 4.5                +142 /  -142    +170   vol $0
+  F5 total 3.5                 -143 /  +143    -127   vol $0
+  F5 total 4.5                 +119 /  -119    +138   vol $850  clv -4.0c
+  Jacob deGrom k 3.5           -518 /  +518    -700   proj lineup  off-band  vol $0
+  Jacob deGrom k 4.5           -243 /  +243    -308   proj lineup  off-band  vol $0
+  Jacob deGrom k 5.5           -121 /  +121    -147   proj lineup  vol $1
+  Jacob deGrom k 6.5           +159 /  -159    +125   proj lineup  vol $9  clv +1.5c
+  Jacob deGrom k 7.5           +304 /  -304    +264   proj lineup  off-band  vol $0
+  Jacob deGrom k 8.5           +605 /  -605    +567   proj lineup  off-band  vol $0
+  Jacob deGrom k 9.5          +1281 / -1281   +1233   proj lineup  off-band  vol $0
+  Jacob deGrom outs 15.5       -147 /  +147    +122   proj lineup  raw -147  vol $744  clv -0.0c
+  Jacob deGrom outs 16.5       -119 /  +119       -   proj lineup  raw -123
+  Jacob deGrom outs 17.5       +111 /  -111       -   proj lineup  raw +107
+  Joe Ryan k 3.5               -651 /  +651    -567   proj lineup  off-band  vol $0
+  Joe Ryan k 4.5               -313 /  +313    -270   proj lineup  off-band  vol $0
+  Joe Ryan k 5.5               -158 /  +158    -135   proj lineup  vol $1
+  Joe Ryan k 6.5               +120 /  -120    +147   proj lineup  vol $57  clv +1.5c
+  Joe Ryan k 7.5               +228 /  -228    +317   proj lineup  off-band  vol $2  clv -4.0c
+  Joe Ryan k 8.5               +441 /  -441    +590   proj lineup  off-band  vol $3  clv -1.5c
+  Joe Ryan outs 15.5           -145 /  +145    +104   proj lineup  raw -144  vol $109  clv -4.0c
+  Joe Ryan outs 16.5           -117 /  +117       -   proj lineup  raw -121
+  Joe Ryan outs 17.5           +110 /  -110       -   proj lineup  raw +106
+
+HOU @ ATH   Hunter Brown v Jacob Lopez   (PROJECTED lineups, mean 9.4)
+  bet                          over / under  kalshi
+  total 8.5                    -121 /  +121    -102   vol $1.1k  clv -1.5c
+  total 9                      +102 /  -102       -   
+  total 9.5                    +126 /  -126    +150   vol $1.4k  clv -1.0c
+  HOU total 4.5                -114 /  +114    -111   vol $308  clv -0.5c
+  HOU total 5.5                +144 /  -144    +147   vol $0
+  ATH total 3.5                -121 /  +121    +108   vol $0
+  ATH total 4.5                +143 /  -143    +190   vol $0
+  F5 total 4.5                 -117 /  +117    +104   vol $520  clv -2.0c
+  F5 total 5.5                 +135 /  -135    +163   vol $0
+  Hunter Brown k 2.5           -701 /  +701   -1011   proj lineup  off-band  vol $0
+  Hunter Brown k 3.5           -308 /  +308    -441   proj lineup  off-band  vol $1
+  Hunter Brown k 4.5           -145 /  +145    -217   proj lineup  vol $1
+  Hunter Brown k 5.5           +136 /  -136    -106   proj lineup  vol $5  clv -3.5c
+  Hunter Brown k 6.5           +271 /  -271    +194   proj lineup  off-band  vol $2  clv -5.0c
+  Hunter Brown k 7.5           +552 /  -552    +400   proj lineup  off-band  vol $1
+  Hunter Brown k 8.5          +1201 / -1201    +852   proj lineup  off-band  vol $1
+  Hunter Brown outs 15.5       +104 /  -104       -   proj lineup  raw +104
+  Hunter Brown outs 16.5       +129 /  -129       -   proj lineup  raw +124
+  Hunter Brown outs 17.5       +170 /  -170    +106   proj lineup  raw +163  vol $0
+  Jacob Lopez k 2.5            -310 /  +310    -471   proj lineup  off-band  vol $0
+  Jacob Lopez k 3.5            -134 /  +134    -199   proj lineup  vol $1
+  Jacob Lopez k 4.5            +160 /  -160    +108   proj lineup  vol $1.4k  clv +0.0c
+  Jacob Lopez k 5.5            +341 /  -341    +233   proj lineup  off-band  vol $1
+  Jacob Lopez k 6.5            +762 /  -762    +545   proj lineup  off-band  vol $1
+  Jacob Lopez k 7.5           +1896 / -1896   +1011   proj lineup  off-band  vol $0
+  Jacob Lopez outs 14.5        -186 /  +186       -   proj lineup  raw -162
+  Jacob Lopez outs 15.5        +133 /  -133       -   proj lineup  raw +133
+
+LAA @ SEA   Reid Detmers v Bryce Miller   (PROJECTED lineups, mean 6.9)
+  bet                          over / under  kalshi
+  total 6.5                    +101 /  -101    -111   vol $7.3k  clv -2.5c
+  total 7                      +135 /  -135       -   
+  total 7.5                    +168 /  -168    +153   vol $67  clv -1.5c
+  LAA total 2.5                -134 /  +134    -141   vol $0
+  LAA total 3.5                +140 /  -140    +133   vol $0
+  SEA total 2.5                -149 /  +149    -174   vol $0
+  SEA total 3.5                +128 /  -128    +115   vol $0
+  F5 total 3.5                 +113 /  -113    -108   vol $24  clv +1.0c
+  Reid Detmers k 3.5          -1122 / +1122    -953   proj lineup  off-band  vol $0
+  Reid Detmers k 4.5           -507 /  +507    -426   proj lineup  off-band  vol $0
+  Reid Detmers k 5.5           -247 /  +247    -217   proj lineup  off-band  vol $0
+  Reid Detmers k 6.5           -129 /  +129    -115   proj lineup  vol $1
+  Reid Detmers k 7.5           +144 /  -144    +170   proj lineup  vol $0
+  Reid Detmers k 8.5           +271 /  -271    +355   proj lineup  off-band  vol $0
+  Reid Detmers k 9.5           +526 /  -526    +770   proj lineup  off-band  vol $0
+  Reid Detmers outs 16.5       -162 /  +162       -   proj lineup  raw -167
+  Reid Detmers outs 17.5       -124 /  +124       -   proj lineup  raw -129
+  Bryce Miller k 3.5           -840 /  +840    -700   proj lineup  off-band  vol $0
+  Bryce Miller k 4.5           -389 /  +389    -326   proj lineup  off-band  vol $0
+  Bryce Miller k 5.5           -195 /  +195    -167   proj lineup  off-band  vol $0
+  Bryce Miller k 6.5           -102 /  +102    +127   proj lineup  vol $278  clv +2.0c
+  Bryce Miller k 7.5           +186 /  -186    +264   proj lineup  off-band  vol $0
+  Bryce Miller k 8.5           +352 /  -352    +506   proj lineup  off-band  vol $0
+  Bryce Miller k 9.5           +706 /  -706   +1329   proj lineup  off-band  vol $0
+  Bryce Miller outs 16.5       -103 /  +103       -   proj lineup  raw -106
+  Bryce Miller outs 17.5       +127 /  -127       -   proj lineup  raw +123
+
+LAD @ SF   Tarik Skubal v Yunior Marte   (PROJECTED lineups, mean 7.7)
+  bet                          over / under  kalshi
+  total 6.5                    -137 /  +137    -135   [Yunior Marte: only 2 start(s) on record]  vol $1.3k  clv -1.5c
+  total 7                      -109 /  +109       -   [Yunior Marte: only 2 start(s) on record]
+  total 7.5                    +117 /  -117    +111   [Yunior Marte: only 2 start(s) on record]  vol $884  clv +2.5c
+  LAD total 3.5                -150 /  +150    -199   [Yunior Marte: only 2 start(s) on record]  vol $0
+  LAD total 4.5                +114 /  -114    -117   [Yunior Marte: only 2 start(s) on record]  vol $0
+  SF total 2.5                 -105 /  +105    +141   [Yunior Marte: only 2 start(s) on record]  vol $114  clv -1.5c
+  F5 total 3.5                 -106 /  +106    -113   [Yunior Marte: only 2 start(s) on record]  vol $43  clv +0.0c
+  F5 total 4.5                 +160 /  -160    +153   [Yunior Marte: only 2 start(s) on record]  vol $0
+  Tarik Skubal k 3.5           -886 /  +886   -1011   proj lineup  off-band  vol $0
+  Tarik Skubal k 4.5           -408 /  +408    -614   proj lineup  off-band  vol $1
+  Tarik Skubal k 5.5           -203 /  +203    -251   proj lineup  off-band  vol $1
+  Tarik Skubal k 6.5           -106 /  +106    -138   proj lineup  vol $58  clv +3.0c
+  Tarik Skubal k 7.5           +179 /  -179    +122   proj lineup  off-band  vol $2.1k  clv +4.0c
+  Tarik Skubal k 8.5           +343 /  -343    +270   proj lineup  off-band  vol $106  clv +5.0c
+  Tarik Skubal k 9.5           +670 /  -670    +506   proj lineup  off-band  vol $90  clv -4.5c
+  Tarik Skubal outs 17.5       -163 /  +163    -147   proj lineup  raw -170  vol $0
+  Yunior Marte k 3.5           +120 /  -120       -   proj lineup  THIN  [only 2 start(s) on record]  
+  Yunior Marte outs 14.5       -168 /  +168       -   proj lineup  THIN  [only 2 start(s) on record]  raw -147
+  Yunior Marte outs 15.5       +139 /  -139       -   proj lineup  THIN  [only 2 start(s) on record]  raw +139
+
+ARMS FLAGGED — priced, but not a normal starter's line:
+  CHC @ BOS   Clay Holmes             48/196 appearances are starts — swingman
+  CHC @ BOS   Alec Gamboa             only 2 start(s) on record
+  BAL @ NYY   Brendan Beck            only 1 start(s) on record
+  LAD @ SF    Yunior Marte            only 2 start(s) on record
+
+DECLINED — never filled with a league-average arm:
+  BAL @ NYY   Brandon Young / None                    no probable posted (home) — set one with `-m src.context.probables`
+  NYM @ WSH   None / Andrew Alvarez                   no probable posted (away) — set one with `-m src.context.probables`
+  CIN @ TOR   Nick Lodolo / None                      no probable posted (home) — set one with `-m src.context.probables`
+  ATL @ MIA   None / Eury Pérez                       no probable posted (away) — set one with `-m src.context.probables`
+  AZ @ SD     Brandon Pfaadt / None                   no probable posted (home) — set one with `-m src.context.probables`
+
+outs corrected (2026-09-09); raw in note. K beats the OPEN only — bet early or not.
+Totals Jul/Aug ran ~0.15-0.20 light a side (unshipped month term); Sept unmeasured.
+Re-run after lineups post: a projected nine has cost half an edge before.
+
+wall clock: 196s total — 184s simulating, 8s fetching markets, 5s loading rates. RE-RUNNING IS CHEAP; do it when lineups post.

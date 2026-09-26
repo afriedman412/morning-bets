@@ -1,0 +1,42 @@
+BOARD — 2026-09-22 · 1 games · 20,000 sims · fair inside ±170 · odds are FAIR (no vig)
+
+TOR @ BAL   Max Scherzer v Chris Bassitt   (PROJECTED lineups, mean 9.3)
+  bet                          over / under  kalshi
+  total 8.5                    -117 /  +117    +147   vol $5.7k  clv -1.5c
+  total 9                      +106 /  -106       -   
+  total 9.5                    +130 /  -130    +228   vol $529  clv +0.5c
+  TOR total 3.5                -132 /  +132    +100   vol $259  clv -1.0c
+  TOR total 4.5                +127 /  -127    +174   vol $3  clv -0.5c
+  BAL total 4.5                +101 /  -101    +163   vol $1.4k  clv +1.0c
+  F5 total 4.5                 -129 /  +129    +125   vol $6.7k  clv -2.5c
+  F5 total 5.5                 +126 /  -126    +186   vol $640  clv +5.0c
+  Max Scherzer k 3.5           -156 /  +156       -   proj lineup  
+  Max Scherzer k 4.5           +132 /  -132       -   proj lineup  
+  Max Scherzer outs 13.5       -153 /  +153       -   proj lineup  raw -138
+  Max Scherzer outs 14.5       -119 /  +119       -   proj lineup  raw -105
+  Chris Bassitt k 3.5          +139 /  -139       -   proj lineup  
+  Chris Bassitt outs 15.5      +124 /  -124       -   proj lineup  raw +124
+  Chris Bassitt outs 16.5      +156 /  -156       -   proj lineup  raw +150
+
+DECLINED — never filled with a league-average arm:
+  TB @ NYY    Nick Martinez / Carlos Rodón            game is Final — never price a live one
+  TB @ NYY    Drew Rasmussen / Max Fried              game is Final — never price a live one
+  WSH @ DET   Riley Cornelio / Drew Anderson          game is Final — never price a live one
+  STL @ PIT   Andre Pallante / Jared Jones            game is Final — never price a live one
+  MIL @ PHI   Dustin May / Zack Wheeler               game is Final — never price a live one
+  CLE @ BOS   Parker Messick / Payton Tolle           game is Final — never price a live one
+  CIN @ ATL   Brandon Williamson / JR Ritchie         game is Final — never price a live one
+  CWS @ KC    Anthony Kay / Daniel Lynch IV           game is Final — never price a live one
+  MIA @ CHC   Janson Junk / Shota Imanaga             game is In Progress — never price a live one
+  NYM @ TEX   Sean Manaea / MacKenzie Gore            game is Game Over — never price a live one
+  AZ @ COL    Michael Soroka / Kyle Freeland          game is In Progress — never price a live one
+  LAA @ ATH   Yusei Kikuchi / Brady Basso             game is In Progress — never price a live one
+  HOU @ SEA   Cristian Javier / Logan Gilbert         game is In Progress — never price a live one
+  MIN @ SF    Taj Bradley / Anthony Molina            game is In Progress — never price a live one
+  SD @ LAD    Michael King / Brock Stewart            game is In Progress — never price a live one
+
+outs corrected (2026-09-09); raw in note. K beats the OPEN only — bet early or not.
+Totals Jul/Aug ran ~0.15-0.20 light a side (unshipped month term); Sept unmeasured.
+Re-run after lineups post: a projected nine has cost half an edge before.
+
+wall clock: 88s total — 80s simulating, 3s fetching markets, 5s loading rates. RE-RUNNING IS CHEAP; do it when lineups post.

@@ -1,0 +1,108 @@
+BOARD — 2026-09-24 · 3 games · 20,000 sims · fair inside ±170 · odds are FAIR (no vig)
+
+HOU @ ATH   Peter Lambert v Mason Barnett   (lineups posted, mean 10.2)
+  bet                          over / under  kalshi
+  total 9.5                    -105 /  +105    -153   [Mason Barnett: 10/24 appearances are starts — swingman]  vol $8.6k  clv -0.5c
+  total 10                     +110 /  -110       -   [Mason Barnett: 10/24 appearances are starts — swingman]
+  total 10.5                   +126 /  -126    -120   [Mason Barnett: 10/24 appearances are starts — swingman]  vol $90k  clv +0.5c
+  HOU total 4.5                -122 /  +122    -190   [Mason Barnett: 10/24 appearances are starts — swingman]  vol $2.7k  clv -0.5c
+  HOU total 5.5                +133 /  -133    -127   [Mason Barnett: 10/24 appearances are starts — swingman]  vol $9.2k  clv +2.0c
+  ATH total 4.5                -102 /  +102    +102   [Mason Barnett: 10/24 appearances are starts — swingman]  vol $2
+  ATH total 5.5                +164 /  -164    +170   [Mason Barnett: 10/24 appearances are starts — swingman]  vol $52
+  F5 total 5.5                 +100 /  -100    -117   [Mason Barnett: 10/24 appearances are starts — swingman]  vol $6.8k  clv +1.0c
+  F5 total 6.5                 +155 /  -155    +135   [Mason Barnett: 10/24 appearances are starts — swingman]  vol $247  clv -0.5c
+  Peter Lambert k 2.5          -401 /  +401    -456   off-band  vol $168  clv -1.0c
+  Peter Lambert k 3.5          -173 /  +173    -170   off-band  vol $59  clv -4.0c
+  Peter Lambert k 4.5          +126 /  -126    +130   vol $999  clv -4.5c
+  Peter Lambert k 5.5          +270 /  -270    +292   off-band  vol $700  clv -4.5c
+  Peter Lambert k 6.5          +584 /  -584    +614   off-band  vol $219  clv -2.0c
+  Peter Lambert k 7.5         +1356 / -1356   +1567   off-band  vol $635  clv -0.0c
+  Peter Lambert outs 16.5      -106 /  +106    +122   raw -110  vol $1.2k  clv -0.0c
+  Peter Lambert outs 17.5      +123 /  -123       -   raw +119
+  Mason Barnett k 2.5          -322 /  +322    -223   [10/24 appearances are starts — swingman]  off-band  vol $2.1k  clv +0.0c
+  Mason Barnett k 3.5          -140 /  +140    +102   [10/24 appearances are starts — swingman]  vol $316  clv -1.5c
+  Mason Barnett k 4.5          +156 /  -156    +217   [10/24 appearances are starts — swingman]  vol $140  clv -1.5c
+  Mason Barnett k 5.5          +327 /  -327    +471   [10/24 appearances are starts — swingman]  off-band  vol $2  clv -0.5c
+  Mason Barnett k 6.5          +694 /  -694   +1438   [10/24 appearances are starts — swingman]  off-band  vol $1.5k  clv -0.5c
+  Mason Barnett outs 13.5      -229 /  +229    -122   [10/24 appearances are starts — swingman]  raw -205  off-band  vol $11  clv +7.0c
+  Mason Barnett outs 14.5      -170 /  +170       -   [10/24 appearances are starts — swingman]  raw -149
+  Mason Barnett outs 15.5      +143 /  -143       -   [10/24 appearances are starts — swingman]  raw +144
+
+LAA @ SEA   Grayson Rodriguez v Bryan Woo   (lineups posted, mean 7.0)
+  bet                          over / under  kalshi
+  total 6.5                    -104 /  +104    -125   vol $16k  clv -2.5c
+  total 7                      +126 /  -126       -   
+  total 7.5                    +158 /  -158    +130   vol $10k  clv -2.5c
+  LAA total 2.5                +107 /  -107    -111   vol $1.1k  clv -0.5c
+  SEA total 3.5                -116 /  +116    -125   vol $715  clv +0.5c
+  SEA total 4.5                +154 /  -154    +147   vol $475  clv -2.5c
+  F5 total 3.5                 +101 /  -101    -111   vol $7.7k  clv -3.5c
+  Grayson Rodriguez k 2.5      -418 /  +418    -700   off-band  vol $5  clv -1.5c
+  Grayson Rodriguez k 3.5      -188 /  +188    -300   off-band  vol $2  clv +3.0c
+  Grayson Rodriguez k 4.5      +110 /  -110    -135   vol $13k  clv +5.5c
+  Grayson Rodriguez k 5.5      +226 /  -226    +156   off-band  vol $974  clv +5.0c
+  Grayson Rodriguez k 6.5      +471 /  -471    +335   off-band  vol $677  clv +3.0c
+  Grayson Rodriguez k 7.5     +1042 / -1042    +770   off-band  vol $116  clv +1.5c
+  Grayson Rodriguez k 8.5     +2458 / -2458   +1718   off-band  vol $151  clv -0.5c
+  Grayson Rodriguez outs 14.5   -154 /  +154       -   raw -135
+  Grayson Rodriguez outs 15.5   +161 /  -161       -   raw +162
+  Grayson Rodriguez outs 16.5   +207 /  -207    -106   raw +199  off-band  vol $259  clv +1.5c
+  Bryan Woo k 3.5             -1446 / +1446   -1567   off-band  vol $185  clv -1.0c
+  Bryan Woo k 4.5              -654 /  +654    -590   off-band  vol $53  clv -0.5c
+  Bryan Woo k 5.5              -327 /  +327    -277   off-band  vol $29  clv +0.5c
+  Bryan Woo k 6.5              -169 /  +169    -147   vol $3.4k  clv +7.5c
+  Bryan Woo k 7.5              +111 /  -111    +125   vol $17k  clv +4.5c
+  Bryan Woo k 8.5              +207 /  -207    +264   off-band  vol $860  clv +1.5c
+  Bryan Woo k 9.5              +398 /  -398    +545   off-band  vol $760  clv -0.5c
+  Bryan Woo outs 18.5          +206 /  -206    +167   raw +177  off-band  vol $192  clv +2.5c
+
+SD @ LAD   Nick Pivetta v Tyler Glasnow   (lineups posted, mean 9.0)
+  bet                          over / under  kalshi
+  total 8                      -123 /  +123       -   
+  total 8.5                    -103 /  +103    +130   vol $12k  clv +3.5c
+  total 9                      +123 /  -123       -   
+  SD total 3.5                 -104 /  +104    +115   vol $375  clv -0.5c
+  SD total 4.5                 +167 /  -167    +199   vol $15  clv +1.5c
+  LAD total 4.5                -103 /  +103    +125   vol $2.1k  clv -1.5c
+  LAD total 5.5                +165 /  -165    +212   vol $391  clv +26.0c
+  F5 total 4.5                 +103 /  -103    +125   vol $27k  clv +7.5c
+  F5 total 5.5                 +163 /  -163    +203   vol $29  clv +7.0c
+  Nick Pivetta k 2.5           -825 /  +825    -506   THIN  off-band  vol $90  clv +1.5c
+  Nick Pivetta k 3.5           -354 /  +354    -212   THIN  off-band  vol $89  clv +1.0c
+  Nick Pivetta k 4.5           -171 /  +171    +102   THIN  off-band  vol $434  clv +1.5c
+  Nick Pivetta k 5.5           +113 /  -113    +223   THIN  vol $426  clv +0.0c
+  Nick Pivetta k 6.5           +221 /  -221    +471   THIN  off-band  vol $5  clv -3.5c
+  Nick Pivetta k 7.5           +438 /  -438   +1150   THIN  off-band  vol $38  clv -0.0c
+  Nick Pivetta k 8.5           +881 /  -881   +2757   THIN  off-band  vol $10  clv +0.5c
+  Nick Pivetta outs 14.5       -198 /  +198    +135   THIN  raw -172  off-band  vol $4.2k  clv -12.5c
+  Nick Pivetta outs 15.5       +127 /  -127       -   THIN  raw +127
+  Nick Pivetta outs 16.5       +159 /  -159       -   THIN  raw +154
+  Tyler Glasnow k 3.5         -1032 / +1032   -1076   off-band  vol $547  clv -0.5c
+  Tyler Glasnow k 4.5          -471 /  +471    -567   off-band  vol $201  clv +2.0c
+  Tyler Glasnow k 5.5          -238 /  +238    -251   off-band  vol $325  clv +1.5c
+  Tyler Glasnow k 6.5          -126 /  +126    -130   vol $2.0k  clv +2.5c
+  Tyler Glasnow k 7.5          +144 /  -144    +141   vol $1.2k  clv +2.5c
+  Tyler Glasnow k 8.5          +263 /  -263    +277   off-band  vol $1.3k  clv +1.5c
+  Tyler Glasnow k 9.5          +498 /  -498    +545   off-band  vol $154  clv +0.5c
+  Tyler Glasnow outs 16.5      -121 /  +121       -   raw -125
+  Tyler Glasnow outs 17.5      +107 /  -107    -111   raw +103  vol $524  clv -4.5c
+
+ARMS FLAGGED — priced, but not a normal starter's line:
+  HOU @ ATH   Mason Barnett           10/24 appearances are starts — swingman
+
+DECLINED — never filled with a league-average arm:
+  STL @ PIT   Kyle Leahy / Paul Skenes                game is Final — never price a live one
+  CWS @ KC    David Sandlin / Randy Dobnak            game is Final — never price a live one
+  MIA @ CHC   Tyler Phillips / Matthew Boyd           game is Final — never price a live one
+  NYM @ TEX   Zac Thornton / Kumar Rocker             game is Final — never price a live one
+  AZ @ COL    Eduardo Rodriguez / Tanner Gordon       game is Final — never price a live one
+  MIL @ PHI   Shane Drohan / Andrew Painter           game is Player challenge — never price a live one
+  CLE @ BOS   Daniel Espino / Ranger Suarez           game is In Progress — never price a live one
+  TB @ NYY    Ian Seymour / Cam Schlittler            game is In Progress — never price a live one
+  CIN @ ATL   Brady Singer / Tyler Mahle              game is In Progress — never price a live one
+
+outs corrected (2026-09-09); raw in note. K beats the OPEN only — bet early or not.
+Totals Jul/Aug ran ~0.15-0.20 light a side (unshipped month term); Sept unmeasured.
+Re-run after lineups post: a projected nine has cost half an edge before.
+
+wall clock: 52s total — 45s simulating, 3s fetching markets, 4s loading rates. RE-RUNNING IS CHEAP; do it when lineups post.

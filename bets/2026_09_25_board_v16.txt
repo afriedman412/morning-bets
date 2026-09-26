@@ -1,0 +1,79 @@
+BOARD — 2026-09-25 · 2 games · 20,000 sims · fair inside ±170 · odds are FAIR (no vig)
+
+LAA @ SEA   Reid Detmers v Bryce Miller   (lineups posted, mean 7.0)
+  bet                          over / under  kalshi
+  total 6.5                    -103 /  +103    -106   vol $121k  clv -3.5c
+  total 7                      +129 /  -129       -   
+  total 7.5                    +161 /  -161    +153   vol $19k  clv -1.5c
+  LAA total 2.5                -137 /  +137    -144   vol $73
+  LAA total 3.5                +135 /  -135    +127   vol $404  clv -1.0c
+  SEA total 2.5                -157 /  +157    -156   vol $0
+  SEA total 3.5                +125 /  -125    +130   vol $735  clv -2.5c
+  F5 total 3.5                 +103 /  -103    +106   vol $55k  clv -2.5c
+  Reid Detmers k 3.5           -786 /  +786    -809   off-band  vol $66  clv -3.0c
+  Reid Detmers k 4.5           -359 /  +359    -388   off-band  vol $1.7k  clv -2.5c
+  Reid Detmers k 5.5           -178 /  +178    -182   off-band  vol $535  clv -4.5c
+  Reid Detmers k 6.5           +108 /  -108    +106   vol $6.4k  clv -4.5c
+  Reid Detmers k 7.5           +207 /  -207    +212   off-band  vol $674  clv -5.0c
+  Reid Detmers k 8.5           +403 /  -403    +456   off-band  vol $56  clv -2.0c
+  Reid Detmers k 9.5           +835 /  -835   +1076   off-band  vol $273  clv -1.5c
+  Reid Detmers outs 16.5       -174 /  +174    -104   raw -180  off-band  vol $3.6k  clv -3.0c
+  Reid Detmers outs 17.5       -133 /  +133       -   raw -138
+  Bryce Miller k 3.5           -773 /  +773    -700   off-band  vol $2
+  Bryce Miller k 4.5           -361 /  +361    -317   off-band  vol $6  clv -2.0c
+  Bryce Miller k 5.5           -186 /  +186    -147   off-band  vol $831  clv -0.5c
+  Bryce Miller k 6.5           +101 /  -101    +127   vol $2.1k  clv +2.0c
+  Bryce Miller k 7.5           +193 /  -193    +264   off-band  vol $328  clv -1.5c
+  Bryce Miller k 8.5           +369 /  -369    +525   off-band  vol $189  clv -2.0c
+  Bryce Miller k 9.5           +745 /  -745   +1329   off-band  vol $521  clv -3.0c
+  Bryce Miller outs 15.5       -134 /  +134    +100   raw -134  vol $297  clv -3.0c
+  Bryce Miller outs 16.5       -108 /  +108       -   raw -112
+  Bryce Miller outs 17.5       +119 /  -119       -   raw +115
+
+LAD @ SF   Tarik Skubal v Yunior Marte   (lineups posted, mean 7.4)
+  bet                          over / under  kalshi
+  total 6.5                    -120 /  +120    -160   [Yunior Marte: only 2 start(s) on record]  vol $9.8k  clv +2.5c
+  total 7                      +106 /  -106       -   [Yunior Marte: only 2 start(s) on record]
+  total 7.5                    +134 /  -134    -111   [Yunior Marte: only 2 start(s) on record]  vol $219k  clv +7.5c
+  LAD total 3.5                -160 /  +160    -217   [Yunior Marte: only 2 start(s) on record]  vol $5.2k  clv +0.5c
+  LAD total 4.5                +108 /  -108    -130   [Yunior Marte: only 2 start(s) on record]  vol $21k  clv +1.5c
+  SF total 2.5                 +131 /  -131    +115   [Yunior Marte: only 2 start(s) on record]  vol $14k  clv +3.5c
+  F5 total 3.5                 +103 /  -103    -141   [Yunior Marte: only 2 start(s) on record]  vol $6.6k  clv +5.5c
+  Tarik Skubal k 3.5          -1665 / +1665   -1233   off-band  vol $305  clv -2.5c
+  Tarik Skubal k 4.5           -798 /  +798    -669   off-band  vol $884  clv +4.0c
+  Tarik Skubal k 5.5           -402 /  +402    -308   off-band  vol $1.3k  clv +5.5c
+  Tarik Skubal k 6.5           -212 /  +212    -147   off-band  vol $3.7k  clv +4.5c
+  Tarik Skubal k 7.5           -115 /  +115    +130   vol $9.3k  clv +2.5c
+  Tarik Skubal k 8.5           +160 /  -160    +239   vol $691  clv +7.5c
+  Tarik Skubal k 9.5           +294 /  -294    +488   off-band  vol $4.5k  clv -4.0c
+  Tarik Skubal outs 17.5       -180 /  +180    -127   raw -188  off-band  vol $7.2k  clv +2.0c
+  Tarik Skubal outs 18.5       +193 /  -193       -   raw +167
+  Yunior Marte k 3.5           +113 /  -113       -   THIN  [only 2 start(s) on record]  
+  Yunior Marte outs 14.5       -170 /  +170       -   THIN  [only 2 start(s) on record]  raw -148
+  Yunior Marte outs 15.5       +140 /  -140       -   THIN  [only 2 start(s) on record]  raw +140
+
+ARMS FLAGGED — priced, but not a normal starter's line:
+  LAD @ SF    Yunior Marte            only 2 start(s) on record
+
+DECLINED — never filled with a league-average arm:
+  CHC @ BOS   Clay Holmes / Alec Gamboa               game is Final — never price a live one
+  CHC @ BOS   David Peterson / Brayan Bello           game is Final — never price a live one
+  BAL @ NYY   Trevor Rogers / Brendan Beck            game is Final — never price a live one
+  BAL @ NYY   Brandon Young / Ryan Yarbrough          game is In Progress — never price a live one
+  PIT @ DET   Bubba Chandler / Jackson Jobe           game is Final — never price a live one
+  TB @ PHI    Freddy Peralta / Cristopher Sánchez     game is Final — never price a live one
+  NYM @ WSH   Jefry Yan / Andrew Alvarez              game is Final — never price a live one
+  CIN @ TOR   Nick Lodolo / José Soriano              game is Final — never price a live one
+  ATL @ MIA   Ray Kerr / Eury Pérez                   game is Final — never price a live one
+  CLE @ KC    Gavin Williams / Noah Cameron           game is In Progress — never price a live one
+  COL @ CWS   Tomoyuki Sugano / Sean Burke            game is In Progress — never price a live one
+  STL @ MIL   Michael McGreevy / Robert Gasser        game is In Progress — never price a live one
+  TEX @ MIN   Jacob deGrom / Joe Ryan                 game is In Progress — never price a live one
+  HOU @ ATH   Hunter Brown / Jacob Lopez              game is In Progress — never price a live one
+  AZ @ SD     Brandon Pfaadt / Casey Mize             game is In Progress — never price a live one
+
+outs corrected (2026-09-09); raw in note. K beats the OPEN only — bet early or not.
+Totals Jul/Aug ran ~0.15-0.20 light a side (unshipped month term); Sept unmeasured.
+Re-run after lineups post: a projected nine has cost half an edge before.
+
+wall clock: 35s total — 29s simulating, 2s fetching markets, 4s loading rates. RE-RUNNING IS CHEAP; do it when lineups post.

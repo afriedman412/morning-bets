@@ -1,0 +1,199 @@
+BOARD — 2026-09-22 · 7 games · 20,000 sims · fair inside ±170 · odds are FAIR (no vig)
+
+NYM @ TEX   Sean Manaea v MacKenzie Gore   (lineups posted, mean 8.7)
+  bet                          over / under  kalshi
+  total 7.5                    -127 /  +127    -141   vol $112k  clv +6.5c
+  total 8                      -109 /  +109       -   
+  total 8.5                    +109 /  -109    +102   vol $130k  clv +4.5c
+  NYM total 3.5                -135 /  +135    -127   vol $1.5k  clv +2.0c
+  NYM total 4.5                +126 /  -126    +138   vol $1.5k  clv +7.0c
+  TEX total 3.5                -121 /  +121    -144   vol $6.7k  clv +2.0c
+  TEX total 4.5                +146 /  -146    +125   vol $955  clv +0.5c
+  F5 total 4.5                 +100 /  -100    -113   vol $73k  clv -1.0c
+  F5 total 5.5                 +161 /  -161    +156   vol $1.5k  clv +3.0c
+  Sean Manaea k 2.5            -613 /  +613    -545   off-band  vol $5  clv +1.5c
+  Sean Manaea k 3.5            -269 /  +269    -228   off-band  vol $336  clv +0.5c
+  Sean Manaea k 4.5            -130 /  +130    -104   vol $3.7k  clv +5.0c
+  Sean Manaea k 5.5            +157 /  -157    +194   vol $1.1k  clv +3.0c
+  Sean Manaea k 6.5            +320 /  -320    +456   off-band  vol $420  clv +0.0c
+  Sean Manaea k 7.5            +664 /  -664   +1076   off-band  vol $472  clv -1.5c
+  Sean Manaea outs 15.5        -112 /  +112       -   raw -112
+  Sean Manaea outs 16.5        +112 /  -112       -   raw +108
+  MacKenzie Gore k 2.5         -487 /  +487    -400   off-band  vol $97  clv +3.0c
+  MacKenzie Gore k 3.5         -215 /  +215    -178   off-band  vol $2.9k  clv +7.0c
+  MacKenzie Gore k 4.5         -103 /  +103    +120   vol $12k  clv +5.5c
+  MacKenzie Gore k 5.5         +200 /  -200    +292   off-band  vol $5.3k  clv +1.5c
+  MacKenzie Gore k 6.5         +412 /  -412    +641   off-band  vol $1.3k  clv +1.5c
+  MacKenzie Gore k 7.5         +888 /  -888   +1718   off-band  vol $1.4k  clv -0.5c
+  MacKenzie Gore outs 15.5     +103 /  -103       -   raw +103
+  MacKenzie Gore outs 16.5     +128 /  -128       -   raw +124
+
+AZ @ COL   Michael Soroka v Kyle Freeland   (lineups posted, mean 10.5)
+  bet                          over / under  kalshi
+  total 9.5                    -117 /  +117    -153   vol $5.7k  clv -0.5c
+  total 10                     -101 /  +101       -   
+  total 10.5                   +115 /  -115    -115   vol $43k  clv -1.5c
+  AZ total 4.5                 -153 /  +153    -212   vol $401  clv -2.0c
+  AZ total 5.5                 +104 /  -104    -138   vol $8.9k  clv -2.0c
+  COL total 3.5                -153 /  +153    -153   vol $5.1k  clv -1.5c
+  COL total 4.5                +114 /  -114    +111   vol $5.8k  clv -2.5c
+  F5 total 4.5                 -143 /  +143    -190   vol $6.5k  clv +0.5c
+  F5 total 5.5                 +109 /  -109    -115   vol $2.4k  clv -2.5c
+  Michael Soroka k 2.5         -885 /  +885    -441   off-band  vol $201  clv +3.5c
+  Michael Soroka k 3.5         -381 /  +381    -203   off-band  vol $928  clv +1.0c
+  Michael Soroka k 4.5         -180 /  +180    +113   off-band  vol $1.3k  clv +2.0c
+  Michael Soroka k 5.5         +110 /  -110    +264   vol $217  clv +0.5c
+  Michael Soroka k 6.5         +218 /  -218    +590   off-band  vol $303  clv -0.5c
+  Michael Soroka k 7.5         +448 /  -448   +1567   off-band  vol $317  clv -0.0c
+  Michael Soroka outs 14.5     -286 /  +286    -130   raw -243  off-band  vol $3.7k  clv -7.5c
+  Michael Soroka outs 15.5     -112 /  +112       -   raw -112
+  Michael Soroka outs 16.5     +111 /  -111       -   raw +107
+  Kyle Freeland k 2.5          -150 /  +150    -113   vol $10k  clv +5.0c
+  Kyle Freeland k 3.5          +159 /  -159    +239   vol $3.2k  clv +3.5c
+  Kyle Freeland k 4.5          +368 /  -368    +545   off-band  vol $1.6k  clv -8.5c
+  Kyle Freeland k 5.5          +894 /  -894   +1567   off-band  vol $51  clv +1.0c
+  Kyle Freeland outs 12.5      -274 /  +274    +108   raw -253  off-band  vol $4.3k  clv -6.0c
+  Kyle Freeland outs 14.5      -179 /  +179       -   raw -157
+  Kyle Freeland outs 15.5      +129 /  -129       -   raw +130
+
+LAA @ ATH   Yusei Kikuchi v Brady Basso   (lineups posted, mean 8.2)
+  bet                          over / under  kalshi
+  total 7.5                    -105 /  +105    -208   [Brady Basso: averages 9.5 outs a start — opener]  vol $1.4k  clv +0.5c
+  total 8                      +112 /  -112       -   [Brady Basso: averages 9.5 outs a start — opener]
+  total 8.5                    +131 /  -131    -147   [Brady Basso: averages 9.5 outs a start — opener]  vol $3.8k  clv +0.5c
+  LAA total 3.5                +100 /  -100    -167   [Brady Basso: averages 9.5 outs a start — opener]  vol $458  clv -2.5c
+  ATH total 3.5                -125 /  +125    -167   [Brady Basso: averages 9.5 outs a start — opener]  vol $37  clv -1.5c
+  ATH total 4.5                +141 /  -141    +102   [Brady Basso: averages 9.5 outs a start — opener]  vol $2.1k  clv -0.5c
+  F5 total 3.5                 -150 /  +150    -251   [Brady Basso: averages 9.5 outs a start — opener]  vol $134  clv -1.5c
+  F5 total 4.5                 +113 /  -113    -147   [Brady Basso: averages 9.5 outs a start — opener]  vol $39  clv +2.5c
+  Yusei Kikuchi k 2.5          -546 /  +546    -770   off-band  vol $4
+  Yusei Kikuchi k 3.5          -243 /  +243    -317   off-band  vol $147  clv +0.0c
+  Yusei Kikuchi k 4.5          -119 /  +119    -147   vol $230  clv -0.5c
+  Yusei Kikuchi k 5.5          +168 /  -168    +144   vol $11k  clv -1.0c
+  Yusei Kikuchi k 6.5          +335 /  -335    +264   off-band  vol $152  clv +4.5c
+  Yusei Kikuchi k 7.5          +679 /  -679    +567   off-band  vol $2  clv -1.0c
+  Yusei Kikuchi k 8.5         +1508 / -1508   +1567   off-band  vol $0
+  Yusei Kikuchi outs 14.5      -180 /  +180       -   raw -157
+  Yusei Kikuchi outs 15.5      +139 /  -139    +138   raw +140  vol $2.6k  clv -4.0c
+  Brady Basso k 2.5            +101 /  -101    -190   THIN  [averages 9.5 outs a start — opener]  vol $1.2k  clv +2.5c
+  Brady Basso k 3.5            +214 /  -214    +120   THIN  [averages 9.5 outs a start — opener]  off-band  vol $5.7k  clv +2.5c
+  Brady Basso k 4.5            +441 /  -441    +292   THIN  [averages 9.5 outs a start — opener]  off-band  vol $188  clv +1.5c
+  Brady Basso k 5.5            +898 /  -898    +641   THIN  [averages 9.5 outs a start — opener]  off-band  vol $672  clv +1.5c
+  Brady Basso k 6.5           +1882 / -1882   +1718   THIN  [averages 9.5 outs a start — opener]  off-band  vol $14  clv -0.5c
+
+HOU @ SEA   Cristian Javier v Logan Gilbert   (lineups posted, mean 8.2)
+  bet                          over / under  kalshi
+  total 7.5                    -107 /  +107    +120   vol $58k  clv -6.5c
+  total 8                      +112 /  -112       -   
+  total 8.5                    +131 /  -131    +160   vol $1.5k  clv -2.5c
+  HOU total 3.5                +109 /  -109    +115   vol $233  clv -0.5c
+  SEA total 3.5                -137 /  +137    -111   vol $527  clv -1.5c
+  SEA total 4.5                +127 /  -127    +167   vol $0
+  F5 total 3.5                 -150 /  +150    -125   vol $96  clv -1.5c
+  F5 total 4.5                 +114 /  -114    +141   vol $239  clv -11.5c
+  Cristian Javier k 2.5        -536 /  +536    -525   off-band  vol $12k  clv +1.0c
+  Cristian Javier k 3.5        -232 /  +232    -208   off-band  vol $63  clv +1.5c
+  Cristian Javier k 4.5        -110 /  +110    +111   vol $4.2k  clv +0.5c
+  Cristian Javier k 5.5        +186 /  -186    +223   off-band  vol $667  clv +1.0c
+  Cristian Javier k 6.5        +386 /  -386    +471   off-band  vol $644  clv +0.5c
+  Cristian Javier k 7.5        +825 /  -825   +1329   off-band  vol $1.5k  clv -2.0c
+  Cristian Javier outs 14.5    -185 /  +185    -133   raw -161  vol $83  clv +5.0c
+  Cristian Javier outs 15.5    +132 /  -132       -   raw +133
+  Logan Gilbert k 2.5         -2261 / +2261   -1329   off-band  vol $564  clv -3.0c
+  Logan Gilbert k 3.5          -925 /  +925    -700   off-band  vol $59  clv +0.5c
+  Logan Gilbert k 4.5          -417 /  +417    -326   off-band  vol $433  clv -0.5c
+  Logan Gilbert k 5.5          -203 /  +203    -153   off-band  vol $1.5k  clv +0.5c
+  Logan Gilbert k 6.5          -105 /  +105    +125   vol $22k  clv +2.5c
+  Logan Gilbert k 7.5          +177 /  -177    +264   off-band  vol $217  clv -0.5c
+  Logan Gilbert k 8.5          +335 /  -335    +567   off-band  vol $11  clv +0.0c
+  Logan Gilbert k 9.5          +671 /  -671   +1233   off-band  vol $415  clv -1.5c
+  Logan Gilbert outs 16.5      -163 /  +163       -   raw -168
+  Logan Gilbert outs 17.5      -128 /  +128       -   raw -133
+  Logan Gilbert outs 18.5      +266 /  -266    +190   raw +225  off-band  vol $3.2k  clv +0.5c
+
+MIN @ SF   Taj Bradley v Anthony Molina   (lineups posted, mean 7.3)
+  bet                          over / under  kalshi
+  total 6.5                    -119 /  +119    -141   [Anthony Molina: 6/60 appearances are starts — swingman]  vol $6.8k  clv -4.5c
+  total 7                      +109 /  -109       -   [Anthony Molina: 6/60 appearances are starts — swingman]
+  total 7.5                    +139 /  -139    +120   [Anthony Molina: 6/60 appearances are starts — swingman]  vol $66k  clv -3.5c
+  MIN total 3.5                -106 /  +106    -115   [Anthony Molina: 6/60 appearances are starts — swingman]  vol $138  clv -2.5c
+  MIN total 4.5                +165 /  -165    +147   [Anthony Molina: 6/60 appearances are starts — swingman]  vol $114  clv -2.5c
+  SF total 2.5                 -128 /  +128    -147   [Anthony Molina: 6/60 appearances are starts — swingman]  vol $25  clv -4.5c
+  SF total 3.5                 +150 /  -150    +130   [Anthony Molina: 6/60 appearances are starts — swingman]  vol $506  clv -2.5c
+  F5 total 3.5                 -101 /  +101    -130   [Anthony Molina: 6/60 appearances are starts — swingman]  vol $459  clv -0.5c
+  Taj Bradley k 3.5           -1194 / +1194    -809   off-band  vol $389  clv +1.0c
+  Taj Bradley k 4.5            -554 /  +554    -376   off-band  vol $3.0k  clv +1.0c
+  Taj Bradley k 5.5            -273 /  +273    -174   off-band  vol $6.8k  clv +0.5c
+  Taj Bradley k 6.5            -142 /  +142    +111   vol $19k  clv +3.5c
+  Taj Bradley k 7.5            +133 /  -133    +223   vol $2.8k  clv +1.0c
+  Taj Bradley k 8.5            +245 /  -245    +441   off-band  vol $2.3k  clv +1.5c
+  Taj Bradley k 9.5            +470 /  -470    +852   off-band  vol $2.2k  clv +1.5c
+  Taj Bradley outs 16.5        -138 /  +138       -   raw -143
+  Taj Bradley outs 17.5        -108 /  +108       -   raw -112
+  Anthony Molina k 2.5         -402 /  +402    -326   THIN  [6/60 appearances are starts — swingman]  off-band  vol $1.2k  clv +4.5c
+  Anthony Molina k 3.5         -174 /  +174    -141   THIN  [6/60 appearances are starts — swingman]  off-band  vol $9.0k  clv +5.5c
+  Anthony Molina k 4.5         +125 /  -125    +170   THIN  [6/60 appearances are starts — swingman]  vol $1.9k  clv +2.0c
+  Anthony Molina k 5.5         +265 /  -265    +376   THIN  [6/60 appearances are starts — swingman]  off-band  vol $1.0k  clv +1.0c
+  Anthony Molina k 6.5         +567 /  -567    +852   THIN  [6/60 appearances are starts — swingman]  off-band  vol $463  clv +2.5c
+  Anthony Molina outs 16.5     -104 /  +104       -   THIN  [6/60 appearances are starts — swingman]  raw -108
+  Anthony Molina outs 17.5     +123 /  -123       -   THIN  [6/60 appearances are starts — swingman]  raw +119
+
+SD @ LAD   Michael King v Brock Stewart   (lineups posted, mean 9.3)
+  bet                          over / under  kalshi
+  total 8.5                    -117 /  +117    +102   [Brock Stewart: only 0 start(s) on record]  vol $50k  clv -0.5c
+  total 9                      +105 /  -105       -   [Brock Stewart: only 0 start(s) on record]
+  total 9.5                    +128 /  -128    +160   [Brock Stewart: only 0 start(s) on record]  vol $4.0k  clv +3.5c
+  SD total 3.5                 -125 /  +125    -122   [Brock Stewart: only 0 start(s) on record]  vol $2.6k  clv -1.0c
+  SD total 4.5                 +138 /  -138    +141   [Brock Stewart: only 0 start(s) on record]  vol $916  clv -1.5c
+  LAD total 4.5                -101 /  +101    +127   [Brock Stewart: only 0 start(s) on record]  vol $286  clv -8.0c
+  LAD total 5.5                +163 /  -163    +213   [Brock Stewart: only 0 start(s) on record]  vol $16  clv -1.0c
+  F5 total 4.5                 -114 /  +114    -102   [Brock Stewart: only 0 start(s) on record]  vol $604  clv -7.5c
+  F5 total 5.5                 +139 /  -139    +163   [Brock Stewart: only 0 start(s) on record]  vol $8
+  Michael King k 2.5           -420 /  +420    -426   off-band  vol $886  clv -3.0c
+  Michael King k 3.5           -176 /  +176    -178   off-band  vol $2.6k  clv -2.0c
+  Michael King k 4.5           +123 /  -123    +127   vol $3.7k  clv -2.0c
+  Michael King k 5.5           +259 /  -259    +270   off-band  vol $512  clv -1.0c
+  Michael King k 6.5           +559 /  -559    +590   off-band  vol $263  clv -1.5c
+  Michael King k 7.5          +1240 / -1240   +1233   off-band  vol $333  clv +0.5c
+  Michael King outs 15.5       -108 /  +108       -   raw -107
+  Michael King outs 16.5       +117 /  -117    +156   raw +113  vol $4.1k  clv -8.0c
+
+TOR @ BAL   Max Scherzer v Chris Bassitt   (PROJECTED lineups, mean 9.3)
+  bet                          over / under  kalshi
+  total 8.5                    -117 /  +117    +153   vol $5.6k  clv -2.5c
+  total 9                      +106 /  -106       -   
+  total 9.5                    +130 /  -130    +228   vol $529  clv +0.5c
+  TOR total 3.5                -132 /  +132    +104   vol $249  clv -2.0c
+  TOR total 4.5                +127 /  -127    +182   vol $3  clv -1.5c
+  BAL total 4.5                +101 /  -101    +170   vol $1.4k  clv +0.0c
+  F5 total 4.5                 -129 /  +129    +127   vol $6.6k  clv -3.0c
+  F5 total 5.5                 +126 /  -126       -   
+  Max Scherzer k 3.5           -156 /  +156       -   proj lineup  
+  Max Scherzer k 4.5           +132 /  -132       -   proj lineup  
+  Max Scherzer outs 13.5       -153 /  +153       -   proj lineup  raw -138
+  Max Scherzer outs 14.5       -119 /  +119       -   proj lineup  raw -105
+  Chris Bassitt k 3.5          +139 /  -139       -   proj lineup  
+  Chris Bassitt outs 15.5      +124 /  -124       -   proj lineup  raw +124
+  Chris Bassitt outs 16.5      +156 /  -156       -   proj lineup  raw +150
+
+ARMS FLAGGED — priced, but not a normal starter's line:
+  LAA @ ATH   Brady Basso             averages 9.5 outs a start — opener
+  MIN @ SF    Anthony Molina          6/60 appearances are starts — swingman
+  SD @ LAD    Brock Stewart           only 0 start(s) on record
+
+DECLINED — never filled with a league-average arm:
+  TB @ NYY    Nick Martinez / Carlos Rodón            game is Final — never price a live one
+  TB @ NYY    Drew Rasmussen / Max Fried              game is In Progress — never price a live one
+  WSH @ DET   Riley Cornelio / Drew Anderson          game is In Progress — never price a live one
+  STL @ PIT   Andre Pallante / Jared Jones            game is In Progress — never price a live one
+  MIL @ PHI   Dustin May / Zack Wheeler               game is In Progress — never price a live one
+  CLE @ BOS   Parker Messick / Payton Tolle           game is In Progress — never price a live one
+  CIN @ ATL   Brandon Williamson / JR Ritchie         game is In Progress — never price a live one
+  CWS @ KC    Anthony Kay / Daniel Lynch IV           game is In Progress — never price a live one
+  MIA @ CHC   Janson Junk / Shota Imanaga             game is In Progress — never price a live one
+
+outs corrected (2026-09-09); raw in note. K beats the OPEN only — bet early or not.
+Totals Jul/Aug ran ~0.15-0.20 light a side (unshipped month term); Sept unmeasured.
+Re-run after lineups post: a projected nine has cost half an edge before.
+
+wall clock: 115s total — 106s simulating, 4s fetching markets, 5s loading rates. RE-RUNNING IS CHEAP; do it when lineups post.

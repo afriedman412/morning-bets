@@ -1,0 +1,26 @@
+BOARD — 2026-09-25 · 0 games · 20,000 sims · fair inside ±170 · odds are FAIR (no vig)
+
+DECLINED — never filled with a league-average arm:
+  CHC @ BOS   Clay Holmes / Alec Gamboa               game is Final — never price a live one
+  CHC @ BOS   David Peterson / Brayan Bello           game is Final — never price a live one
+  BAL @ NYY   Trevor Rogers / Brendan Beck            game is Final — never price a live one
+  BAL @ NYY   Brandon Young / Ryan Yarbrough          game is Final — never price a live one
+  PIT @ DET   Bubba Chandler / Jackson Jobe           game is Final — never price a live one
+  TB @ PHI    Freddy Peralta / Cristopher Sánchez     game is Final — never price a live one
+  NYM @ WSH   Jefry Yan / Andrew Alvarez              game is Final — never price a live one
+  CIN @ TOR   Nick Lodolo / José Soriano              game is Final — never price a live one
+  ATL @ MIA   Ray Kerr / Eury Pérez                   game is Final — never price a live one
+  CLE @ KC    Gavin Williams / Noah Cameron           game is In Progress — never price a live one
+  COL @ CWS   Tomoyuki Sugano / Sean Burke            game is Final — never price a live one
+  STL @ MIL   Michael McGreevy / Robert Gasser        game is Final — never price a live one
+  TEX @ MIN   Jacob deGrom / Joe Ryan                 game is Final — never price a live one
+  HOU @ ATH   Hunter Brown / Jacob Lopez              game is In Progress — never price a live one
+  AZ @ SD     Brandon Pfaadt / Casey Mize             game is In Progress — never price a live one
+  LAA @ SEA   Reid Detmers / Bryce Miller             game is In Progress — never price a live one
+  LAD @ SF    Tarik Skubal / Yunior Marte             game is In Progress — never price a live one
+
+outs corrected (2026-09-09); raw in note. K beats the OPEN only — bet early or not.
+Totals Jul/Aug ran ~0.15-0.20 light a side (unshipped month term); Sept unmeasured.
+Re-run after lineups post: a projected nine has cost half an edge before.
+
+wall clock: 5s total — 0s simulating, 1s fetching markets, 4s loading rates. RE-RUNNING IS CHEAP; do it when lineups post.
