@@ -2092,6 +2092,14 @@ RULE 15 DIFF against `battery_f8aeaf4f7a95.json`: **no row moved by more
 than one se.** Purely additive, which is the claim a row reading existing
 draws has to prove.
 
+A WART WORTH KNOWING, found doing it: the saved JSON is named by the
+ENGINE fingerprint, and adding a SCORECARD row does not change the
+engine — so the before and after runs collided on one filename and the
+second landed as `..._dup.json`. That is not a duplicate, it is a
+different scorecard over the same engine, and the repo already has a
+commit dropping a file that arrived this way. The 972-row version is
+the one kept.
+
 AND THE FIRST READING IS THE FINDING:
 
 ```
